@@ -55,7 +55,43 @@ flowchart LR
 The benefits that a loop such as this could provide would be rather large, for example, instead of diagnosing the acute cause of a failure or looking through SCADA level logs,
 operators could simply ask an AI agent what was causing the issue, and eventually for common cause failures, AI could step in and resolve the issues automatically.
 
+# Possible Implementation Methods
+
+## Use Native Beckhoff Events & Wrap to Implement OTLP Standard
+
+### Advantages
+- Events can be streamed through the shell making online PLC debugging possible.
+- Already has json properties and clear documentation.
+
+### Disadvantages
+- Strict limits on message size (8kB)
+- Not actually OTLP, will still require a lot of work.
+- Does not support GRPC as PLC's don't implement HTTP2.
+
+
+## Implement OLTP from Scratch Using Structured Text
+
+### Advantages
+- Will provide full control over how we implement the spec.
+- Will give an opportunity to maximize ergonomics. 
+
+### Disadvantages
+- Does not support GRPC as PLC's don't implement HTTP2.
+
+
+## Run an OTLP Collector on Host to Scrape From Files
+
+### Advantages
+- Will require very little programming.
+- PLC logs won't necessarily have to be fully OTLP compliant, reducing the amount of PLC code.
+- Can reduce bandwidth by sending data to central server via gRPC.
+
+### Disadvantages
+- Most likely will not work on legacy windows hosts.
+- Could be tricky to debug as now multiple systems are involved.
+
 # Development Environment Setup
 1. Install Beckhoff Package Manager
 2. Install the XAE Programming Environment
 3. Install TcUnit inside of said environment
+4. TODO: Finish this.
