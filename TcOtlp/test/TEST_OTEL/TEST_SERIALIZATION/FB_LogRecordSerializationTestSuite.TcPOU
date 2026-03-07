@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LogRecordSerializationTestSuite" Id="{ac0b5546-4665-42a2-912c-e215d5228926}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordSerializationTestSuite EXTENDS FB_TestSuite
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.TestJsonSerialization();]]></ST>
+    </Implementation>
+    <Method Name="TestJsonSerialization" Id="{3d144320-2b9d-4286-8011-5747b16f51c5}">
+      <Declaration><![CDATA[METHOD TestJsonSerialization : REFERENCE TO FB_Test
+VAR
+	jsonDoc: FB_JsonDynDomParser;
+	logRecord: ST_OtlpLogRecord;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test Can Build Json Doc');
+
+logRecord.eventName := 'Test Event';
+jsonDoc := F_OtlpLogRecordToJson(logRecord);
+
+TcUnit.TEST_FINISHED();
+]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

@@ -18,32 +18,43 @@
     <LibraryReferences>{36850826-8245-4c80-9f42-1033f8f434df}</LibraryReferences>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="DUTs\OtlpKeyValue.TcDUT">
+    <Compile Include="MAIN.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="DUTs\OtlpLog.TcDUT">
+    <Compile Include="OTEL\ENUMS\E_OtlpSeverity.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="DUTs\OtlpResource.TcDUT">
+    <Compile Include="OTEL\FUNCTIONS\F_OtlpLogRecordToJson.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\STRUCTS\ST_OtlpInstrumentationScope.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\STRUCTS\ST_OtlpKeyValue.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\STRUCTS\ST_OtlpLogRecord.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\STRUCTS\ST_OtlpResource.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="PlcTask.TcTTO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="POUs\FBs\FB_TestProtobuf.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\MAIN.TcPOU">
+    <Compile Include="TEST_OTEL\TEST_SERIALIZATION\FB_LogRecordSerializationTestSuite.TcPOU">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="DUTs" />
-    <Folder Include="GVLs" />
-    <Folder Include="POUs\Fs" />
-    <Folder Include="POUs\FBs" />
-    <Folder Include="VISUs" />
-    <Folder Include="POUs" />
+    <Folder Include="OTEL\FUNCTIONS" />
+    <Folder Include="TEST_OTEL" />
+    <Folder Include="OTEL" />
+    <Folder Include="OTEL\ENUMS" />
+    <Folder Include="OTEL\STRUCTS" />
+    <Folder Include="TEST_OTEL\TEST_EXPORTING" />
+    <Folder Include="TEST_OTEL\TEST_PROCESSING" />
+    <Folder Include="TEST_OTEL\TEST_SERIALIZATION" />
   </ItemGroup>
   <ItemGroup>
     <PlaceholderReference Include="Tc2_Standard">
@@ -53,6 +64,10 @@
     <PlaceholderReference Include="Tc2_System">
       <DefaultResolution>Tc2_System, * (Beckhoff Automation GmbH)</DefaultResolution>
       <Namespace>Tc2_System</Namespace>
+    </PlaceholderReference>
+    <PlaceholderReference Include="Tc3_JsonXml">
+      <DefaultResolution>Tc3_JsonXml, * (Beckhoff Automation GmbH)</DefaultResolution>
+      <Namespace>Tc3_JsonXml</Namespace>
     </PlaceholderReference>
     <PlaceholderReference Include="Tc3_Module">
       <DefaultResolution>Tc3_Module, * (Beckhoff Automation GmbH)</DefaultResolution>

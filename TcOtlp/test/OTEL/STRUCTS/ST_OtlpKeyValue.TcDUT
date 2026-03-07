@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <DUT Name="OtlpKeyValue" Id="{444f4750-1574-4eea-a4eb-3d0067d89280}">
-    <Declaration><![CDATA[TYPE OtlpKeyValue :
+  <DUT Name="ST_OtlpKeyValue" Id="{444f4750-1574-4eea-a4eb-3d0067d89280}">
+    <Declaration><![CDATA[TYPE ST_OtlpKeyValue :
 STRUCT
 	key: STRING;
 	value: ANY;

@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_OtlpLogRecord" Id="{00e78667-8b0d-40e5-a93f-8763ca04dc17}">
+    <Declaration><![CDATA[TYPE ST_OtlpLogRecord :
+STRUCT
+	// see OTLP Log and Event Record Definition documentation for more info
+	// timestamp: ULINT; redundent, same as observed timestamp
+	observedTimestamp: ULINT;
+	
+	// TRACE CONTEXT FIELDS
+	// traceId: T_MaxString; will implement at a later date
+	// spanId: T_MaxString; will implement at a later date
+	// traceFlag: BYTE; will implement at a later date
+	
+	// SEVERITY FIELDS
+	// severityText: STRING(10); will implement at a later date
+	severityNumber: E_OtlpSeverity;
+	
+	body: T_MaxString;  // should probably covert to a bigger string for json
+	resource: ST_OtlpResource;
+	// instrumentationScope: ST_OtlpInstrumentationScope; will implement at a later date
+	// attributes: AnyType will implement at a later date
+	// errorsAndExceptions: will implement at a later date
+	eventName: STRING(30);
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

@@ -3,7 +3,7 @@
   <POU Name="MAIN" Id="{1fa3e08a-8235-40d5-a330-62ab1eea7a52}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM MAIN
 VAR
-	test_suite: FB_TestProtobuf();
+	logRecordSerializationTestSuite: FB_LogRecordSerializationTestSuite();
 END_VAR
 ]]></Declaration>
     <Implementation>

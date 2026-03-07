@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="F_OtlpLogRecordToJson" Id="{23e21a37-505a-438e-9d4e-849d21068846}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION F_OtlpLogRecordToJson : FB_JsonDynDomParser
+VAR_INPUT
+	logRecord: ST_OtlpLogRecord;
+END_VAR
+VAR
+	jsonDoc: FB_JsonDynDomParser;
+	root: POINTER TO SJsonValue;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+// Initialize JSON document and create root object
+root := jsonDoc.NewDocument();
+
+// Add observedTimestamp
+jsonDoc.AddUInt64Property(root, 'observedTimestamp', logRecord.observedTimestamp);
+
+// Add severityNumber
+jsonDoc.AddInt64Property(root, 'severityNumber', INT_TO_INT64(logRecord.severityNumber));
+
+// Add body
+jsonDoc.AddStringProperty(root, 'body', logRecord.body);
+
+// Add eventName
+jsonDoc.AddStringProperty(root, 'eventName', logRecord.eventName);
+
+// TODO: Add resource object when ST_OtlpResource is populated
+
+// Return the document
+F_OtlpLogRecordToJson := jsonDoc;
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

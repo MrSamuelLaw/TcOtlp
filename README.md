@@ -95,3 +95,18 @@ operators could simply ask an AI agent what was causing the issue, and eventuall
 2. Install the XAE Programming Environment
 3. Install TcUnit inside of said environment
 4. TODO: Finish this.
+
+# Build And Error Capture (TwinCAT x64 Shell)
+1. Close all running `TcXaeShell` windows before command-line builds. A running IDE instance can intercept `/build` and skip writing `/out` logs.
+2. Open `TwinCAT x64 Shell`.
+3. Run `./build.ps1` from the repository root.
+4. Review `build.log` for full output.
+5. Review `build-errors.log` for extracted compiler errors only (created when errors are detected).
+
+By default, the script launches `C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Beckhoff\TwinCAT XAE Shell 64-bit.lnk`.
+
+The script defaults to `Debug|TwinCAT OS (x64)`. You can override it with:
+
+```powershell
+./build.ps1 -Config "Release|TwinCAT OS (x64)"
+```
