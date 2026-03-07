@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="OtlpResource" Id="{d6fff975-7b87-4a42-bd18-8a14e393cc17}">
+    <Declaration><![CDATA[TYPE OtlpResource :
+STRUCT
+	// fill in
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

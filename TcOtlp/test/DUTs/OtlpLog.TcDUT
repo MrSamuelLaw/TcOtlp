@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="OtlpLog" Id="{00e78667-8b0d-40e5-a93f-8763ca04dc17}">
+    <Declaration><![CDATA[TYPE OtlpLog :
+STRUCT
+	// fill in
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>
