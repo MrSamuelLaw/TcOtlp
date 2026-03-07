@@ -1,0 +1,37 @@
+[2:53:21 PM] The library 'Tc3_GlobalTypes_Global, 1.0.0.0 (Beckhoff Automation GmbH)' has been changed and was reloaded automatically.
+[2:53:21 PM] The library 'Tc3_GlobalTypes_MC, 1.0.0.0 (Beckhoff Automation GmbH)' has been changed and was reloaded automatically.
+Rebuild started at 2:53 PM...
+------ Build started: Application: TcOtlp.test -------
+Typify code...
+Generate code...
+C:\Users\samue\Desktop\programming projects\TcOtlp\TcOtlp\test\OTEL\FUNCTIONS\F_OtlpLogRecordToJson.TcPOU (Impl)(6) : error: C0035: Program name, function or function block instance expected instead of 'jsonDoc.AddUInt64Property'
+C:\Users\samue\Desktop\programming projects\TcOtlp\TcOtlp\test\OTEL\FUNCTIONS\F_OtlpLogRecordToJson.TcPOU (Impl)(6) : error: C0004: 'AddUInt64Property' is no component of 'FB_JsonDynDomParser'
+FB_JsonDynDomParser : message: C0181: Related position [tc3_jsonxml, 3.4.7.0 (beckhoff automation gmbh)]
+C:\Users\samue\Desktop\programming projects\TcOtlp\TcOtlp\test\OTEL\FUNCTIONS\F_OtlpLogRecordToJson.TcPOU (Impl)(9) : error: C0035: Program name, function or function block instance expected instead of 'jsonDoc.AddInt64Property'
+C:\Users\samue\Desktop\programming projects\TcOtlp\TcOtlp\test\OTEL\FUNCTIONS\F_OtlpLogRecordToJson.TcPOU (Impl)(9) : error: C0004: 'AddInt64Property' is no component of 'FB_JsonDynDomParser'
+C:\Users\samue\Desktop\programming projects\TcOtlp\TcOtlp\test\OTEL\FUNCTIONS\F_OtlpLogRecordToJson.TcPOU (Impl)(9) : error: C0046: Identifier 'INT_TO_INT64' not defined
+C:\Users\samue\Desktop\programming projects\TcOtlp\TcOtlp\test\OTEL\FUNCTIONS\F_OtlpLogRecordToJson.TcPOU (Impl)(9) : error: C0035: Program name, function or function block instance expected instead of 'INT_TO_INT64'
+C:\Users\samue\Desktop\programming projects\TcOtlp\TcOtlp\test\OTEL\FUNCTIONS\F_OtlpLogRecordToJson.TcPOU (Impl)(12) : error: C0035: Program name, function or function block instance expected instead of 'jsonDoc.AddStringProperty'
+C:\Users\samue\Desktop\programming projects\TcOtlp\TcOtlp\test\OTEL\FUNCTIONS\F_OtlpLogRecordToJson.TcPOU (Impl)(12) : error: C0004: 'AddStringProperty' is no component of 'FB_JsonDynDomParser'
+C:\Users\samue\Desktop\programming projects\TcOtlp\TcOtlp\test\OTEL\FUNCTIONS\F_OtlpLogRecordToJson.TcPOU (Impl)(15) : error: C0035: Program name, function or function block instance expected instead of 'jsonDoc.AddStringProperty'
+C:\Users\samue\Desktop\programming projects\TcOtlp\TcOtlp\test\OTEL\FUNCTIONS\F_OtlpLogRecordToJson.TcPOU (Impl)(15) : error: C0004: 'AddStringProperty' is no component of 'FB_JsonDynDomParser'
+Build complete -- 10 errors, 0 warnings : No download possible
+WRN | 3/7/2026 2:53:26 PM 558 ms | 'TwinCAT XAE': Project 'test' build for platform 'TwinCAT RT (x64)' failed.
+------ Build started: Application: TcOtlp.client -------
+Typify code...
+Generate code...
+Generate global initializations...
+Generate code initialization...
+Generate relocations...
+Memory usage on device, not used for licensing purposes:
+Memory area 0 contains  Data, Input, Output, Memory and Persistent data: size: 10485760 bytes, highest used address: 392096, largest contiguous memory gap: 10093664 bytes (96 %)
+Memory area 1 contains  Code: size: 1048576 bytes, highest used address: 36880, largest contiguous memory gap: 1011696 bytes (96 %)
+Build complete -- 0 errors, 0 warnings : Ready for download
+Generate TMC information ...
+Import symbol information ...
+PLC.client : message: generate boot information...
+------ Rebuild All started: Project: TcOtlp, Configuration: Release TwinCAT RT (x64) ------
+Error: This service or operation is not applicable in command line mode.
+========== Rebuild All: 1 succeeded, 2 failed, 0 skipped ==========
+========== Rebuild completed at 2:53 PM and took 07.935 seconds ==========
+
