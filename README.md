@@ -91,9 +91,12 @@ operators could simply ask an AI agent what was causing the issue, and eventuall
 - Could be tricky to debug as now multiple systems are involved.
 
 # Development Environment Setup
-1. Install Beckhoff Package Manager
-2. Install the XAE Programming Environment
-3. Install TcUnit inside of said environment
-4. TODO: Finish this.
+1. Install git
+2. Install Visual Studio Community 2022 (For coding agent build ability)
+3. Install Beckhoff Package Manager
+4. Install the XAE Programming Environment
+5. Install TcUnit inside of said environment
+6. Setup Signoz for Integration Tests (see signoz docs for details)
+7. Begin programming 
 
 

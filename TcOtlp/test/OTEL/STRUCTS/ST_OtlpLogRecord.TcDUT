@@ -17,7 +17,7 @@ STRUCT
 	severityNumber: E_OtlpSeverity;
 	
 	body: T_MaxString;  // should probably covert to a bigger string for json
-	resource: ST_OtlpResource;
+	// resource: ST_OtlpResource;
 	// instrumentationScope: ST_OtlpInstrumentationScope; will implement at a later date
 	// attributes: AnyType will implement at a later date
 	// errorsAndExceptions: will implement at a later date

@@ -15,15 +15,52 @@ END_VAR
     <Method Name="TestJsonSerialization" Id="{3d144320-2b9d-4286-8011-5747b16f51c5}">
       <Declaration><![CDATA[METHOD TestJsonSerialization : REFERENCE TO FB_Test
 VAR
-	jsonDoc: FB_JsonDynDomParser;
+	pJsonDoc: POINTER TO FB_JsonDynDomParser;
 	logRecord: ST_OtlpLogRecord;
+	root: SJsonValue;
+	memberValue: SJsonValue;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test Can Build Json Doc');
 
+logRecord.observedTimestamp := ULINT#5000000000;
+logRecord.severityNumber := E_OtlpSeverity.WARN;
+logRecord.body := 'Test Body';
 logRecord.eventName := 'Test Event';
-jsonDoc := F_OtlpLogRecordToJson(logRecord);
+
+pJsonDoc := F_OtlpLogRecordToJson(logRecord);
+THIS^.AssertTrue(pJsonDoc <> 0, 'Can build dynamic json document');
+
+IF pJsonDoc <> 0 THEN
+        root := pJsonDoc^.GetDocumentRoot();
+
+        memberValue := pJsonDoc^.FindMember(root, 'observedTimestamp');
+        THIS^.AssertTrue(
+                pJsonDoc^.GetUint64(memberValue) = logRecord.observedTimestamp,
+                'observedTimestamp should round-trip through parser'
+        );
+
+        memberValue := pJsonDoc^.FindMember(root, 'severityNumber');
+        THIS^.AssertTrue(
+                pJsonDoc^.GetInt(memberValue) = TO_DINT(logRecord.severityNumber),
+                'severityNumber should round-trip through parser'
+        );
+
+        memberValue := pJsonDoc^.FindMember(root, 'body');
+        THIS^.AssertTrue(
+                pJsonDoc^.GetString(memberValue) = logRecord.body,
+                'body should round-trip through parser'
+        );
+
+        memberValue := pJsonDoc^.FindMember(root, 'eventName');
+        THIS^.AssertTrue(
+                pJsonDoc^.GetString(memberValue) = logRecord.eventName,
+                'eventName should round-trip through parser'
+        );
+
+        __DELETE(pJsonDoc);
+END_IF
 
 TcUnit.TEST_FINISHED();
 ]]></ST>
