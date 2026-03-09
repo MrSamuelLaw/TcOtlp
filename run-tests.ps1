@@ -52,6 +52,17 @@ public static class OutputWindowHelper {
             }
         }
     }
+    public static void ClearPane(object dte, string paneName) {
+        DTE d = (DTE)dte;
+        Window win = d.Windows.Item(Constants.vsWindowKindOutput);
+        OutputWindow ow = (OutputWindow)win.Object;
+        foreach (OutputWindowPane pane in ow.OutputWindowPanes) {
+            if (pane.Name == paneName) {
+                pane.Clear();
+                return;
+            }
+        }
+    }
     public static string ReadPane(object dte, string paneName) {
         DTE d = (DTE)dte;
         Window win = d.Windows.Item(Constants.vsWindowKindOutput);
@@ -172,19 +183,10 @@ if ($buildErrors -gt 0) {
 
 Write-Host "Build succeeded." -ForegroundColor Green
 
-# -- Step 3: Activate configuration & start TwinCAT ---------------------------
+# -- Step 3: Start TwinCAT ----------------------------------------------------
 
-Write-Host "`nActivating configuration and starting TwinCAT..."
+Write-Host "`nStarting TwinCAT..."
 $systemManager = $dte.Solution.Projects.Item(1).Object
-
-try {
-    $systemManager.ActivateConfiguration()
-    Write-Host "  Configuration activated." -ForegroundColor Green
-}
-catch {
-    Write-Host "  Failed to activate configuration: $_" -ForegroundColor Red
-    exit 1
-}
 
 try {
     $systemManager.StartRestartTwinCAT()
@@ -262,7 +264,41 @@ catch {
 
 Write-Host $outputText
 
-# -- Step 6 placeholder -------------------------------------------------------
+# -- Step 6: Report & Cleanup -------------------------------------------------
 
-Write-Host "`nSteps 1-5 complete. Results collected."
-# TODO: Step 6 - Write results to test-results.log, print summary, exit 0/1
+# Write results to log file
+$logPath = Join-Path $PSScriptRoot "test-results.log"
+$outputText | Out-File -FilePath $logPath -Encoding UTF8
+Write-Host "Results written to $logPath" -ForegroundColor Green
+
+# Parse failed test count from output
+$failedCount = 0
+if ($outputText -match '\|\s*Failed tests:\s*(\d+)') {
+    $failedCount = [int]$Matches[1]
+}
+
+# Print summary
+Write-Host "`n========== Test Summary ==========" -ForegroundColor Cyan
+$summaryLines = $outputText -split "`r?`n" | Where-Object { $_ -match '\|\s*(Test suites|Tests|Successful tests|Failed tests|Duration):' }
+foreach ($line in $summaryLines) {
+    Write-Host $line
+}
+Write-Host "==================================" -ForegroundColor Cyan
+
+# Clear the TwinCAT output pane
+try {
+    [OutputWindowHelper]::ClearPane($dte, "TwinCAT")
+    Write-Host "TwinCAT output pane cleared." -ForegroundColor Green
+}
+catch {
+    Write-Host "Could not clear TwinCAT output pane: $_" -ForegroundColor Yellow
+}
+
+# Exit with appropriate code
+if ($failedCount -gt 0) {
+    Write-Host "`n$failedCount test(s) failed." -ForegroundColor Red
+    exit 1
+} else {
+    Write-Host "`nAll tests passed." -ForegroundColor Green
+    exit 0
+}

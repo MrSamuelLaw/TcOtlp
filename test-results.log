@@ -1,0 +1,17 @@
+﻿MSG | 3/8/2026 10:05:29 PM 976 ms | 'TcOsSys' (50): TwinCAT System Start: AdsState: 5 NumProc: 4
+MSG | 3/8/2026 10:05:29 PM 985 ms | 'License Server' (30): license validation status is Valid(3)
+MSG | 3/8/2026 10:05:29 PM 990 ms | 'License Server' (30): license validation status is Valid(3)
+MSG | 3/8/2026 10:05:30 PM 381 ms | 'PlcTask1' (351): | Test suite ID=0 'MAIN.logRecordSerializationTestSuite'
+MSG | 3/8/2026 10:05:30 PM 394 ms | 'TcOsSys' (50): TwinCAT system start completed. AdsState: >5<
+MSG | 3/8/2026 10:05:30 PM 401 ms | 'PlcTask1' (351): | ID=0 number of tests=1, number of failed tests=0, duration=2.835e-4
+MSG | 3/8/2026 10:05:30 PM 421 ms | 'PlcTask1' (351): | Test name=Test Can Build Json Doc
+MSG | 3/8/2026 10:05:30 PM 441 ms | 'PlcTask1' (351): | Test class name=MAIN.logRecordSerializationTestSuite
+MSG | 3/8/2026 10:05:30 PM 461 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=5, duration=2.618e-4
+ERR | 3/8/2026 10:05:30 PM 481 ms | 'PlcTask1' (351): | ==========TESTS FINISHED RUNNING==========
+ERR | 3/8/2026 10:05:30 PM 501 ms | 'PlcTask1' (351): | Test suites: 1
+ERR | 3/8/2026 10:05:30 PM 521 ms | 'PlcTask1' (351): | Tests: 1
+ERR | 3/8/2026 10:05:30 PM 541 ms | 'PlcTask1' (351): | Successful tests: 1
+ERR | 3/8/2026 10:05:30 PM 561 ms | 'PlcTask1' (351): | Failed tests: 0
+ERR | 3/8/2026 10:05:30 PM 581 ms | 'PlcTask1' (351): | Duration: 3.653e-4
+ERR | 3/8/2026 10:05:30 PM 601 ms | 'PlcTask1' (351): | ======================================
+
