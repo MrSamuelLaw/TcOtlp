@@ -47,3 +47,6 @@ LineIDs.dbg.bak
 *.~u
 *.project.~u
 *.suo
+
+# temporary files
+/plans

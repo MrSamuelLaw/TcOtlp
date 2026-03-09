@@ -58,7 +58,7 @@ IF pJsonDoc <> 0 THEN
                 pJsonDoc^.GetString(memberValue) = logRecord.eventName,
                 'eventName should round-trip through parser'
         );
-
+		
         __DELETE(pJsonDoc);
 END_IF
 
