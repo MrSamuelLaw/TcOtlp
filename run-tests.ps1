@@ -40,6 +40,27 @@ foreach ($dll in @("envdte.dll", "envdte80.dll", "Microsoft.VisualStudio.Interop
 # C# helper for Output Window COM interop (PowerShell can't marshal these interfaces)
 Add-Type -TypeDefinition @"
 using EnvDTE;
+using EnvDTE80;
+public static class ErrorListHelper {
+    public static string GetErrors(object dte) {
+        DTE2 d = (DTE2)dte;
+        var errorList = d.ToolWindows.ErrorList;
+        errorList.ShowErrors = true;
+        errorList.ShowWarnings = true;
+        errorList.ShowMessages = false;
+        var items = errorList.ErrorItems;
+        var sb = new System.Text.StringBuilder();
+        for (int i = 1; i <= items.Count; i++) {
+            var item = items.Item(i);
+            string severity = item.ErrorLevel == vsBuildErrorLevel.vsBuildErrorLevelHigh ? "Error"
+                            : item.ErrorLevel == vsBuildErrorLevel.vsBuildErrorLevelMedium ? "Warning"
+                            : "Message";
+            sb.AppendLine(string.Format("[{0}] {1} ({2}, Line {3}): {4}",
+                severity, item.FileName, item.Project, item.Line, item.Description));
+        }
+        return sb.ToString();
+    }
+}
 public static class OutputWindowHelper {
     public static void ActivatePane(object dte, string paneName) {
         DTE d = (DTE)dte;
@@ -176,8 +197,18 @@ $buildErrors = $dte.Solution.SolutionBuild.LastBuildInfo
 Write-Host "Build finished. Error count: $buildErrors"
 
 if ($buildErrors -gt 0) {
-    Write-Host "`nBuild failed. Aborting." -ForegroundColor Red
-    $dte.Quit()
+    Write-Host "`nBuild failed with $buildErrors error(s):" -ForegroundColor Red
+    try {
+        $errorDetails = [ErrorListHelper]::GetErrors($dte)
+        if ($errorDetails) {
+            Write-Host $errorDetails -ForegroundColor Red
+        } else {
+            Write-Host "  (No error details available from Error List)" -ForegroundColor Yellow
+        }
+    }
+    catch {
+        Write-Host "  Could not read Error List: $_" -ForegroundColor Yellow
+    }
     exit 1
 }
 
