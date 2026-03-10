@@ -16,7 +16,12 @@ END_VAR
       <Declaration><![CDATA[METHOD TestJsonSerialization : REFERENCE TO FB_Test
 VAR
 	pJsonDoc: POINTER TO FB_JsonDynDomParser;
-	logRecord: ST_OtlpLogRecord;
+	logRecord: FB_OtlpLogRecord := (
+		observedTimestamp := ULINT#5000000000,
+		severityNumber := E_OtlpSeverity.WARN,
+		body := 'Test Body',
+		eventName := 'Test Event'
+	);
 	root: SJsonValue;
 	memberValue: SJsonValue;
 END_VAR
@@ -24,12 +29,9 @@ END_VAR
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test Can Build Json Doc');
 
-logRecord.observedTimestamp := ULINT#5000000000;
-logRecord.severityNumber := E_OtlpSeverity.WARN;
-logRecord.body := 'Test Body';
-logRecord.eventName := 'Test Event';
 
-pJsonDoc := F_OtlpLogRecordToJson(logRecord);
+
+pJsonDoc := F_OtlpNodeToProtoJSON(ADR(logRecord));
 THIS^.AssertTrue(pJsonDoc <> 0, 'Can build dynamic json document');
 
 IF pJsonDoc <> 0 THEN

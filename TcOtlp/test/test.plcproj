@@ -21,22 +21,22 @@
     <Compile Include="MAIN.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\ENUMS\E_OtlpNodeType.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\ENUMS\E_OtlpSeverity.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTIONS\F_OtlpLogRecordToJson.TcPOU">
+    <Compile Include="OTEL\FUNCTIONS\F_OtlpLogRecordToProtoJson.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\STRUCTS\ST_OtlpInstrumentationScope.TcDUT">
+    <Compile Include="OTEL\FUNCTIONS\F_OtlpNodeToProtoJson.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\STRUCTS\ST_OtlpKeyValue.TcDUT">
+    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_OtlpLogRecord.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\STRUCTS\ST_OtlpLogRecord.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\STRUCTS\ST_OtlpResource.TcDUT">
+    <Compile Include="OTEL\INTERFACES\I_OtlpNode.TcIO">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="PlcTask.TcTTO">
@@ -48,6 +48,8 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="OTEL\FUNCTIONS" />
+    <Folder Include="OTEL\INTERFACES" />
+    <Folder Include="OTEL\FUNCTION_BLOCKS" />
     <Folder Include="TEST_OTEL" />
     <Folder Include="OTEL" />
     <Folder Include="OTEL\ENUMS" />

@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="F_OtlpNodeToProtoJson" Id="{8e98bc4b-5692-4e53-982e-af2e9f3f31dd}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION F_OtlpNodeToProtoJson : POINTER TO FB_JsonDynDomParser
+VAR_INPUT CONSTANT
+	otlpNode: POINTER TO I_OtlpNode;
+END_VAR
+VAR
+      root: SJsonValue;
+	  varInfo: __SYSTEM.VAR_INFO;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[CASE otlpNode^.nodeType OF
+	E_OtlpNodeType.LOG_RECORD:
+		F_OtlpNodeToProtoJSON := F_OtlpLogRecordToProtoJson(ADR(otlpNode));	
+END_CASE]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>
