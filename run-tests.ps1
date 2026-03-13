@@ -173,7 +173,18 @@ catch {
 # -- Step 2: Rebuild solution -------------------------------------------------
 
 Write-Host "Starting rebuild..."
-$dte.ExecuteCommand("Build.RebuildSolution")
+$buildRetries = 5
+for ($r = 1; $r -le $buildRetries; $r++) {
+    try {
+        $dte.ExecuteCommand("Build.RebuildSolution")
+        break
+    }
+    catch [System.Runtime.InteropServices.COMException] {
+        if ($r -eq $buildRetries) { throw }
+        Write-Host "  DTE busy (attempt $r/$buildRetries), retrying in 3s..." -ForegroundColor Yellow
+        Start-Sleep -Seconds 3
+    }
+}
 
 Start-Sleep -Seconds 2
 $elapsed = 2

@@ -9,5 +9,11 @@
         <Declaration><![CDATA[]]></Declaration>
       </Get>
     </Property>
+    <Property Name="pSelf" Id="{2c101d04-35b9-463d-b3d7-7c04fd5045a3}">
+      <Declaration><![CDATA[PROPERTY pSelf : PVOID]]></Declaration>
+      <Get Name="Get" Id="{10f63b48-9771-4645-83dc-96ada5ecf6be}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
   </Itf>
 </TcPlcObject>

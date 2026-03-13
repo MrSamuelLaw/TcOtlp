@@ -1,17 +1,29 @@
-﻿MSG | 3/8/2026 10:05:29 PM 976 ms | 'TcOsSys' (50): TwinCAT System Start: AdsState: 5 NumProc: 4
-MSG | 3/8/2026 10:05:29 PM 985 ms | 'License Server' (30): license validation status is Valid(3)
-MSG | 3/8/2026 10:05:29 PM 990 ms | 'License Server' (30): license validation status is Valid(3)
-MSG | 3/8/2026 10:05:30 PM 381 ms | 'PlcTask1' (351): | Test suite ID=0 'MAIN.logRecordSerializationTestSuite'
-MSG | 3/8/2026 10:05:30 PM 394 ms | 'TcOsSys' (50): TwinCAT system start completed. AdsState: >5<
-MSG | 3/8/2026 10:05:30 PM 401 ms | 'PlcTask1' (351): | ID=0 number of tests=1, number of failed tests=0, duration=2.835e-4
-MSG | 3/8/2026 10:05:30 PM 421 ms | 'PlcTask1' (351): | Test name=Test Can Build Json Doc
-MSG | 3/8/2026 10:05:30 PM 441 ms | 'PlcTask1' (351): | Test class name=MAIN.logRecordSerializationTestSuite
-MSG | 3/8/2026 10:05:30 PM 461 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=5, duration=2.618e-4
-ERR | 3/8/2026 10:05:30 PM 481 ms | 'PlcTask1' (351): | ==========TESTS FINISHED RUNNING==========
-ERR | 3/8/2026 10:05:30 PM 501 ms | 'PlcTask1' (351): | Test suites: 1
-ERR | 3/8/2026 10:05:30 PM 521 ms | 'PlcTask1' (351): | Tests: 1
-ERR | 3/8/2026 10:05:30 PM 541 ms | 'PlcTask1' (351): | Successful tests: 1
-ERR | 3/8/2026 10:05:30 PM 561 ms | 'PlcTask1' (351): | Failed tests: 0
-ERR | 3/8/2026 10:05:30 PM 581 ms | 'PlcTask1' (351): | Duration: 3.653e-4
-ERR | 3/8/2026 10:05:30 PM 601 ms | 'PlcTask1' (351): | ======================================
+﻿WRN | 3/9/2026 9:14:25 PM 624 ms | 'TwinCAT XAE': Project 'test' build for platform 'TwinCAT RT (x64)' failed.
+WRN | 3/9/2026 9:16:41 PM 326 ms | 'TwinCAT XAE': Project 'test' build for platform 'TwinCAT RT (x64)' failed.
+WRN | 3/9/2026 9:21:51 PM 968 ms | 'TwinCAT XAE': Project 'test' build for platform 'TwinCAT RT (x64)' failed.
+WRN | 3/9/2026 9:22:58 PM 774 ms | 'TwinCAT XAE': Project 'test' build for platform 'TwinCAT RT (x64)' failed.
+MSG | 3/9/2026 9:23:37 PM 331 ms | 'TwinCAT System' (10000): TwinCAT System Restart initiated from AmsNetId: 192.168.97.90.1.1 port 32995.
+MSG | 3/9/2026 9:23:40 PM 121 ms | 'TwinCAT System' (10000): TcIo Server started: TcIo.
+MSG | 3/9/2026 9:23:40 PM 130 ms | 'TwinCAT System' (10000): TcPlc30 Server started: TcPlc30.
+MSG | 3/9/2026 9:23:40 PM 137 ms | 'TwinCAT System' (10000): TcRTime Server started: TcRTime.
+MSG | 3/9/2026 9:23:40 PM 143 ms | 'TwinCAT System' (10000): TcRtsObjects Server started: TcRtsObjects.
+MSG | 3/9/2026 9:23:40 PM 148 ms | 'License Server' (30): license validation status is Valid(3)
+MSG | 3/9/2026 9:23:40 PM 248 ms | 'TwinCAT System' (10000): TwinCAT USB support could not be initialized. System start continued.
+
+MSG | 3/9/2026 9:23:40 PM 263 ms | 'License Server' (30): license validation status is Valid(3)
+ERR | 3/9/2026 9:23:40 PM 623 ms | 'PlcTask1' (351): FAILED TEST 'MAIN.logRecordSerializationTestSuite@Test Can Build Json Doc', EXP: TRUE, ACT: FALSE, MSG: Can build dynamic json document
+MSG | 3/9/2026 9:23:40 PM 643 ms | 'PlcTask1' (351): | Test suite ID=0 'MAIN.logRecordSerializationTestSuite'
+MSG | 3/9/2026 9:23:40 PM 663 ms | 'PlcTask1' (351): | ID=0 number of tests=1, number of failed tests=1, duration=3.5e-5
+MSG | 3/9/2026 9:23:40 PM 683 ms | 'PlcTask1' (351): | Test name=Test Can Build Json Doc
+MSG | 3/9/2026 9:23:40 PM 703 ms | 'PlcTask1' (351): | Test class name=MAIN.logRecordSerializationTestSuite
+MSG | 3/9/2026 9:23:40 PM 723 ms | 'PlcTask1' (351): | Test status=FAIL, number of asserts=1, duration=2.91e-5
+MSG | 3/9/2026 9:23:40 PM 743 ms | 'PlcTask1' (351): | Test assert message=Can build dynamic json document
+MSG | 3/9/2026 9:23:40 PM 763 ms | 'PlcTask1' (351): | Test assert type=BOOL
+ERR | 3/9/2026 9:23:40 PM 783 ms | 'PlcTask1' (351): | ==========TESTS FINISHED RUNNING==========
+ERR | 3/9/2026 9:23:40 PM 803 ms | 'PlcTask1' (351): | Test suites: 1
+ERR | 3/9/2026 9:23:40 PM 823 ms | 'PlcTask1' (351): | Tests: 1
+ERR | 3/9/2026 9:23:40 PM 843 ms | 'PlcTask1' (351): | Successful tests: 0
+ERR | 3/9/2026 9:23:40 PM 863 ms | 'PlcTask1' (351): | Failed tests: 1
+ERR | 3/9/2026 9:23:40 PM 883 ms | 'PlcTask1' (351): | Duration: 4.09e-5
+ERR | 3/9/2026 9:23:40 PM 903 ms | 'PlcTask1' (351): | ======================================
 

@@ -2,18 +2,20 @@
 <TcPlcObject Version="1.1.0.1">
   <POU Name="F_OtlpNodeToProtoJson" Id="{8e98bc4b-5692-4e53-982e-af2e9f3f31dd}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION F_OtlpNodeToProtoJson : POINTER TO FB_JsonDynDomParser
-VAR_INPUT CONSTANT
-	otlpNode: POINTER TO I_OtlpNode;
+VAR_INPUT;
+	otlpNode: I_OtlpNode;
 END_VAR
 VAR
-      root: SJsonValue;
-	  varInfo: __SYSTEM.VAR_INFO;
-END_VAR
-]]></Declaration>
+	ptr: PVOID;
+END_VAR]]></Declaration>
     <Implementation>
-      <ST><![CDATA[CASE otlpNode^.nodeType OF
+      <ST><![CDATA[CASE otlpNode.nodeType OF
 	E_OtlpNodeType.LOG_RECORD:
-		F_OtlpNodeToProtoJSON := F_OtlpLogRecordToProtoJson(ADR(otlpNode));	
+// this doesn't work and I don't know why
+// 		ptr := otlpNode;
+// 		F_OtlpNodeToProtoJSON := F_OtlpLogRecordToProtoJson(ptr);
+// this does work
+		F_OtlpNodeToProtoJSON := F_OtlpLogRecordToProtoJson(otlpNode.pSelf);
 END_CASE]]></ST>
     </Implementation>
   </POU>

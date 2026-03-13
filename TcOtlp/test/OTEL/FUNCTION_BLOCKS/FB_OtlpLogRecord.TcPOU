@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_OtlpLogRecord" Id="{c8c59714-2c63-472d-899e-e687788f3419}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_OtlpLogRecord IMPLEMENTS I_OtlpNode
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_OtlpLogRecord EXTENDS FB_OtlpBaseNode IMPLEMENTS I_OtlpNode
 VAR_INPUT CONSTANT
 	// see OTLP Log and Event Record Definition documentation for more info
 	// timestamp: ULINT; redundent, same as observed timestamp
