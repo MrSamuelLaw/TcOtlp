@@ -1,0 +1,146 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_OtlpInstrumentationScope" Id="{7790dc56-9266-4b87-bebf-98d38f0516aa}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_OtlpInstrumentationScope IMPLEMENTS I_OtlpSerializable
+VAR
+	_sName : STRING(255);
+	_sVersion : STRING(255);
+	_arrAttributes : ARRAY[0..99] OF POINTER TO FB_OtlpKeyValue;
+	_nAttributesCount : UDINT;
+	_nDroppedAttributesCount : UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="AddAttributes" Id="{22626384-2b5d-443e-9bef-dc8e587e03f2}">
+      <Declaration><![CDATA[METHOD AddAttributes : POINTER TO FB_OtlpKeyValue
+VAR
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._nAttributesCount < 100 THEN
+	AddAttributes := __NEW(FB_OtlpKeyValue);
+	THIS^._arrAttributes[THIS^._nAttributesCount] := AddAttributes;
+	THIS^._nAttributesCount := THIS^._nAttributesCount + 1;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_exit" Id="{26eaee36-7ee0-420d-aca2-34400c42c331}">
+      <Declaration><![CDATA[METHOD FB_exit : BOOL
+VAR_INPUT
+	bInCopyCode : BOOL;
+END_VAR
+VAR
+	i : UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._nAttributesCount > 0 THEN
+	FOR i := 0 TO THIS^._nAttributesCount - 1 DO
+		IF THIS^._arrAttributes[i] <> 0 THEN
+			__DELETE(THIS^._arrAttributes[i]);
+		END_IF
+	END_FOR
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="nAttributesCount" Id="{5292de49-ba38-4994-8ad7-19b4c964382f}">
+      <Declaration><![CDATA[PROPERTY nAttributesCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{2ce4cfcd-ff70-4e1e-a74b-ef1cc2db9da4}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[nAttributesCount := THIS^._nAttributesCount;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="nDroppedAttributesCount" Id="{3a124a3c-16a6-4cc7-89ff-d05306a4870c}">
+      <Declaration><![CDATA[PROPERTY nDroppedAttributesCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{27838d05-6791-40c1-891d-6a328b91007c}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[nDroppedAttributesCount := THIS^._nDroppedAttributesCount;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{6fbdc653-6267-48a4-9621-adfe94656949}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._nDroppedAttributesCount := nDroppedAttributesCount;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Method Name="SerializeToProtoJson" Id="{dad3f774-8e32-4e06-9eb9-61783e7fc8e1}">
+      <Declaration><![CDATA[METHOD SerializeToProtoJson
+VAR_INPUT
+	parser : REFERENCE TO FB_JsonDynDomParser;
+	node   : SJsonValue;
+END_VAR
+VAR
+	i : UDINT;
+	arrNode : SJsonValue;
+	elemNode : SJsonValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[parser.AddStringMember(node, 'name', THIS^._sName);
+
+parser.AddStringMember(node, 'version', THIS^._sVersion);
+
+IF THIS^._nAttributesCount > 0 THEN
+	arrNode := parser.AddArrayMember(node, 'attributes', 0);
+	FOR i := 0 TO THIS^._nAttributesCount - 1 DO
+		elemNode := parser.PushbackJsonValue(arrNode, '{}');
+		THIS^._arrAttributes[i]^.SerializeToProtoJson(parser, elemNode);
+	END_FOR
+END_IF
+
+parser.AddUintMember(node, 'droppedAttributesCount', THIS^._nDroppedAttributesCount);]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="sName" Id="{8f4830be-5d2d-47bb-9162-e149759b5453}">
+      <Declaration><![CDATA[PROPERTY sName : STRING(255)]]></Declaration>
+      <Get Name="Get" Id="{5d57880f-dee5-4423-b73a-accfad394687}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[sName := THIS^._sName;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{3ad6f52e-86cb-4043-b6ee-34834c03858d}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._sName := sName;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="sVersion" Id="{a853e50b-25d8-46a5-9166-c57e47138d67}">
+      <Declaration><![CDATA[PROPERTY sVersion : STRING(255)]]></Declaration>
+      <Get Name="Get" Id="{c20d0773-0bca-44a6-ac50-d9a4f1319deb}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[sVersion := THIS^._sVersion;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{e43be9bc-2726-4da3-809c-2332693c5898}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._sVersion := sVersion;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+  </POU>
+</TcPlcObject>

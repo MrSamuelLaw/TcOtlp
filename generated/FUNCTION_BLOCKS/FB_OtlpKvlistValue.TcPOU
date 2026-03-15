@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_OtlpKvlistValue" Id="{2ef01437-eb62-4fff-947d-975bf9f75f04}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_OtlpKvlistValue IMPLEMENTS I_OtlpAnyValue
+VAR
+	_arrValues : ARRAY[0..99] OF POINTER TO FB_OtlpKeyValue;
+	_nValuesCount : UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="SerializeToProtoJson" Id="{46cc0b03-f5fb-40fe-a1e7-7acb73d2a77a}">
+      <Declaration><![CDATA[METHOD SerializeToProtoJson
+VAR_INPUT
+	parser : REFERENCE TO FB_JsonDynDomParser;
+	node   : SJsonValue;
+END_VAR
+VAR
+	kvlistNode : SJsonValue;
+	arrNode : SJsonValue;
+	elemNode : SJsonValue;
+	i : UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[kvlistNode := parser.AddObjectMember(node, 'kvlistValue');
+IF THIS^._nValuesCount > 0 THEN
+	arrNode := parser.AddArrayMember(kvlistNode, 'values', 0);
+	FOR i := 0 TO THIS^._nValuesCount - 1 DO
+		elemNode := parser.PushbackJsonValue(arrNode, '{}');
+		THIS^._arrValues[i]^.SerializeToProtoJson(parser, elemNode);
+	END_FOR
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_exit" Id="{fdfedcaf-7f40-49a9-853b-e43e0a9789ef}">
+      <Declaration><![CDATA[METHOD FB_exit : BOOL
+VAR_INPUT
+	bInCopyCode : BOOL;
+END_VAR
+VAR
+	i : UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i := 0 TO THIS^._nValuesCount - 1 DO
+	IF THIS^._arrValues[i] <> 0 THEN
+		__DELETE(THIS^._arrValues[i]);
+	END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="AddValue" Id="{9517920e-ad20-47fa-8b95-23c105679558}">
+      <Declaration><![CDATA[METHOD AddValue : POINTER TO FB_OtlpKeyValue
+VAR
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._nValuesCount < 100 THEN
+	AddValue := __NEW(FB_OtlpKeyValue);
+	THIS^._arrValues[THIS^._nValuesCount] := AddValue;
+	THIS^._nValuesCount := THIS^._nValuesCount + 1;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="eValueType" Id="{5455269a-8f3d-4182-aa1c-e68446bf2ca6}">
+      <Declaration><![CDATA[PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
+      <Get Name="Get" Id="{a06bfd77-fbda-4b1f-b21e-b390aebe1eb2}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[eValueType := E_OtlpAnyValueType.KVLIST_VALUE;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="nValuesCount" Id="{f7316b84-5c97-4fa9-b132-9c1ad8c3aebb}">
+      <Declaration><![CDATA[PROPERTY nValuesCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{5e5699ef-38ad-4fb9-9e9a-66c24b734312}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[nValuesCount := THIS^._nValuesCount;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+  </POU>
+</TcPlcObject>

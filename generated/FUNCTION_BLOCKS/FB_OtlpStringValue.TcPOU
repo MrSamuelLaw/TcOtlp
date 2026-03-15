@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_OtlpStringValue" Id="{0b1b6256-8b7e-4765-8dd5-4538dfe0e0f3}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_OtlpStringValue IMPLEMENTS I_OtlpAnyValue
+VAR
+	_sValue : STRING(255);
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="SerializeToProtoJson" Id="{c4342c9d-c5f9-42fe-bc98-f8e4c2084386}">
+      <Declaration><![CDATA[METHOD SerializeToProtoJson
+VAR_INPUT
+	parser : REFERENCE TO FB_JsonDynDomParser;
+	node   : SJsonValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[parser.AddStringMember(node, 'stringValue', THIS^._sValue);]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="eValueType" Id="{8c2824fb-e150-48c1-9f6c-58efb50f2292}">
+      <Declaration><![CDATA[PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
+      <Get Name="Get" Id="{5efc53fd-7c6d-48d6-b423-b6bcde5b58e3}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[eValueType := E_OtlpAnyValueType.STRING_VALUE;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="sValue" Id="{2f626536-7bee-40c7-b184-b9c8d094a548}">
+      <Declaration><![CDATA[PROPERTY sValue : STRING(255)]]></Declaration>
+      <Get Name="Get" Id="{2d167418-2256-4ad1-b6e9-306a8249d83a}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[sValue := THIS^._sValue;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{b176f23a-3066-4ed3-9940-f6436e4c94f5}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._sValue := sValue;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+  </POU>
+</TcPlcObject>

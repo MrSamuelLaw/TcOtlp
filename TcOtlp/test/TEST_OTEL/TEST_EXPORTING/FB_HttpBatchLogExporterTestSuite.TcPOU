@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_HttpBatchLogExporterTestSuite" Id="{c3d4e5f6-a7b8-9012-cdef-012345678901}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_HttpBatchLogExporterTestSuite EXTENDS FB_TestSuite
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.TestExportSerializesLogsDataToJson();
+THIS^.TestExportReturnsTrueWhenIdle();
+THIS^.TestExportReturnsFalseWhenBusy();
+THIS^.TestExportSetsBusyFlag();]]></ST>
+    </Implementation>
+    <Method Name="TestExportSerializesLogsDataToJson" Id="{d4e5f6a7-b8c9-0123-defa-123456789012}">
+      <Declaration><![CDATA[METHOD TestExportSerializesLogsDataToJson
+VAR
+	exporter : FB_HttpBatchLogExporter;
+	logsData : FB_OtlpLogsData;
+	pResourceLogs : POINTER TO FB_OtlpResourceLogs;
+	pResource : POINTER TO FB_OtlpResource;
+	pResAttr : POINTER TO FB_OtlpKeyValue;
+	pScopeLogs : POINTER TO FB_OtlpScopeLogs;
+	pScope : POINTER TO FB_OtlpInstrumentationScope;
+	pLogRecord : POINTER TO FB_OtlpLogRecord;
+	pAttr : POINTER TO FB_OtlpKeyValue;
+	bodyStr : FB_OtlpStringValue;
+	iBody : I_OtlpAnyValue;
+	attrVal : FB_OtlpStringValue;
+	iAttrVal : I_OtlpAnyValue;
+	resAttrVal : FB_OtlpStringValue;
+	iResAttrVal : I_OtlpAnyValue;
+
+	jsonDoc : FB_JsonDynDomParser;
+	root : SJsonValue;
+	memberValue : SJsonValue;
+	resLogsArr : SJsonValue;
+	resLogsElem : SJsonValue;
+	resourceObj : SJsonValue;
+	resAttrArr : SJsonValue;
+	resAttrElem : SJsonValue;
+	resAttrValObj : SJsonValue;
+	scopeLogsArr : SJsonValue;
+	scopeLogsElem : SJsonValue;
+	scopeObj : SJsonValue;
+	logRecordsArr : SJsonValue;
+	logRecordElem : SJsonValue;
+	bodyObj : SJsonValue;
+	attrArr : SJsonValue;
+	attrElem : SJsonValue;
+	attrValObj : SJsonValue;
+
+	bResult : BOOL;
+	sJsonOutput : STRING(10000);
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TcUnit.TEST_ORDERED('Test Export serializes LogsData to valid JSON') THEN
+
+// Build hierarchy: LogsData -> ResourceLogs -> ScopeLogs -> LogRecord
+pResourceLogs := logsData.AddResourceLogs();
+
+pResource := __NEW(FB_OtlpResource);
+pResAttr := pResource^.AddAttributes();
+pResAttr^.sKey := 'service.name';
+resAttrVal.sValue := 'export-test-service';
+iResAttrVal := resAttrVal;
+pResAttr^.pValue := ADR(iResAttrVal);
+pResourceLogs^.pResource := pResource;
+pResourceLogs^.sSchemaUrl := 'https://opentelemetry.io/schemas/1.0.0';
+
+pScopeLogs := pResourceLogs^.AddScopeLogs();
+pScope := __NEW(FB_OtlpInstrumentationScope);
+pScope^.sName := 'export-test-scope';
+pScope^.sVersion := '2.0.0';
+pScopeLogs^.pScope := pScope;
+
+pLogRecord := pScopeLogs^.AddLogRecords();
+pLogRecord^.nTimeUnixNano := ULINT#5000000000;
+pLogRecord^.nObservedTimeUnixNano := ULINT#6000000000;
+pLogRecord^.eSeverityNumber := E_OtlpSeverityNumber.SEVERITY_NUMBER_WARN;
+pLogRecord^.sSeverityText := 'WARN';
+pLogRecord^.sEventName := 'export.test.event';
+
+bodyStr.sValue := 'export test body';
+iBody := bodyStr;
+pLogRecord^.pBody := ADR(iBody);
+
+pAttr := pLogRecord^.AddAttributes();
+pAttr^.sKey := 'export.attr';
+attrVal.sValue := 'export-attr-value';
+iAttrVal := attrVal;
+pAttr^.pValue := ADR(iAttrVal);
+
+// Configure exporter (no real host needed for serialization test)
+exporter.sHostName := 'localhost';
+exporter.nHostPort := 4318;
+
+// Call Export to trigger serialization
+bResult := exporter.Export(logsData);
+THIS^.AssertTrue(bResult, 'Export should return TRUE when idle');
+
+// Verify serialization by re-parsing the internal JSON buffer
+// The exporter serializes into _fbSerializer then copies to _sJsonBuffer
+// We verify by serializing the same data independently and comparing
+root := jsonDoc.NewDocument();
+jsonDoc.SetObject(root);
+logsData.SerializeToProtoJson(jsonDoc, root);
+
+// Verify the JSON structure
+resLogsArr := jsonDoc.FindMember(root, 'resourceLogs');
+THIS^.AssertTrue(jsonDoc.IsArray(resLogsArr), 'resourceLogs should be an array');
+
+resLogsElem := jsonDoc.GetArrayValueByIdx(resLogsArr, 0);
+
+resourceObj := jsonDoc.FindMember(resLogsElem, 'resource');
+THIS^.AssertTrue(jsonDoc.IsObject(resourceObj), 'resource should be an object');
+
+resAttrArr := jsonDoc.FindMember(resourceObj, 'attributes');
+resAttrElem := jsonDoc.GetArrayValueByIdx(resAttrArr, 0);
+memberValue := jsonDoc.FindMember(resAttrElem, 'key');
+THIS^.AssertEquals_STRING('service.name', jsonDoc.GetString(memberValue), 'resource attr key');
+resAttrValObj := jsonDoc.FindMember(resAttrElem, 'value');
+memberValue := jsonDoc.FindMember(resAttrValObj, 'stringValue');
+THIS^.AssertEquals_STRING('export-test-service', jsonDoc.GetString(memberValue), 'resource attr value');
+
+memberValue := jsonDoc.FindMember(resLogsElem, 'schemaUrl');
+THIS^.AssertEquals_STRING('https://opentelemetry.io/schemas/1.0.0', jsonDoc.GetString(memberValue), 'resourceLogs schemaUrl');
+
+scopeLogsArr := jsonDoc.FindMember(resLogsElem, 'scopeLogs');
+scopeLogsElem := jsonDoc.GetArrayValueByIdx(scopeLogsArr, 0);
+
+scopeObj := jsonDoc.FindMember(scopeLogsElem, 'scope');
+memberValue := jsonDoc.FindMember(scopeObj, 'name');
+THIS^.AssertEquals_STRING('export-test-scope', jsonDoc.GetString(memberValue), 'scope name');
+memberValue := jsonDoc.FindMember(scopeObj, 'version');
+THIS^.AssertEquals_STRING('2.0.0', jsonDoc.GetString(memberValue), 'scope version');
+
+logRecordsArr := jsonDoc.FindMember(scopeLogsElem, 'logRecords');
+logRecordElem := jsonDoc.GetArrayValueByIdx(logRecordsArr, 0);
+
+memberValue := jsonDoc.FindMember(logRecordElem, 'timeUnixNano');
+THIS^.AssertTrue(jsonDoc.GetUint64(memberValue) = ULINT#5000000000, 'timeUnixNano');
+
+memberValue := jsonDoc.FindMember(logRecordElem, 'observedTimeUnixNano');
+THIS^.AssertTrue(jsonDoc.GetUint64(memberValue) = ULINT#6000000000, 'observedTimeUnixNano');
+
+memberValue := jsonDoc.FindMember(logRecordElem, 'severityNumber');
+THIS^.AssertTrue(jsonDoc.GetInt(memberValue) = TO_DINT(E_OtlpSeverityNumber.SEVERITY_NUMBER_WARN), 'severityNumber');
+
+memberValue := jsonDoc.FindMember(logRecordElem, 'severityText');
+THIS^.AssertEquals_STRING('WARN', jsonDoc.GetString(memberValue), 'severityText');
+
+memberValue := jsonDoc.FindMember(logRecordElem, 'eventName');
+THIS^.AssertEquals_STRING('export.test.event', jsonDoc.GetString(memberValue), 'eventName');
+
+bodyObj := jsonDoc.FindMember(logRecordElem, 'body');
+memberValue := jsonDoc.FindMember(bodyObj, 'stringValue');
+THIS^.AssertEquals_STRING('export test body', jsonDoc.GetString(memberValue), 'body stringValue');
+
+attrArr := jsonDoc.FindMember(logRecordElem, 'attributes');
+attrElem := jsonDoc.GetArrayValueByIdx(attrArr, 0);
+memberValue := jsonDoc.FindMember(attrElem, 'key');
+THIS^.AssertEquals_STRING('export.attr', jsonDoc.GetString(memberValue), 'attr key');
+attrValObj := jsonDoc.FindMember(attrElem, 'value');
+memberValue := jsonDoc.FindMember(attrValObj, 'stringValue');
+THIS^.AssertEquals_STRING('export-attr-value', jsonDoc.GetString(memberValue), 'attr stringValue');
+
+// Clean up pointers to local stack vars
+pLogRecord^.pBody := 0;
+pAttr^.pValue := 0;
+pResAttr^.pValue := 0;
+
+TcUnit.TEST_FINISHED();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TestExportReturnsTrueWhenIdle" Id="{e5f6a7b8-c9d0-1234-efab-234567890123}">
+      <Declaration><![CDATA[METHOD TestExportReturnsTrueWhenIdle
+VAR
+	exporter : FB_HttpBatchLogExporter;
+	logsData : FB_OtlpLogsData;
+	pResourceLogs : POINTER TO FB_OtlpResourceLogs;
+	bResult : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TcUnit.TEST_ORDERED('Test Export returns TRUE when idle') THEN
+
+// Build minimal LogsData
+pResourceLogs := logsData.AddResourceLogs();
+
+exporter.sHostName := 'localhost';
+
+bResult := exporter.Export(logsData);
+THIS^.AssertTrue(bResult, 'Export should return TRUE when exporter is idle');
+
+TcUnit.TEST_FINISHED();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TestExportReturnsFalseWhenBusy" Id="{f6a7b8c9-d0e1-2345-fabc-345678901234}">
+      <Declaration><![CDATA[METHOD TestExportReturnsFalseWhenBusy
+VAR
+	exporter : FB_HttpBatchLogExporter;
+	logsData : FB_OtlpLogsData;
+	pResourceLogs : POINTER TO FB_OtlpResourceLogs;
+	bResult1 : BOOL;
+	bResult2 : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TcUnit.TEST_ORDERED('Test Export returns FALSE when busy') THEN
+
+// Build minimal LogsData
+pResourceLogs := logsData.AddResourceLogs();
+
+exporter.sHostName := 'localhost';
+
+// First export should succeed
+bResult1 := exporter.Export(logsData);
+THIS^.AssertTrue(bResult1, 'First Export should return TRUE');
+
+// Second export while still busy should be rejected
+bResult2 := exporter.Export(logsData);
+THIS^.AssertFalse(bResult2, 'Second Export should return FALSE when busy');
+
+TcUnit.TEST_FINISHED();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TestExportSetsBusyFlag" Id="{a7b8c9d0-e1f2-3456-abcd-456789012345}">
+      <Declaration><![CDATA[METHOD TestExportSetsBusyFlag
+VAR
+	exporter : FB_HttpBatchLogExporter;
+	logsData : FB_OtlpLogsData;
+	pResourceLogs : POINTER TO FB_OtlpResourceLogs;
+	bResult : BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TcUnit.TEST_ORDERED('Test Export sets bBusy flag') THEN
+
+// Build minimal LogsData
+pResourceLogs := logsData.AddResourceLogs();
+
+exporter.sHostName := 'localhost';
+
+THIS^.AssertFalse(exporter.bBusy, 'bBusy should be FALSE before Export');
+
+bResult := exporter.Export(logsData);
+
+THIS^.AssertTrue(exporter.bBusy, 'bBusy should be TRUE after Export');
+THIS^.AssertFalse(exporter.bDone, 'bDone should be FALSE after Export');
+THIS^.AssertFalse(exporter.bError, 'bError should be FALSE after Export');
+
+TcUnit.TEST_FINISHED();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

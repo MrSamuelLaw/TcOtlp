@@ -10,62 +10,187 @@ VAR
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[THIS^.TestJsonSerialization();]]></ST>
+      <ST><![CDATA[THIS^.TestCompleteLogRecordSerialization();]]></ST>
     </Implementation>
-    <Method Name="TestJsonSerialization" Id="{3d144320-2b9d-4286-8011-5747b16f51c5}">
-      <Declaration><![CDATA[METHOD TestJsonSerialization : REFERENCE TO FB_Test
+    <Method Name="TestCompleteLogRecordSerialization" Id="{b8c1d2e3-f4a5-6b7c-8d9e-0f1a2b3c4d5e}">
+      <Declaration><![CDATA[METHOD TestCompleteLogRecordSerialization
 VAR
-	pJsonDoc: POINTER TO FB_JsonDynDomParser;
-	logRecord: FB_OtlpLogRecord() := (
-		observedTimestamp := ULINT#5000000000,
-		severityNumber := E_OtlpSeverity.WARN,
-		body := 'Test Body',
-		eventName := 'Test Event'
-	);
-	root: SJsonValue;
-	memberValue: SJsonValue;
+	logsData : FB_OtlpLogsData;
+	pResourceLogs : POINTER TO FB_OtlpResourceLogs;
+	pResource : POINTER TO FB_OtlpResource;
+	pResAttr : POINTER TO FB_OtlpKeyValue;
+	pScopeLogs : POINTER TO FB_OtlpScopeLogs;
+	pScope : POINTER TO FB_OtlpInstrumentationScope;
+	pLogRecord : POINTER TO FB_OtlpLogRecord;
+	pAttr : POINTER TO FB_OtlpKeyValue;
+	bodyStr : FB_OtlpStringValue;
+	iBody : I_OtlpAnyValue;
+	attrVal : FB_OtlpStringValue;
+	iAttrVal : I_OtlpAnyValue;
+	resAttrVal : FB_OtlpStringValue;
+	iResAttrVal : I_OtlpAnyValue;
+
+	jsonDoc : FB_JsonDynDomParser;
+	root : SJsonValue;
+	memberValue : SJsonValue;
+	resLogsArr : SJsonValue;
+	resLogsElem : SJsonValue;
+	resourceObj : SJsonValue;
+	resAttrArr : SJsonValue;
+	resAttrElem : SJsonValue;
+	resAttrValObj : SJsonValue;
+	scopeLogsArr : SJsonValue;
+	scopeLogsElem : SJsonValue;
+	scopeObj : SJsonValue;
+	logRecordsArr : SJsonValue;
+	logRecordElem : SJsonValue;
+	bodyObj : SJsonValue;
+	attrArr : SJsonValue;
+	attrElem : SJsonValue;
+	attrValObj : SJsonValue;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test Can Build Json Doc');
+        <ST><![CDATA[IF TcUnit.TEST_ORDERED('Test Complete LogRecord Serialization') THEN
 
+// Build hierarchy: LogsData -> ResourceLogs -> ScopeLogs -> LogRecord
+pResourceLogs := logsData.AddResourceLogs();
 
+// Set up Resource with an attribute
+pResource := __NEW(FB_OtlpResource);
+pResAttr := pResource^.AddAttributes();
+pResAttr^.sKey := 'service.name';
+resAttrVal.sValue := 'test-service';
+iResAttrVal := resAttrVal;
+pResAttr^.pValue := ADR(iResAttrVal);
+pResource^.nDroppedAttributesCount := UDINT#0;
+pResourceLogs^.pResource := pResource;
+pResourceLogs^.sSchemaUrl := 'https://opentelemetry.io/schemas/1.0.0';
 
-pJsonDoc := F_OtlpNodeToProtoJSON(logRecord);
-THIS^.AssertTrue(pJsonDoc <> 0, 'Can build dynamic json document');
+// Set up ScopeLogs with InstrumentationScope
+pScopeLogs := pResourceLogs^.AddScopeLogs();
+pScope := __NEW(FB_OtlpInstrumentationScope);
+pScope^.sName := 'test-scope';
+pScope^.sVersion := '1.0.0';
+pScopeLogs^.pScope := pScope;
+pScopeLogs^.sSchemaUrl := 'https://opentelemetry.io/schemas/1.0.0';
 
-IF pJsonDoc <> 0 THEN
-        root := pJsonDoc^.GetDocumentRoot();
+// Set up LogRecord with all scalar fields
+pLogRecord := pScopeLogs^.AddLogRecords();
+pLogRecord^.nTimeUnixNano := ULINT#1000000000;
+pLogRecord^.nObservedTimeUnixNano := ULINT#2000000000;
+pLogRecord^.eSeverityNumber := E_OtlpSeverityNumber.SEVERITY_NUMBER_ERROR;
+pLogRecord^.sSeverityText := 'ERROR';
+pLogRecord^.sEventName := 'test.event';
+pLogRecord^.nDroppedAttributesCount := UDINT#2;
+pLogRecord^.nFlags := UDINT#256;
 
-        memberValue := pJsonDoc^.FindMember(root, 'observedTimestamp');
-        THIS^.AssertTrue(
-                pJsonDoc^.GetUint64(memberValue) = logRecord.observedTimestamp,
-                'observedTimestamp should round-trip through parser'
-        );
+// Set body via intermediate interface variable
+bodyStr.sValue := 'test log body';
+iBody := bodyStr;
+pLogRecord^.pBody := ADR(iBody);
 
-        memberValue := pJsonDoc^.FindMember(root, 'severityNumber');
-        THIS^.AssertTrue(
-                pJsonDoc^.GetInt(memberValue) = TO_DINT(logRecord.severityNumber),
-                'severityNumber should round-trip through parser'
-        );
+// Add an attribute to the log record
+pAttr := pLogRecord^.AddAttributes();
+pAttr^.sKey := 'log.attr';
+attrVal.sValue := 'attr-value';
+iAttrVal := attrVal;
+pAttr^.pValue := ADR(iAttrVal);
 
-        memberValue := pJsonDoc^.FindMember(root, 'body');
-        THIS^.AssertTrue(
-                pJsonDoc^.GetString(memberValue) = logRecord.body,
-                'body should round-trip through parser'
-        );
+// Serialize the full hierarchy
+root := jsonDoc.NewDocument();
+jsonDoc.SetObject(root);
+logsData.SerializeToProtoJson(jsonDoc, root);
 
-        memberValue := pJsonDoc^.FindMember(root, 'eventName');
-        THIS^.AssertTrue(
-                pJsonDoc^.GetString(memberValue) = logRecord.eventName,
-                'eventName should round-trip through parser'
-        );
-		
-        __DELETE(pJsonDoc);
-END_IF
+// Verify resourceLogs array exists
+resLogsArr := jsonDoc.FindMember(root, 'resourceLogs');
+THIS^.AssertTrue(jsonDoc.IsArray(resLogsArr), 'resourceLogs should be an array');
+
+// Navigate into resourceLogs[0]
+resLogsElem := jsonDoc.GetArrayValueByIdx(resLogsArr, 0);
+
+// Verify resource object
+resourceObj := jsonDoc.FindMember(resLogsElem, 'resource');
+THIS^.AssertTrue(jsonDoc.IsObject(resourceObj), 'resource should be an object');
+
+// Verify resource attribute
+resAttrArr := jsonDoc.FindMember(resourceObj, 'attributes');
+THIS^.AssertTrue(jsonDoc.IsArray(resAttrArr), 'resource attributes should be an array');
+resAttrElem := jsonDoc.GetArrayValueByIdx(resAttrArr, 0);
+memberValue := jsonDoc.FindMember(resAttrElem, 'key');
+THIS^.AssertEquals_STRING('service.name', jsonDoc.GetString(memberValue), 'resource attr key');
+resAttrValObj := jsonDoc.FindMember(resAttrElem, 'value');
+memberValue := jsonDoc.FindMember(resAttrValObj, 'stringValue');
+THIS^.AssertEquals_STRING('test-service', jsonDoc.GetString(memberValue), 'resource attr value');
+
+// Verify schemaUrl on resourceLogs
+memberValue := jsonDoc.FindMember(resLogsElem, 'schemaUrl');
+THIS^.AssertEquals_STRING('https://opentelemetry.io/schemas/1.0.0', jsonDoc.GetString(memberValue), 'resourceLogs schemaUrl');
+
+// Navigate into scopeLogs[0]
+scopeLogsArr := jsonDoc.FindMember(resLogsElem, 'scopeLogs');
+THIS^.AssertTrue(jsonDoc.IsArray(scopeLogsArr), 'scopeLogs should be an array');
+scopeLogsElem := jsonDoc.GetArrayValueByIdx(scopeLogsArr, 0);
+
+// Verify scope
+scopeObj := jsonDoc.FindMember(scopeLogsElem, 'scope');
+THIS^.AssertTrue(jsonDoc.IsObject(scopeObj), 'scope should be an object');
+memberValue := jsonDoc.FindMember(scopeObj, 'name');
+THIS^.AssertEquals_STRING('test-scope', jsonDoc.GetString(memberValue), 'scope name');
+memberValue := jsonDoc.FindMember(scopeObj, 'version');
+THIS^.AssertEquals_STRING('1.0.0', jsonDoc.GetString(memberValue), 'scope version');
+
+// Navigate into logRecords[0]
+logRecordsArr := jsonDoc.FindMember(scopeLogsElem, 'logRecords');
+THIS^.AssertTrue(jsonDoc.IsArray(logRecordsArr), 'logRecords should be an array');
+logRecordElem := jsonDoc.GetArrayValueByIdx(logRecordsArr, 0);
+
+// Verify LogRecord scalar fields
+memberValue := jsonDoc.FindMember(logRecordElem, 'timeUnixNano');
+THIS^.AssertTrue(jsonDoc.GetUint64(memberValue) = ULINT#1000000000, 'timeUnixNano');
+
+memberValue := jsonDoc.FindMember(logRecordElem, 'observedTimeUnixNano');
+THIS^.AssertTrue(jsonDoc.GetUint64(memberValue) = ULINT#2000000000, 'observedTimeUnixNano');
+
+memberValue := jsonDoc.FindMember(logRecordElem, 'severityNumber');
+THIS^.AssertTrue(jsonDoc.GetInt(memberValue) = TO_DINT(E_OtlpSeverityNumber.SEVERITY_NUMBER_ERROR), 'severityNumber');
+
+memberValue := jsonDoc.FindMember(logRecordElem, 'severityText');
+THIS^.AssertEquals_STRING('ERROR', jsonDoc.GetString(memberValue), 'severityText');
+
+memberValue := jsonDoc.FindMember(logRecordElem, 'eventName');
+THIS^.AssertEquals_STRING('test.event', jsonDoc.GetString(memberValue), 'eventName');
+
+memberValue := jsonDoc.FindMember(logRecordElem, 'droppedAttributesCount');
+THIS^.AssertTrue(jsonDoc.GetUint(memberValue) = UDINT#2, 'droppedAttributesCount');
+
+memberValue := jsonDoc.FindMember(logRecordElem, 'flags');
+THIS^.AssertTrue(jsonDoc.GetUint(memberValue) = UDINT#256, 'flags');
+
+// Verify body
+bodyObj := jsonDoc.FindMember(logRecordElem, 'body');
+THIS^.AssertTrue(jsonDoc.IsObject(bodyObj), 'body should be an object');
+memberValue := jsonDoc.FindMember(bodyObj, 'stringValue');
+THIS^.AssertEquals_STRING('test log body', jsonDoc.GetString(memberValue), 'body stringValue');
+
+// Verify log record attribute
+attrArr := jsonDoc.FindMember(logRecordElem, 'attributes');
+THIS^.AssertTrue(jsonDoc.IsArray(attrArr), 'attributes should be an array');
+attrElem := jsonDoc.GetArrayValueByIdx(attrArr, 0);
+memberValue := jsonDoc.FindMember(attrElem, 'key');
+THIS^.AssertEquals_STRING('log.attr', jsonDoc.GetString(memberValue), 'attr key');
+attrValObj := jsonDoc.FindMember(attrElem, 'value');
+memberValue := jsonDoc.FindMember(attrValObj, 'stringValue');
+THIS^.AssertEquals_STRING('attr-value', jsonDoc.GetString(memberValue), 'attr stringValue');
+
+// Clean up: null out pointers we don't own to prevent double-free
+// pBody and pValue point to local stack vars, not heap - don't let FB_exit __DELETE them
+pLogRecord^.pBody := 0;
+pAttr^.pValue := 0;
+pResAttr^.pValue := 0;
 
 TcUnit.TEST_FINISHED();
-]]></ST>
+END_IF]]></ST>
       </Implementation>
     </Method>
   </POU>

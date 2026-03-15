@@ -1,42 +1,308 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_OtlpLogRecord" Id="{c8c59714-2c63-472d-899e-e687788f3419}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_OtlpLogRecord EXTENDS FB_OtlpBaseNode IMPLEMENTS I_OtlpNode
-VAR_INPUT CONSTANT
-	// see OTLP Log and Event Record Definition documentation for more info
-	// timestamp: ULINT; redundent, same as observed timestamp
-	observedTimestamp: ULINT;
-	
-	// TRACE CONTEXT FIELDS
-	// traceId: T_MaxString; will implement at a later date
-	// spanId: T_MaxString; will implement at a later date
-	// traceFlag: BYTE; will implement at a later date
-	
-	// SEVERITY FIELDS
-	// severityText: STRING(10); will implement at a later date
-	severityNumber: E_OtlpSeverity;
-	
-	body: T_MaxString;  // should probably covert to a bigger string for json
-	// resource: ST_OtlpResource;
-	// instrumentationScope: ST_OtlpInstrumentationScope; will implement at a later date
-	// attributes: AnyType will implement at a later date
-	// errorsAndExceptions: will implement at a later date
-	eventName: STRING(30);
-END_VAR]]></Declaration>
+  <POU Name="FB_OtlpLogRecord" Id="{09ea08c5-bb90-4f48-b79f-bce281f875e2}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_OtlpLogRecord IMPLEMENTS I_OtlpSerializable
+VAR
+	_nTimeUnixNano : ULINT;
+	_nObservedTimeUnixNano : ULINT;
+	_eSeverityNumber : E_OtlpSeverityNumber;
+	_sSeverityText : STRING(255);
+	_pBody : POINTER TO I_OtlpAnyValue;
+	_arrAttributes : ARRAY[0..99] OF POINTER TO FB_OtlpKeyValue;
+	_nAttributesCount : UDINT;
+	_nDroppedAttributesCount : UDINT;
+	_nFlags : UDINT;
+	_arrTraceId : ARRAY[0..15] OF BYTE;
+	_arrSpanId : ARRAY[0..7] OF BYTE;
+	_sEventName : STRING(255);
+END_VAR
+]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Property Name="nodeType" Id="{8da15ef9-c324-49f8-8950-73bd0ddeb889}">
-      <Declaration><![CDATA[PROPERTY nodeType : E_OtlpNodeType
+    <Method Name="AddAttributes" Id="{53995b7f-fd03-4165-bd10-bec07dfdc2dc}">
+      <Declaration><![CDATA[METHOD AddAttributes : POINTER TO FB_OtlpKeyValue
+VAR
+END_VAR
 ]]></Declaration>
-      <Get Name="Get" Id="{536345ea-fa5b-4b33-b9fb-f5acea3bf453}">
+      <Implementation>
+        <ST><![CDATA[IF THIS^._nAttributesCount < 100 THEN
+	AddAttributes := __NEW(FB_OtlpKeyValue);
+	THIS^._arrAttributes[THIS^._nAttributesCount] := AddAttributes;
+	THIS^._nAttributesCount := THIS^._nAttributesCount + 1;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="arrSpanId" Id="{b733f4ea-aad6-4644-872c-1fd11fb6649e}">
+      <Declaration><![CDATA[PROPERTY arrSpanId : ARRAY[0..7] OF BYTE]]></Declaration>
+      <Get Name="Get" Id="{22034b6d-6dd1-4c18-8f04-cef6f90d03a6}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
         <Implementation>
-          <ST><![CDATA[nodeType := E_OtlpNodeType.LOG_RECORD;]]></ST>
+          <ST><![CDATA[arrSpanId := THIS^._arrSpanId;]]></ST>
         </Implementation>
       </Get>
+      <Set Name="Set" Id="{a04064d0-e70d-4fc0-9d72-58cc097c85f8}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._arrSpanId := arrSpanId;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="arrTraceId" Id="{e6cd8222-89b5-4c4c-aaf4-53072161e9e6}">
+      <Declaration><![CDATA[PROPERTY arrTraceId : ARRAY[0..15] OF BYTE]]></Declaration>
+      <Get Name="Get" Id="{2e9e90a2-d506-442c-8eae-0110d7988ceb}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[arrTraceId := THIS^._arrTraceId;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{b7338170-01e1-46a3-9ef8-e864edc177f2}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._arrTraceId := arrTraceId;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="eSeverityNumber" Id="{f5a6e40f-782e-4903-84ac-c66e57cb8f6a}">
+      <Declaration><![CDATA[PROPERTY eSeverityNumber : E_OtlpSeverityNumber]]></Declaration>
+      <Get Name="Get" Id="{871acee3-b5b3-44c3-954a-e6e83cdc1698}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[eSeverityNumber := THIS^._eSeverityNumber;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{b947e833-7cc5-4f80-9189-925d002c4a37}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._eSeverityNumber := eSeverityNumber;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Method Name="FB_exit" Id="{706378f5-e6be-460d-b1dc-e22f26e14d0a}">
+      <Declaration><![CDATA[METHOD FB_exit : BOOL
+VAR_INPUT
+	bInCopyCode : BOOL;
+END_VAR
+VAR
+	i : UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._pBody <> 0 THEN
+	__DELETE(THIS^._pBody);
+END_IF
+
+IF THIS^._nAttributesCount > 0 THEN
+	FOR i := 0 TO THIS^._nAttributesCount - 1 DO
+		IF THIS^._arrAttributes[i] <> 0 THEN
+			__DELETE(THIS^._arrAttributes[i]);
+		END_IF
+	END_FOR
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="nAttributesCount" Id="{8a3db5ee-89bc-497c-b497-dd22e1dd1586}">
+      <Declaration><![CDATA[PROPERTY nAttributesCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{d0a637c7-2b09-41b2-85d1-6176dbbe43e6}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[nAttributesCount := THIS^._nAttributesCount;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="nDroppedAttributesCount" Id="{fd58c7ea-38b0-4df4-81cd-d8f5a2ea2c79}">
+      <Declaration><![CDATA[PROPERTY nDroppedAttributesCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{6c3e0a5a-3ddc-4057-807f-f7d71fad24b7}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[nDroppedAttributesCount := THIS^._nDroppedAttributesCount;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{9990cf00-1936-41e0-aa35-0f51e06c94ba}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._nDroppedAttributesCount := nDroppedAttributesCount;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="nFlags" Id="{350b9b5b-fbfc-4511-aed9-901cb5591031}">
+      <Declaration><![CDATA[PROPERTY nFlags : UDINT]]></Declaration>
+      <Get Name="Get" Id="{8138337a-ed61-411c-85ac-1a0176116dc4}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[nFlags := THIS^._nFlags;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{4976d4d0-5b5f-4c6a-ae2b-ac36606d4c78}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._nFlags := nFlags;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="nObservedTimeUnixNano" Id="{f31b0cb1-736f-4b6f-879f-42acdfe633df}">
+      <Declaration><![CDATA[PROPERTY nObservedTimeUnixNano : ULINT]]></Declaration>
+      <Get Name="Get" Id="{e2465e01-804d-492d-a762-3df37d819131}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[nObservedTimeUnixNano := THIS^._nObservedTimeUnixNano;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{57ced94b-e667-4f8e-aac5-fd4d060cb8b9}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._nObservedTimeUnixNano := nObservedTimeUnixNano;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="nTimeUnixNano" Id="{03405587-1c91-456e-9428-07a05da52707}">
+      <Declaration><![CDATA[PROPERTY nTimeUnixNano : ULINT]]></Declaration>
+      <Get Name="Get" Id="{4bf03e10-3dd7-47c2-b531-6bb83b73d8c2}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[nTimeUnixNano := THIS^._nTimeUnixNano;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{fafefe2f-0ed7-4d8b-87e0-f2e3f48ab436}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._nTimeUnixNano := nTimeUnixNano;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="pBody" Id="{e91992aa-467f-4199-bda9-0bfe5f0ac501}">
+      <Declaration><![CDATA[PROPERTY pBody : POINTER TO I_OtlpAnyValue]]></Declaration>
+      <Get Name="Get" Id="{9cc30d09-dba2-4654-aed8-53ebfbbcf620}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[pBody := THIS^._pBody;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{366cd74e-7696-47b6-a715-c4fee6cbe111}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._pBody := pBody;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Method Name="SerializeToProtoJson" Id="{5b4890fc-505b-4a3f-a3db-364213ab5811}">
+      <Declaration><![CDATA[METHOD SerializeToProtoJson
+VAR_INPUT
+	parser : REFERENCE TO FB_JsonDynDomParser;
+	node   : SJsonValue;
+END_VAR
+VAR
+	i : UDINT;
+	arrNode : SJsonValue;
+	elemNode : SJsonValue;
+	objNode : SJsonValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[parser.AddUint64Member(node, 'timeUnixNano', THIS^._nTimeUnixNano);
+
+parser.AddUint64Member(node, 'observedTimeUnixNano', THIS^._nObservedTimeUnixNano);
+
+parser.AddIntMember(node, 'severityNumber', TO_DINT(THIS^._eSeverityNumber));
+
+parser.AddStringMember(node, 'severityText', THIS^._sSeverityText);
+
+IF THIS^._pBody <> 0 THEN
+	objNode := parser.AddObjectMember(node, 'body');
+	THIS^._pBody^.SerializeToProtoJson(parser, objNode);
+END_IF
+
+IF THIS^._nAttributesCount > 0 THEN
+	arrNode := parser.AddArrayMember(node, 'attributes', 0);
+	FOR i := 0 TO THIS^._nAttributesCount - 1 DO
+		elemNode := parser.PushbackJsonValue(arrNode, '{}');
+		THIS^._arrAttributes[i]^.SerializeToProtoJson(parser, elemNode);
+	END_FOR
+END_IF
+
+parser.AddUintMember(node, 'droppedAttributesCount', THIS^._nDroppedAttributesCount);
+
+parser.AddUintMember(node, 'flags', THIS^._nFlags);
+
+// TODO: serialize bytes field 'traceId' (base64 encoding)
+
+// TODO: serialize bytes field 'spanId' (base64 encoding)
+
+parser.AddStringMember(node, 'eventName', THIS^._sEventName);]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="sEventName" Id="{c799d810-e08a-444f-bf06-25366c5e8bc7}">
+      <Declaration><![CDATA[PROPERTY sEventName : STRING(255)]]></Declaration>
+      <Get Name="Get" Id="{7445186b-b720-40e9-a01a-493b21585693}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[sEventName := THIS^._sEventName;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{8a5d4015-532a-40c1-9950-8bfa8c85583d}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._sEventName := sEventName;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="sSeverityText" Id="{483f7e90-ac44-4327-bade-2454134de0f6}">
+      <Declaration><![CDATA[PROPERTY sSeverityText : STRING(255)]]></Declaration>
+      <Get Name="Get" Id="{af219165-cca6-40dd-85ae-dcf7431fb297}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[sSeverityText := THIS^._sSeverityText;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{94a477d7-8c91-450b-89ca-25a395da5270}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._sSeverityText := sSeverityText;]]></ST>
+        </Implementation>
+      </Set>
     </Property>
   </POU>
 </TcPlcObject>

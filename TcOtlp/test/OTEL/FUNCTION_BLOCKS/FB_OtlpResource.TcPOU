@@ -1,0 +1,104 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_OtlpResource" Id="{7f2b9cb4-2140-4b92-b6fb-55cea7b08476}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_OtlpResource IMPLEMENTS I_OtlpSerializable
+VAR
+	_arrAttributes : ARRAY[0..99] OF POINTER TO FB_OtlpKeyValue;
+	_nAttributesCount : UDINT;
+	_nDroppedAttributesCount : UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="AddAttributes" Id="{647d6609-f8f0-435e-987d-4b47d1bebbc2}">
+      <Declaration><![CDATA[METHOD AddAttributes : POINTER TO FB_OtlpKeyValue
+VAR
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._nAttributesCount < 100 THEN
+	AddAttributes := __NEW(FB_OtlpKeyValue);
+	THIS^._arrAttributes[THIS^._nAttributesCount] := AddAttributes;
+	THIS^._nAttributesCount := THIS^._nAttributesCount + 1;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+
+    <Method Name="FB_exit" Id="{74de001a-75be-4bb8-b768-70a935fd3e5b}">
+      <Declaration><![CDATA[METHOD FB_exit : BOOL
+VAR_INPUT
+	bInCopyCode : BOOL;
+END_VAR
+VAR
+	i : UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._nAttributesCount > 0 THEN
+	FOR i := 0 TO THIS^._nAttributesCount - 1 DO
+		IF THIS^._arrAttributes[i] <> 0 THEN
+			__DELETE(THIS^._arrAttributes[i]);
+		END_IF
+	END_FOR
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="nAttributesCount" Id="{c968c300-16a5-4998-9231-5adfa1952d2b}">
+      <Declaration><![CDATA[PROPERTY nAttributesCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{94e1fad2-1665-4857-8caf-ad18ff586a77}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[nAttributesCount := THIS^._nAttributesCount;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="nDroppedAttributesCount" Id="{a59c49cf-ff1b-4682-b729-26909173b126}">
+      <Declaration><![CDATA[PROPERTY nDroppedAttributesCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{9237bfa4-2e9f-4457-8995-9e131418c417}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[nDroppedAttributesCount := THIS^._nDroppedAttributesCount;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{8e613696-e036-4471-aea4-ec126b576163}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._nDroppedAttributesCount := nDroppedAttributesCount;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+
+    <Method Name="SerializeToProtoJson" Id="{4fc743d6-3053-4c0a-8b76-91419add096b}">
+      <Declaration><![CDATA[METHOD SerializeToProtoJson
+VAR_INPUT
+	parser : REFERENCE TO FB_JsonDynDomParser;
+	node   : SJsonValue;
+END_VAR
+VAR
+	i : UDINT;
+	arrNode : SJsonValue;
+	elemNode : SJsonValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._nAttributesCount > 0 THEN
+	arrNode := parser.AddArrayMember(node, 'attributes', 0);
+	FOR i := 0 TO THIS^._nAttributesCount - 1 DO
+		elemNode := parser.PushbackJsonValue(arrNode, '{}');
+		THIS^._arrAttributes[i]^.SerializeToProtoJson(parser, elemNode);
+	END_FOR
+END_IF
+
+parser.AddUintMember(node, 'droppedAttributesCount', THIS^._nDroppedAttributesCount);]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

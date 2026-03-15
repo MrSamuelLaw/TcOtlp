@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_OtlpBoolValue" Id="{edc283ad-b587-4c40-ba67-a6a7edf697ff}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_OtlpBoolValue IMPLEMENTS I_OtlpAnyValue
+VAR
+	_bValue : BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Property Name="bValue" Id="{4e38f24c-1095-4b31-9b10-51a60880ad7e}">
+      <Declaration><![CDATA[PROPERTY bValue : BOOL]]></Declaration>
+      <Get Name="Get" Id="{0c06fa32-b5af-46eb-a716-1f1ab66d88c0}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[bValue := THIS^._bValue;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{7a654476-614d-4b67-b1cd-0b7a302370ff}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._bValue := bValue;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="eValueType" Id="{0aa9b6e1-3f4d-4a45-93b6-3ea58d517e48}">
+      <Declaration><![CDATA[PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
+      <Get Name="Get" Id="{abe81778-a591-4e31-aa7f-f2e02a3ac0b1}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[eValueType := E_OtlpAnyValueType.BOOL_VALUE;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="SerializeToProtoJson" Id="{f25cd1ae-c171-4498-93e5-7fdd6e8ad031}">
+      <Declaration><![CDATA[METHOD SerializeToProtoJson
+VAR_INPUT
+	parser : REFERENCE TO FB_JsonDynDomParser;
+	node   : SJsonValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[parser.AddBoolMember(node, 'boolValue', THIS^._bValue);]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

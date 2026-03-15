@@ -1,0 +1,122 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_HttpLogExportIntegrationTest" Id="{a1c2d3e4-f5b6-7890-abcd-ef1234567890}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_HttpLogExportIntegrationTest EXTENDS FB_TestSuite
+VAR
+	_exporter       : FB_HttpBatchLogExporter;
+	_logsData       : FB_OtlpLogsData;
+	_bBuilt         : BOOL;
+	_bExportCalled  : BOOL;
+	_nTimeout       : TON := (PT := T#10S);
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.TestSendLogsToEndpoint();]]></ST>
+    </Implementation>
+    <Method Name="TestSendLogsToEndpoint" Id="{b2d3e4f5-a6c7-8901-bcde-f23456789012}">
+      <Declaration><![CDATA[METHOD TestSendLogsToEndpoint
+VAR_INST
+	bodyStr       : FB_OtlpStringValue;
+	iBody         : I_OtlpAnyValue;
+	attrVal       : FB_OtlpStringValue;
+	iAttrVal      : I_OtlpAnyValue;
+	resAttrVal    : FB_OtlpStringValue;
+	iResAttrVal   : I_OtlpAnyValue;
+END_VAR
+VAR
+	pResourceLogs : POINTER TO FB_OtlpResourceLogs;
+	pResource     : POINTER TO FB_OtlpResource;
+	pResAttr      : POINTER TO FB_OtlpKeyValue;
+	pScopeLogs    : POINTER TO FB_OtlpScopeLogs;
+	pScope        : POINTER TO FB_OtlpInstrumentationScope;
+	pLogRecord    : POINTER TO FB_OtlpLogRecord;
+	pAttr         : POINTER TO FB_OtlpKeyValue;
+	bResult       : BOOL;
+	nUnixNano     : ULINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TcUnit.TEST_ORDERED('Integration: Send logs to OTLP HTTP endpoint') THEN
+
+// Build the OTLP log payload once
+IF NOT _bBuilt THEN
+	// Configure exporter for the remote HTTPS endpoint
+	_exporter.sHostName := 'otlp.breakingthelaw.xyz';
+	_exporter.nHostPort := 4318;
+	_exporter.sUri := '/v1/logs';
+	_exporter.bUseTls := TRUE;
+	_exporter.bNoServerCertCheck := TRUE;
+	_exporter.sCaCertPath := 'C:\Users\samue\Desktop\programming projects\TcOtlp\certs\isrg-root-x1.pem';
+
+	// Build LogsData -> ResourceLogs -> ScopeLogs -> LogRecord
+	pResourceLogs := _logsData.AddResourceLogs();
+
+	pResource := __NEW(FB_OtlpResource);
+	pResAttr := pResource^.AddAttributes();
+	pResAttr^.sKey := 'service.name';
+	resAttrVal.sValue := 'tcotlp-integration-test';
+	iResAttrVal := resAttrVal;
+	pResAttr^.pValue := ADR(iResAttrVal);
+	pResourceLogs^.pResource := pResource;
+
+	pScopeLogs := pResourceLogs^.AddScopeLogs();
+	pScope := __NEW(FB_OtlpInstrumentationScope);
+	pScope^.sName := 'tcotlp.test';
+	pScope^.sVersion := '1.0.0';
+	pScopeLogs^.pScope := pScope;
+
+	pLogRecord := pScopeLogs^.AddLogRecords();
+	nUnixNano := (F_GetSystemTime() - ULINT#116444736000000000) * ULINT#100;
+	pLogRecord^.nTimeUnixNano := nUnixNano;
+	pLogRecord^.nObservedTimeUnixNano := nUnixNano;
+	pLogRecord^.eSeverityNumber := E_OtlpSeverityNumber.SEVERITY_NUMBER_INFO;
+	pLogRecord^.sSeverityText := 'INFO';
+	pLogRecord^.sEventName := 'integration.test';
+
+	bodyStr.sValue := 'Hello from TcOtlp integration test';
+	iBody := bodyStr;
+	pLogRecord^.pBody := ADR(iBody);
+
+	pAttr := pLogRecord^.AddAttributes();
+	pAttr^.sKey := 'test.source';
+	attrVal.sValue := 'TcUnit';
+	iAttrVal := attrVal;
+	pAttr^.pValue := ADR(iAttrVal);
+
+	_bBuilt := TRUE;
+END_IF
+
+// Trigger the export once
+IF _bBuilt AND NOT _bExportCalled THEN
+	bResult := _exporter.Export(_logsData);
+	THIS^.AssertTrue(bResult, 'Export should accept the request');
+	_bExportCalled := TRUE;
+	_nTimeout(IN := TRUE);
+END_IF
+
+// Cycle the exporter state machine until done or error
+IF _bExportCalled THEN
+	_exporter();
+	_nTimeout();
+
+	IF _exporter.bDone THEN
+		THIS^.AssertTrue(_exporter.nHttpStatus >= 200 AND _exporter.nHttpStatus < 300,
+			CONCAT('Expected 2xx, got ', UINT_TO_STRING(_exporter.nHttpStatus)));
+		THIS^.AssertEquals_STRING('{"partialSuccess":{}}', _exporter.sResponseBody,
+			CONCAT('Response body (len=', CONCAT(UINT_TO_STRING(DINT_TO_UINT(LEN(_exporter.sResponseBody))), ')')));
+		TcUnit.TEST_FINISHED();
+	ELSIF _exporter.bError THEN
+		THIS^.AssertTrue(FALSE,
+			CONCAT(CONCAT('Export failed (HTTP ', CONCAT(UINT_TO_STRING(_exporter.nHttpStatus), '): ')), _exporter.sLastError));
+		TcUnit.TEST_FINISHED();
+	ELSIF _nTimeout.Q THEN
+		THIS^.AssertTrue(FALSE, 'Export timed out after 10s');
+		TcUnit.TEST_FINISHED();
+	END_IF
+END_IF
+
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

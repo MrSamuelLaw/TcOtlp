@@ -50,5 +50,3 @@ LineIDs.dbg.bak
 
 # temporary files
 /plans
-# reference material
-/opentelemetry-proto

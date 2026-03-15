@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_OtlpLogsData" Id="{5fb2dc65-e5af-43ef-91cc-cd97912342a5}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_OtlpLogsData IMPLEMENTS I_OtlpSerializable
+VAR
+	_arrResourceLogs : ARRAY[0..99] OF POINTER TO FB_OtlpResourceLogs;
+	_nResourceLogsCount : UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="SerializeToProtoJson" Id="{cb75bea2-f4be-4c65-87ba-c9360c446ce9}">
+      <Declaration><![CDATA[METHOD SerializeToProtoJson
+VAR_INPUT
+	parser : REFERENCE TO FB_JsonDynDomParser;
+	node   : SJsonValue;
+END_VAR
+VAR
+	i : UDINT;
+	arrNode : SJsonValue;
+	elemNode : SJsonValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._nResourceLogsCount > 0 THEN
+	arrNode := parser.AddArrayMember(node, 'resourceLogs', 0);
+	FOR i := 0 TO THIS^._nResourceLogsCount - 1 DO
+		elemNode := parser.PushbackJsonValue(arrNode, '{}');
+		THIS^._arrResourceLogs[i]^.SerializeToProtoJson(parser, elemNode);
+	END_FOR
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_exit" Id="{484271ce-7c3a-4552-8a9b-5d5f2472e20f}">
+      <Declaration><![CDATA[METHOD FB_exit : BOOL
+VAR_INPUT
+	bInCopyCode : BOOL;
+END_VAR
+VAR
+	i : UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i := 0 TO THIS^._nResourceLogsCount - 1 DO
+	IF THIS^._arrResourceLogs[i] <> 0 THEN
+		__DELETE(THIS^._arrResourceLogs[i]);
+	END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="AddResourceLogs" Id="{0827e9f0-64cd-43f0-994e-2150a5d85b7f}">
+      <Declaration><![CDATA[METHOD AddResourceLogs : POINTER TO FB_OtlpResourceLogs
+VAR
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._nResourceLogsCount < 100 THEN
+	AddResourceLogs := __NEW(FB_OtlpResourceLogs);
+	THIS^._arrResourceLogs[THIS^._nResourceLogsCount] := AddResourceLogs;
+	THIS^._nResourceLogsCount := THIS^._nResourceLogsCount + 1;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="nResourceLogsCount" Id="{df86f6e8-1048-47be-b4ce-1ebf7ede5dec}">
+      <Declaration><![CDATA[PROPERTY nResourceLogsCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{583d49c5-a42c-4ad2-b076-6c8663af986a}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[nResourceLogsCount := THIS^._nResourceLogsCount;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+  </POU>
+</TcPlcObject>
