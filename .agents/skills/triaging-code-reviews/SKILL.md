@@ -26,12 +26,10 @@ Comments may span multiple lines:
 
 ### Step 1 — Discover Unprocessed Comments
 
-Grep the workspace for `CODE REVIEW` in `.TcPOU` files. Identify comments that do **not** already have a UUID (a UUID is 8-4-4-4-12 hex pattern immediately after `CODE REVIEW`).
+Use `finder` to search for `CODE REVIEW` in `.TcPOU` files. Identify comments that do **not** already have a UUID (a UUID is 8-4-4-4-12 hex pattern immediately after `CODE REVIEW`).
 
 ```
-Grep pattern: "CODE REVIEW"
-Path: TcOtlp/
-Glob: **/*.TcPOU
+finder query: "Find all CODE REVIEW comments in TcPOU files across the codebase"
 ```
 
 ### Step 2 — Read Context
@@ -88,15 +86,15 @@ After processing, present all open items (including previously processed ones) a
 
 When the user references a UUID:
 
-1. Grep the workspace for that UUID to locate the file and line
+1. Use `finder` to locate the UUID in the codebase to find the file and line
 2. Read the surrounding code for full context
-3. Grep the entire codebase for any related symbols (variable names, function block names) to check for cross-file impact
+3. Use `finder` to search the entire codebase for any related symbols (variable names, function block names) to check for cross-file impact
 4. Implement the fix
 5. Remove the `CODE REVIEW <uuid> ...` comment block from the file
 
 ### Step 7 — Verify Resolution
 
-After removing a comment, grep once more to confirm the UUID no longer appears in the codebase.
+After removing a comment, use `finder` once more to confirm the UUID no longer appears in the codebase.
 
 ## Rules
 
