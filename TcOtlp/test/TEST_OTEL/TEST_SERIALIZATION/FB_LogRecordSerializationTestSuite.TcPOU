@@ -61,6 +61,13 @@ pResource := __NEW(FB_OtlpResource);
 pResAttr := pResource^.AddAttributes();
 pResAttr^.sKey := 'service.name';
 resAttrVal.sValue := 'test-service';
+(* CODE REVIEW 323f48d6-2b40-4662-bdab-9f8920fd19c1
+manually assigning values is causing dangling pointers, what if 
+the key value class had helpter methods such as setStringValue(str)
+that could copy the value in and allocate the memory dynamically.
+If this fix is possiblewould fix the ownership problem and would also 
+be more ergonomic for the developer. 
+*)
 iResAttrVal := resAttrVal;
 pResAttr^.pValue := ADR(iResAttrVal);
 pResource^.nDroppedAttributesCount := UDINT#0;

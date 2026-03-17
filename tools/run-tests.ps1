@@ -176,6 +176,15 @@ catch {
     Write-Host "Could not switch Output window to TwinCAT pane: $_" -ForegroundColor Yellow
 }
 
+# Clear the TwinCAT output pane before building
+try {
+    [OutputWindowHelper]::ClearPane($dte, "TwinCAT")
+    Write-Host "TwinCAT output pane cleared." -ForegroundColor Green
+}
+catch {
+    Write-Host "Could not clear TwinCAT output pane: $_" -ForegroundColor Yellow
+}
+
 # -- Step 2: Rebuild solution -------------------------------------------------
 
 Write-Host "Starting rebuild..."
@@ -354,15 +363,6 @@ foreach ($line in $summaryLines) {
     Write-Host $line
 }
 Write-Host "==================================" -ForegroundColor Cyan
-
-# Clear the TwinCAT output pane
-try {
-    [OutputWindowHelper]::ClearPane($dte, "TwinCAT")
-    Write-Host "TwinCAT output pane cleared." -ForegroundColor Green
-}
-catch {
-    Write-Host "Could not clear TwinCAT output pane: $_" -ForegroundColor Yellow
-}
 
 # Exit with appropriate code
 if ($failedCount -gt 0) {

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_HttpBatchLogExporter" Id="{a1b2c3d4-e5f6-7890-abcd-ef0123456789}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_HttpBatchLogExporter
@@ -6,9 +6,8 @@ VAR_INPUT
 	sHostName       : STRING(255);
 	nHostPort       : UINT := 4318;
 	sUri            : STRING(255) := '/v1/logs';
-	bUseTls         : BOOL;
 	bNoServerCertCheck : BOOL;
-	sCaCertPath     : STRING(255);
+	sCaCertPath     : STRING(255); // Set to a valid CA certificate path to enable TLS
 END_VAR
 VAR_OUTPUT
 	bBusy           : BOOL;
@@ -33,7 +32,7 @@ END_VAR
 	_fbRequest.sContentType := 'application/json';
 	_fbClient.sHostName := sHostName;
 	_fbClient.nHostPort := nHostPort;
-	IF bUseTls THEN
+	IF sCaCertPath <> '' THEN
 		_fbClient.stTLS.sCA := sCaCertPath;
 		_fbClient.stTLS.bNoServerCertCheck := bNoServerCertCheck;
 	END_IF

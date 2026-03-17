@@ -44,7 +44,6 @@ IF NOT _bBuilt THEN
 	_exporter.sHostName := 'otlp.breakingthelaw.xyz';
 	_exporter.nHostPort := 4318;
 	_exporter.sUri := '/v1/logs';
-	_exporter.bUseTls := TRUE;
 	_exporter.bNoServerCertCheck := TRUE;
 	_exporter.sCaCertPath := 'C:\Users\samue\Desktop\programming projects\TcOtlp\certs\isrg-root-x1.pem';
 
