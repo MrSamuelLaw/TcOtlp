@@ -19,7 +19,8 @@ VAR
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[]]></ST>
+      <ST><![CDATA[
+]]></ST>
     </Implementation>
     <Method Name="AddAttributes" Id="{53995b7f-fd03-4165-bd10-bec07dfdc2dc}">
       <Declaration><![CDATA[METHOD AddAttributes : POINTER TO FB_OtlpKeyValue
@@ -105,13 +106,11 @@ END_VAR
 	__DELETE(THIS^._pBody);
 END_IF
 
-IF THIS^._nAttributesCount > 0 THEN
-	FOR i := 0 TO THIS^._nAttributesCount - 1 DO
-		IF THIS^._arrAttributes[i] <> 0 THEN
-			__DELETE(THIS^._arrAttributes[i]);
-		END_IF
-	END_FOR
-END_IF]]></ST>
+FOR i := 0 TO THIS^._nAttributesCount - 1 DO
+	IF THIS^._arrAttributes[i] <> 0 THEN
+		__DELETE(THIS^._arrAttributes[i]);
+	END_IF
+END_FOR]]></ST>
       </Implementation>
     </Method>
     <Property Name="nAttributesCount" Id="{8a3db5ee-89bc-497c-b497-dd22e1dd1586}">

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_OtlpKeyValue" Id="{50ea2a56-284b-4aa5-b808-d037b93547a2}" SpecialFunc="None">
     <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
@@ -12,6 +12,27 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="SerializeToProtoJson" Id="{ccc45dc8-a90b-4d0d-9f94-9f86e778df70}">
+      <Declaration><![CDATA[METHOD SerializeToProtoJson
+VAR_INPUT
+	parser : REFERENCE TO FB_JsonDynDomParser;
+	node   : SJsonValue;
+END_VAR
+VAR
+	objNode : SJsonValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[parser.AddStringMember(node, 'key', THIS^._sKey);
+
+IF THIS^._pValue <> 0 THEN
+	objNode := parser.AddObjectMember(node, 'value');
+	THIS^._pValue^.SerializeToProtoJson(parser, objNode);
+END_IF
+
+parser.AddIntMember(node, 'keyStrindex', THIS^._nKeyStrindex);]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="FB_exit" Id="{cb914c80-8960-439d-baeb-883d76536f87}">
       <Declaration><![CDATA[METHOD FB_exit : BOOL
 VAR_INPUT
@@ -24,22 +45,22 @@ END_VAR
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Property Name="nKeyStrindex" Id="{483e72b4-8af9-460b-8ea5-1acb03410668}">
-      <Declaration><![CDATA[PROPERTY nKeyStrindex : DINT]]></Declaration>
-      <Get Name="Get" Id="{42787566-4708-496a-aa26-c5f66870209a}">
+    <Property Name="sKey" Id="{7534945a-2353-4afa-9cac-c669c1c1032c}">
+      <Declaration><![CDATA[PROPERTY sKey : STRING(255)]]></Declaration>
+      <Get Name="Get" Id="{82b08847-ca48-4702-aa2c-2a15911ae59d}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
         <Implementation>
-          <ST><![CDATA[nKeyStrindex := THIS^._nKeyStrindex;]]></ST>
+          <ST><![CDATA[sKey := THIS^._sKey;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{521e7c29-72e8-416f-8107-2d55af66d4da}">
+      <Set Name="Set" Id="{f1db47eb-0a1b-4abe-8b26-8080616f845f}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
         <Implementation>
-          <ST><![CDATA[THIS^._nKeyStrindex := nKeyStrindex;]]></ST>
+          <ST><![CDATA[THIS^._sKey := sKey;]]></ST>
         </Implementation>
       </Set>
     </Property>
@@ -62,43 +83,22 @@ END_VAR
         </Implementation>
       </Set>
     </Property>
-    <Method Name="SerializeToProtoJson" Id="{ccc45dc8-a90b-4d0d-9f94-9f86e778df70}">
-      <Declaration><![CDATA[METHOD SerializeToProtoJson
-VAR_INPUT
-	parser : REFERENCE TO FB_JsonDynDomParser;
-	node   : SJsonValue;
-END_VAR
-VAR
-	objNode : SJsonValue;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[parser.AddStringMember(node, 'key', THIS^._sKey);
-
-IF THIS^._pValue <> 0 THEN
-	objNode := parser.AddObjectMember(node, 'value');
-	THIS^._pValue^.SerializeToProtoJson(parser, objNode);
-END_IF
-
-parser.AddIntMember(node, 'keyStrindex', THIS^._nKeyStrindex);]]></ST>
-      </Implementation>
-    </Method>
-    <Property Name="sKey" Id="{7534945a-2353-4afa-9cac-c669c1c1032c}">
-      <Declaration><![CDATA[PROPERTY sKey : STRING(255)]]></Declaration>
-      <Get Name="Get" Id="{82b08847-ca48-4702-aa2c-2a15911ae59d}">
+    <Property Name="nKeyStrindex" Id="{483e72b4-8af9-460b-8ea5-1acb03410668}">
+      <Declaration><![CDATA[PROPERTY nKeyStrindex : DINT]]></Declaration>
+      <Get Name="Get" Id="{42787566-4708-496a-aa26-c5f66870209a}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
         <Implementation>
-          <ST><![CDATA[sKey := THIS^._sKey;]]></ST>
+          <ST><![CDATA[nKeyStrindex := THIS^._nKeyStrindex;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{f1db47eb-0a1b-4abe-8b26-8080616f845f}">
+      <Set Name="Set" Id="{521e7c29-72e8-416f-8107-2d55af66d4da}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
         <Implementation>
-          <ST><![CDATA[THIS^._sKey := sKey;]]></ST>
+          <ST><![CDATA[THIS^._nKeyStrindex := nKeyStrindex;]]></ST>
         </Implementation>
       </Set>
     </Property>

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <Itf Name="I_OtlpAnyValue" Id="{37bdabe7-f63d-4af0-aee2-9f629c0f1b39}">
     <Declaration><![CDATA[INTERFACE I_OtlpAnyValue EXTENDS I_OtlpSerializable

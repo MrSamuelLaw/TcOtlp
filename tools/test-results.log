@@ -1,47 +1,47 @@
-﻿MSG | 3/16/2026 9:45:33 PM 239 ms | 'TwinCAT System' (10000): TwinCAT System Restart initiated from AmsNetId: 192.168.97.90.1.1 port 33356.
-ERR | 3/16/2026 9:45:33 PM 261 ms | 'Port_852' (852): PLC: PLC instance test Instance tried to free pointer 0xffffdf0f33c942b8 which was not allocated by the PLC instance.
-ERR | 3/16/2026 9:45:33 PM 261 ms | 'Port_852' (852): PLC: PLC instance test Instance tried to free pointer 0xffffdf0f33c94088 which was not allocated by the PLC instance.
-ERR | 3/16/2026 9:45:33 PM 261 ms | 'Port_852' (852): PLC: PLC instance test Instance tried to free pointer 0xffffdf0f33c941a0 which was not allocated by the PLC instance.
-MSG | 3/16/2026 9:45:35 PM 021 ms | 'TwinCAT System' (10000): TcIo Server started: TcIo.
-MSG | 3/16/2026 9:45:35 PM 028 ms | 'TwinCAT System' (10000): TcIotDrivers Server started: TcIotDrivers.
-MSG | 3/16/2026 9:45:35 PM 036 ms | 'TwinCAT System' (10000): TcPlc30 Server started: TcPlc30.
-MSG | 3/16/2026 9:45:35 PM 042 ms | 'TwinCAT System' (10000): TcRTime Server started: TcRTime.
-MSG | 3/16/2026 9:45:35 PM 049 ms | 'TwinCAT System' (10000): TcRtsObjects Server started: TcRtsObjects.
-MSG | 3/16/2026 9:45:35 PM 052 ms | 'TCOM Server' (10): free router memory with 187KBytes still allocated.
-MSG | 3/16/2026 9:45:35 PM 053 ms | 'License Server' (30): license validation status is Valid(3)
-MSG | 3/16/2026 9:45:35 PM 154 ms | 'TwinCAT System' (10000): TwinCAT USB support could not be initialized. System start continued.
+﻿MSG | 3/17/2026 5:35:19 PM 514 ms | 'TwinCAT System' (10000): TwinCAT System Restart initiated from AmsNetId: 192.168.97.90.1.1 port 32965.
+ERR | 3/17/2026 5:35:19 PM 536 ms | 'Port_852' (852): PLC: PLC instance test Instance tried to free pointer 0xffff870e4a885a48 which was not allocated by the PLC instance.
+ERR | 3/17/2026 5:35:19 PM 536 ms | 'Port_852' (852): PLC: PLC instance test Instance tried to free pointer 0xffff870e4a885818 which was not allocated by the PLC instance.
+ERR | 3/17/2026 5:35:19 PM 536 ms | 'Port_852' (852): PLC: PLC instance test Instance tried to free pointer 0xffff870e4a885930 which was not allocated by the PLC instance.
+MSG | 3/17/2026 5:35:21 PM 536 ms | 'TwinCAT System' (10000): TcIo Server started: TcIo.
+MSG | 3/17/2026 5:35:21 PM 544 ms | 'TwinCAT System' (10000): TcIotDrivers Server started: TcIotDrivers.
+MSG | 3/17/2026 5:35:21 PM 553 ms | 'TwinCAT System' (10000): TcPlc30 Server started: TcPlc30.
+MSG | 3/17/2026 5:35:21 PM 559 ms | 'TwinCAT System' (10000): TcRTime Server started: TcRTime.
+MSG | 3/17/2026 5:35:21 PM 569 ms | 'TwinCAT System' (10000): TcRtsObjects Server started: TcRtsObjects.
+MSG | 3/17/2026 5:35:21 PM 572 ms | 'TCOM Server' (10): free router memory with 187KBytes still allocated.
+MSG | 3/17/2026 5:35:21 PM 575 ms | 'License Server' (30): license validation status is Valid(3)
+MSG | 3/17/2026 5:35:21 PM 674 ms | 'TwinCAT System' (10000): TwinCAT USB support could not be initialized. System start continued.
 
-MSG | 3/16/2026 9:45:35 PM 158 ms | 'License Server' (30): license validation status is Valid(3)
-MSG | 3/16/2026 9:45:35 PM 223 ms | 'TCRTIME' (200): a task dump created on 2026-03-14T12:59:42 is available on the target
-MSG | 3/16/2026 9:45:35 PM 516 ms | 'PlcTask1' (351): | Test suite ID=0 'MAIN.logRecordSerializationTestSuite'
-MSG | 3/16/2026 9:45:35 PM 536 ms | 'PlcTask1' (351): | ID=0 number of tests=1, number of failed tests=0, duration=2.131e-4
-MSG | 3/16/2026 9:45:35 PM 556 ms | 'PlcTask1' (351): | Test name=Test Complete LogRecord Serialization
-MSG | 3/16/2026 9:45:35 PM 576 ms | 'PlcTask1' (351): | Test class name=MAIN.logRecordSerializationTestSuite
-MSG | 3/16/2026 9:45:35 PM 596 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=23, duration=1.924e-4
-MSG | 3/16/2026 9:45:35 PM 616 ms | 'PlcTask1' (351): | Test suite ID=1 'MAIN.httpBatchLogExporterTestSuite'
-MSG | 3/16/2026 9:45:35 PM 636 ms | 'PlcTask1' (351): | ID=1 number of tests=4, number of failed tests=0, duration=3.01659e-2
-MSG | 3/16/2026 9:45:35 PM 656 ms | 'PlcTask1' (351): | Test name=Test Export serializes LogsData to valid JSON
-MSG | 3/16/2026 9:45:35 PM 676 ms | 'PlcTask1' (351): | Test class name=MAIN.httpBatchLogExporterTestSuite
-MSG | 3/16/2026 9:45:35 PM 696 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=16, duration=2.331e-4
-MSG | 3/16/2026 9:45:35 PM 716 ms | 'PlcTask1' (351): | Test name=Test Export returns TRUE when idle
-MSG | 3/16/2026 9:45:35 PM 736 ms | 'PlcTask1' (351): | Test class name=MAIN.httpBatchLogExporterTestSuite
-MSG | 3/16/2026 9:45:35 PM 756 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=1, duration=6.37e-5
-MSG | 3/16/2026 9:45:35 PM 776 ms | 'PlcTask1' (351): | Test name=Test Export returns FALSE when busy
-MSG | 3/16/2026 9:45:35 PM 796 ms | 'PlcTask1' (351): | Test class name=MAIN.httpBatchLogExporterTestSuite
-MSG | 3/16/2026 9:45:35 PM 816 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=2, duration=7.95e-5
-MSG | 3/16/2026 9:45:35 PM 836 ms | 'PlcTask1' (351): | Test name=Test Export sets bBusy flag
-MSG | 3/16/2026 9:45:35 PM 856 ms | 'PlcTask1' (351): | Test class name=MAIN.httpBatchLogExporterTestSuite
-MSG | 3/16/2026 9:45:35 PM 876 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=4, duration=7.52e-5
-MSG | 3/16/2026 9:45:35 PM 896 ms | 'PlcTask1' (351): | Test suite ID=2 'MAIN.httpLogExportIntegrationTest'
-MSG | 3/16/2026 9:45:35 PM 916 ms | 'PlcTask1' (351): | ID=2 number of tests=1, number of failed tests=0, duration=1.20044e-1
-MSG | 3/16/2026 9:45:35 PM 936 ms | 'PlcTask1' (351): | Test name=Integration: Send logs to OTLP HTTP endpoint
-MSG | 3/16/2026 9:45:35 PM 956 ms | 'PlcTask1' (351): | Test class name=MAIN.httpLogExportIntegrationTest
-MSG | 3/16/2026 9:45:35 PM 976 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=3, duration=1.20037e-1
-ERR | 3/16/2026 9:45:35 PM 996 ms | 'PlcTask1' (351): | ==========TESTS FINISHED RUNNING==========
-ERR | 3/16/2026 9:45:36 PM 016 ms | 'PlcTask1' (351): | Test suites: 3
-ERR | 3/16/2026 9:45:36 PM 036 ms | 'PlcTask1' (351): | Tests: 6
-ERR | 3/16/2026 9:45:36 PM 056 ms | 'PlcTask1' (351): | Successful tests: 6
-ERR | 3/16/2026 9:45:36 PM 076 ms | 'PlcTask1' (351): | Failed tests: 0
-ERR | 3/16/2026 9:45:36 PM 096 ms | 'PlcTask1' (351): | Duration: 2.100584e-1
-ERR | 3/16/2026 9:45:36 PM 116 ms | 'PlcTask1' (351): | ======================================
+MSG | 3/17/2026 5:35:21 PM 677 ms | 'License Server' (30): license validation status is Valid(3)
+MSG | 3/17/2026 5:35:21 PM 742 ms | 'TCRTIME' (200): a task dump created on 2026-03-14T12:59:42 is available on the target
+MSG | 3/17/2026 5:35:22 PM 025 ms | 'PlcTask1' (351): | Test suite ID=0 'MAIN.logRecordSerializationTestSuite'
+MSG | 3/17/2026 5:35:22 PM 045 ms | 'PlcTask1' (351): | ID=0 number of tests=1, number of failed tests=0, duration=2.896e-4
+MSG | 3/17/2026 5:35:22 PM 065 ms | 'PlcTask1' (351): | Test name=Test Complete LogRecord Serialization
+MSG | 3/17/2026 5:35:22 PM 085 ms | 'PlcTask1' (351): | Test class name=MAIN.logRecordSerializationTestSuite
+MSG | 3/17/2026 5:35:22 PM 105 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=23, duration=2.535e-4
+MSG | 3/17/2026 5:35:22 PM 125 ms | 'PlcTask1' (351): | Test suite ID=1 'MAIN.httpBatchLogExporterTestSuite'
+MSG | 3/17/2026 5:35:22 PM 145 ms | 'PlcTask1' (351): | ID=1 number of tests=4, number of failed tests=0, duration=3.02128e-2
+MSG | 3/17/2026 5:35:22 PM 165 ms | 'PlcTask1' (351): | Test name=Test Export serializes LogsData to valid JSON
+MSG | 3/17/2026 5:35:22 PM 185 ms | 'PlcTask1' (351): | Test class name=MAIN.httpBatchLogExporterTestSuite
+MSG | 3/17/2026 5:35:22 PM 205 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=16, duration=1.507e-4
+MSG | 3/17/2026 5:35:22 PM 225 ms | 'PlcTask1' (351): | Test name=Test Export returns TRUE when idle
+MSG | 3/17/2026 5:35:22 PM 245 ms | 'PlcTask1' (351): | Test class name=MAIN.httpBatchLogExporterTestSuite
+MSG | 3/17/2026 5:35:22 PM 265 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=1, duration=4.1e-5
+MSG | 3/17/2026 5:35:22 PM 285 ms | 'PlcTask1' (351): | Test name=Test Export returns FALSE when busy
+MSG | 3/17/2026 5:35:22 PM 305 ms | 'PlcTask1' (351): | Test class name=MAIN.httpBatchLogExporterTestSuite
+MSG | 3/17/2026 5:35:22 PM 325 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=2, duration=5.09e-5
+MSG | 3/17/2026 5:35:22 PM 345 ms | 'PlcTask1' (351): | Test name=Test Export sets bBusy flag
+MSG | 3/17/2026 5:35:22 PM 365 ms | 'PlcTask1' (351): | Test class name=MAIN.httpBatchLogExporterTestSuite
+MSG | 3/17/2026 5:35:22 PM 385 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=4, duration=7.44e-5
+MSG | 3/17/2026 5:35:22 PM 405 ms | 'PlcTask1' (351): | Test suite ID=2 'MAIN.httpLogExportIntegrationTest'
+MSG | 3/17/2026 5:35:22 PM 425 ms | 'PlcTask1' (351): | ID=2 number of tests=1, number of failed tests=0, duration=1.300057e-1
+MSG | 3/17/2026 5:35:22 PM 445 ms | 'PlcTask1' (351): | Test name=Integration: Send logs to OTLP HTTP endpoint
+MSG | 3/17/2026 5:35:22 PM 465 ms | 'PlcTask1' (351): | Test class name=MAIN.httpLogExportIntegrationTest
+MSG | 3/17/2026 5:35:22 PM 485 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=3, duration=1.29999e-1
+ERR | 3/17/2026 5:35:22 PM 505 ms | 'PlcTask1' (351): | ==========TESTS FINISHED RUNNING==========
+ERR | 3/17/2026 5:35:22 PM 525 ms | 'PlcTask1' (351): | Test suites: 3
+ERR | 3/17/2026 5:35:22 PM 545 ms | 'PlcTask1' (351): | Tests: 6
+ERR | 3/17/2026 5:35:22 PM 565 ms | 'PlcTask1' (351): | Successful tests: 6
+ERR | 3/17/2026 5:35:22 PM 585 ms | 'PlcTask1' (351): | Failed tests: 0
+ERR | 3/17/2026 5:35:22 PM 605 ms | 'PlcTask1' (351): | Duration: 2.200369e-1
+ERR | 3/17/2026 5:35:22 PM 625 ms | 'PlcTask1' (351): | ======================================
 

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_OtlpArrayValue" Id="{9c9f942c-fd78-47d2-b4fe-af4f08068cf6}" SpecialFunc="None">
     <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
@@ -11,58 +11,6 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="AddValue" Id="{79db0fca-a307-46e5-a2e7-72e45529cc94}">
-      <Declaration><![CDATA[METHOD AddValue
-VAR_INPUT
-	pValue : POINTER TO I_OtlpAnyValue;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF THIS^._nValuesCount < 100 AND pValue <> 0 THEN
-	THIS^._arrValues[THIS^._nValuesCount] := pValue;
-	THIS^._nValuesCount := THIS^._nValuesCount + 1;
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Property Name="eValueType" Id="{a5b167e1-8f91-4c1b-be1d-df93cf60eb13}">
-      <Declaration><![CDATA[PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
-      <Get Name="Get" Id="{f87e817f-237c-4654-8592-10e7d326eaec}">
-        <Declaration><![CDATA[VAR
-END_VAR
-]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[eValueType := E_OtlpAnyValueType.ARRAY_VALUE;]]></ST>
-        </Implementation>
-      </Get>
-    </Property>
-    <Method Name="FB_exit" Id="{88b23957-78e0-4aae-97a7-a107c92ddc84}">
-      <Declaration><![CDATA[METHOD FB_exit : BOOL
-VAR_INPUT
-	bInCopyCode : BOOL;
-END_VAR
-VAR
-	i : UDINT;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[FOR i := 0 TO THIS^._nValuesCount - 1 DO
-	IF THIS^._arrValues[i] <> 0 THEN
-		__DELETE(THIS^._arrValues[i]);
-	END_IF
-END_FOR]]></ST>
-      </Implementation>
-    </Method>
-    <Property Name="nValuesCount" Id="{42a3cea6-e607-4c6b-8426-7ebe5a8a960e}">
-      <Declaration><![CDATA[PROPERTY nValuesCount : UDINT]]></Declaration>
-      <Get Name="Get" Id="{a649ac2f-dc1f-4a2b-9111-0bc6bde9d5b3}">
-        <Declaration><![CDATA[VAR
-END_VAR
-]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[nValuesCount := THIS^._nValuesCount;]]></ST>
-        </Implementation>
-      </Get>
-    </Property>
     <Method Name="SerializeToProtoJson" Id="{50bcd88f-19f1-4689-b9d9-576e57de78e1}">
       <Declaration><![CDATA[METHOD SerializeToProtoJson
 VAR_INPUT
@@ -87,5 +35,57 @@ IF THIS^._nValuesCount > 0 THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
+    <Method Name="FB_exit" Id="{88b23957-78e0-4aae-97a7-a107c92ddc84}">
+      <Declaration><![CDATA[METHOD FB_exit : BOOL
+VAR_INPUT
+	bInCopyCode : BOOL;
+END_VAR
+VAR
+	i : UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i := 0 TO THIS^._nValuesCount - 1 DO
+	IF THIS^._arrValues[i] <> 0 THEN
+		__DELETE(THIS^._arrValues[i]);
+	END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="AddValue" Id="{79db0fca-a307-46e5-a2e7-72e45529cc94}">
+      <Declaration><![CDATA[METHOD AddValue
+VAR_INPUT
+	pValue : POINTER TO I_OtlpAnyValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._nValuesCount < 100 AND pValue <> 0 THEN
+	THIS^._arrValues[THIS^._nValuesCount] := pValue;
+	THIS^._nValuesCount := THIS^._nValuesCount + 1;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="eValueType" Id="{a5b167e1-8f91-4c1b-be1d-df93cf60eb13}">
+      <Declaration><![CDATA[PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
+      <Get Name="Get" Id="{f87e817f-237c-4654-8592-10e7d326eaec}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[eValueType := E_OtlpAnyValueType.ARRAY_VALUE;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="nValuesCount" Id="{42a3cea6-e607-4c6b-8426-7ebe5a8a960e}">
+      <Declaration><![CDATA[PROPERTY nValuesCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{a649ac2f-dc1f-4a2b-9111-0bc6bde9d5b3}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[nValuesCount := THIS^._nValuesCount;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
   </POU>
 </TcPlcObject>

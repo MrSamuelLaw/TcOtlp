@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_OtlpScopeLogs" Id="{f83a76a2-be9f-4228-8a06-d4ebec925e32}" SpecialFunc="None">
     <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
@@ -13,72 +13,6 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="AddLogRecords" Id="{2e16200f-8d09-4ddd-a71b-66032618a523}">
-      <Declaration><![CDATA[METHOD AddLogRecords : POINTER TO FB_OtlpLogRecord
-VAR
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF THIS^._nLogRecordsCount < 100 THEN
-	AddLogRecords := __NEW(FB_OtlpLogRecord);
-	THIS^._arrLogRecords[THIS^._nLogRecordsCount] := AddLogRecords;
-	THIS^._nLogRecordsCount := THIS^._nLogRecordsCount + 1;
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="FB_exit" Id="{4d20f071-1e6b-433e-9da7-102580b18211}">
-      <Declaration><![CDATA[METHOD FB_exit : BOOL
-VAR_INPUT
-	bInCopyCode : BOOL;
-END_VAR
-VAR
-	i : UDINT;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF THIS^._pScope <> 0 THEN
-	__DELETE(THIS^._pScope);
-END_IF
-
-IF THIS^._nLogRecordsCount > 0 THEN
-	FOR i := 0 TO THIS^._nLogRecordsCount - 1 DO
-		IF THIS^._arrLogRecords[i] <> 0 THEN
-			__DELETE(THIS^._arrLogRecords[i]);
-		END_IF
-	END_FOR
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Property Name="nLogRecordsCount" Id="{d1c1dd42-444c-4f5b-b473-08d166c73281}">
-      <Declaration><![CDATA[PROPERTY nLogRecordsCount : UDINT]]></Declaration>
-      <Get Name="Get" Id="{d9b7b4a7-4f9e-46cd-be9d-b537502846d1}">
-        <Declaration><![CDATA[VAR
-END_VAR
-]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[nLogRecordsCount := THIS^._nLogRecordsCount;]]></ST>
-        </Implementation>
-      </Get>
-    </Property>
-    <Property Name="pScope" Id="{31e6fd31-cf3a-40b7-9907-cd141242f979}">
-      <Declaration><![CDATA[PROPERTY pScope : POINTER TO FB_OtlpInstrumentationScope]]></Declaration>
-      <Get Name="Get" Id="{cae7e4db-4231-4612-abca-56e9c634d0a4}">
-        <Declaration><![CDATA[VAR
-END_VAR
-]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[pScope := THIS^._pScope;]]></ST>
-        </Implementation>
-      </Get>
-      <Set Name="Set" Id="{57eb3dfe-d2ae-4b53-a4f4-e8bf1ffce230}">
-        <Declaration><![CDATA[VAR
-END_VAR
-]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[THIS^._pScope := pScope;]]></ST>
-        </Implementation>
-      </Set>
-    </Property>
     <Method Name="SerializeToProtoJson" Id="{cd963207-709d-4e02-a9c4-340d787c89e5}">
       <Declaration><![CDATA[METHOD SerializeToProtoJson
 VAR_INPUT
@@ -109,6 +43,70 @@ END_IF
 parser.AddStringMember(node, 'schemaUrl', THIS^._sSchemaUrl);]]></ST>
       </Implementation>
     </Method>
+    <Method Name="FB_exit" Id="{4d20f071-1e6b-433e-9da7-102580b18211}">
+      <Declaration><![CDATA[METHOD FB_exit : BOOL
+VAR_INPUT
+	bInCopyCode : BOOL;
+END_VAR
+VAR
+	i : UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._pScope <> 0 THEN
+	__DELETE(THIS^._pScope);
+END_IF
+
+FOR i := 0 TO THIS^._nLogRecordsCount - 1 DO
+	IF THIS^._arrLogRecords[i] <> 0 THEN
+		__DELETE(THIS^._arrLogRecords[i]);
+	END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="AddLogRecords" Id="{2e16200f-8d09-4ddd-a71b-66032618a523}">
+      <Declaration><![CDATA[METHOD AddLogRecords : POINTER TO FB_OtlpLogRecord
+VAR
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._nLogRecordsCount < 100 THEN
+	AddLogRecords := __NEW(FB_OtlpLogRecord);
+	THIS^._arrLogRecords[THIS^._nLogRecordsCount] := AddLogRecords;
+	THIS^._nLogRecordsCount := THIS^._nLogRecordsCount + 1;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="pScope" Id="{31e6fd31-cf3a-40b7-9907-cd141242f979}">
+      <Declaration><![CDATA[PROPERTY pScope : POINTER TO FB_OtlpInstrumentationScope]]></Declaration>
+      <Get Name="Get" Id="{cae7e4db-4231-4612-abca-56e9c634d0a4}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[pScope := THIS^._pScope;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{57eb3dfe-d2ae-4b53-a4f4-e8bf1ffce230}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._pScope := pScope;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="nLogRecordsCount" Id="{d1c1dd42-444c-4f5b-b473-08d166c73281}">
+      <Declaration><![CDATA[PROPERTY nLogRecordsCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{d9b7b4a7-4f9e-46cd-be9d-b537502846d1}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[nLogRecordsCount := THIS^._nLogRecordsCount;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
     <Property Name="sSchemaUrl" Id="{b0d69a7f-8072-44bc-ab17-c8a976a35141}">
       <Declaration><![CDATA[PROPERTY sSchemaUrl : STRING(255)]]></Declaration>
       <Get Name="Get" Id="{de0c7e72-84f5-4b1c-bd51-aed1b63dd137}">

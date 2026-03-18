@@ -50,3 +50,6 @@ LineIDs.dbg.bak
 
 # temporary files
 /plans
+
+# pycache
+__pycache__/

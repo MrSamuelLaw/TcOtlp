@@ -18,17 +18,9 @@ VAR
 	logsData : FB_OtlpLogsData;
 	pResourceLogs : POINTER TO FB_OtlpResourceLogs;
 	pResource : POINTER TO FB_OtlpResource;
-	pResAttr : POINTER TO FB_OtlpKeyValue;
 	pScopeLogs : POINTER TO FB_OtlpScopeLogs;
 	pScope : POINTER TO FB_OtlpInstrumentationScope;
 	pLogRecord : POINTER TO FB_OtlpLogRecord;
-	pAttr : POINTER TO FB_OtlpKeyValue;
-	bodyStr : FB_OtlpStringValue;
-	iBody : I_OtlpAnyValue;
-	attrVal : FB_OtlpStringValue;
-	iAttrVal : I_OtlpAnyValue;
-	resAttrVal : FB_OtlpStringValue;
-	iResAttrVal : I_OtlpAnyValue;
 
 	jsonDoc : FB_JsonDynDomParser;
 	root : SJsonValue;
@@ -54,23 +46,24 @@ END_VAR
         <ST><![CDATA[IF TcUnit.TEST_ORDERED('Test Complete LogRecord Serialization') THEN
 
 // Build hierarchy: LogsData -> ResourceLogs -> ScopeLogs -> LogRecord
+
+(* ISSUE
+I cannot tell which function blocks/interfaces/enums are auto generated.
+The acode that auto generates these should have some way to inject that
+in the variable declaration section and here in the implementation section.
+*) 
+
+
+(* ISSUE
+The API isn't setup to align with the OTEL standard. 
+I'm thinking there should be a LoggerProvider() function block and a Logger function block.
+*)
+
 pResourceLogs := logsData.AddResourceLogs();
 
 // Set up Resource with an attribute
 pResource := __NEW(FB_OtlpResource);
-pResAttr := pResource^.AddAttributes();
-pResAttr^.sKey := 'service.name';
-resAttrVal.sValue := 'test-service';
-(* CODE COMMENT 323f48d6-2b40-4662-bdab-9f8920fd19c1
-manually assigning values is causing dangling pointers, what if 
-the key value class had helpter methods such as setStringValue(str)
-that could copy the value in and allocate the memory dynamically.
-If this fix is possiblewould fix the ownership problem and would also 
-be more ergonomic for the developer. 
-Ideally adding a key value attribute to a resouce would be like pResouce^.addStringAttribute('service.name', 'test-service');
-*)
-iResAttrVal := resAttrVal;
-pResAttr^.pValue := ADR(iResAttrVal);
+pResource^.AddStringAttribute('service.name', 'test-service');
 pResource^.nDroppedAttributesCount := UDINT#0;
 pResourceLogs^.pResource := pResource;
 pResourceLogs^.sSchemaUrl := 'https://opentelemetry.io/schemas/1.0.0';
@@ -93,17 +86,11 @@ pLogRecord^.sEventName := 'test.event';
 pLogRecord^.nDroppedAttributesCount := UDINT#2;
 pLogRecord^.nFlags := UDINT#256;
 
-// Set body via intermediate interface variable
-bodyStr.sValue := 'test log body';
-iBody := bodyStr;
-pLogRecord^.pBody := ADR(iBody);
+// Set body
+pLogRecord^.SetStringBody('test log body');
 
 // Add an attribute to the log record
-pAttr := pLogRecord^.AddAttributes();
-pAttr^.sKey := 'log.attr';
-attrVal.sValue := 'attr-value';
-iAttrVal := attrVal;
-pAttr^.pValue := ADR(iAttrVal);
+pLogRecord^.AddStringAttribute('log.attr', 'attr-value');
 
 // Serialize the full hierarchy
 root := jsonDoc.NewDocument();
@@ -190,12 +177,6 @@ THIS^.AssertEquals_STRING('log.attr', jsonDoc.GetString(memberValue), 'attr key'
 attrValObj := jsonDoc.FindMember(attrElem, 'value');
 memberValue := jsonDoc.FindMember(attrValObj, 'stringValue');
 THIS^.AssertEquals_STRING('attr-value', jsonDoc.GetString(memberValue), 'attr stringValue');
-
-// Clean up: null out pointers we don't own to prevent double-free
-// pBody and pValue point to local stack vars, not heap - don't let FB_exit __DELETE them
-pLogRecord^.pBody := 0;
-pAttr^.pValue := 0;
-pResAttr^.pValue := 0;
 
 TcUnit.TEST_FINISHED();
 END_IF]]></ST>

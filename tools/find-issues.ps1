@@ -1,12 +1,12 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-Finds all CODE COMMENT comments in .TcPOU files (new and in progress).
+Finds all ISSUE comments in .TcPOU files (new and in progress).
 
 .DESCRIPTION
-Searches for CODE COMMENT comments in TcPOU XML files. Identifies:
-- New: (* CODE COMMENT description *)
-- In Progress: (* CODE COMMENT <uuid> description *)
+Searches for ISSUE comments in TcPOU XML files. Identifies:
+- New: (* ISSUE description *)
+- In Progress: (* ISSUE <uuid> description *)
 
 Outputs a table with file path, line number, UUID (if present), and description.
 
@@ -20,7 +20,7 @@ param(
 )
 
 $uuid_pattern = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
-$code_review_pattern = '\(\*\s*CODE COMMENT'
+$code_review_pattern = '\(\*\s*ISSUE'
 $results = @()
 
 # Find all .TcPOU files
@@ -53,7 +53,7 @@ foreach ($file in $files) {
             }
             
             # Check if in progress (has UUID)
-            $has_uuid = $comment_text -match "CODE COMMENT\s+($uuid_pattern)"
+            $has_uuid = $comment_text -match "ISSUE\s+($uuid_pattern)"
             $uuid = if ($has_uuid) { $matches[1] } else { "" }
             
             # Skip if filtering for unprocessed only
@@ -63,9 +63,9 @@ foreach ($file in $files) {
             
             # Extract description
             if ($has_uuid) {
-                $description = $comment_text -replace ".*?CODE COMMENT\s+$uuid\s*", ""
+                $description = $comment_text -replace ".*?ISSUE\s+$uuid\s*", ""
             } else {
-                $description = $comment_text -replace ".*?CODE COMMENT\s*", ""
+                $description = $comment_text -replace ".*?ISSUE\s*", ""
             }
             
             # Clean up description
@@ -85,9 +85,9 @@ foreach ($file in $files) {
 }
 
 if ($results.Count -eq 0) {
-    Write-Host "No CODE COMMENT comments found." -ForegroundColor Green
+    Write-Host "No ISSUE comments found." -ForegroundColor Green
 } else {
-    Write-Host "`nFound $($results.Count) CODE COMMENT comment(s):`n" -ForegroundColor Cyan
+    Write-Host "`nFound $($results.Count) ISSUE comment(s):`n" -ForegroundColor Cyan
     $results | Format-Table -AutoSize
     
     $inProgress = ($results | Where-Object { $_.Status -eq "In Progress" } | Measure-Object).Count

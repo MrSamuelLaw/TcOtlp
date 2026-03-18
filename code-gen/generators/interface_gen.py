@@ -22,7 +22,8 @@ def generate_serializable_interface() -> str:
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <Itf Name="I_OtlpSerializable" Id="{itf_id}">
-    <Declaration><![CDATA[INTERFACE I_OtlpSerializable
+    <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+INTERFACE I_OtlpSerializable
 ]]></Declaration>
     <Method Name="SerializeToProtoJson" Id="{method_id}">
       <Declaration><![CDATA[METHOD SerializeToProtoJson
@@ -62,7 +63,7 @@ def generate_interface(
     else:
         extends_clause = ""
 
-    declaration = f"INTERFACE {interface_name}{extends_clause}\n"
+    declaration = f"(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)\nINTERFACE {interface_name}{extends_clause}\n"
 
     # Build property elements
     prop_elements = []

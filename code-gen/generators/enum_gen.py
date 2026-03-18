@@ -10,6 +10,7 @@ def _new_guid() -> str:
 def _build_declaration(enum_st_name: str, values: list[dict]) -> str:
     """Build the ST declaration block (tab-indented, inside CDATA)."""
     lines = [
+        "(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)",
         "{attribute 'qualified_only'}",
         "{attribute 'strict'}",
         "{attribute 'to_string'}",

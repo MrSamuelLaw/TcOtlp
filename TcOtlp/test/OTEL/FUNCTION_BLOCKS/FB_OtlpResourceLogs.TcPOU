@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_OtlpResourceLogs" Id="{015025c5-9a47-438d-b6c1-61276030cbeb}" SpecialFunc="None">
     <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
@@ -13,72 +13,6 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="AddScopeLogs" Id="{9fecc96a-242d-4df0-9489-16fc132f2130}">
-      <Declaration><![CDATA[METHOD AddScopeLogs : POINTER TO FB_OtlpScopeLogs
-VAR
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF THIS^._nScopeLogsCount < 100 THEN
-	AddScopeLogs := __NEW(FB_OtlpScopeLogs);
-	THIS^._arrScopeLogs[THIS^._nScopeLogsCount] := AddScopeLogs;
-	THIS^._nScopeLogsCount := THIS^._nScopeLogsCount + 1;
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="FB_exit" Id="{921de982-b329-404d-99f7-2d6396e4be01}">
-      <Declaration><![CDATA[METHOD FB_exit : BOOL
-VAR_INPUT
-	bInCopyCode : BOOL;
-END_VAR
-VAR
-	i : UDINT;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF THIS^._pResource <> 0 THEN
-	__DELETE(THIS^._pResource);
-END_IF
-
-IF THIS^._nScopeLogsCount > 0 THEN
-	FOR i := 0 TO THIS^._nScopeLogsCount - 1 DO
-		IF THIS^._arrScopeLogs[i] <> 0 THEN
-			__DELETE(THIS^._arrScopeLogs[i]);
-		END_IF
-	END_FOR
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Property Name="nScopeLogsCount" Id="{30da5b55-598b-42b4-a739-3b6349b9686d}">
-      <Declaration><![CDATA[PROPERTY nScopeLogsCount : UDINT]]></Declaration>
-      <Get Name="Get" Id="{90ae4310-a9a1-411e-a417-18236cb2aa18}">
-        <Declaration><![CDATA[VAR
-END_VAR
-]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[nScopeLogsCount := THIS^._nScopeLogsCount;]]></ST>
-        </Implementation>
-      </Get>
-    </Property>
-    <Property Name="pResource" Id="{c8ce769f-cad8-40b6-bac1-708008654cc1}">
-      <Declaration><![CDATA[PROPERTY pResource : POINTER TO FB_OtlpResource]]></Declaration>
-      <Get Name="Get" Id="{93dd1549-c15f-4f4c-b4e2-9465ce40da72}">
-        <Declaration><![CDATA[VAR
-END_VAR
-]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[pResource := THIS^._pResource;]]></ST>
-        </Implementation>
-      </Get>
-      <Set Name="Set" Id="{f3a8edf7-05aa-41f6-9d61-ed8f54d24596}">
-        <Declaration><![CDATA[VAR
-END_VAR
-]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[THIS^._pResource := pResource;]]></ST>
-        </Implementation>
-      </Set>
-    </Property>
     <Method Name="SerializeToProtoJson" Id="{615e0254-b450-48cd-814f-023ee7002aa5}">
       <Declaration><![CDATA[METHOD SerializeToProtoJson
 VAR_INPUT
@@ -109,6 +43,70 @@ END_IF
 parser.AddStringMember(node, 'schemaUrl', THIS^._sSchemaUrl);]]></ST>
       </Implementation>
     </Method>
+    <Method Name="FB_exit" Id="{921de982-b329-404d-99f7-2d6396e4be01}">
+      <Declaration><![CDATA[METHOD FB_exit : BOOL
+VAR_INPUT
+	bInCopyCode : BOOL;
+END_VAR
+VAR
+	i : UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._pResource <> 0 THEN
+	__DELETE(THIS^._pResource);
+END_IF
+
+FOR i := 0 TO THIS^._nScopeLogsCount - 1 DO
+	IF THIS^._arrScopeLogs[i] <> 0 THEN
+		__DELETE(THIS^._arrScopeLogs[i]);
+	END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="AddScopeLogs" Id="{9fecc96a-242d-4df0-9489-16fc132f2130}">
+      <Declaration><![CDATA[METHOD AddScopeLogs : POINTER TO FB_OtlpScopeLogs
+VAR
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._nScopeLogsCount < 100 THEN
+	AddScopeLogs := __NEW(FB_OtlpScopeLogs);
+	THIS^._arrScopeLogs[THIS^._nScopeLogsCount] := AddScopeLogs;
+	THIS^._nScopeLogsCount := THIS^._nScopeLogsCount + 1;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="pResource" Id="{c8ce769f-cad8-40b6-bac1-708008654cc1}">
+      <Declaration><![CDATA[PROPERTY pResource : POINTER TO FB_OtlpResource]]></Declaration>
+      <Get Name="Get" Id="{93dd1549-c15f-4f4c-b4e2-9465ce40da72}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[pResource := THIS^._pResource;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{f3a8edf7-05aa-41f6-9d61-ed8f54d24596}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._pResource := pResource;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="nScopeLogsCount" Id="{30da5b55-598b-42b4-a739-3b6349b9686d}">
+      <Declaration><![CDATA[PROPERTY nScopeLogsCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{90ae4310-a9a1-411e-a417-18236cb2aa18}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[nScopeLogsCount := THIS^._nScopeLogsCount;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
     <Property Name="sSchemaUrl" Id="{f30cd234-622b-4ef1-8f17-79e9871a479f}">
       <Declaration><![CDATA[PROPERTY sSchemaUrl : STRING(255)]]></Declaration>
       <Get Name="Get" Id="{6fa45124-434a-4383-bace-fc77972b9cd9}">

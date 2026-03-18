@@ -465,7 +465,7 @@ def generate_fb(
     # Build declaration
     implements = f" IMPLEMENTS I_OtlpSerializable"
     var_section = _build_var_section(fields)
-    declaration = f"{{attribute 'enable_dynamic_creation'}}\nFUNCTION_BLOCK {fb_name}{implements}\n{var_section}\n"
+    declaration = f"(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)\n{{attribute 'enable_dynamic_creation'}}\nFUNCTION_BLOCK {fb_name}{implements}\n{var_section}\n"
 
     # Build methods
     methods = []

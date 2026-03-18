@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_OtlpBytesValue" Id="{b115cea5-4af9-46c7-bfc2-f3c1268af1ec}" SpecialFunc="None">
     <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
@@ -10,6 +10,28 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="SerializeToProtoJson" Id="{42882278-5e63-4d20-b734-edea863fccd1}">
+      <Declaration><![CDATA[METHOD SerializeToProtoJson
+VAR_INPUT
+	parser : REFERENCE TO FB_JsonDynDomParser;
+	node   : SJsonValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// TODO: serialize bytes field 'bytesValue' (base64 encoding)]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="eValueType" Id="{ef20b957-aed0-4d41-99f6-63199fe8ba9e}">
+      <Declaration><![CDATA[PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
+      <Get Name="Get" Id="{020c79f8-9b35-4222-a5b0-009b244a7976}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[eValueType := E_OtlpAnyValueType.BYTES_VALUE;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
     <Property Name="arrValue" Id="{2ac9575a-07a3-4e73-8ded-f59303412636}">
       <Declaration><![CDATA[PROPERTY arrValue : ARRAY[0..255] OF BYTE]]></Declaration>
       <Get Name="Get" Id="{f3da622b-7bea-466b-8ddb-bc428ad4edc6}">
@@ -29,27 +51,5 @@ END_VAR
         </Implementation>
       </Set>
     </Property>
-    <Property Name="eValueType" Id="{ef20b957-aed0-4d41-99f6-63199fe8ba9e}">
-      <Declaration><![CDATA[PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
-      <Get Name="Get" Id="{020c79f8-9b35-4222-a5b0-009b244a7976}">
-        <Declaration><![CDATA[VAR
-END_VAR
-]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[eValueType := E_OtlpAnyValueType.BYTES_VALUE;]]></ST>
-        </Implementation>
-      </Get>
-    </Property>
-    <Method Name="SerializeToProtoJson" Id="{42882278-5e63-4d20-b734-edea863fccd1}">
-      <Declaration><![CDATA[METHOD SerializeToProtoJson
-VAR_INPUT
-	parser : REFERENCE TO FB_JsonDynDomParser;
-	node   : SJsonValue;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[// TODO: serialize bytes field 'bytesValue' (base64 encoding)]]></ST>
-      </Implementation>
-    </Method>
   </POU>
 </TcPlcObject>

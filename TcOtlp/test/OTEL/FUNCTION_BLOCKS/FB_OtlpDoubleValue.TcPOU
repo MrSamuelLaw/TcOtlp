@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_OtlpDoubleValue" Id="{2a5cb6d2-1b27-48f4-997a-c1ecaccc102b}" SpecialFunc="None">
     <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
@@ -10,6 +10,17 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="SerializeToProtoJson" Id="{756a057a-a987-4753-8d44-3cbb3c1143bb}">
+      <Declaration><![CDATA[METHOD SerializeToProtoJson
+VAR_INPUT
+	parser : REFERENCE TO FB_JsonDynDomParser;
+	node   : SJsonValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[parser.AddLrealMember(node, 'doubleValue', THIS^._fValue);]]></ST>
+      </Implementation>
+    </Method>
     <Property Name="eValueType" Id="{c61a891b-abee-43ff-8146-863f0beceb65}">
       <Declaration><![CDATA[PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
       <Get Name="Get" Id="{dcb79a16-26c7-4d28-99f3-9541386095b9}">
@@ -40,16 +51,5 @@ END_VAR
         </Implementation>
       </Set>
     </Property>
-    <Method Name="SerializeToProtoJson" Id="{756a057a-a987-4753-8d44-3cbb3c1143bb}">
-      <Declaration><![CDATA[METHOD SerializeToProtoJson
-VAR_INPUT
-	parser : REFERENCE TO FB_JsonDynDomParser;
-	node   : SJsonValue;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[parser.AddLrealMember(node, 'doubleValue', THIS^._fValue);]]></ST>
-      </Implementation>
-    </Method>
   </POU>
 </TcPlcObject>

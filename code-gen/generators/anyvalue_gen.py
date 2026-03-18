@@ -153,7 +153,8 @@ def _generate_simple_variant(variant: dict) -> str:
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="{fb_name}" Id="{pou_id}" SpecialFunc="None">
-    <Declaration><![CDATA[{{attribute 'enable_dynamic_creation'}}
+    <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+{{attribute 'enable_dynamic_creation'}}
 FUNCTION_BLOCK {fb_name} IMPLEMENTS I_OtlpAnyValue
 VAR
 \t_{var_name} : {st_type};
@@ -223,7 +224,8 @@ def _generate_array_value() -> str:
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="{fb_name}" Id="{pou_id}" SpecialFunc="None">
-    <Declaration><![CDATA[{{attribute 'enable_dynamic_creation'}}
+    <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+{{attribute 'enable_dynamic_creation'}}
 FUNCTION_BLOCK {fb_name} IMPLEMENTS I_OtlpAnyValue
 VAR
 \t_arrValues : ARRAY[0..{MAX_REPEATED - 1}] OF POINTER TO I_OtlpAnyValue;
@@ -326,32 +328,33 @@ def _generate_kvlist_value() -> str:
     prop_count_get_id = _new_guid()
 
     return f"""\
-<?xml version="1.0" encoding="utf-8"?>
-<TcPlcObject Version="1.1.0.1">
-  <POU Name="{fb_name}" Id="{pou_id}" SpecialFunc="None">
-    <Declaration><![CDATA[{{attribute 'enable_dynamic_creation'}}
-FUNCTION_BLOCK {fb_name} IMPLEMENTS I_OtlpAnyValue
-VAR
-\t_arrValues : ARRAY[0..{MAX_REPEATED - 1}] OF POINTER TO FB_OtlpKeyValue;
-\t_nValuesCount : UDINT;
-END_VAR
-]]></Declaration>
+    <?xml version="1.0" encoding="utf-8"?>
+    <TcPlcObject Version="1.1.0.1">
+    <POU Name="{fb_name}" Id="{pou_id}" SpecialFunc="None">
+    <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+    {{attribute 'enable_dynamic_creation'}}
+    FUNCTION_BLOCK {fb_name} IMPLEMENTS I_OtlpAnyValue
+    VAR
+    \t_arrValues : ARRAY[0..{MAX_REPEATED - 1}] OF POINTER TO FB_OtlpKeyValue;
+    \t_nValuesCount : UDINT;
+    END_VAR
+    ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="SerializeToProtoJson" Id="{serialize_id}">
-      <Declaration><![CDATA[METHOD SerializeToProtoJson
-VAR_INPUT
-\tparser : REFERENCE TO FB_JsonDynDomParser;
-\tnode   : SJsonValue;
-END_VAR
-VAR
-\tkvlistNode : SJsonValue;
-\tarrNode : SJsonValue;
-\telemNode : SJsonValue;
-\ti : UDINT;
-END_VAR
-]]></Declaration>
+       <Declaration><![CDATA[METHOD SerializeToProtoJson
+    VAR_INPUT
+    \tparser : REFERENCE TO FB_JsonDynDomParser;
+    \tnode   : SJsonValue;
+    END_VAR
+    VAR
+    \tkvlistNode : SJsonValue;
+    \tarrNode : SJsonValue;
+    \telemNode : SJsonValue;
+    \ti : UDINT;
+    END_VAR
+    ]]></Declaration>
       <Implementation>
         <ST><![CDATA[kvlistNode := parser.AddObjectMember(node, 'kvlistValue');
 IF THIS^._nValuesCount > 0 THEN
