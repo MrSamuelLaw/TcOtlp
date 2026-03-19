@@ -46,14 +46,19 @@ def update_plcproj(plcproj_path: Path, generated_entries: list[Path], dry_run: b
     """Update the .plcproj XML to register generated files.
 
     Strategy:
-      1. Remove all existing OTEL\\ Compile entries (generated files replace them).
-      2. Keep non-OTEL Compile entries (MAIN.TcPOU, PlcTask.TcTTO, TEST_OTEL\\...).
-      3. Add Compile entries for each generated file.
-      4. Ensure OTEL folder entries exist; keep all other Folder entries.
-      5. Leave PlaceholderReference and ProjectExtensions untouched.
+      1. Scan the filesystem for non-AUTO_GENERATED code files and directories.
+      2. Remove all existing AUTO_GENERATED Compile entries (they'll be regenerated).
+      3. Re-include any missing non-AUTO_GENERATED Compile/Folder entries discovered
+         on disk (e.g. MAIN.TcPOU, PlcTask.TcTTO, TEST_OTEL\\...) in case they were
+         accidentally removed from the XML.
+      4. Add Compile entries for each generated file.
+      5. Ensure AUTO_GENERATED folder entries exist; keep all other Folder entries.
+      6. Leave PlaceholderReference and ProjectExtensions untouched.
     """
     tree = ET.parse(plcproj_path)
     root = tree.getroot()
+
+    auto_gen_prefix = str(ROOT).replace("/", "\\")
 
     # Find the Compile ItemGroup (first one with Compile children)
     compile_ig = None
@@ -68,16 +73,57 @@ def update_plcproj(plcproj_path: Path, generated_entries: list[Path], dry_run: b
     if compile_ig is None or folder_ig is None:
         raise RuntimeError("Could not find Compile or Folder ItemGroup in .plcproj")
 
-    # Remove all OTEL\ Compile entries (they'll be regenerated)
+    # --- Discover expected non-AUTO_GENERATED entries from the filesystem ---
+    plcproj_dir = plcproj_path.parent
+
+    expected_compiles: dict[str, str] = {}  # Include path -> SubType
+    for f in plcproj_dir.rglob("*"):
+        if not f.is_file():
+            continue
+        rel = str(f.relative_to(plcproj_dir)).replace("/", "\\")
+        # Skip AUTO_GENERATED files (managed separately) and non-code files
+        if rel.startswith(auto_gen_prefix):
+            continue
+        if f.suffix in (".TcPOU", ".TcTTO", ".TcIO", ".TcTLEO"):
+            expected_compiles[rel] = "Code"
+
+    expected_folders: set[str] = set()
+    for d in plcproj_dir.rglob("*"):
+        if not d.is_dir():
+            continue
+        rel = str(d.relative_to(plcproj_dir)).replace("/", "\\")
+        if rel.startswith(auto_gen_prefix):
+            continue
+        # Only include directories that contain code files or subdirectories with code
+        has_code = any(
+            cf.suffix in (".TcPOU", ".TcTTO", ".TcIO", ".TcTLEO")
+            for cf in d.rglob("*") if cf.is_file()
+        )
+        if has_code:
+            expected_folders.add(rel)
+
+    # --- Remove all AUTO_GENERATED Compile entries (they'll be regenerated) ---
     to_remove = []
     for elem in compile_ig.findall(f"{{{NS}}}Compile"):
         include = elem.get("Include", "")
-        if include.startswith(str(ROOT).replace("/", "\\")):
+        if include.startswith(auto_gen_prefix):
             to_remove.append(elem)
     for elem in to_remove:
         compile_ig.remove(elem)
 
-    # Add new Compile entries for generated files, sorted for determinism
+    # --- Re-include any missing non-AUTO_GENERATED Compile entries ---
+    existing_compiles = {
+        elem.get("Include", "")
+        for elem in compile_ig.findall(f"{{{NS}}}Compile")
+    }
+    for include_path in sorted(expected_compiles):
+        if include_path not in existing_compiles:
+            compile_elem = ET.SubElement(compile_ig, f"{{{NS}}}Compile")
+            compile_elem.set("Include", include_path)
+            subtype = ET.SubElement(compile_elem, f"{{{NS}}}SubType")
+            subtype.text = expected_compiles[include_path]
+
+    # --- Add new AUTO_GENERATED Compile entries, sorted for determinism ---
     for include_path in sorted(generated_entries):
         include_path = str(include_path).replace("/", "\\")
         compile_elem = ET.SubElement(compile_ig, f"{{{NS}}}Compile")
@@ -85,7 +131,7 @@ def update_plcproj(plcproj_path: Path, generated_entries: list[Path], dry_run: b
         subtype = ET.SubElement(compile_elem, f"{{{NS}}}SubType")
         subtype.text = "Code"
 
-    # Remove old OTEL folder entries (non-AUTO_GENERATED)
+    # --- Remove old AUTO_GENERATED folder entries (they'll be regenerated) ---
     old_otel_folders = [str(ROOT / k).replace("/", "\\") for k in SUBDIRS_EXT_MAP.keys()]
     to_remove_folders = []
     for elem in folder_ig.findall(f"{{{NS}}}Folder"):
@@ -95,10 +141,21 @@ def update_plcproj(plcproj_path: Path, generated_entries: list[Path], dry_run: b
     for elem in to_remove_folders:
         folder_ig.remove(elem)
 
-    # Ensure OTEL folder entries exist
-    existing_folders = set()
-    for elem in folder_ig.findall(f"{{{NS}}}Folder"):
-        existing_folders.add(elem.get("Include", ""))
+    # --- Re-include any missing non-AUTO_GENERATED Folder entries ---
+    existing_folders = {
+        elem.get("Include", "")
+        for elem in folder_ig.findall(f"{{{NS}}}Folder")
+    }
+    for folder in sorted(expected_folders):
+        if folder not in existing_folders:
+            folder_elem = ET.SubElement(folder_ig, f"{{{NS}}}Folder")
+            folder_elem.set("Include", folder)
+
+    # --- Ensure AUTO_GENERATED folder entries exist ---
+    existing_folders = {
+        elem.get("Include", "")
+        for elem in folder_ig.findall(f"{{{NS}}}Folder")
+    }
     for subdir in SUBDIRS_EXT_MAP.keys():
         folder = str(ROOT / subdir).replace("/", "\\")
         if folder not in existing_folders:
