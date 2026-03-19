@@ -20,6 +20,7 @@ from naming import (
     proto_field_to_json_key,
 )
 from loader import resolve_type_ref
+from xml_helpers import AUTO_GEN_COMMENT
 
 
 def _new_guid() -> str:
@@ -168,7 +169,7 @@ def _build_var_section(fields: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def _build_serialize_method(fb_name: str, fields: list[dict]) -> str:
+def _build_serialize_to_proto_json_method(fb_name: str, fields: list[dict]) -> str:
     """Build the SerializeToProtoJson method."""
     method_id = _new_guid()
 
@@ -269,7 +270,8 @@ def _build_serialize_method(fb_name: str, fields: list[dict]) -> str:
 
     return f"""\
     <Method Name="SerializeToProtoJson" Id="{method_id}">
-      <Declaration><![CDATA[METHOD SerializeToProtoJson
+      <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+METHOD SerializeToProtoJson
 VAR_INPUT
 \tparser : REFERENCE TO FB_JsonDynDomParser;
 \tnode   : SJsonValue;
@@ -318,7 +320,8 @@ def _build_fb_exit(fb_name: str, fields: list[dict]) -> str:
 
     return f"""\
     <Method Name="FB_exit" Id="{method_id}">
-      <Declaration><![CDATA[METHOD FB_exit : BOOL
+      <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+METHOD FB_exit : BOOL
 VAR_INPUT
 \tbInCopyCode : BOOL;
 END_VAR{var_decl}
@@ -345,7 +348,8 @@ def _build_properties(fields: list[dict]) -> str:
             count_get_id = _new_guid()
             props.append(f"""\
     <Property Name="{count_name}" Id="{count_prop_id}">
-      <Declaration><![CDATA[PROPERTY {count_name} : UDINT]]></Declaration>
+      <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+PROPERTY {count_name} : UDINT]]></Declaration>
       <Get Name="Get" Id="{count_get_id}">
         <Declaration><![CDATA[VAR
 END_VAR
@@ -361,7 +365,8 @@ END_VAR
             count_get_id = _new_guid()
             props.append(f"""\
     <Property Name="{count_name}" Id="{count_prop_id}">
-      <Declaration><![CDATA[PROPERTY {count_name} : UDINT]]></Declaration>
+      <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+PROPERTY {count_name} : UDINT]]></Declaration>
       <Get Name="Get" Id="{count_get_id}">
         <Declaration><![CDATA[VAR
 END_VAR
@@ -380,7 +385,8 @@ END_VAR
 
             props.append(f"""\
     <Property Name="{st_name}" Id="{prop_id}">
-      <Declaration><![CDATA[PROPERTY {st_name} : {prop_type}]]></Declaration>
+      <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+PROPERTY {st_name} : {prop_type}]]></Declaration>
       <Get Name="Get" Id="{get_id}">
         <Declaration><![CDATA[VAR
 END_VAR
@@ -416,7 +422,8 @@ def _build_add_method(f: dict) -> str:
 
         return f"""\
     <Method Name="{method_name}" Id="{method_id}">
-      <Declaration><![CDATA[METHOD {method_name} : POINTER TO {fb_name}
+      <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+METHOD {method_name} : POINTER TO {fb_name}
 VAR
 END_VAR
 ]]></Declaration>
@@ -465,13 +472,13 @@ def generate_fb(
     # Build declaration
     implements = f" IMPLEMENTS I_OtlpSerializable"
     var_section = _build_var_section(fields)
-    declaration = f"(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)\n{{attribute 'enable_dynamic_creation'}}\nFUNCTION_BLOCK {fb_name}{implements}\n{var_section}\n"
+    declaration = f"{AUTO_GEN_COMMENT}\n{{attribute 'enable_dynamic_creation'}}\nFUNCTION_BLOCK {fb_name}{implements}\n{var_section}\n"
 
     # Build methods
     methods = []
 
     # SerializeToProtoJson
-    methods.append(_build_serialize_method(fb_name, fields))
+    methods.append(_build_serialize_to_proto_json_method(fb_name, fields))
 
     # FB_exit (only if there are dynamic allocations)
     fb_exit = _build_fb_exit(fb_name, fields)

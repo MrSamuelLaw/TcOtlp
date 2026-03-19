@@ -33,3 +33,7 @@ def tcplc_object_end() -> str:
 def cdata_wrap(text: str) -> str:
     """Wrap text in a CDATA section."""
     return f"<![CDATA[{text}]]>"
+
+
+# Standard comment injected into generated ST declarations and implementations
+AUTO_GEN_COMMENT = "(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)"

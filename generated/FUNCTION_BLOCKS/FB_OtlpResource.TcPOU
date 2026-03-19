@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_OtlpResource" Id="{7f2b9cb4-2140-4b92-b6fb-55cea7b08476}" SpecialFunc="None">
-    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+  <POU Name="FB_OtlpResource" Id="{59441742-32a3-44ee-a2cb-9505cbaead6f}" SpecialFunc="None">
+    <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+{attribute 'enable_dynamic_creation'}
 FUNCTION_BLOCK FB_OtlpResource IMPLEMENTS I_OtlpSerializable
 VAR
 	_arrAttributes : ARRAY[0..99] OF POINTER TO FB_OtlpKeyValue;
@@ -14,8 +15,9 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="SerializeToProtoJson" Id="{4fc743d6-3053-4c0a-8b76-91419add096b}">
-      <Declaration><![CDATA[METHOD SerializeToProtoJson
+    <Method Name="SerializeToProtoJson" Id="{35476129-b6bb-4d16-b79d-2012ce2ba90d}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD SerializeToProtoJson
 VAR_INPUT
 	parser : REFERENCE TO FB_JsonDynDomParser;
 	node   : SJsonValue;
@@ -46,8 +48,9 @@ IF THIS^._nEntityRefsCount > 0 THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="FB_exit" Id="{74de001a-75be-4bb8-b768-70a935fd3e5b}">
-      <Declaration><![CDATA[METHOD FB_exit : BOOL
+    <Method Name="FB_exit" Id="{7febd132-109c-45c7-b55a-09347e90795a}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD FB_exit : BOOL
 VAR_INPUT
 	bInCopyCode : BOOL;
 END_VAR
@@ -69,8 +72,9 @@ FOR i := 0 TO THIS^._nEntityRefsCount - 1 DO
 END_FOR]]></ST>
       </Implementation>
     </Method>
-    <Method Name="AddAttributes" Id="{647d6609-f8f0-435e-987d-4b47d1bebbc2}">
-      <Declaration><![CDATA[METHOD AddAttributes : POINTER TO FB_OtlpKeyValue
+    <Method Name="AddAttributes" Id="{68b9d22a-dc89-400e-a34e-0d79a29e45b1}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD AddAttributes : POINTER TO FB_OtlpKeyValue
 VAR
 END_VAR
 ]]></Declaration>
@@ -82,8 +86,9 @@ END_VAR
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="AddEntityRefs" Id="{df95097b-43db-40f1-bb0d-50cf83456a28}">
-      <Declaration><![CDATA[METHOD AddEntityRefs : POINTER TO FB_OtlpEntityRef
+    <Method Name="AddEntityRefs" Id="{c9502849-3856-47cc-8b2f-3febf8acfac2}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD AddEntityRefs : POINTER TO FB_OtlpEntityRef
 VAR
 END_VAR
 ]]></Declaration>
@@ -95,9 +100,10 @@ END_VAR
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Property Name="nAttributesCount" Id="{c968c300-16a5-4998-9231-5adfa1952d2b}">
-      <Declaration><![CDATA[PROPERTY nAttributesCount : UDINT]]></Declaration>
-      <Get Name="Get" Id="{94e1fad2-1665-4857-8caf-ad18ff586a77}">
+    <Property Name="nAttributesCount" Id="{6b6f2383-bd23-4632-8478-b1e530800cd0}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY nAttributesCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{2bb83576-ffc7-4a2a-a904-2897428ae609}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -106,9 +112,10 @@ END_VAR
         </Implementation>
       </Get>
     </Property>
-    <Property Name="nDroppedAttributesCount" Id="{a59c49cf-ff1b-4682-b729-26909173b126}">
-      <Declaration><![CDATA[PROPERTY nDroppedAttributesCount : UDINT]]></Declaration>
-      <Get Name="Get" Id="{9237bfa4-2e9f-4457-8995-9e131418c417}">
+    <Property Name="nDroppedAttributesCount" Id="{212e2986-63f2-4279-83a1-ebe9f3029da3}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY nDroppedAttributesCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{d86f35ab-54eb-42ac-85f1-4b9e59a7f780}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -116,7 +123,7 @@ END_VAR
           <ST><![CDATA[nDroppedAttributesCount := THIS^._nDroppedAttributesCount;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{8e613696-e036-4471-aea4-ec126b576163}">
+      <Set Name="Set" Id="{d3808d55-8e3a-4ef9-b422-f703ec2f6c69}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -125,9 +132,10 @@ END_VAR
         </Implementation>
       </Set>
     </Property>
-    <Property Name="nEntityRefsCount" Id="{08a2a87a-5f19-4ea9-a3c6-df6c9e54638a}">
-      <Declaration><![CDATA[PROPERTY nEntityRefsCount : UDINT]]></Declaration>
-      <Get Name="Get" Id="{f6189152-15c4-40c0-8ff6-96b542d50cba}">
+    <Property Name="nEntityRefsCount" Id="{2e28c4a7-5ef9-4cf2-aa2a-ca5f55ffb7a1}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY nEntityRefsCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{bbf85331-e34e-4bb4-b7ea-3ba1ea4a2091}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>

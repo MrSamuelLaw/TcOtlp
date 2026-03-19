@@ -1,6 +1,7 @@
 """Generate TwinCAT .TcIO interface files from proto message definitions."""
 
 import uuid
+from xml_helpers import AUTO_GEN_COMMENT
 
 
 def _new_guid() -> str:
@@ -14,19 +15,18 @@ def generate_serializable_interface() -> str:
     recursive serialization through the tree.
     """
     itf_id = _new_guid()
-    method_id = _new_guid()
-    parser_id = _new_guid()
-    node_id = _new_guid()
+    json_proto_method_id = _new_guid()
 
     return f"""\
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <Itf Name="I_OtlpSerializable" Id="{itf_id}">
-    <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+    <Declaration><![CDATA[{AUTO_GEN_COMMENT}
 INTERFACE I_OtlpSerializable
 ]]></Declaration>
-    <Method Name="SerializeToProtoJson" Id="{method_id}">
-      <Declaration><![CDATA[METHOD SerializeToProtoJson
+    <Method Name="SerializeToProtoJson" Id="{json_proto_method_id}">
+      <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+METHOD SerializeToProtoJson
 VAR_INPUT
 \tparser : REFERENCE TO FB_JsonDynDomParser;
 \tnode   : SJsonValue;
@@ -63,7 +63,7 @@ def generate_interface(
     else:
         extends_clause = ""
 
-    declaration = f"(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)\nINTERFACE {interface_name}{extends_clause}\n"
+    declaration = f"{AUTO_GEN_COMMENT}\nINTERFACE {interface_name}{extends_clause}\n"
 
     # Build property elements
     prop_elements = []
@@ -75,7 +75,8 @@ def generate_interface(
 
         prop_xml = f"""\
     <Property Name="{prop_name}" Id="{prop_id}">
-      <Declaration><![CDATA[PROPERTY {prop_name} : {prop_type}]]></Declaration>
+      <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+PROPERTY {prop_name} : {prop_type}]]></Declaration>
       <Get Name="Get" Id="{get_id}">
         <Declaration><![CDATA[]]></Declaration>
       </Get>"""

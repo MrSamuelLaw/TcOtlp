@@ -40,30 +40,29 @@ VAR
 	attrArr : SJsonValue;
 	attrElem : SJsonValue;
 	attrValObj : SJsonValue;
+	pResAttr : POINTER TO FB_OtlpKeyValue;
+	resAttrVal : FB_OtlpStringValue;
+	iResAttrVal : I_OtlpAnyValue;
+	bodyStr : FB_OtlpStringValue;
+	iBody : I_OtlpAnyValue;
+	pAttr : POINTER TO FB_OtlpKeyValue;
+	attrVal : FB_OtlpStringValue;
+	iAttrVal : I_OtlpAnyValue;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF TcUnit.TEST_ORDERED('Test Complete LogRecord Serialization') THEN
 
 // Build hierarchy: LogsData -> ResourceLogs -> ScopeLogs -> LogRecord
-
-(* ISSUE
-I cannot tell which function blocks/interfaces/enums are auto generated.
-The acode that auto generates these should have some way to inject that
-in the variable declaration section and here in the implementation section.
-*) 
-
-
-(* ISSUE
-The API isn't setup to align with the OTEL standard. 
-I'm thinking there should be a LoggerProvider() function block and a Logger function block.
-*)
-
 pResourceLogs := logsData.AddResourceLogs();
 
 // Set up Resource with an attribute
 pResource := __NEW(FB_OtlpResource);
-pResource^.AddStringAttribute('service.name', 'test-service');
+pResAttr := pResource^.AddAttributes();
+pResAttr^.sKey := 'service.name';
+resAttrVal.sValue := 'test-service';
+iResAttrVal := resAttrVal;
+pResAttr^.pValue := ADR(iResAttrVal);
 pResource^.nDroppedAttributesCount := UDINT#0;
 pResourceLogs^.pResource := pResource;
 pResourceLogs^.sSchemaUrl := 'https://opentelemetry.io/schemas/1.0.0';
@@ -87,10 +86,16 @@ pLogRecord^.nDroppedAttributesCount := UDINT#2;
 pLogRecord^.nFlags := UDINT#256;
 
 // Set body
-pLogRecord^.SetStringBody('test log body');
+bodyStr.sValue := 'test log body';
+iBody := bodyStr;
+pLogRecord^.pBody := ADR(iBody);
 
 // Add an attribute to the log record
-pLogRecord^.AddStringAttribute('log.attr', 'attr-value');
+pAttr := pLogRecord^.AddAttributes();
+pAttr^.sKey := 'log.attr';
+attrVal.sValue := 'attr-value';
+iAttrVal := attrVal;
+pAttr^.pValue := ADR(iAttrVal);
 
 // Serialize the full hierarchy
 root := jsonDoc.NewDocument();
@@ -177,6 +182,11 @@ THIS^.AssertEquals_STRING('log.attr', jsonDoc.GetString(memberValue), 'attr key'
 attrValObj := jsonDoc.FindMember(attrElem, 'value');
 memberValue := jsonDoc.FindMember(attrValObj, 'stringValue');
 THIS^.AssertEquals_STRING('attr-value', jsonDoc.GetString(memberValue), 'attr stringValue');
+
+// Null out pointer assignments to stack vars before finishing
+pLogRecord^.pBody := 0;
+pAttr^.pValue := 0;
+pResAttr^.pValue := 0;
 
 TcUnit.TEST_FINISHED();
 END_IF]]></ST>

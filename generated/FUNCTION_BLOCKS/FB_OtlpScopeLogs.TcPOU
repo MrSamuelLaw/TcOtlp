@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_OtlpScopeLogs" Id="{f83a76a2-be9f-4228-8a06-d4ebec925e32}" SpecialFunc="None">
-    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+  <POU Name="FB_OtlpScopeLogs" Id="{d42e7373-31d1-4387-bb59-a3651c97b078}" SpecialFunc="None">
+    <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+{attribute 'enable_dynamic_creation'}
 FUNCTION_BLOCK FB_OtlpScopeLogs IMPLEMENTS I_OtlpSerializable
 VAR
 	_pScope : POINTER TO FB_OtlpInstrumentationScope;
@@ -13,8 +14,9 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="SerializeToProtoJson" Id="{cd963207-709d-4e02-a9c4-340d787c89e5}">
-      <Declaration><![CDATA[METHOD SerializeToProtoJson
+    <Method Name="SerializeToProtoJson" Id="{aad03ff0-2f75-4df5-830f-09a46be7c495}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD SerializeToProtoJson
 VAR_INPUT
 	parser : REFERENCE TO FB_JsonDynDomParser;
 	node   : SJsonValue;
@@ -43,8 +45,9 @@ END_IF
 parser.AddStringMember(node, 'schemaUrl', THIS^._sSchemaUrl);]]></ST>
       </Implementation>
     </Method>
-    <Method Name="FB_exit" Id="{4d20f071-1e6b-433e-9da7-102580b18211}">
-      <Declaration><![CDATA[METHOD FB_exit : BOOL
+    <Method Name="FB_exit" Id="{7e72acfa-777b-483c-933f-da67d9183c71}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD FB_exit : BOOL
 VAR_INPUT
 	bInCopyCode : BOOL;
 END_VAR
@@ -64,8 +67,9 @@ FOR i := 0 TO THIS^._nLogRecordsCount - 1 DO
 END_FOR]]></ST>
       </Implementation>
     </Method>
-    <Method Name="AddLogRecords" Id="{2e16200f-8d09-4ddd-a71b-66032618a523}">
-      <Declaration><![CDATA[METHOD AddLogRecords : POINTER TO FB_OtlpLogRecord
+    <Method Name="AddLogRecords" Id="{00891832-aa55-4b22-a217-239a990ef21f}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD AddLogRecords : POINTER TO FB_OtlpLogRecord
 VAR
 END_VAR
 ]]></Declaration>
@@ -77,9 +81,10 @@ END_VAR
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Property Name="pScope" Id="{31e6fd31-cf3a-40b7-9907-cd141242f979}">
-      <Declaration><![CDATA[PROPERTY pScope : POINTER TO FB_OtlpInstrumentationScope]]></Declaration>
-      <Get Name="Get" Id="{cae7e4db-4231-4612-abca-56e9c634d0a4}">
+    <Property Name="pScope" Id="{f11e8a34-319d-4e9a-bc93-a90df7947af0}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY pScope : POINTER TO FB_OtlpInstrumentationScope]]></Declaration>
+      <Get Name="Get" Id="{f6545fa0-c874-4ff9-8bba-f3cf25283c27}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -87,7 +92,7 @@ END_VAR
           <ST><![CDATA[pScope := THIS^._pScope;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{57eb3dfe-d2ae-4b53-a4f4-e8bf1ffce230}">
+      <Set Name="Set" Id="{1fef9804-c413-4d4c-bde7-17a99340b313}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -96,9 +101,10 @@ END_VAR
         </Implementation>
       </Set>
     </Property>
-    <Property Name="nLogRecordsCount" Id="{d1c1dd42-444c-4f5b-b473-08d166c73281}">
-      <Declaration><![CDATA[PROPERTY nLogRecordsCount : UDINT]]></Declaration>
-      <Get Name="Get" Id="{d9b7b4a7-4f9e-46cd-be9d-b537502846d1}">
+    <Property Name="nLogRecordsCount" Id="{80b01c80-052b-4c77-b2ca-0c74b67f8d31}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY nLogRecordsCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{dbab6998-eecd-486c-8e81-5eaf75a55584}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -107,9 +113,10 @@ END_VAR
         </Implementation>
       </Get>
     </Property>
-    <Property Name="sSchemaUrl" Id="{b0d69a7f-8072-44bc-ab17-c8a976a35141}">
-      <Declaration><![CDATA[PROPERTY sSchemaUrl : STRING(255)]]></Declaration>
-      <Get Name="Get" Id="{de0c7e72-84f5-4b1c-bd51-aed1b63dd137}">
+    <Property Name="sSchemaUrl" Id="{f9cc24ba-8ae3-4229-9e95-44ca8ad80b27}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY sSchemaUrl : STRING(255)]]></Declaration>
+      <Get Name="Get" Id="{cf7ff4ca-eecc-410e-90e3-6c8a6bfffe4f}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -117,7 +124,7 @@ END_VAR
           <ST><![CDATA[sSchemaUrl := THIS^._sSchemaUrl;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{f43b9765-71bb-4569-9ce8-a51915d2d2fc}">
+      <Set Name="Set" Id="{5069e4d5-8ee4-4d32-9f6c-69245f1d22de}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>

@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_OtlpKvlistValue" Id="{2ef01437-eb62-4fff-947d-975bf9f75f04}" SpecialFunc="None">
-    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+  <POU Name="FB_OtlpKvlistValue" Id="{7f0a4fae-9967-4a08-accf-ebb9ac6a0678}" SpecialFunc="None">
+    <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+{attribute 'enable_dynamic_creation'}
 FUNCTION_BLOCK FB_OtlpKvlistValue IMPLEMENTS I_OtlpAnyValue
 VAR
 	_arrValues : ARRAY[0..99] OF POINTER TO FB_OtlpKeyValue;
@@ -11,8 +12,9 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="SerializeToProtoJson" Id="{46cc0b03-f5fb-40fe-a1e7-7acb73d2a77a}">
-      <Declaration><![CDATA[METHOD SerializeToProtoJson
+    <Method Name="SerializeToProtoJson" Id="{88fafe33-ded2-4ee8-8693-12a79c44a652}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD SerializeToProtoJson
 VAR_INPUT
 	parser : REFERENCE TO FB_JsonDynDomParser;
 	node   : SJsonValue;
@@ -35,8 +37,9 @@ IF THIS^._nValuesCount > 0 THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="FB_exit" Id="{fdfedcaf-7f40-49a9-853b-e43e0a9789ef}">
-      <Declaration><![CDATA[METHOD FB_exit : BOOL
+    <Method Name="FB_exit" Id="{5dd2d341-d2d1-41cf-9026-fbc9742cc001}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD FB_exit : BOOL
 VAR_INPUT
 	bInCopyCode : BOOL;
 END_VAR
@@ -52,8 +55,9 @@ END_VAR
 END_FOR]]></ST>
       </Implementation>
     </Method>
-    <Method Name="AddValue" Id="{9517920e-ad20-47fa-8b95-23c105679558}">
-      <Declaration><![CDATA[METHOD AddValue : POINTER TO FB_OtlpKeyValue
+    <Method Name="AddValue" Id="{531c229b-a8c1-467b-b108-531bada22cf7}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD AddValue : POINTER TO FB_OtlpKeyValue
 VAR
 END_VAR
 ]]></Declaration>
@@ -65,9 +69,10 @@ END_VAR
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Property Name="eValueType" Id="{5455269a-8f3d-4182-aa1c-e68446bf2ca6}">
-      <Declaration><![CDATA[PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
-      <Get Name="Get" Id="{a06bfd77-fbda-4b1f-b21e-b390aebe1eb2}">
+    <Property Name="eValueType" Id="{7c56fae6-aa4f-4108-ae69-ec2dfbfdbbb8}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
+      <Get Name="Get" Id="{3b72f3bb-f4ad-43c1-bc39-e936474a5161}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -76,9 +81,10 @@ END_VAR
         </Implementation>
       </Get>
     </Property>
-    <Property Name="nValuesCount" Id="{f7316b84-5c97-4fa9-b132-9c1ad8c3aebb}">
-      <Declaration><![CDATA[PROPERTY nValuesCount : UDINT]]></Declaration>
-      <Get Name="Get" Id="{5e5699ef-38ad-4fb9-9e9a-66c24b734312}">
+    <Property Name="nValuesCount" Id="{a1150104-f2f2-4a6d-9a4a-dabd7935ba80}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY nValuesCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{fa707125-2f13-4810-b242-5f841d5fbc90}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>

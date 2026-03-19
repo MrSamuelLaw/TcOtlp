@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <EnumerationTextList Name="E_OtlpSeverityNumber" Id="{ef700859-5026-473e-b84f-5da2c645a9f6}">
-    <Declaration><![CDATA[{attribute 'qualified_only'}
+  <EnumerationTextList Name="E_OtlpSeverityNumber" Id="{a35975ea-3863-44b8-9988-e814ae1976af}">
+    <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+{attribute 'qualified_only'}
 {attribute 'strict'}
 {attribute 'to_string'}
 TYPE E_OtlpSeverityNumber :
@@ -171,9 +172,9 @@ END_TYPE
             </o>
           </l>
           <l n="Languages" t="ArrayList" />
-          <v n="GuidInit">{37317ff7-81e4-475e-ab8b-e3132282b1e9}</v>
-          <v n="GuidReInit">{c844c1d3-a458-495f-bdef-daff1ed2354a}</v>
-          <v n="GuidExitX">{e3b54e9d-f4d1-4e1e-b975-9f4482b6bb21}</v>
+          <v n="GuidInit">{bda96dde-f549-4751-b67c-50bd5cbda7cd}</v>
+          <v n="GuidReInit">{c41a5ce8-2a8e-4118-b77d-903d04967799}</v>
+          <v n="GuidExitX">{efa3043e-a218-408e-9fe4-1d545202b650}</v>
         </o>
       </Data>
       <TypeList>

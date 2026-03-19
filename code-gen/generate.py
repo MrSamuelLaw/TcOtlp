@@ -117,11 +117,6 @@ def generate_logs(ast: dict, output_dir: Path) -> None:
 def main():
     parser = argparse.ArgumentParser(description="TcOtlp Code Generator")
     parser.add_argument(
-        "--ast",
-        default="proto_ast.json",
-        help="Path to proto_ast.json (default: proto_ast.json)",
-    )
-    parser.add_argument(
         "--output-dir",
         default="generated",
         help="Output directory for generated files (default: generated)",
@@ -130,7 +125,6 @@ def main():
 
     # Resolve paths relative to project root
     project_root = Path(__file__).parent.parent
-    ast_path = project_root / args.ast
     output_dir = project_root / args.output_dir
 
     if not ast_path.exists():

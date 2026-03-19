@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_OtlpLogsData" Id="{5fb2dc65-e5af-43ef-91cc-cd97912342a5}" SpecialFunc="None">
-    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+  <POU Name="FB_OtlpLogsData" Id="{412f0230-400d-45ec-8f5e-f0d2669630e2}" SpecialFunc="None">
+    <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+{attribute 'enable_dynamic_creation'}
 FUNCTION_BLOCK FB_OtlpLogsData IMPLEMENTS I_OtlpSerializable
 VAR
 	_arrResourceLogs : ARRAY[0..99] OF POINTER TO FB_OtlpResourceLogs;
@@ -11,8 +12,9 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="SerializeToProtoJson" Id="{cb75bea2-f4be-4c65-87ba-c9360c446ce9}">
-      <Declaration><![CDATA[METHOD SerializeToProtoJson
+    <Method Name="SerializeToProtoJson" Id="{868a21ef-5f6a-4067-bf8e-0ff3401c8d57}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD SerializeToProtoJson
 VAR_INPUT
 	parser : REFERENCE TO FB_JsonDynDomParser;
 	node   : SJsonValue;
@@ -33,8 +35,9 @@ END_VAR
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="FB_exit" Id="{484271ce-7c3a-4552-8a9b-5d5f2472e20f}">
-      <Declaration><![CDATA[METHOD FB_exit : BOOL
+    <Method Name="FB_exit" Id="{d59598f4-7892-4a7e-ba45-f9a4709eac90}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD FB_exit : BOOL
 VAR_INPUT
 	bInCopyCode : BOOL;
 END_VAR
@@ -50,8 +53,9 @@ END_VAR
 END_FOR]]></ST>
       </Implementation>
     </Method>
-    <Method Name="AddResourceLogs" Id="{0827e9f0-64cd-43f0-994e-2150a5d85b7f}">
-      <Declaration><![CDATA[METHOD AddResourceLogs : POINTER TO FB_OtlpResourceLogs
+    <Method Name="AddResourceLogs" Id="{b48f2f07-b3d5-4c89-8219-1d04ed65ba72}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD AddResourceLogs : POINTER TO FB_OtlpResourceLogs
 VAR
 END_VAR
 ]]></Declaration>
@@ -63,9 +67,10 @@ END_VAR
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Property Name="nResourceLogsCount" Id="{df86f6e8-1048-47be-b4ce-1ebf7ede5dec}">
-      <Declaration><![CDATA[PROPERTY nResourceLogsCount : UDINT]]></Declaration>
-      <Get Name="Get" Id="{583d49c5-a42c-4ad2-b076-6c8663af986a}">
+    <Property Name="nResourceLogsCount" Id="{b7608e43-03c7-4cfd-86ce-4aa87582e18b}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY nResourceLogsCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{778fe224-e44b-4f0e-a710-1aba95573117}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>

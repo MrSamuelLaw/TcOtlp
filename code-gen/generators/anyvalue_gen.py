@@ -11,6 +11,7 @@ AnyValue is recursive and uses proto oneof. This generates:
 
 import uuid
 
+from xml_helpers import AUTO_GEN_COMMENT
 from .enum_gen import generate_enum
 from .interface_gen import generate_interface
 
@@ -153,7 +154,7 @@ def _generate_simple_variant(variant: dict) -> str:
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="{fb_name}" Id="{pou_id}" SpecialFunc="None">
-    <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+    <Declaration><![CDATA[{AUTO_GEN_COMMENT}
 {{attribute 'enable_dynamic_creation'}}
 FUNCTION_BLOCK {fb_name} IMPLEMENTS I_OtlpAnyValue
 VAR
@@ -164,7 +165,8 @@ END_VAR
       <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="SerializeToProtoJson" Id="{serialize_id}">
-      <Declaration><![CDATA[METHOD SerializeToProtoJson
+      <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+METHOD SerializeToProtoJson
 VAR_INPUT
 \tparser : REFERENCE TO FB_JsonDynDomParser;
 \tnode   : SJsonValue;
@@ -175,7 +177,8 @@ END_VAR
       </Implementation>
     </Method>
     <Property Name="eValueType" Id="{prop_type_id}">
-      <Declaration><![CDATA[PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
+      <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
       <Get Name="Get" Id="{prop_type_get_id}">
         <Declaration><![CDATA[VAR
 END_VAR
@@ -186,7 +189,8 @@ END_VAR
       </Get>
     </Property>
     <Property Name="{var_name}" Id="{prop_value_id}">
-      <Declaration><![CDATA[PROPERTY {var_name} : {st_type}]]></Declaration>
+      <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+PROPERTY {var_name} : {st_type}]]></Declaration>
       <Get Name="Get" Id="{prop_value_get_id}">
         <Declaration><![CDATA[VAR
 END_VAR
@@ -224,7 +228,7 @@ def _generate_array_value() -> str:
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="{fb_name}" Id="{pou_id}" SpecialFunc="None">
-    <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+    <Declaration><![CDATA[{AUTO_GEN_COMMENT}
 {{attribute 'enable_dynamic_creation'}}
 FUNCTION_BLOCK {fb_name} IMPLEMENTS I_OtlpAnyValue
 VAR
@@ -236,7 +240,8 @@ END_VAR
       <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="SerializeToProtoJson" Id="{serialize_id}">
-      <Declaration><![CDATA[METHOD SerializeToProtoJson
+      <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+METHOD SerializeToProtoJson
 VAR_INPUT
 \tparser : REFERENCE TO FB_JsonDynDomParser;
 \tnode   : SJsonValue;
@@ -260,7 +265,8 @@ END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_exit" Id="{fb_exit_id}">
-      <Declaration><![CDATA[METHOD FB_exit : BOOL
+      <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+METHOD FB_exit : BOOL
 VAR_INPUT
 \tbInCopyCode : BOOL;
 END_VAR
@@ -277,7 +283,8 @@ END_FOR]]></ST>
       </Implementation>
     </Method>
     <Method Name="AddValue" Id="{add_method_id}">
-      <Declaration><![CDATA[METHOD AddValue
+      <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+METHOD AddValue
 VAR_INPUT
 \tpValue : POINTER TO I_OtlpAnyValue;
 END_VAR
@@ -290,7 +297,8 @@ END_IF]]></ST>
       </Implementation>
     </Method>
     <Property Name="eValueType" Id="{prop_type_id}">
-      <Declaration><![CDATA[PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
+      <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
       <Get Name="Get" Id="{prop_type_get_id}">
         <Declaration><![CDATA[VAR
 END_VAR
@@ -301,7 +309,8 @@ END_VAR
       </Get>
     </Property>
     <Property Name="nValuesCount" Id="{prop_count_id}">
-      <Declaration><![CDATA[PROPERTY nValuesCount : UDINT]]></Declaration>
+      <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+PROPERTY nValuesCount : UDINT]]></Declaration>
       <Get Name="Get" Id="{prop_count_get_id}">
         <Declaration><![CDATA[VAR
 END_VAR
@@ -328,33 +337,34 @@ def _generate_kvlist_value() -> str:
     prop_count_get_id = _new_guid()
 
     return f"""\
-    <?xml version="1.0" encoding="utf-8"?>
-    <TcPlcObject Version="1.1.0.1">
-    <POU Name="{fb_name}" Id="{pou_id}" SpecialFunc="None">
-    <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
-    {{attribute 'enable_dynamic_creation'}}
-    FUNCTION_BLOCK {fb_name} IMPLEMENTS I_OtlpAnyValue
-    VAR
-    \t_arrValues : ARRAY[0..{MAX_REPEATED - 1}] OF POINTER TO FB_OtlpKeyValue;
-    \t_nValuesCount : UDINT;
-    END_VAR
-    ]]></Declaration>
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="{fb_name}" Id="{pou_id}" SpecialFunc="None">
+    <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+{{attribute 'enable_dynamic_creation'}}
+FUNCTION_BLOCK {fb_name} IMPLEMENTS I_OtlpAnyValue
+VAR
+\t_arrValues : ARRAY[0..{MAX_REPEATED - 1}] OF POINTER TO FB_OtlpKeyValue;
+\t_nValuesCount : UDINT;
+END_VAR
+]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="SerializeToProtoJson" Id="{serialize_id}">
-       <Declaration><![CDATA[METHOD SerializeToProtoJson
-    VAR_INPUT
-    \tparser : REFERENCE TO FB_JsonDynDomParser;
-    \tnode   : SJsonValue;
-    END_VAR
-    VAR
-    \tkvlistNode : SJsonValue;
-    \tarrNode : SJsonValue;
-    \telemNode : SJsonValue;
-    \ti : UDINT;
-    END_VAR
-    ]]></Declaration>
+      <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+METHOD SerializeToProtoJson
+VAR_INPUT
+\tparser : REFERENCE TO FB_JsonDynDomParser;
+\tnode   : SJsonValue;
+END_VAR
+VAR
+\tkvlistNode : SJsonValue;
+\tarrNode : SJsonValue;
+\telemNode : SJsonValue;
+\ti : UDINT;
+END_VAR
+]]></Declaration>
       <Implementation>
         <ST><![CDATA[kvlistNode := parser.AddObjectMember(node, 'kvlistValue');
 IF THIS^._nValuesCount > 0 THEN
@@ -367,7 +377,8 @@ END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_exit" Id="{fb_exit_id}">
-      <Declaration><![CDATA[METHOD FB_exit : BOOL
+      <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+METHOD FB_exit : BOOL
 VAR_INPUT
 \tbInCopyCode : BOOL;
 END_VAR
@@ -384,7 +395,8 @@ END_FOR]]></ST>
       </Implementation>
     </Method>
     <Method Name="AddValue" Id="{add_method_id}">
-      <Declaration><![CDATA[METHOD AddValue : POINTER TO FB_OtlpKeyValue
+      <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+METHOD AddValue : POINTER TO FB_OtlpKeyValue
 VAR
 END_VAR
 ]]></Declaration>
@@ -397,7 +409,8 @@ END_IF]]></ST>
       </Implementation>
     </Method>
     <Property Name="eValueType" Id="{prop_type_id}">
-      <Declaration><![CDATA[PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
+      <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
       <Get Name="Get" Id="{prop_type_get_id}">
         <Declaration><![CDATA[VAR
 END_VAR
@@ -408,7 +421,8 @@ END_VAR
       </Get>
     </Property>
     <Property Name="nValuesCount" Id="{prop_count_id}">
-      <Declaration><![CDATA[PROPERTY nValuesCount : UDINT]]></Declaration>
+      <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+PROPERTY nValuesCount : UDINT]]></Declaration>
       <Get Name="Get" Id="{prop_count_get_id}">
         <Declaration><![CDATA[VAR
 END_VAR

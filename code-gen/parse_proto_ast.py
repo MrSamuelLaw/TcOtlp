@@ -1,5 +1,5 @@
-"""Parse all OpenTelemetry .proto files and dump their ASTs to JSON."""
-
+"""Parse all OpenTelemetry .proto files and return AST as a dict and can optionally dump to json"""
+import argparse
 import dataclasses
 import enum
 import json
@@ -10,7 +10,6 @@ from proto_schema_parser.parser import Parser
 enum_base = enum.Enum
 
 PROTO_ROOT = Path("opentelemetry-proto")
-
 
 def ast_to_dict(node):
     """Recursively convert AST nodes to JSON-serializable dicts."""
@@ -30,21 +29,29 @@ def ast_to_dict(node):
     else:
         return str(node)
 
+def parse_proto() -> dict:
+    parser = Parser()
+    proto_files = sorted(PROTO_ROOT.rglob("*.proto"))
 
-parser = Parser()
-proto_files = sorted(PROTO_ROOT.rglob("*.proto"))
+    output = {}
+    for proto_file in proto_files:
+        rel = str(proto_file.relative_to(PROTO_ROOT))
+        print(f"Parsing: {rel}")
+        text = proto_file.read_text(encoding="utf-8")
+        try:
+            ast = parser.parse(text)
+            output[rel] = ast_to_dict(ast)
+        except Exception as e:
+            output[rel] = {"_error": str(e)}
+            print(f"  ERROR: {e}")
 
-output = {}
-for proto_file in proto_files:
-    rel = str(proto_file.relative_to(PROTO_ROOT))
-    print(f"Parsing: {rel}")
-    text = proto_file.read_text(encoding="utf-8")
-    try:
-        ast = parser.parse(text)
-        output[rel] = ast_to_dict(ast)
-    except Exception as e:
-        output[rel] = {"_error": str(e)}
-        print(f"  ERROR: {e}")
+
+parser = argparse.ArgumentParser(description="TcOtlp Code Generator")
+parser.add_argument(
+    "--output-dir",
+    default=".",
+    help="Output directory for generated files (default: .)",
+)
 
 out_path = Path("proto_ast.json")
 out_path.write_text(json.dumps(output, indent=2), encoding="utf-8")

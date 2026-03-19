@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <Itf Name="I_OtlpSerializable" Id="{98500713-04c0-4826-a58f-b9ec958df143}">
-    <Declaration><![CDATA[INTERFACE I_OtlpSerializable
+  <Itf Name="I_OtlpSerializable" Id="{fcbe84a6-355d-46b4-99d5-95335ea4501e}">
+    <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+INTERFACE I_OtlpSerializable
 ]]></Declaration>
-    <Method Name="SerializeToProtoJson" Id="{642cc236-6224-40ab-8980-9d9bac020dfe}">
-      <Declaration><![CDATA[METHOD SerializeToProtoJson
+    <Method Name="SerializeToProtoJson" Id="{151ccadf-60ee-4f29-bcac-bc8a3b364ea8}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD SerializeToProtoJson
 VAR_INPUT
 	parser : REFERENCE TO FB_JsonDynDomParser;
 	node   : SJsonValue;

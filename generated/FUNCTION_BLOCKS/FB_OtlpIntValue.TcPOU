@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_OtlpIntValue" Id="{fce2e5fd-c2bd-4544-b3fd-34aee049280e}" SpecialFunc="None">
-    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+  <POU Name="FB_OtlpIntValue" Id="{f3806afd-edc5-411f-8d97-59bdce674664}" SpecialFunc="None">
+    <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+{attribute 'enable_dynamic_creation'}
 FUNCTION_BLOCK FB_OtlpIntValue IMPLEMENTS I_OtlpAnyValue
 VAR
 	_nValue : LINT;
@@ -10,8 +11,9 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="SerializeToProtoJson" Id="{e02e6fb3-4fd3-4bf2-aa17-a7e959a92af1}">
-      <Declaration><![CDATA[METHOD SerializeToProtoJson
+    <Method Name="SerializeToProtoJson" Id="{d35efd8a-fee3-4711-b7ca-abe65ace2fd9}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD SerializeToProtoJson
 VAR_INPUT
 	parser : REFERENCE TO FB_JsonDynDomParser;
 	node   : SJsonValue;
@@ -21,9 +23,10 @@ END_VAR
         <ST><![CDATA[parser.AddInt64Member(node, 'intValue', THIS^._nValue);]]></ST>
       </Implementation>
     </Method>
-    <Property Name="eValueType" Id="{9bb5e6c0-ce12-43b7-94ea-cb2534893390}">
-      <Declaration><![CDATA[PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
-      <Get Name="Get" Id="{325b74a7-d66a-4ed5-aee8-4c9382a0a440}">
+    <Property Name="eValueType" Id="{43602a38-aec9-493f-8f46-9ff9550569d3}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
+      <Get Name="Get" Id="{300f2b47-0ed0-435b-9856-64b269f36ed5}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -32,9 +35,10 @@ END_VAR
         </Implementation>
       </Get>
     </Property>
-    <Property Name="nValue" Id="{3d653eb4-436d-44c3-8ab4-dad3dc37b238}">
-      <Declaration><![CDATA[PROPERTY nValue : LINT]]></Declaration>
-      <Get Name="Get" Id="{a3e4ce72-f37f-48d8-8923-af04d7cfabd6}">
+    <Property Name="nValue" Id="{263eb794-1c1e-4997-bd72-1133931fa812}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY nValue : LINT]]></Declaration>
+      <Get Name="Get" Id="{4a22f6e9-20b4-4a24-9389-b64fb890ea6b}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -42,7 +46,7 @@ END_VAR
           <ST><![CDATA[nValue := THIS^._nValue;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{4e1c702e-2407-4eae-84a4-32ada15b3f02}">
+      <Set Name="Set" Id="{ab891e23-fbbf-4065-bb7b-051661866e17}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
