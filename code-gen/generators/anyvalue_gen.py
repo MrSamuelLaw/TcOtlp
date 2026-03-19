@@ -275,11 +275,13 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[FOR i := 0 TO THIS^._nValuesCount - 1 DO
+        <ST><![CDATA[IF THIS^._nValuesCount > 0 THEN
+\tFOR i := 0 TO THIS^._nValuesCount - 1 DO
 \tIF THIS^._arrValues[i] <> 0 THEN
 \t\t__DELETE(THIS^._arrValues[i]);
 \tEND_IF
-END_FOR]]></ST>
+\tEND_FOR
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="AddValue" Id="{add_method_id}">
@@ -387,11 +389,13 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[FOR i := 0 TO THIS^._nValuesCount - 1 DO
+        <ST><![CDATA[IF THIS^._nValuesCount > 0 THEN
+\tFOR i := 0 TO THIS^._nValuesCount - 1 DO
 \tIF THIS^._arrValues[i] <> 0 THEN
 \t\t__DELETE(THIS^._arrValues[i]);
 \tEND_IF
-END_FOR]]></ST>
+\tEND_FOR
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="AddValue" Id="{add_method_id}">

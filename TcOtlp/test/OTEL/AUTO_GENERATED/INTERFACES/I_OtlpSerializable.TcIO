@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <Itf Name="I_OtlpSerializable" Id="{7b3fbd67-48de-4582-b3ff-6ba878b7d4d0}">
+  <Itf Name="I_OtlpSerializable" Id="{07906c59-f0a2-411d-871b-3456f924ed22}">
     <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 INTERFACE I_OtlpSerializable
 ]]></Declaration>
-    <Method Name="SerializeToProtoJson" Id="{a2ed9f27-c6ff-4237-ac46-7d7e617560d9}">
+    <Method Name="SerializeToProtoJson" Id="{b077066a-4f82-4543-b4bf-accb2a7f0eb2}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD SerializeToProtoJson
 VAR_INPUT

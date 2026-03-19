@@ -165,6 +165,10 @@ def _build_var_section(fields: list[dict]) -> str:
             lines.append(f"\t_{count_name} : UDINT;")
         else:
             lines.append(f"\t_{f['st_name']} : {f['st_type']};")
+    if _has_keyvalue_attributes(fields):
+        lines.append(f"\t_arrStringAttrValues : ARRAY[0..{MAX_REPEATED - 1}] OF POINTER TO FB_OtlpStringValue;")
+        lines.append(f"\t_arrStringAttrInterfaces : ARRAY[0..{MAX_REPEATED - 1}] OF I_OtlpAnyValue;")
+        lines.append(f"\t_nStringAttrValuesCount : UDINT;")
     lines.append("END_VAR")
     return "\n".join(lines)
 
@@ -290,6 +294,40 @@ def _build_fb_exit(fb_name: str, fields: list[dict]) -> str:
 
     body_lines = []
     needs_i = False
+    has_string_attrs = _has_keyvalue_attributes(fields)
+    attributes_field = next(
+        (
+            f
+            for f in fields
+            if f["kind"] == "repeated_message"
+            and f["message_fb"] == "FB_OtlpKeyValue"
+            and f["proto_name"] == "attributes"
+        ),
+        None,
+    )
+
+    if has_string_attrs:
+        needs_i = True
+        # Clear KeyValue.pValue pointers first so they never reference freed AnyValue
+        # objects while this FB is tearing down.
+        if attributes_field is not None:
+            body_lines.append(f"IF THIS^._{attributes_field['count_name']} > 0 THEN")
+            body_lines.append(f"\tFOR i := 0 TO THIS^._{attributes_field['count_name']} - 1 DO")
+            body_lines.append(f"\t\tIF THIS^._{attributes_field['st_name']}[i] <> 0 THEN")
+            body_lines.append(f"\t\t\tTHIS^._{attributes_field['st_name']}[i]^.pValue := 0;")
+            body_lines.append(f"\t\tEND_IF")
+            body_lines.append("\tEND_FOR")
+            body_lines.append("END_IF")
+            body_lines.append("")
+
+        body_lines.append("IF THIS^._nStringAttrValuesCount > 0 THEN")
+        body_lines.append("\tFOR i := 0 TO THIS^._nStringAttrValuesCount - 1 DO")
+        body_lines.append("\t\tIF THIS^._arrStringAttrValues[i] <> 0 THEN")
+        body_lines.append("\t\t\t__DELETE(THIS^._arrStringAttrValues[i]);")
+        body_lines.append("\t\tEND_IF")
+        body_lines.append("\tEND_FOR")
+        body_lines.append("END_IF")
+        body_lines.append("")
 
     for f in fields:
         if f["kind"] == "message":
@@ -302,12 +340,25 @@ def _build_fb_exit(fb_name: str, fields: list[dict]) -> str:
             needs_i = True
             st_name = f["st_name"]
             count_name = f["count_name"]
-            body_lines.append(f"FOR i := 0 TO THIS^._{count_name} - 1 DO")
-            body_lines.append(f"\tIF THIS^._{st_name}[i] <> 0 THEN")
-            body_lines.append(f"\t\t__DELETE(THIS^._{st_name}[i]);")
-            body_lines.append(f"\tEND_IF")
-            body_lines.append("END_FOR")
-            body_lines.append("")
+            if has_string_attrs and f["proto_name"] == "attributes":
+                body_lines.append(f"IF THIS^._{count_name} > 0 THEN")
+                body_lines.append(f"\tFOR i := 0 TO THIS^._{count_name} - 1 DO")
+                body_lines.append(f"\t\tIF THIS^._{st_name}[i] <> 0 THEN")
+                body_lines.append(f"\t\t\tTHIS^._{st_name}[i]^.pValue := 0;")
+                body_lines.append(f"\t\t\t__DELETE(THIS^._{st_name}[i]);")
+                body_lines.append(f"\t\tEND_IF")
+                body_lines.append("\tEND_FOR")
+                body_lines.append("END_IF")
+                body_lines.append("")
+            else:
+                body_lines.append(f"IF THIS^._{count_name} > 0 THEN")
+                body_lines.append(f"\tFOR i := 0 TO THIS^._{count_name} - 1 DO")
+                body_lines.append(f"\t\tIF THIS^._{st_name}[i] <> 0 THEN")
+                body_lines.append(f"\t\t\t__DELETE(THIS^._{st_name}[i]);")
+                body_lines.append(f"\t\tEND_IF")
+                body_lines.append("\tEND_FOR")
+                body_lines.append("END_IF")
+                body_lines.append("")
 
     if not body_lines:
         return ""
@@ -439,6 +490,66 @@ END_IF]]></ST>
     return ""
 
 
+def _has_keyvalue_attributes(fields: list[dict]) -> bool:
+    """Check if any field is a repeated KeyValue named 'attributes'."""
+    return any(
+        f["kind"] == "repeated_message"
+        and f["message_fb"] == "FB_OtlpKeyValue"
+        and f["proto_name"] == "attributes"
+        for f in fields
+    )
+
+
+def _build_add_string_attribute_method() -> str:
+    """Build AddStringAttribute convenience method for FBs with repeated KeyValue attributes.
+
+    This method manages the full lifecycle of the KeyValue + StringValue pair,
+    preventing dangling pointers by owning the FB_OtlpStringValue internally.
+    """
+    method_id = _new_guid()
+
+    return f"""\
+    <Method Name="AddStringAttribute" Id="{method_id}">
+      <Declaration><![CDATA[{AUTO_GEN_COMMENT}
+METHOD AddStringAttribute
+VAR_INPUT
+\tsKey : STRING(255);
+\tsValue : STRING(255);
+END_VAR
+VAR
+\tpKv : POINTER TO FB_OtlpKeyValue;
+\tpStrVal : POINTER TO FB_OtlpStringValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._nStringAttrValuesCount >= {MAX_REPEATED} THEN
+\tRETURN;
+END_IF
+
+pStrVal := __NEW(FB_OtlpStringValue);
+IF pStrVal = 0 THEN
+\tRETURN;
+END_IF
+
+pKv := THIS^.AddAttributes();
+IF pKv = 0 THEN
+\t__DELETE(pStrVal);
+\tRETURN;
+END_IF
+
+pKv^.sKey := sKey;
+
+pStrVal^.sValue := sValue;
+THIS^._arrStringAttrValues[THIS^._nStringAttrValuesCount] := pStrVal;
+
+THIS^._arrStringAttrInterfaces[THIS^._nStringAttrValuesCount] := pStrVal^;
+pKv^.pValue := ADR(THIS^._arrStringAttrInterfaces[THIS^._nStringAttrValuesCount]);
+
+THIS^._nStringAttrValuesCount := THIS^._nStringAttrValuesCount + 1;]]></ST>
+      </Implementation>
+    </Method>"""
+
+
 def generate_fb(
     message_node: dict,
     fb_name: str,
@@ -489,6 +600,10 @@ def generate_fb(
     for f in fields:
         if f["kind"] == "repeated_message":
             methods.append(_build_add_method(f))
+
+    # AddStringAttribute convenience method for FBs with repeated KeyValue attributes
+    if _has_keyvalue_attributes(fields):
+        methods.append(_build_add_string_attribute_method())
 
     # Properties
     props = _build_properties(fields)

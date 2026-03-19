@@ -98,15 +98,15 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="OTEL" />
-    <Folder Include="OTEL\AUTO_GENERATED" />
-    <Folder Include="OTEL\FUNCTION_BLOCKS" />
-    <Folder Include="TEST_OTEL" />
-    <Folder Include="TEST_OTEL\TEST_EXPORTING" />
-    <Folder Include="TEST_OTEL\TEST_SERIALIZATION" />
-    <Folder Include="OTEL\AUTO_GENERATED\ENUMS" />
-    <Folder Include="OTEL\AUTO_GENERATED\INTERFACES" />
-    <Folder Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS" />
+    <Folder Include="OTEL"/>
+    <Folder Include="OTEL\AUTO_GENERATED"/>
+    <Folder Include="OTEL\FUNCTION_BLOCKS"/>
+    <Folder Include="TEST_OTEL"/>
+    <Folder Include="TEST_OTEL\TEST_EXPORTING"/>
+    <Folder Include="TEST_OTEL\TEST_SERIALIZATION"/>
+    <Folder Include="OTEL\AUTO_GENERATED\ENUMS"/>
+    <Folder Include="OTEL\AUTO_GENERATED\INTERFACES"/>
+    <Folder Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS"/>
   </ItemGroup>
   <ItemGroup>
     <PlaceholderReference Include="Tc2_Standard">
@@ -150,14 +150,14 @@
               <v>{192FAD59-8248-4824-A8DE-9177C94C195A}</v>
               <o>
                 <v n="Name">"{192FAD59-8248-4824-A8DE-9177C94C195A}"</v>
-                <d n="SubKeys" t="Hashtable" />
-                <d n="Values" t="Hashtable" />
+                <d n="SubKeys" t="Hashtable"/>
+                <d n="Values" t="Hashtable"/>
               </o>
               <v>{246001F4-279D-43AC-B241-948EB31120E1}</v>
               <o>
                 <v n="Name">"{246001F4-279D-43AC-B241-948EB31120E1}"</v>
-                <d n="SubKeys" t="Hashtable" />
-                <d n="Values" t="Hashtable" />
+                <d n="SubKeys" t="Hashtable"/>
+                <d n="Values" t="Hashtable"/>
               </o>
               <v>{29BD8D0C-3586-4548-BB48-497B9A01693F}</v>
               <o>
@@ -166,28 +166,28 @@
                   <v>NamingConventions</v>
                   <o>
                     <v n="Name">"NamingConventions"</v>
-                    <d n="SubKeys" t="Hashtable" />
-                    <d n="Values" t="Hashtable" />
+                    <d n="SubKeys" t="Hashtable"/>
+                    <d n="Values" t="Hashtable"/>
                   </o>
                   <v>Rules</v>
                   <o>
                     <v n="Name">"Rules"</v>
-                    <d n="SubKeys" t="Hashtable" />
-                    <d n="Values" t="Hashtable" />
+                    <d n="SubKeys" t="Hashtable"/>
+                    <d n="Values" t="Hashtable"/>
                   </o>
                 </d>
-                <d n="Values" t="Hashtable" />
+                <d n="Values" t="Hashtable"/>
               </o>
               <v>{40450F57-0AA3-4216-96F3-5444ECB29763}</v>
               <o>
                 <v n="Name">"{40450F57-0AA3-4216-96F3-5444ECB29763}"</v>
-                <d n="SubKeys" t="Hashtable" />
-                <d n="Values" t="Hashtable" />
+                <d n="SubKeys" t="Hashtable"/>
+                <d n="Values" t="Hashtable"/>
               </o>
               <v>{8A0FB252-96EB-4DCC-A5B4-B4804D05E2D6}</v>
               <o>
                 <v n="Name">"{8A0FB252-96EB-4DCC-A5B4-B4804D05E2D6}"</v>
-                <d n="SubKeys" t="Hashtable" />
+                <d n="SubKeys" t="Hashtable"/>
                 <d n="Values" t="Hashtable" ckt="String" cvt="Boolean">
                   <v>WriteLineIDs</v>
                   <v>False</v>
@@ -196,7 +196,7 @@
               <v>{8F99A816-E488-41E4-9FA3-846536012284}</v>
               <o>
                 <v n="Name">"{8F99A816-E488-41E4-9FA3-846536012284}"</v>
-                <d n="SubKeys" t="Hashtable" />
+                <d n="SubKeys" t="Hashtable"/>
                 <d n="Values" t="Hashtable" ckt="String" cvt="String">
                   <v>DisabledWarningIds</v>
                   <v>410,5410</v>
@@ -205,20 +205,20 @@
               <v>{eeeeeeee-3909-4298-8022-501ac3238667}</v>
               <o>
                 <v n="Name">"{eeeeeeee-3909-4298-8022-501ac3238667}"</v>
-                <d n="SubKeys" t="Hashtable" />
-                <d n="Values" t="Hashtable" />
+                <d n="SubKeys" t="Hashtable"/>
+                <d n="Values" t="Hashtable"/>
               </o>
               <v>{F66C7017-BDD8-4114-926C-81D6D687E35F}</v>
               <o>
                 <v n="Name">"{F66C7017-BDD8-4114-926C-81D6D687E35F}"</v>
-                <d n="SubKeys" t="Hashtable" />
+                <d n="SubKeys" t="Hashtable"/>
                 <d n="Values" t="Hashtable" ckt="String" cvt="Boolean">
                   <v>CalcActiveTransOnly</v>
                   <v>True</v>
                 </d>
               </o>
             </d>
-            <d n="Values" t="Hashtable" />
+            <d n="Values" t="Hashtable"/>
           </o>
         </Data>
         <TypeList>
