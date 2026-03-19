@@ -33,79 +33,71 @@
     <Compile Include="TEST_OTEL\TEST_EXPORTING\FB_HttpLogExportIntegrationTest.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\ENUMS\E_OtlpAnyValueType.TcTLEO">
+    <Compile Include="OTEL\AUTO_GENERATED\ENUMS\E_OtlpAnyValueType.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\ENUMS\E_OtlpLogRecordFlags.TcTLEO">
+    <Compile Include="OTEL\AUTO_GENERATED\ENUMS\E_OtlpLogRecordFlags.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\ENUMS\E_OtlpSeverityNumber.TcTLEO">
+    <Compile Include="OTEL\AUTO_GENERATED\ENUMS\E_OtlpSeverityNumber.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_OtlpArrayValue.TcPOU">
+    <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpArrayValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_OtlpBoolValue.TcPOU">
+    <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpBoolValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_OtlpBytesValue.TcPOU">
+    <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpBytesValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_OtlpDoubleValue.TcPOU">
+    <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpDoubleValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_OtlpInstrumentationScope.TcPOU">
+    <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpEntityRef.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_OtlpIntValue.TcPOU">
+    <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpInstrumentationScope.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_OtlpKeyValue.TcPOU">
+    <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpIntValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_OtlpKvlistValue.TcPOU">
+    <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpKeyValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_OtlpLogRecord.TcPOU">
+    <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpKvlistValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_OtlpLogsData.TcPOU">
+    <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpLogRecord.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_OtlpResource.TcPOU">
+    <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpLogsData.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_OtlpResourceLogs.TcPOU">
+    <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpResource.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_OtlpScopeLogs.TcPOU">
+    <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpResourceLogs.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_OtlpStringValue.TcPOU">
+    <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpScopeLogs.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_HttpBatchLogExporter.TcPOU">
+    <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpStringValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_OtlpEntityRef.TcPOU">
+    <Compile Include="OTEL\AUTO_GENERATED\INTERFACES\I_OtlpAnyValue.TcIO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\INTERFACES\I_OtlpAnyValue.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\INTERFACES\I_OtlpSerializable.TcIO">
+    <Compile Include="OTEL\AUTO_GENERATED\INTERFACES\I_OtlpSerializable.TcIO">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="OTEL\INTERFACES"/>
-    <Folder Include="OTEL\FUNCTION_BLOCKS"/>
-    <Folder Include="TEST_OTEL"/>
-    <Folder Include="OTEL"/>
-    <Folder Include="OTEL\ENUMS"/>
-    <Folder Include="TEST_OTEL\TEST_EXPORTING"/>
-    <Folder Include="TEST_OTEL\TEST_PROCESSING"/>
-    <Folder Include="TEST_OTEL\TEST_SERIALIZATION"/>
+    <Folder Include="OTEL\AUTO_GENERATED\ENUMS"/>
+    <Folder Include="OTEL\AUTO_GENERATED\INTERFACES"/>
+    <Folder Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS"/>
   </ItemGroup>
   <ItemGroup>
     <PlaceholderReference Include="Tc2_Standard">

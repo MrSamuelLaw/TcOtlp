@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_OtlpInstrumentationScope" Id="{ea521416-c6f9-4541-a6e4-c20fad0913fe}" SpecialFunc="None">
+  <POU Name="FB_OtlpInstrumentationScope" Id="{591a1b2f-34d3-4e05-a05c-d5b119547f76}" SpecialFunc="None">
     <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 {attribute 'enable_dynamic_creation'}
 FUNCTION_BLOCK FB_OtlpInstrumentationScope IMPLEMENTS I_OtlpSerializable
@@ -15,7 +15,7 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="SerializeToProtoJson" Id="{797157fd-e4a2-42fe-b5e1-8735e62667be}">
+    <Method Name="SerializeToProtoJson" Id="{3a449962-bd8e-4aa0-94ff-39687d44e739}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD SerializeToProtoJson
 VAR_INPUT
@@ -44,7 +44,7 @@ END_IF
 parser.AddUintMember(node, 'droppedAttributesCount', THIS^._nDroppedAttributesCount);]]></ST>
       </Implementation>
     </Method>
-    <Method Name="FB_exit" Id="{e95492e6-3f7d-4bb1-8389-2ebc891974d8}">
+    <Method Name="FB_exit" Id="{92376e13-0719-43a7-9dfe-6990678e2f6e}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD FB_exit : BOOL
 VAR_INPUT
@@ -62,7 +62,7 @@ END_VAR
 END_FOR]]></ST>
       </Implementation>
     </Method>
-    <Method Name="AddAttributes" Id="{00b6d3f6-94b8-4383-8521-ceb8700dd599}">
+    <Method Name="AddAttributes" Id="{5726ea1f-d655-40fd-9ff7-30dc021c0701}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD AddAttributes : POINTER TO FB_OtlpKeyValue
 VAR
@@ -76,10 +76,10 @@ END_VAR
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Property Name="sName" Id="{ef2f2b02-bd0c-4867-a695-2960a535ef16}">
+    <Property Name="sName" Id="{39019764-0286-48c8-9747-276c2fa6dcd3}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY sName : STRING(255)]]></Declaration>
-      <Get Name="Get" Id="{eeb3d4db-69a3-44bd-9ed6-b90cf24ef859}">
+      <Get Name="Get" Id="{1bd88f9c-ec53-4f64-befb-40d23672a4d4}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -87,7 +87,7 @@ END_VAR
           <ST><![CDATA[sName := THIS^._sName;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{71bb6003-1e81-4e5f-ab67-5f44ad71aa13}">
+      <Set Name="Set" Id="{5eb21e2a-243c-4a3f-85ef-76a0aacf320b}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -96,10 +96,10 @@ END_VAR
         </Implementation>
       </Set>
     </Property>
-    <Property Name="sVersion" Id="{35449b13-57fb-4efc-a81a-3a979b10d3ec}">
+    <Property Name="sVersion" Id="{e05fa4ce-e0f5-411a-b156-104182dd3a44}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY sVersion : STRING(255)]]></Declaration>
-      <Get Name="Get" Id="{f3db320c-40ad-476f-b2a8-20cdf07b0bfa}">
+      <Get Name="Get" Id="{1f2a0be3-4b21-42ab-869c-2ab113d974de}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -107,7 +107,7 @@ END_VAR
           <ST><![CDATA[sVersion := THIS^._sVersion;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{fce7b474-d3e0-40c8-9c4a-b4de4276f718}">
+      <Set Name="Set" Id="{46a4019d-45f8-4548-891f-3a394393d1de}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -116,10 +116,10 @@ END_VAR
         </Implementation>
       </Set>
     </Property>
-    <Property Name="nAttributesCount" Id="{14072e9a-dd89-4aa6-b6d3-ba365b8d557b}">
+    <Property Name="nAttributesCount" Id="{8b97503d-2e74-4e6e-b6d9-82811568b8e5}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY nAttributesCount : UDINT]]></Declaration>
-      <Get Name="Get" Id="{19ea871f-30f6-4a82-96eb-e737325294f9}">
+      <Get Name="Get" Id="{c8bcc206-512b-4ad9-8f45-8457094b2681}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -128,10 +128,10 @@ END_VAR
         </Implementation>
       </Get>
     </Property>
-    <Property Name="nDroppedAttributesCount" Id="{3f4e5831-40ea-49c5-ac9a-6eb1b5ffea3f}">
+    <Property Name="nDroppedAttributesCount" Id="{40796a3d-622f-4555-932b-68320ef2d610}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY nDroppedAttributesCount : UDINT]]></Declaration>
-      <Get Name="Get" Id="{beb216f7-64e6-4cfc-8eb7-a4eb872d1a1d}">
+      <Get Name="Get" Id="{29586297-dd20-473f-9f6b-e5142852e975}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -139,7 +139,7 @@ END_VAR
           <ST><![CDATA[nDroppedAttributesCount := THIS^._nDroppedAttributesCount;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{d836e918-f6c3-4482-be23-50b3e0686fe3}">
+      <Set Name="Set" Id="{82c81010-f2c5-433f-a524-1028fc58244a}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>

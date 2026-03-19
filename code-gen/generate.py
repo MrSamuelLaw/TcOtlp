@@ -12,10 +12,11 @@ import os
 import sys
 from pathlib import Path
 
-# Add parent dir to path so we can import sibling modules
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+# Add code-gen dir to path so we can import sibling modules
+sys.path.insert(0, os.path.dirname(__file__))
 
-from loader import load_ast, find_elements, get_package
+from loader import find_elements, get_package
+from parse_proto_ast import parse_proto
 from naming import proto_name_to_fb, proto_name_to_interface, proto_name_to_enum
 from generators.enum_gen import generate_enum
 from generators.interface_gen import generate_serializable_interface, generate_interface
@@ -127,12 +128,7 @@ def main():
     project_root = Path(__file__).parent.parent
     output_dir = project_root / args.output_dir
 
-    if not ast_path.exists():
-        print(f"Error: AST file not found: {ast_path}")
-        print("Run dump_proto_ast.py first to generate it.")
-        sys.exit(1)
-
-    ast = load_ast(str(ast_path))
+    ast = parse_proto()
     generate_logs(ast, output_dir)
 
 

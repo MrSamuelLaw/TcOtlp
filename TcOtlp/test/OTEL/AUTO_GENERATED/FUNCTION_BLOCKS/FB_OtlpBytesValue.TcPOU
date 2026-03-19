@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_OtlpBoolValue" Id="{c92f1bf5-f2af-4797-a130-25ddf626f954}" SpecialFunc="None">
+  <POU Name="FB_OtlpBytesValue" Id="{698384eb-824e-4f45-a7e4-1d033e9f838e}" SpecialFunc="None">
     <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 {attribute 'enable_dynamic_creation'}
-FUNCTION_BLOCK FB_OtlpBoolValue IMPLEMENTS I_OtlpAnyValue
+FUNCTION_BLOCK FB_OtlpBytesValue IMPLEMENTS I_OtlpAnyValue
 VAR
-	_bValue : BOOL;
+	_arrValue : ARRAY[0..255] OF BYTE;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="SerializeToProtoJson" Id="{a96d647c-0861-4b91-8197-736e5e9bfa36}">
+    <Method Name="SerializeToProtoJson" Id="{baa25d39-4fb7-4329-a809-8566ff2e269d}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD SerializeToProtoJson
 VAR_INPUT
@@ -20,38 +20,38 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[parser.AddBoolMember(node, 'boolValue', THIS^._bValue);]]></ST>
+        <ST><![CDATA[// TODO: serialize bytes field 'bytesValue' (base64 encoding)]]></ST>
       </Implementation>
     </Method>
-    <Property Name="eValueType" Id="{a7b6897e-5056-4b37-aa66-895f96dba2de}">
+    <Property Name="eValueType" Id="{3ebcadb9-385b-491d-b979-82707e5f2b9f}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
-      <Get Name="Get" Id="{aecc52df-ede8-49fa-ae27-aedc04d1e11d}">
+      <Get Name="Get" Id="{c0522d36-2f40-4441-9a71-076f2169acda}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
         <Implementation>
-          <ST><![CDATA[eValueType := E_OtlpAnyValueType.BOOL_VALUE;]]></ST>
+          <ST><![CDATA[eValueType := E_OtlpAnyValueType.BYTES_VALUE;]]></ST>
         </Implementation>
       </Get>
     </Property>
-    <Property Name="bValue" Id="{a5028c22-d194-4308-b7db-0bb987d3092c}">
+    <Property Name="arrValue" Id="{fc3cbdbe-138e-4cbb-91ba-7af63dfaa53b}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
-PROPERTY bValue : BOOL]]></Declaration>
-      <Get Name="Get" Id="{11d820a5-6410-483d-8015-5c8e7e66d04a}">
+PROPERTY arrValue : ARRAY[0..255] OF BYTE]]></Declaration>
+      <Get Name="Get" Id="{b2a2726b-162c-424e-a2c8-b7f0228379c8}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
         <Implementation>
-          <ST><![CDATA[bValue := THIS^._bValue;]]></ST>
+          <ST><![CDATA[arrValue := THIS^._arrValue;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{b7dffb75-0a7d-4270-9c9e-d8c6e20fef36}">
+      <Set Name="Set" Id="{da220a9c-2728-4729-80bd-1231839fc060}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
         <Implementation>
-          <ST><![CDATA[THIS^._bValue := bValue;]]></ST>
+          <ST><![CDATA[THIS^._arrValue := arrValue;]]></ST>
         </Implementation>
       </Set>
     </Property>

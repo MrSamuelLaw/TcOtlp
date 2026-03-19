@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_OtlpInstrumentationScope" Id="{ea521416-c6f9-4541-a6e4-c20fad0913fe}" SpecialFunc="None">
+  <POU Name="FB_OtlpResource" Id="{1d5327ec-9aa4-438f-99e6-a141c2cb42e0}" SpecialFunc="None">
     <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 {attribute 'enable_dynamic_creation'}
-FUNCTION_BLOCK FB_OtlpInstrumentationScope IMPLEMENTS I_OtlpSerializable
+FUNCTION_BLOCK FB_OtlpResource IMPLEMENTS I_OtlpSerializable
 VAR
-	_sName : STRING(255);
-	_sVersion : STRING(255);
 	_arrAttributes : ARRAY[0..99] OF POINTER TO FB_OtlpKeyValue;
 	_nAttributesCount : UDINT;
 	_nDroppedAttributesCount : UDINT;
+	_arrEntityRefs : ARRAY[0..99] OF POINTER TO FB_OtlpEntityRef;
+	_nEntityRefsCount : UDINT;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="SerializeToProtoJson" Id="{797157fd-e4a2-42fe-b5e1-8735e62667be}">
+    <Method Name="SerializeToProtoJson" Id="{d8be3cb4-03bb-49c3-baa2-b78226bc74a8}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD SerializeToProtoJson
 VAR_INPUT
@@ -29,11 +29,7 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[parser.AddStringMember(node, 'name', THIS^._sName);
-
-parser.AddStringMember(node, 'version', THIS^._sVersion);
-
-IF THIS^._nAttributesCount > 0 THEN
+        <ST><![CDATA[IF THIS^._nAttributesCount > 0 THEN
 	arrNode := parser.AddArrayMember(node, 'attributes', 0);
 	FOR i := 0 TO THIS^._nAttributesCount - 1 DO
 		elemNode := parser.PushbackJsonValue(arrNode, '{}');
@@ -41,10 +37,18 @@ IF THIS^._nAttributesCount > 0 THEN
 	END_FOR
 END_IF
 
-parser.AddUintMember(node, 'droppedAttributesCount', THIS^._nDroppedAttributesCount);]]></ST>
+parser.AddUintMember(node, 'droppedAttributesCount', THIS^._nDroppedAttributesCount);
+
+IF THIS^._nEntityRefsCount > 0 THEN
+	arrNode := parser.AddArrayMember(node, 'entityRefs', 0);
+	FOR i := 0 TO THIS^._nEntityRefsCount - 1 DO
+		elemNode := parser.PushbackJsonValue(arrNode, '{}');
+		THIS^._arrEntityRefs[i]^.SerializeToProtoJson(parser, elemNode);
+	END_FOR
+END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="FB_exit" Id="{e95492e6-3f7d-4bb1-8389-2ebc891974d8}">
+    <Method Name="FB_exit" Id="{af8e1327-cdba-404d-b65e-65f590a1f228}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD FB_exit : BOOL
 VAR_INPUT
@@ -59,10 +63,16 @@ END_VAR
 	IF THIS^._arrAttributes[i] <> 0 THEN
 		__DELETE(THIS^._arrAttributes[i]);
 	END_IF
+END_FOR
+
+FOR i := 0 TO THIS^._nEntityRefsCount - 1 DO
+	IF THIS^._arrEntityRefs[i] <> 0 THEN
+		__DELETE(THIS^._arrEntityRefs[i]);
+	END_IF
 END_FOR]]></ST>
       </Implementation>
     </Method>
-    <Method Name="AddAttributes" Id="{00b6d3f6-94b8-4383-8521-ceb8700dd599}">
+    <Method Name="AddAttributes" Id="{e62889a3-b5fb-4815-9d40-d937a48608f0}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD AddAttributes : POINTER TO FB_OtlpKeyValue
 VAR
@@ -76,50 +86,24 @@ END_VAR
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Property Name="sName" Id="{ef2f2b02-bd0c-4867-a695-2960a535ef16}">
+    <Method Name="AddEntityRefs" Id="{488d869c-caee-450f-8853-4e46b50afe59}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
-PROPERTY sName : STRING(255)]]></Declaration>
-      <Get Name="Get" Id="{eeb3d4db-69a3-44bd-9ed6-b90cf24ef859}">
-        <Declaration><![CDATA[VAR
+METHOD AddEntityRefs : POINTER TO FB_OtlpEntityRef
+VAR
 END_VAR
 ]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[sName := THIS^._sName;]]></ST>
-        </Implementation>
-      </Get>
-      <Set Name="Set" Id="{71bb6003-1e81-4e5f-ab67-5f44ad71aa13}">
-        <Declaration><![CDATA[VAR
-END_VAR
-]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[THIS^._sName := sName;]]></ST>
-        </Implementation>
-      </Set>
-    </Property>
-    <Property Name="sVersion" Id="{35449b13-57fb-4efc-a81a-3a979b10d3ec}">
-      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
-PROPERTY sVersion : STRING(255)]]></Declaration>
-      <Get Name="Get" Id="{f3db320c-40ad-476f-b2a8-20cdf07b0bfa}">
-        <Declaration><![CDATA[VAR
-END_VAR
-]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[sVersion := THIS^._sVersion;]]></ST>
-        </Implementation>
-      </Get>
-      <Set Name="Set" Id="{fce7b474-d3e0-40c8-9c4a-b4de4276f718}">
-        <Declaration><![CDATA[VAR
-END_VAR
-]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[THIS^._sVersion := sVersion;]]></ST>
-        </Implementation>
-      </Set>
-    </Property>
-    <Property Name="nAttributesCount" Id="{14072e9a-dd89-4aa6-b6d3-ba365b8d557b}">
+      <Implementation>
+        <ST><![CDATA[IF THIS^._nEntityRefsCount < 100 THEN
+	AddEntityRefs := __NEW(FB_OtlpEntityRef);
+	THIS^._arrEntityRefs[THIS^._nEntityRefsCount] := AddEntityRefs;
+	THIS^._nEntityRefsCount := THIS^._nEntityRefsCount + 1;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="nAttributesCount" Id="{89a72fb9-9b28-4da9-8312-e3711d5da0d0}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY nAttributesCount : UDINT]]></Declaration>
-      <Get Name="Get" Id="{19ea871f-30f6-4a82-96eb-e737325294f9}">
+      <Get Name="Get" Id="{0e8dc721-15ec-402c-8495-fb4f8a6a3006}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -128,10 +112,10 @@ END_VAR
         </Implementation>
       </Get>
     </Property>
-    <Property Name="nDroppedAttributesCount" Id="{3f4e5831-40ea-49c5-ac9a-6eb1b5ffea3f}">
+    <Property Name="nDroppedAttributesCount" Id="{f6477f4f-bc28-48cd-8f9f-8394ffaee057}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY nDroppedAttributesCount : UDINT]]></Declaration>
-      <Get Name="Get" Id="{beb216f7-64e6-4cfc-8eb7-a4eb872d1a1d}">
+      <Get Name="Get" Id="{a28594cf-c201-40d7-93da-2e277f79fcf2}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -139,7 +123,7 @@ END_VAR
           <ST><![CDATA[nDroppedAttributesCount := THIS^._nDroppedAttributesCount;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{d836e918-f6c3-4482-be23-50b3e0686fe3}">
+      <Set Name="Set" Id="{0cae5a1c-9d39-4c18-bc23-cca081004b50}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -147,6 +131,18 @@ END_VAR
           <ST><![CDATA[THIS^._nDroppedAttributesCount := nDroppedAttributesCount;]]></ST>
         </Implementation>
       </Set>
+    </Property>
+    <Property Name="nEntityRefsCount" Id="{96edb138-9d1d-4a0d-bd2a-36f1a8257bef}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY nEntityRefsCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{01cf5e08-8233-4636-a516-644548e54ecb}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[nEntityRefsCount := THIS^._nEntityRefsCount;]]></ST>
+        </Implementation>
+      </Get>
     </Property>
   </POU>
 </TcPlcObject>

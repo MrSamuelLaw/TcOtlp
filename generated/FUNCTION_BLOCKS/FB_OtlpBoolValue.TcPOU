@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_OtlpBoolValue" Id="{c92f1bf5-f2af-4797-a130-25ddf626f954}" SpecialFunc="None">
+  <POU Name="FB_OtlpBoolValue" Id="{3d26a429-841f-47ea-8781-6491513d782b}" SpecialFunc="None">
     <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 {attribute 'enable_dynamic_creation'}
 FUNCTION_BLOCK FB_OtlpBoolValue IMPLEMENTS I_OtlpAnyValue
@@ -11,7 +11,7 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="SerializeToProtoJson" Id="{a96d647c-0861-4b91-8197-736e5e9bfa36}">
+    <Method Name="SerializeToProtoJson" Id="{09c60a75-f2a8-4e01-a880-438158a89a2c}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD SerializeToProtoJson
 VAR_INPUT
@@ -23,10 +23,10 @@ END_VAR
         <ST><![CDATA[parser.AddBoolMember(node, 'boolValue', THIS^._bValue);]]></ST>
       </Implementation>
     </Method>
-    <Property Name="eValueType" Id="{a7b6897e-5056-4b37-aa66-895f96dba2de}">
+    <Property Name="eValueType" Id="{eeb42bfa-03d5-40dd-a892-c698f0e2c06e}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
-      <Get Name="Get" Id="{aecc52df-ede8-49fa-ae27-aedc04d1e11d}">
+      <Get Name="Get" Id="{4ba09858-fd0f-47d5-9981-343cef413ec1}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -35,10 +35,10 @@ END_VAR
         </Implementation>
       </Get>
     </Property>
-    <Property Name="bValue" Id="{a5028c22-d194-4308-b7db-0bb987d3092c}">
+    <Property Name="bValue" Id="{78f549f6-374a-424e-95e6-b04798e7b264}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY bValue : BOOL]]></Declaration>
-      <Get Name="Get" Id="{11d820a5-6410-483d-8015-5c8e7e66d04a}">
+      <Get Name="Get" Id="{fa844f3b-b434-4da8-bdc5-eb9735aab706}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -46,7 +46,7 @@ END_VAR
           <ST><![CDATA[bValue := THIS^._bValue;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{b7dffb75-0a7d-4270-9c9e-d8c6e20fef36}">
+      <Set Name="Set" Id="{9c42f14c-efc6-49e3-aadb-94e39153ce81}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_OtlpLogRecord" Id="{950ea326-71f2-4819-abc8-a5758a8ed87c}" SpecialFunc="None">
+  <POU Name="FB_OtlpLogRecord" Id="{28a1836b-b20e-4b6d-9646-d33c1262053f}" SpecialFunc="None">
     <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 {attribute 'enable_dynamic_creation'}
 FUNCTION_BLOCK FB_OtlpLogRecord IMPLEMENTS I_OtlpSerializable
@@ -22,7 +22,7 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="SerializeToProtoJson" Id="{3373becb-209d-49b2-97c4-348c15ee97fd}">
+    <Method Name="SerializeToProtoJson" Id="{55cb496b-b65d-4d5d-83f2-2e984e212a09}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD SerializeToProtoJson
 VAR_INPUT
@@ -69,7 +69,7 @@ parser.AddUintMember(node, 'flags', THIS^._nFlags);
 parser.AddStringMember(node, 'eventName', THIS^._sEventName);]]></ST>
       </Implementation>
     </Method>
-    <Method Name="FB_exit" Id="{362c191f-10c2-4612-883a-961ec6c58314}">
+    <Method Name="FB_exit" Id="{f4b25286-292c-4eb5-8113-940fa5ba6543}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD FB_exit : BOOL
 VAR_INPUT
@@ -91,7 +91,7 @@ FOR i := 0 TO THIS^._nAttributesCount - 1 DO
 END_FOR]]></ST>
       </Implementation>
     </Method>
-    <Method Name="AddAttributes" Id="{022cfc2b-1ef6-451c-a74b-e55cc929803d}">
+    <Method Name="AddAttributes" Id="{74e7e872-de98-4c94-a968-65277c035bec}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD AddAttributes : POINTER TO FB_OtlpKeyValue
 VAR
@@ -105,10 +105,10 @@ END_VAR
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Property Name="nTimeUnixNano" Id="{70e34940-d48f-4d14-9bca-e5a77535b221}">
+    <Property Name="nTimeUnixNano" Id="{83741a36-bfc6-45f3-8c92-248db0959a2b}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY nTimeUnixNano : ULINT]]></Declaration>
-      <Get Name="Get" Id="{2e87729c-6802-4bff-bd0a-71bb232eeee1}">
+      <Get Name="Get" Id="{0223ec66-54f9-4200-bff8-2501cc6b616a}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -116,7 +116,7 @@ END_VAR
           <ST><![CDATA[nTimeUnixNano := THIS^._nTimeUnixNano;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{8ca4d5d8-a27e-41ed-9134-761a6424a45f}">
+      <Set Name="Set" Id="{bfd01b8b-a7e0-4d69-a8de-8350ccfd977d}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -125,10 +125,10 @@ END_VAR
         </Implementation>
       </Set>
     </Property>
-    <Property Name="nObservedTimeUnixNano" Id="{7cb44b13-9ef0-4c9e-b977-f878ba83d70f}">
+    <Property Name="nObservedTimeUnixNano" Id="{0c640155-fa1b-4e2f-a672-735e8cff4bef}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY nObservedTimeUnixNano : ULINT]]></Declaration>
-      <Get Name="Get" Id="{ba84857c-a109-40a2-badb-55e1d6df984e}">
+      <Get Name="Get" Id="{355c42ba-4793-49ef-8be0-ee3f2a6eba65}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -136,7 +136,7 @@ END_VAR
           <ST><![CDATA[nObservedTimeUnixNano := THIS^._nObservedTimeUnixNano;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{aafce3fb-5da0-449e-9b72-40cf7133b0f6}">
+      <Set Name="Set" Id="{8055261e-1e83-4fb1-ae87-e3b5088a5eeb}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -145,10 +145,10 @@ END_VAR
         </Implementation>
       </Set>
     </Property>
-    <Property Name="eSeverityNumber" Id="{f4c4b683-3218-4789-91ca-29631c8dc7a6}">
+    <Property Name="eSeverityNumber" Id="{a6b45c6a-39cf-4770-875a-6b71efaef6c8}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY eSeverityNumber : E_OtlpSeverityNumber]]></Declaration>
-      <Get Name="Get" Id="{af69090c-bd6f-408d-9f68-216cd2a577a0}">
+      <Get Name="Get" Id="{b77391d7-67c3-479f-b267-c43c2a5a3ba3}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -156,7 +156,7 @@ END_VAR
           <ST><![CDATA[eSeverityNumber := THIS^._eSeverityNumber;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{00438f18-656a-4b1f-bde1-f803933b8fc4}">
+      <Set Name="Set" Id="{4be6054d-4ef3-4a30-86e1-6e81b750237f}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -165,10 +165,10 @@ END_VAR
         </Implementation>
       </Set>
     </Property>
-    <Property Name="sSeverityText" Id="{8a420607-f09d-4e29-86ee-c1e88a9467a3}">
+    <Property Name="sSeverityText" Id="{f0b43459-77cf-4e05-8975-847ae08542cf}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY sSeverityText : STRING(255)]]></Declaration>
-      <Get Name="Get" Id="{6f1829bf-e1cc-4785-af56-384ae8543aaf}">
+      <Get Name="Get" Id="{f00415e0-2fc1-492e-ac7c-c6bcd8475742}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -176,7 +176,7 @@ END_VAR
           <ST><![CDATA[sSeverityText := THIS^._sSeverityText;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{1cf711f1-5133-42ae-94a1-b778b6c47a91}">
+      <Set Name="Set" Id="{471ee1b2-d7fe-43bb-a69f-2508e5baa086}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -185,10 +185,10 @@ END_VAR
         </Implementation>
       </Set>
     </Property>
-    <Property Name="pBody" Id="{941bc08b-76e4-4fe1-b157-0bf0bc8d6922}">
+    <Property Name="pBody" Id="{cc06dee0-1132-4e40-ab3d-0b94232bed5d}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY pBody : POINTER TO I_OtlpAnyValue]]></Declaration>
-      <Get Name="Get" Id="{84e4eb49-99d7-4fc7-a14c-c0f02d3f3263}">
+      <Get Name="Get" Id="{83563c14-ee6f-4f2a-a7a9-4261de632fc9}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -196,7 +196,7 @@ END_VAR
           <ST><![CDATA[pBody := THIS^._pBody;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{e06738d1-009a-49a4-8df0-f500a61304a1}">
+      <Set Name="Set" Id="{f13a136b-efe6-491e-9976-f5e781a24a5f}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -205,10 +205,10 @@ END_VAR
         </Implementation>
       </Set>
     </Property>
-    <Property Name="nAttributesCount" Id="{81c67298-5d23-4fa0-a65d-ab7ae0127831}">
+    <Property Name="nAttributesCount" Id="{d2c0629e-9b72-4ef4-821b-8359794fef37}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY nAttributesCount : UDINT]]></Declaration>
-      <Get Name="Get" Id="{00f123c3-512f-49a5-8332-13f97b54029a}">
+      <Get Name="Get" Id="{8e1f451f-29b2-4060-bda7-61f1b0698c5b}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -217,10 +217,10 @@ END_VAR
         </Implementation>
       </Get>
     </Property>
-    <Property Name="nDroppedAttributesCount" Id="{e2eb7d15-103e-4818-892e-dbeafd126e79}">
+    <Property Name="nDroppedAttributesCount" Id="{50711235-fdd7-47d8-b96d-be9e0dec7dbe}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY nDroppedAttributesCount : UDINT]]></Declaration>
-      <Get Name="Get" Id="{43daa097-7de5-4d3e-bb8b-5e4554049647}">
+      <Get Name="Get" Id="{688dba0d-d5fa-4893-a2fb-ec3271767447}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -228,7 +228,7 @@ END_VAR
           <ST><![CDATA[nDroppedAttributesCount := THIS^._nDroppedAttributesCount;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{b728abdb-2b96-4da9-b21b-45360dc0555b}">
+      <Set Name="Set" Id="{40fb2607-fddc-4960-b633-da29ed23be6e}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -237,10 +237,10 @@ END_VAR
         </Implementation>
       </Set>
     </Property>
-    <Property Name="nFlags" Id="{5d6570cd-9f6e-4f89-9205-b6d3e31b6c38}">
+    <Property Name="nFlags" Id="{9e2ca388-f39e-483d-8241-0017c17c241a}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY nFlags : UDINT]]></Declaration>
-      <Get Name="Get" Id="{9c141fdc-b85c-4d9e-9ebc-a05c2a25ef52}">
+      <Get Name="Get" Id="{2096f864-51b3-4f95-a504-9adc800c9da2}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -248,7 +248,7 @@ END_VAR
           <ST><![CDATA[nFlags := THIS^._nFlags;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{7083d688-64a7-40cb-83ab-545e02068767}">
+      <Set Name="Set" Id="{a230aa6c-f231-46bc-b8fa-becb3e238a2d}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -257,10 +257,10 @@ END_VAR
         </Implementation>
       </Set>
     </Property>
-    <Property Name="arrTraceId" Id="{83ca848b-8f56-4669-aa32-2b18ca5295e5}">
+    <Property Name="arrTraceId" Id="{3effc097-fab3-40cb-870e-572a6a2a5e29}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY arrTraceId : ARRAY[0..15] OF BYTE]]></Declaration>
-      <Get Name="Get" Id="{b70e99db-12e3-409d-9bae-68e5a582fd44}">
+      <Get Name="Get" Id="{5a84b201-92a5-424d-886b-01a7c4ed8a4b}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -268,7 +268,7 @@ END_VAR
           <ST><![CDATA[arrTraceId := THIS^._arrTraceId;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{0799e21f-4256-42d7-a755-87324a00a019}">
+      <Set Name="Set" Id="{231412ce-de81-4c2c-8bf5-052eb42b1c65}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -277,10 +277,10 @@ END_VAR
         </Implementation>
       </Set>
     </Property>
-    <Property Name="arrSpanId" Id="{e228a226-e868-4967-95e5-b35f3e3b165a}">
+    <Property Name="arrSpanId" Id="{3ee842a1-6231-4d95-86ea-5501d534bd26}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY arrSpanId : ARRAY[0..7] OF BYTE]]></Declaration>
-      <Get Name="Get" Id="{5855d24b-5de2-4484-97af-9c509d992487}">
+      <Get Name="Get" Id="{f476f575-675b-4656-a70b-1b8bbe64dffc}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -288,7 +288,7 @@ END_VAR
           <ST><![CDATA[arrSpanId := THIS^._arrSpanId;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{f8d9f0a4-a8ff-4d1a-bc73-d553329a6677}">
+      <Set Name="Set" Id="{ea1f27f8-d6fd-4670-9e06-2569646eb6ef}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -297,10 +297,10 @@ END_VAR
         </Implementation>
       </Set>
     </Property>
-    <Property Name="sEventName" Id="{9ef01767-16cd-49d1-ac64-2bd465cfb9ae}">
+    <Property Name="sEventName" Id="{b2d23946-ac52-4f1e-8256-4af03ad724db}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY sEventName : STRING(255)]]></Declaration>
-      <Get Name="Get" Id="{62710b72-f603-4eb1-a173-7a75b47c5d51}">
+      <Get Name="Get" Id="{6b853a13-9451-4a44-9044-fd80753171ba}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -308,7 +308,7 @@ END_VAR
           <ST><![CDATA[sEventName := THIS^._sEventName;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{3b8caf83-d1a4-404a-bfdc-b5bda13ab08b}">
+      <Set Name="Set" Id="{d7e196ed-4ae7-4b44-9f61-03d3e20f6d2f}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>

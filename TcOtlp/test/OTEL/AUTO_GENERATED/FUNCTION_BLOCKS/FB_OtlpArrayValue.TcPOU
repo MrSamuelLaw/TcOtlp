@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_OtlpArrayValue" Id="{aeb1ea6d-1755-47e6-9eb0-c2c28d0f207d}" SpecialFunc="None">
+    <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_OtlpArrayValue IMPLEMENTS I_OtlpAnyValue
+VAR
+	_arrValues : ARRAY[0..99] OF POINTER TO I_OtlpAnyValue;
+	_nValuesCount : UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="SerializeToProtoJson" Id="{9922aca3-cde9-4eaf-9ee7-e2f2d787d932}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD SerializeToProtoJson
+VAR_INPUT
+	parser : REFERENCE TO FB_JsonDynDomParser;
+	node   : SJsonValue;
+END_VAR
+VAR
+	valuesNode : SJsonValue;
+	arrNode : SJsonValue;
+	elemNode : SJsonValue;
+	i : UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[valuesNode := parser.AddObjectMember(node, 'arrayValue');
+IF THIS^._nValuesCount > 0 THEN
+	arrNode := parser.AddArrayMember(valuesNode, 'values', 0);
+	FOR i := 0 TO THIS^._nValuesCount - 1 DO
+		elemNode := parser.PushbackJsonValue(arrNode, '{}');
+		THIS^._arrValues[i]^^.SerializeToProtoJson(parser, elemNode);
+	END_FOR
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_exit" Id="{bab5733e-17e4-43be-8a05-58d37cd1c3a2}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD FB_exit : BOOL
+VAR_INPUT
+	bInCopyCode : BOOL;
+END_VAR
+VAR
+	i : UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR i := 0 TO THIS^._nValuesCount - 1 DO
+	IF THIS^._arrValues[i] <> 0 THEN
+		__DELETE(THIS^._arrValues[i]);
+	END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="AddValue" Id="{d9bb30e0-69b9-48f6-9758-95bd3ae8aec7}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD AddValue
+VAR_INPUT
+	pValue : POINTER TO I_OtlpAnyValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._nValuesCount < 100 AND pValue <> 0 THEN
+	THIS^._arrValues[THIS^._nValuesCount] := pValue;
+	THIS^._nValuesCount := THIS^._nValuesCount + 1;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="eValueType" Id="{8898a11d-8b1f-4b54-b9a5-6028c0c2f7d3}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
+      <Get Name="Get" Id="{91ffa442-6adf-441f-aead-2310db4e9e84}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[eValueType := E_OtlpAnyValueType.ARRAY_VALUE;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="nValuesCount" Id="{3600a0ca-3808-4ecd-b48e-317814a49383}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY nValuesCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{32e1851d-d6ed-4066-b278-ff37814305f5}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[nValuesCount := THIS^._nValuesCount;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+  </POU>
+</TcPlcObject>

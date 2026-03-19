@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <EnumerationTextList Name="E_OtlpAnyValueType" Id="{92738d2c-ef87-4eb6-a43d-41f34f975ab7}">
+  <EnumerationTextList Name="E_OtlpAnyValueType" Id="{99c03667-9b7c-46d9-bdd9-da21a9bacece}">
     <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 {attribute 'qualified_only'}
 {attribute 'strict'}
@@ -70,9 +70,9 @@ END_TYPE
             </o>
           </l>
           <l n="Languages" t="ArrayList" />
-          <v n="GuidInit">{a22dc544-1448-40eb-8be0-acdcc4afe7f0}</v>
-          <v n="GuidReInit">{76fea1a3-ea74-4701-a10a-11895710c44f}</v>
-          <v n="GuidExitX">{8f449e48-79f8-4ad8-bfa7-7a1b2fd931f4}</v>
+          <v n="GuidInit">{246f9901-781d-4d79-8e85-49faa60f4072}</v>
+          <v n="GuidReInit">{b270b575-4f98-42ea-ac97-aa5eb4fd1987}</v>
+          <v n="GuidExitX">{8f731fd0-35f0-4952-85d3-324a91383f4a}</v>
         </o>
       </Data>
       <TypeList>

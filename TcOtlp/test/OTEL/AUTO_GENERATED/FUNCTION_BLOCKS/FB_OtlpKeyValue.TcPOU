@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_OtlpKeyValue" Id="{49720c35-5558-43d3-815e-0e3188f23535}" SpecialFunc="None">
+  <POU Name="FB_OtlpKeyValue" Id="{e3d5caeb-4b44-4b65-acf9-fafa8e7bf0b4}" SpecialFunc="None">
     <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 {attribute 'enable_dynamic_creation'}
 FUNCTION_BLOCK FB_OtlpKeyValue IMPLEMENTS I_OtlpSerializable
@@ -13,7 +13,7 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="SerializeToProtoJson" Id="{186d265d-f06f-47ba-b667-6b24e240411b}">
+    <Method Name="SerializeToProtoJson" Id="{086caaf8-b76d-46e6-a177-84510a1b5415}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD SerializeToProtoJson
 VAR_INPUT
@@ -35,7 +35,7 @@ END_IF
 parser.AddIntMember(node, 'keyStrindex', THIS^._nKeyStrindex);]]></ST>
       </Implementation>
     </Method>
-    <Method Name="FB_exit" Id="{0445e779-03ac-445f-bae8-1ecbc91f4bff}">
+    <Method Name="FB_exit" Id="{64887cdb-7605-4952-ae71-fc47b512363e}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD FB_exit : BOOL
 VAR_INPUT
@@ -48,10 +48,10 @@ END_VAR
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Property Name="sKey" Id="{8a6a71a6-57d4-4c9b-9d57-1a9064589def}">
+    <Property Name="sKey" Id="{169ce43f-bf38-4b36-89cd-8a64a9c4ff4e}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY sKey : STRING(255)]]></Declaration>
-      <Get Name="Get" Id="{42c4c2dd-9762-4cf1-b05a-9bbdbe1d0de1}">
+      <Get Name="Get" Id="{5ec6993b-3db5-4b1e-8d55-39c98ae3735d}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -59,7 +59,7 @@ END_VAR
           <ST><![CDATA[sKey := THIS^._sKey;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{af7193b5-1ae3-4ab6-b950-bdb27f72207d}">
+      <Set Name="Set" Id="{1b823b12-9b4a-4313-973a-e2edc2fe654e}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -68,10 +68,10 @@ END_VAR
         </Implementation>
       </Set>
     </Property>
-    <Property Name="pValue" Id="{561d738a-440a-46a2-8cb9-5361888c2034}">
+    <Property Name="pValue" Id="{73b3f800-1c0b-4635-83ae-1ecffa48655a}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY pValue : POINTER TO I_OtlpAnyValue]]></Declaration>
-      <Get Name="Get" Id="{95c1e092-4de2-4d31-a06e-00508e656eff}">
+      <Get Name="Get" Id="{d170bf44-592c-442b-a831-2ae3d56e51fa}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -79,7 +79,7 @@ END_VAR
           <ST><![CDATA[pValue := THIS^._pValue;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{16d287c6-d3e0-45ed-bd03-ea6c81edb30e}">
+      <Set Name="Set" Id="{aebd39fa-65a0-4dd4-9784-e0b33aab02d7}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -88,10 +88,10 @@ END_VAR
         </Implementation>
       </Set>
     </Property>
-    <Property Name="nKeyStrindex" Id="{0a244a6b-8720-4844-beaa-cf07d3601bcf}">
+    <Property Name="nKeyStrindex" Id="{e3804264-48fb-40a5-bf8b-942a5e508324}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY nKeyStrindex : DINT]]></Declaration>
-      <Get Name="Get" Id="{ab6347b9-7674-4b4f-a644-3f0c2848efe8}">
+      <Get Name="Get" Id="{72c932b3-10d6-4c7f-988d-125d1e1587d9}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -99,7 +99,7 @@ END_VAR
           <ST><![CDATA[nKeyStrindex := THIS^._nKeyStrindex;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{578174b2-9fd2-4047-a9e6-42fc9e933bd3}">
+      <Set Name="Set" Id="{d0fc3037-6576-4f21-9796-5abaa39454c8}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>

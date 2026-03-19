@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_OtlpScopeLogs" Id="{d42e7373-31d1-4387-bb59-a3651c97b078}" SpecialFunc="None">
+  <POU Name="FB_OtlpResourceLogs" Id="{82ec631d-5e14-4353-93d3-38b166a57247}" SpecialFunc="None">
     <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 {attribute 'enable_dynamic_creation'}
-FUNCTION_BLOCK FB_OtlpScopeLogs IMPLEMENTS I_OtlpSerializable
+FUNCTION_BLOCK FB_OtlpResourceLogs IMPLEMENTS I_OtlpSerializable
 VAR
-	_pScope : POINTER TO FB_OtlpInstrumentationScope;
-	_arrLogRecords : ARRAY[0..99] OF POINTER TO FB_OtlpLogRecord;
-	_nLogRecordsCount : UDINT;
+	_pResource : POINTER TO FB_OtlpResource;
+	_arrScopeLogs : ARRAY[0..99] OF POINTER TO FB_OtlpScopeLogs;
+	_nScopeLogsCount : UDINT;
 	_sSchemaUrl : STRING(255);
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="SerializeToProtoJson" Id="{aad03ff0-2f75-4df5-830f-09a46be7c495}">
+    <Method Name="SerializeToProtoJson" Id="{b9eedc1b-6499-4d21-9e2e-374feb485cd6}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD SerializeToProtoJson
 VAR_INPUT
@@ -29,23 +29,23 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF THIS^._pScope <> 0 THEN
-	objNode := parser.AddObjectMember(node, 'scope');
-	THIS^._pScope^.SerializeToProtoJson(parser, objNode);
+        <ST><![CDATA[IF THIS^._pResource <> 0 THEN
+	objNode := parser.AddObjectMember(node, 'resource');
+	THIS^._pResource^.SerializeToProtoJson(parser, objNode);
 END_IF
 
-IF THIS^._nLogRecordsCount > 0 THEN
-	arrNode := parser.AddArrayMember(node, 'logRecords', 0);
-	FOR i := 0 TO THIS^._nLogRecordsCount - 1 DO
+IF THIS^._nScopeLogsCount > 0 THEN
+	arrNode := parser.AddArrayMember(node, 'scopeLogs', 0);
+	FOR i := 0 TO THIS^._nScopeLogsCount - 1 DO
 		elemNode := parser.PushbackJsonValue(arrNode, '{}');
-		THIS^._arrLogRecords[i]^.SerializeToProtoJson(parser, elemNode);
+		THIS^._arrScopeLogs[i]^.SerializeToProtoJson(parser, elemNode);
 	END_FOR
 END_IF
 
 parser.AddStringMember(node, 'schemaUrl', THIS^._sSchemaUrl);]]></ST>
       </Implementation>
     </Method>
-    <Method Name="FB_exit" Id="{7e72acfa-777b-483c-933f-da67d9183c71}">
+    <Method Name="FB_exit" Id="{905f4970-fb8d-486a-8d7e-81ba0258bcf2}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD FB_exit : BOOL
 VAR_INPUT
@@ -56,67 +56,67 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF THIS^._pScope <> 0 THEN
-	__DELETE(THIS^._pScope);
+        <ST><![CDATA[IF THIS^._pResource <> 0 THEN
+	__DELETE(THIS^._pResource);
 END_IF
 
-FOR i := 0 TO THIS^._nLogRecordsCount - 1 DO
-	IF THIS^._arrLogRecords[i] <> 0 THEN
-		__DELETE(THIS^._arrLogRecords[i]);
+FOR i := 0 TO THIS^._nScopeLogsCount - 1 DO
+	IF THIS^._arrScopeLogs[i] <> 0 THEN
+		__DELETE(THIS^._arrScopeLogs[i]);
 	END_IF
 END_FOR]]></ST>
       </Implementation>
     </Method>
-    <Method Name="AddLogRecords" Id="{00891832-aa55-4b22-a217-239a990ef21f}">
+    <Method Name="AddScopeLogs" Id="{7fcb9126-4cbe-4b14-aeeb-45103122f208}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
-METHOD AddLogRecords : POINTER TO FB_OtlpLogRecord
+METHOD AddScopeLogs : POINTER TO FB_OtlpScopeLogs
 VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF THIS^._nLogRecordsCount < 100 THEN
-	AddLogRecords := __NEW(FB_OtlpLogRecord);
-	THIS^._arrLogRecords[THIS^._nLogRecordsCount] := AddLogRecords;
-	THIS^._nLogRecordsCount := THIS^._nLogRecordsCount + 1;
+        <ST><![CDATA[IF THIS^._nScopeLogsCount < 100 THEN
+	AddScopeLogs := __NEW(FB_OtlpScopeLogs);
+	THIS^._arrScopeLogs[THIS^._nScopeLogsCount] := AddScopeLogs;
+	THIS^._nScopeLogsCount := THIS^._nScopeLogsCount + 1;
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Property Name="pScope" Id="{f11e8a34-319d-4e9a-bc93-a90df7947af0}">
+    <Property Name="pResource" Id="{c974c42a-24f5-4bd1-9bd8-9cb5bd929613}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
-PROPERTY pScope : POINTER TO FB_OtlpInstrumentationScope]]></Declaration>
-      <Get Name="Get" Id="{f6545fa0-c874-4ff9-8bba-f3cf25283c27}">
+PROPERTY pResource : POINTER TO FB_OtlpResource]]></Declaration>
+      <Get Name="Get" Id="{767975b0-45d7-49f9-8cb4-68f8bf80de46}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
         <Implementation>
-          <ST><![CDATA[pScope := THIS^._pScope;]]></ST>
+          <ST><![CDATA[pResource := THIS^._pResource;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{1fef9804-c413-4d4c-bde7-17a99340b313}">
+      <Set Name="Set" Id="{4717d6c8-4fcc-4402-aa3b-69da3625c520}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
         <Implementation>
-          <ST><![CDATA[THIS^._pScope := pScope;]]></ST>
+          <ST><![CDATA[THIS^._pResource := pResource;]]></ST>
         </Implementation>
       </Set>
     </Property>
-    <Property Name="nLogRecordsCount" Id="{80b01c80-052b-4c77-b2ca-0c74b67f8d31}">
+    <Property Name="nScopeLogsCount" Id="{979af860-ecfd-4ac1-b728-221c0ab59509}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
-PROPERTY nLogRecordsCount : UDINT]]></Declaration>
-      <Get Name="Get" Id="{dbab6998-eecd-486c-8e81-5eaf75a55584}">
+PROPERTY nScopeLogsCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{15198d6a-fa57-40d3-8f52-e3d76602b46b}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
         <Implementation>
-          <ST><![CDATA[nLogRecordsCount := THIS^._nLogRecordsCount;]]></ST>
+          <ST><![CDATA[nScopeLogsCount := THIS^._nScopeLogsCount;]]></ST>
         </Implementation>
       </Get>
     </Property>
-    <Property Name="sSchemaUrl" Id="{f9cc24ba-8ae3-4229-9e95-44ca8ad80b27}">
+    <Property Name="sSchemaUrl" Id="{9c930e62-38bc-49a4-8727-43a4cf83312d}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY sSchemaUrl : STRING(255)]]></Declaration>
-      <Get Name="Get" Id="{cf7ff4ca-eecc-410e-90e3-6c8a6bfffe4f}">
+      <Get Name="Get" Id="{a7901f57-5216-4e14-b4a4-27f7e38704a4}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -124,7 +124,7 @@ END_VAR
           <ST><![CDATA[sSchemaUrl := THIS^._sSchemaUrl;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{5069e4d5-8ee4-4d32-9f6c-69245f1d22de}">
+      <Set Name="Set" Id="{5747425e-3ddb-4335-ad10-4473b42d1b06}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>

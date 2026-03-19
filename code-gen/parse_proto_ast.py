@@ -9,7 +9,7 @@ from proto_schema_parser.parser import Parser
 
 enum_base = enum.Enum
 
-PROTO_ROOT = Path("opentelemetry-proto")
+PROTO_ROOT = Path(__file__).parent / "opentelemetry-proto"
 
 def ast_to_dict(node):
     """Recursively convert AST nodes to JSON-serializable dicts."""
@@ -30,6 +30,7 @@ def ast_to_dict(node):
         return str(node)
 
 def parse_proto() -> dict:
+    """Parse all .proto files and return the AST as a dict."""
     parser = Parser()
     proto_files = sorted(PROTO_ROOT.rglob("*.proto"))
 
@@ -45,14 +46,25 @@ def parse_proto() -> dict:
             output[rel] = {"_error": str(e)}
             print(f"  ERROR: {e}")
 
+    return output
 
-parser = argparse.ArgumentParser(description="TcOtlp Code Generator")
-parser.add_argument(
-    "--output-dir",
-    default=".",
-    help="Output directory for generated files (default: .)",
-)
 
-out_path = Path("proto_ast.json")
-out_path.write_text(json.dumps(output, indent=2), encoding="utf-8")
-print(f"\nWrote {out_path} ({out_path.stat().st_size:,} bytes)")
+if __name__ == "__main__":
+    arg_parser = argparse.ArgumentParser(description="Parse proto files to AST")
+    arg_parser.add_argument(
+        "--output-dir",
+        default=None,
+        help="Output directory for proto_ast.json (omit to skip writing)",
+    )
+    args = arg_parser.parse_args()
+
+    ast = parse_proto()
+
+    if args.output_dir is not None:
+        out_dir = Path(args.output_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / "proto_ast.json"
+        out_path.write_text(json.dumps(ast, indent=2), encoding="utf-8")
+        print(f"\nWrote {out_path} ({out_path.stat().st_size:,} bytes)")
+    else:
+        print(f"\nParsed {len(ast)} proto files (use --output-dir to write JSON)")

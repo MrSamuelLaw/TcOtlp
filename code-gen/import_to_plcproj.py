@@ -1,6 +1,6 @@
 """Import generated TwinCAT files into the PLC project.
 
-Copies files from the generated/ directory into TcOtlp/test/OTEL/
+Copies files from the generated/ directory into TcOtlp/test/OTEL/AUTO_GENERATED/
 and updates the .plcproj MSBuild XML to register them.
 
 Preserves:
@@ -22,57 +22,27 @@ from pathlib import Path
 NS = "http://schemas.microsoft.com/developer/msbuild/2003"
 ET.register_namespace("", NS)
 
-# Subdirectory mapping: generated subdir -> OTEL subdir + file extension
-SUBDIRS = {
-    "ENUMS": ("OTEL\\ENUMS", ".TcTLEO"),
-    "INTERFACES": ("OTEL\\INTERFACES", ".TcIO"),
-    "FUNCTION_BLOCKS": ("OTEL\\FUNCTION_BLOCKS", ".TcPOU"),
+# Subdirectory mapping: generated subdir -> OTEL/AUTO_GENERATED subdir + file extension
+ROOT = Path("OTEL/AUTO_GENERATED")
+SUBDIRS_EXT_MAP = {
+    "ENUMS": ".TcTLEO",
+    "INTERFACES": ".TcIO",
+    "FUNCTION_BLOCKS": ".TcPOU",
 }
-
-# Folders that must exist in the .plcproj for generated OTEL files
-OTEL_FOLDERS = [
-    "OTEL",
-    "OTEL\\ENUMS",
-    "OTEL\\INTERFACES",
-    "OTEL\\FUNCTION_BLOCKS",
-]
-
-
-def collect_generated_files(generated_dir: Path) -> list[tuple[str, str]]:
-    """Collect all generated files as (OTEL\\subdir\\filename, subdir_key) pairs."""
-    entries = []
-    for subdir_key, (otel_path, _ext) in SUBDIRS.items():
-        src_dir = generated_dir / subdir_key
-        if not src_dir.exists():
-            continue
-        for f in sorted(src_dir.iterdir()):
-            if f.is_file():
-                include_path = f"{otel_path}\\{f.name}"
-                entries.append((include_path, subdir_key))
-    return entries
 
 
 def copy_files(generated_dir: Path, target_dir: Path, dry_run: bool) -> list[str]:
-    """Copy generated files into TcOtlp/test/OTEL/, overwriting existing files."""
-    copied = []
-    for subdir_key, (otel_path, _ext) in SUBDIRS.items():
-        src_dir = generated_dir / subdir_key
-        if not src_dir.exists():
-            continue
-        # otel_path uses backslash for .plcproj; convert to forward slash for Path
-        dest_dir = target_dir / otel_path.replace("\\", "/")
-        if not dry_run:
-            dest_dir.mkdir(parents=True, exist_ok=True)
-        for f in sorted(src_dir.iterdir()):
-            if f.is_file():
-                dest = dest_dir / f.name
-                if not dry_run:
-                    shutil.copy2(f, dest)
-                copied.append(f"{otel_path}\\{f.name}")
-    return copied
-
-
-def update_plcproj(plcproj_path: Path, generated_entries: list[tuple[str, str]], dry_run: bool) -> None:
+    """Copy generated files into TcOtlp/test/OTEL/AUTO_GENERATED/, overwriting existing files."""
+    # Clean up old OTEL subdirectories before copying new files
+    dst_dir = target_dir / ROOT
+    if not dry_run and dst_dir.exists():
+        shutil.rmtree(dst_dir)
+    if not dry_run:
+        shutil.copytree(generated_dir, dst_dir, dirs_exist_ok=True)
+    return [f for f in generated_dir.rglob("*") if f.is_file()]
+    
+    
+def update_plcproj(plcproj_path: Path, generated_entries: list[Path], dry_run: bool) -> None:
     """Update the .plcproj XML to register generated files.
 
     Strategy:
@@ -102,23 +72,35 @@ def update_plcproj(plcproj_path: Path, generated_entries: list[tuple[str, str]],
     to_remove = []
     for elem in compile_ig.findall(f"{{{NS}}}Compile"):
         include = elem.get("Include", "")
-        if include.startswith("OTEL\\"):
+        if include.startswith(str(ROOT).replace("/", "\\")):
             to_remove.append(elem)
     for elem in to_remove:
         compile_ig.remove(elem)
 
     # Add new Compile entries for generated files, sorted for determinism
-    for include_path, _subdir_key in sorted(generated_entries):
+    for include_path in sorted(generated_entries):
+        include_path = str(include_path).replace("/", "\\")
         compile_elem = ET.SubElement(compile_ig, f"{{{NS}}}Compile")
         compile_elem.set("Include", include_path)
         subtype = ET.SubElement(compile_elem, f"{{{NS}}}SubType")
         subtype.text = "Code"
 
+    # Remove old OTEL folder entries (non-AUTO_GENERATED)
+    old_otel_folders = [str(ROOT / k).replace("/", "\\") for k in SUBDIRS_EXT_MAP.keys()]
+    to_remove_folders = []
+    for elem in folder_ig.findall(f"{{{NS}}}Folder"):
+        folder_include = elem.get("Include", "")
+        if folder_include in old_otel_folders:
+            to_remove_folders.append(elem)
+    for elem in to_remove_folders:
+        folder_ig.remove(elem)
+
     # Ensure OTEL folder entries exist
     existing_folders = set()
     for elem in folder_ig.findall(f"{{{NS}}}Folder"):
         existing_folders.add(elem.get("Include", ""))
-    for folder in OTEL_FOLDERS:
+    for subdir in SUBDIRS_EXT_MAP.keys():
+        folder = str(ROOT / subdir).replace("/", "\\")
         if folder not in existing_folders:
             folder_elem = ET.SubElement(folder_ig, f"{{{NS}}}Folder")
             folder_elem.set("Include", folder)
@@ -175,20 +157,15 @@ def main():
         print(f"Error: .plcproj not found: {plcproj_path}")
         return 1
 
-    # Collect generated files
-    entries = collect_generated_files(generated_dir)
-    print(f"Found {len(entries)} generated files:\n")
-    for include_path, _ in sorted(entries):
-        print(f"  {include_path}")
-
     # Copy files
-    print(f"\n{'[DRY RUN] Would copy' if args.dry_run else 'Copying'} files to {plcproj_dir / 'OTEL'}...")
+    print(f"\n{'[DRY RUN] Would copy' if args.dry_run else 'Copying'} files to {plcproj_dir / 'OTEL' / 'AUTO_GENERATED'}...")
     copied = copy_files(generated_dir, plcproj_dir, args.dry_run)
     for c in copied:
         print(f"  {c}")
 
     # Update .plcproj
     print(f"\n{'[DRY RUN] Would update' if args.dry_run else 'Updating'} {plcproj_path}...")
+    entries = [str(ROOT / c.relative_to(generated_dir)) for c in copied]
     update_plcproj(plcproj_path, entries, args.dry_run)
 
     print("\nDone!")

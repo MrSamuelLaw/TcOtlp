@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_OtlpArrayValue" Id="{fd2c4bd3-4642-4b99-9c35-26a12023afb6}" SpecialFunc="None">
+  <POU Name="FB_OtlpKvlistValue" Id="{069b1e72-d954-45c9-a8bc-7696f3ba649d}" SpecialFunc="None">
     <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 {attribute 'enable_dynamic_creation'}
-FUNCTION_BLOCK FB_OtlpArrayValue IMPLEMENTS I_OtlpAnyValue
+FUNCTION_BLOCK FB_OtlpKvlistValue IMPLEMENTS I_OtlpAnyValue
 VAR
-	_arrValues : ARRAY[0..99] OF POINTER TO I_OtlpAnyValue;
+	_arrValues : ARRAY[0..99] OF POINTER TO FB_OtlpKeyValue;
 	_nValuesCount : UDINT;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="SerializeToProtoJson" Id="{f93e5ece-dda2-4a4d-b90d-435a0c3731f3}">
+    <Method Name="SerializeToProtoJson" Id="{ce05020a-2113-44b1-a663-9e76fc13fbef}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD SerializeToProtoJson
 VAR_INPUT
@@ -20,24 +20,24 @@ VAR_INPUT
 	node   : SJsonValue;
 END_VAR
 VAR
-	valuesNode : SJsonValue;
+	kvlistNode : SJsonValue;
 	arrNode : SJsonValue;
 	elemNode : SJsonValue;
 	i : UDINT;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[valuesNode := parser.AddObjectMember(node, 'arrayValue');
+        <ST><![CDATA[kvlistNode := parser.AddObjectMember(node, 'kvlistValue');
 IF THIS^._nValuesCount > 0 THEN
-	arrNode := parser.AddArrayMember(valuesNode, 'values', 0);
+	arrNode := parser.AddArrayMember(kvlistNode, 'values', 0);
 	FOR i := 0 TO THIS^._nValuesCount - 1 DO
 		elemNode := parser.PushbackJsonValue(arrNode, '{}');
-		THIS^._arrValues[i]^^.SerializeToProtoJson(parser, elemNode);
+		THIS^._arrValues[i]^.SerializeToProtoJson(parser, elemNode);
 	END_FOR
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="FB_exit" Id="{3f9ea4ff-43ec-4584-a3da-2330392b3e15}">
+    <Method Name="FB_exit" Id="{cf5fb03b-ecd2-4279-bf63-2921064a6048}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD FB_exit : BOOL
 VAR_INPUT
@@ -55,36 +55,36 @@ END_VAR
 END_FOR]]></ST>
       </Implementation>
     </Method>
-    <Method Name="AddValue" Id="{487545ad-6521-482a-9e1b-998510345aca}">
+    <Method Name="AddValue" Id="{3551c07a-d6cf-4f3b-b1f6-9ce1c8a1bd11}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
-METHOD AddValue
-VAR_INPUT
-	pValue : POINTER TO I_OtlpAnyValue;
+METHOD AddValue : POINTER TO FB_OtlpKeyValue
+VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF THIS^._nValuesCount < 100 AND pValue <> 0 THEN
-	THIS^._arrValues[THIS^._nValuesCount] := pValue;
+        <ST><![CDATA[IF THIS^._nValuesCount < 100 THEN
+	AddValue := __NEW(FB_OtlpKeyValue);
+	THIS^._arrValues[THIS^._nValuesCount] := AddValue;
 	THIS^._nValuesCount := THIS^._nValuesCount + 1;
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Property Name="eValueType" Id="{e2e2ac91-cce2-4ce0-995f-628e77b39df0}">
+    <Property Name="eValueType" Id="{bcd52bf1-eab4-4712-92e8-25f6186daccb}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
-      <Get Name="Get" Id="{f9e247e4-51f9-4245-aca4-c706c0d168c3}">
+      <Get Name="Get" Id="{3bec510d-1822-46a9-b235-a2164ab2e36e}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
         <Implementation>
-          <ST><![CDATA[eValueType := E_OtlpAnyValueType.ARRAY_VALUE;]]></ST>
+          <ST><![CDATA[eValueType := E_OtlpAnyValueType.KVLIST_VALUE;]]></ST>
         </Implementation>
       </Get>
     </Property>
-    <Property Name="nValuesCount" Id="{49aa6094-9d25-4c8d-a8ff-9cd7ed0f5b38}">
+    <Property Name="nValuesCount" Id="{b289aed9-af0d-4c06-9bc1-aec66f3a1c52}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY nValuesCount : UDINT]]></Declaration>
-      <Get Name="Get" Id="{e19b889b-b8bc-40c8-a9d0-40c9df5958b0}">
+      <Get Name="Get" Id="{2d1b5fa2-cea4-409b-8037-181b7aa3299d}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
