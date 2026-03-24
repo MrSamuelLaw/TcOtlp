@@ -1,0 +1,139 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_OtlpScopeSpans" Id="{77cd60e3-cf9d-44bb-aa2e-cd4111c8e640}" SpecialFunc="None">
+    <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_OtlpScopeSpans IMPLEMENTS I_OtlpSerializable
+VAR
+	_pScope : POINTER TO FB_OtlpInstrumentationScope;
+	_arrSpans : ARRAY[0..99] OF POINTER TO FB_OtlpSpan;
+	_nSpansCount : UDINT;
+	_sSchemaUrl : STRING(255);
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="AddSpans" Id="{8c137a56-6363-429a-a47c-3277c0a20086}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD AddSpans : POINTER TO FB_OtlpSpan
+VAR
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._nSpansCount < 100 THEN
+	AddSpans := __NEW(FB_OtlpSpan);
+	THIS^._arrSpans[THIS^._nSpansCount] := AddSpans;
+	THIS^._nSpansCount := THIS^._nSpansCount + 1;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_exit" Id="{85a451f3-bbf0-48d7-9fc7-38d6456b1dbe}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD FB_exit : BOOL
+VAR_INPUT
+	bInCopyCode : BOOL;
+END_VAR
+VAR
+	i : UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._pScope <> 0 THEN
+	__DELETE(THIS^._pScope);
+END_IF
+
+IF THIS^._nSpansCount > 0 THEN
+	FOR i := 0 TO THIS^._nSpansCount - 1 DO
+		IF THIS^._arrSpans[i] <> 0 THEN
+			__DELETE(THIS^._arrSpans[i]);
+		END_IF
+	END_FOR
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="nSpansCount" Id="{4cc0f0bc-da43-4a78-8aa1-df1fe68c006d}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY nSpansCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{fbe1b247-6df2-4a24-996a-05c8dce60cf9}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[nSpansCount := THIS^._nSpansCount;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="pScope" Id="{d51c9a75-8188-43c2-a71b-6da2080ad312}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY pScope : POINTER TO FB_OtlpInstrumentationScope]]></Declaration>
+      <Get Name="Get" Id="{8a1e3845-c251-4eb6-9b0f-c096d8de9d8e}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[pScope := THIS^._pScope;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{e3e35dcf-bc3e-4644-8216-ce64f728f1aa}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._pScope := pScope;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Method Name="SerializeToProtoJson" Id="{ead9a60b-4758-4028-89f3-b9e5ac83ba59}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD SerializeToProtoJson
+VAR_INPUT
+	parser : REFERENCE TO FB_JsonDynDomParser;
+	node   : SJsonValue;
+END_VAR
+VAR
+	i : UDINT;
+	arrNode : SJsonValue;
+	elemNode : SJsonValue;
+	objNode : SJsonValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._pScope <> 0 THEN
+	objNode := parser.AddObjectMember(node, 'scope');
+	THIS^._pScope^.SerializeToProtoJson(parser, objNode);
+END_IF
+
+IF THIS^._nSpansCount > 0 THEN
+	arrNode := parser.AddArrayMember(node, 'spans', 0);
+	FOR i := 0 TO THIS^._nSpansCount - 1 DO
+		elemNode := parser.PushbackJsonValue(arrNode, '{}');
+		THIS^._arrSpans[i]^.SerializeToProtoJson(parser, elemNode);
+	END_FOR
+END_IF
+
+parser.AddStringMember(node, 'schemaUrl', THIS^._sSchemaUrl);]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="sSchemaUrl" Id="{ef6d176f-4469-442b-8b35-ee069e4dea72}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY sSchemaUrl : STRING(255)]]></Declaration>
+      <Get Name="Get" Id="{3b465ef0-6f9b-4739-9253-adf0528c2648}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[sSchemaUrl := THIS^._sSchemaUrl;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{005b67d7-2174-4ba9-9ccb-31b526461e76}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._sSchemaUrl := sSchemaUrl;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+  </POU>
+</TcPlcObject>

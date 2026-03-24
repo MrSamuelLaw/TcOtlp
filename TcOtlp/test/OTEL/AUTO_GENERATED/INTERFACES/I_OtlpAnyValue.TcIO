@@ -1,13 +1,13 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <Itf Name="I_OtlpAnyValue" Id="{de25ae3f-ba6d-4c25-b75b-e93e943b38d8}">
+  <Itf Name="I_OtlpAnyValue" Id="{38f0ffc0-7702-4875-88ee-dd44ad7ee319}">
     <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 INTERFACE I_OtlpAnyValue EXTENDS I_OtlpSerializable
 ]]></Declaration>
-    <Property Name="eValueType" Id="{bf874eb0-9ce7-43e1-9238-93f1f269bbec}">
+    <Property Name="eValueType" Id="{8bcfc2df-0de2-4755-8c2f-223bb456591f}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
-      <Get Name="Get" Id="{9e1709a1-6537-4b5f-9f37-e6a6665a9087}">
+      <Get Name="Get" Id="{8fa865b3-6944-4378-ad0b-a95c6972d032}">
         <Declaration><![CDATA[]]></Declaration>
       </Get>
     </Property>

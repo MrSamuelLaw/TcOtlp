@@ -6,6 +6,7 @@ VAR
 	logRecordSerializationTestSuite: FB_LogRecordSerializationTestSuite();
 	httpBatchLogExporterTestSuite: FB_HttpBatchLogExporterTestSuite();
 	httpLogExportIntegrationTest: FB_HttpLogExportIntegrationTest();
+	httpSpanExportIntegrationTest: FB_HttpSpanExportIntegrationTest();
 END_VAR
 ]]></Declaration>
     <Implementation>

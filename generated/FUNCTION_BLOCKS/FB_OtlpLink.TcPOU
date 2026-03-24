@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_OtlpLink" Id="{fe55eae2-4a3a-4f3f-a9fd-0f4bd356a909}" SpecialFunc="None">
+    <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_OtlpLink IMPLEMENTS I_OtlpSerializable
+VAR
+	_arrTraceId : ARRAY[0..15] OF BYTE;
+	_arrSpanId : ARRAY[0..7] OF BYTE;
+	_sTraceState : STRING(255);
+	_arrAttributes : ARRAY[0..99] OF POINTER TO FB_OtlpKeyValue;
+	_nAttributesCount : UDINT;
+	_nDroppedAttributesCount : UDINT;
+	_nFlags : UDINT;
+	_arrStringAttrValues : ARRAY[0..99] OF POINTER TO FB_OtlpStringValue;
+	_arrStringAttrInterfaces : ARRAY[0..99] OF I_OtlpAnyValue;
+	_nStringAttrValuesCount : UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="SerializeToProtoJson" Id="{2d86a647-650a-46bf-9255-cd048214089c}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD SerializeToProtoJson
+VAR_INPUT
+	parser : REFERENCE TO FB_JsonDynDomParser;
+	node   : SJsonValue;
+END_VAR
+VAR
+	i : UDINT;
+	arrNode : SJsonValue;
+	elemNode : SJsonValue;
+	sTemp : STRING(255);
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[sTemp := F_BytesToHex(pBytes := ADR(THIS^._arrTraceId), nLen := 16);
+parser.AddStringMember(node, 'traceId', sTemp);
+
+sTemp := F_BytesToHex(pBytes := ADR(THIS^._arrSpanId), nLen := 8);
+parser.AddStringMember(node, 'spanId', sTemp);
+
+parser.AddStringMember(node, 'traceState', THIS^._sTraceState);
+
+IF THIS^._nAttributesCount > 0 THEN
+	arrNode := parser.AddArrayMember(node, 'attributes', 0);
+	FOR i := 0 TO THIS^._nAttributesCount - 1 DO
+		elemNode := parser.PushbackJsonValue(arrNode, '{}');
+		THIS^._arrAttributes[i]^.SerializeToProtoJson(parser, elemNode);
+	END_FOR
+END_IF
+
+parser.AddUintMember(node, 'droppedAttributesCount', THIS^._nDroppedAttributesCount);
+
+parser.AddUintMember(node, 'flags', THIS^._nFlags);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_exit" Id="{70391d0b-6278-4afb-95dd-17b146ac6a71}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD FB_exit : BOOL
+VAR_INPUT
+	bInCopyCode : BOOL;
+END_VAR
+VAR
+	i : UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._nAttributesCount > 0 THEN
+	FOR i := 0 TO THIS^._nAttributesCount - 1 DO
+		IF THIS^._arrAttributes[i] <> 0 THEN
+			THIS^._arrAttributes[i]^.pValue := 0;
+		END_IF
+	END_FOR
+END_IF
+
+IF THIS^._nStringAttrValuesCount > 0 THEN
+	FOR i := 0 TO THIS^._nStringAttrValuesCount - 1 DO
+		IF THIS^._arrStringAttrValues[i] <> 0 THEN
+			__DELETE(THIS^._arrStringAttrValues[i]);
+		END_IF
+	END_FOR
+END_IF
+
+IF THIS^._nAttributesCount > 0 THEN
+	FOR i := 0 TO THIS^._nAttributesCount - 1 DO
+		IF THIS^._arrAttributes[i] <> 0 THEN
+			THIS^._arrAttributes[i]^.pValue := 0;
+			__DELETE(THIS^._arrAttributes[i]);
+		END_IF
+	END_FOR
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="AddAttributes" Id="{0bd09875-b424-491b-8f72-40b5a5001eeb}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD AddAttributes : POINTER TO FB_OtlpKeyValue
+VAR
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._nAttributesCount < 100 THEN
+	AddAttributes := __NEW(FB_OtlpKeyValue);
+	THIS^._arrAttributes[THIS^._nAttributesCount] := AddAttributes;
+	THIS^._nAttributesCount := THIS^._nAttributesCount + 1;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="AddStringAttribute" Id="{793f0e9d-a36f-4ece-8e2c-536d5a7cd2bb}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD AddStringAttribute
+VAR_INPUT
+	sKey : STRING(255);
+	sValue : STRING(255);
+END_VAR
+VAR
+	pKv : POINTER TO FB_OtlpKeyValue;
+	pStrVal : POINTER TO FB_OtlpStringValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._nStringAttrValuesCount >= 100 THEN
+	RETURN;
+END_IF
+
+pStrVal := __NEW(FB_OtlpStringValue);
+IF pStrVal = 0 THEN
+	RETURN;
+END_IF
+
+pKv := THIS^.AddAttributes();
+IF pKv = 0 THEN
+	__DELETE(pStrVal);
+	RETURN;
+END_IF
+
+pKv^.sKey := sKey;
+
+pStrVal^.sValue := sValue;
+THIS^._arrStringAttrValues[THIS^._nStringAttrValuesCount] := pStrVal;
+
+THIS^._arrStringAttrInterfaces[THIS^._nStringAttrValuesCount] := pStrVal^;
+pKv^.pValue := ADR(THIS^._arrStringAttrInterfaces[THIS^._nStringAttrValuesCount]);
+
+THIS^._nStringAttrValuesCount := THIS^._nStringAttrValuesCount + 1;]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="arrTraceId" Id="{76c8c2af-9ae3-4000-be6b-ee4c49a7e751}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY arrTraceId : ARRAY[0..15] OF BYTE]]></Declaration>
+      <Get Name="Get" Id="{2fbfa79b-e013-48cf-b34e-d8205595102b}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[arrTraceId := THIS^._arrTraceId;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{99596100-f57d-4fd1-bf60-238f67d2321e}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._arrTraceId := arrTraceId;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="arrSpanId" Id="{82d387b9-6611-40dc-8974-00a3feffd665}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY arrSpanId : ARRAY[0..7] OF BYTE]]></Declaration>
+      <Get Name="Get" Id="{4022854d-bc4a-47e4-abf6-b85259693317}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[arrSpanId := THIS^._arrSpanId;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{4e122331-a38a-4e4e-a287-ae9d02e32b1f}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._arrSpanId := arrSpanId;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="sTraceState" Id="{83da18fc-6065-4de2-ad1d-cdfd549bcb28}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY sTraceState : STRING(255)]]></Declaration>
+      <Get Name="Get" Id="{f5cc02bc-3da8-44ff-b03b-e9c02c012900}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[sTraceState := THIS^._sTraceState;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{723ea236-329f-4c35-a110-f95afd06072e}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._sTraceState := sTraceState;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="nAttributesCount" Id="{dae6ba48-2a56-42ed-8ee1-ec5a73d6b945}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY nAttributesCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{de617266-d986-46a4-9bec-12b23b2a5849}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[nAttributesCount := THIS^._nAttributesCount;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="nDroppedAttributesCount" Id="{9a81c3cb-8b9e-4694-8852-c21554733e1b}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY nDroppedAttributesCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{8aa05634-d27c-411f-a330-6ef1388a821d}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[nDroppedAttributesCount := THIS^._nDroppedAttributesCount;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{7be94d24-9b68-444d-a615-466bb7744271}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._nDroppedAttributesCount := nDroppedAttributesCount;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="nFlags" Id="{2d1308bc-f049-4b40-bb43-24c27eafb861}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY nFlags : UDINT]]></Declaration>
+      <Get Name="Get" Id="{1e395bff-3b61-4020-89ad-177ee41b2a34}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[nFlags := THIS^._nFlags;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{026125da-2e0e-41bd-9be2-5263257ddbe8}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._nFlags := nFlags;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+  </POU>
+</TcPlcObject>

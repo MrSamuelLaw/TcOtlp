@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_OtlpLogsData" Id="{aed951db-d32f-4f6e-80b6-4b5c14e19b5b}" SpecialFunc="None">
+  <POU Name="FB_OtlpLogsData" Id="{b51ed2f4-12ae-4fab-a621-1795164e3d65}" SpecialFunc="None">
     <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 {attribute 'enable_dynamic_creation'}
 FUNCTION_BLOCK FB_OtlpLogsData IMPLEMENTS I_OtlpSerializable
@@ -12,7 +12,7 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="SerializeToProtoJson" Id="{4dbffe27-d78f-499f-881d-0bbd155d5660}">
+    <Method Name="SerializeToProtoJson" Id="{383ba5e1-1746-4b2c-b875-ead31ed6f676}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD SerializeToProtoJson
 VAR_INPUT
@@ -35,7 +35,7 @@ END_VAR
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="FB_exit" Id="{f2dc52c1-394e-4ca9-85e4-3c40656c3f57}">
+    <Method Name="FB_exit" Id="{4f8de2d8-37f1-44f1-8935-80f66e0e28c0}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD FB_exit : BOOL
 VAR_INPUT
@@ -55,7 +55,7 @@ END_VAR
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="AddResourceLogs" Id="{2258503c-1c12-4e7f-b575-7df12c9a704b}">
+    <Method Name="AddResourceLogs" Id="{c22f4348-b365-4972-9dd0-489c3717922c}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD AddResourceLogs : POINTER TO FB_OtlpResourceLogs
 VAR
@@ -69,10 +69,10 @@ END_VAR
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Property Name="nResourceLogsCount" Id="{d6f1252c-9517-45d5-ad70-58933b954b85}">
+    <Property Name="nResourceLogsCount" Id="{fe222753-d8ac-47a3-846c-5b18f05e1a06}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY nResourceLogsCount : UDINT]]></Declaration>
-      <Get Name="Get" Id="{fbc798ca-4e88-4c27-9d86-8bb4394c7eeb}">
+      <Get Name="Get" Id="{42738a73-1cac-48e7-984c-39523b861a50}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>

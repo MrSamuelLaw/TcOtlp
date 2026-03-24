@@ -31,6 +31,7 @@ from generators.anyvalue_gen import (
 COMMON_KEY = "opentelemetry\\proto\\common\\v1\\common.proto"
 RESOURCE_KEY = "opentelemetry\\proto\\resource\\v1\\resource.proto"
 LOGS_KEY = "opentelemetry\\proto\\logs\\v1\\logs.proto"
+TRACE_KEY = "opentelemetry\\proto\\trace\\v1\\trace.proto"
 
 
 def _write_file(output_dir: Path, subdir: str, filename: str, content: str) -> None:
@@ -115,6 +116,58 @@ def generate_logs(ast: dict, output_dir: Path) -> None:
     print(f"\nDone! Output in: {output_dir}")
 
 
+def generate_traces(ast: dict, output_dir: Path) -> None:
+    """Generate all TwinCAT files for the traces signal.
+
+    Shared types (common, resource, I_OtlpSerializable, AnyValue) are
+    already emitted by generate_logs, so we only emit trace-specific
+    enums and messages here.
+    """
+    print("\nGenerating traces pipeline...\n")
+
+    trace_pkg = get_package(ast, TRACE_KEY)
+
+    # ── Enums (SpanKind, StatusCode, SpanFlags) ──────────────────────
+    print("[1/2] trace.proto enums")
+    trace_enums = find_elements(ast, TRACE_KEY, "Enum")
+    for enum_node in trace_enums:
+        enum_st_name = proto_name_to_enum(enum_node["name"])
+        xml = generate_enum(enum_node, enum_st_name)
+        _write_file(output_dir, "ENUMS", f"{enum_st_name}.TcTLEO", xml)
+
+    # Also emit nested enums from messages (Span.SpanKind, Status.StatusCode)
+    trace_messages = find_elements(ast, TRACE_KEY, "Message")
+    for msg in trace_messages:
+        for elem in msg.get("elements", []):
+            if elem is not None and elem.get("_type") == "Enum":
+                enum_st_name = proto_name_to_enum(elem["name"])
+                xml = generate_enum(elem, enum_st_name)
+                _write_file(output_dir, "ENUMS", f"{enum_st_name}.TcTLEO", xml)
+
+    # ── Messages (TracesData, ResourceSpans, ScopeSpans, Span, Status) ──
+    # First emit nested messages (Span.Event, Span.Link) so they exist
+    # when the parent Span FB references them.
+    print("[2/3] trace.proto nested messages")
+    for msg in trace_messages:
+        for elem in msg.get("elements", []):
+            if elem is not None and elem.get("_type") == "Message":
+                name = elem["name"]
+                fb_name = proto_name_to_fb(name)
+                itf_name = proto_name_to_interface(name)
+                xml = generate_fb(elem, fb_name, itf_name, trace_pkg, ast)
+                _write_file(output_dir, "FUNCTION_BLOCKS", f"{fb_name}.TcPOU", xml)
+
+    print("[3/3] trace.proto top-level messages")
+    for msg in trace_messages:
+        name = msg["name"]
+        fb_name = proto_name_to_fb(name)
+        itf_name = proto_name_to_interface(name)
+        xml = generate_fb(msg, fb_name, itf_name, trace_pkg, ast)
+        _write_file(output_dir, "FUNCTION_BLOCKS", f"{fb_name}.TcPOU", xml)
+
+    print(f"\nDone! Traces output in: {output_dir}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="TcOtlp Code Generator")
     parser.add_argument(
@@ -130,6 +183,7 @@ def main():
 
     ast = parse_proto()
     generate_logs(ast, output_dir)
+    generate_traces(ast, output_dir)
 
 
 if __name__ == "__main__":

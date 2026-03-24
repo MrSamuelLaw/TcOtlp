@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <EnumerationTextList Name="E_OtlpSpanFlags" Id="{c0756733-16e7-45b1-98b4-e7ee42d90633}">
+    <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_OtlpSpanFlags :
+(
+	SPAN_FLAGS_DO_NOT_USE := 0,
+	SPAN_FLAGS_TRACE_FLAGS_MASK := 255,
+	SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK := 256,
+	SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK := 512
+);
+END_TYPE
+
+]]></Declaration>
+    <XmlArchive>
+      <Data>
+        <o xml:space="preserve" t="TextListEnumerationTextListObject">
+          <l n="TextList" t="ArrayList" cet="TextListRow">
+            <o>
+              <v n="TextID">"SPAN_FLAGS_DO_NOT_USE"</v>
+              <v n="TextDefault">"0"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SPAN_FLAGS_TRACE_FLAGS_MASK"</v>
+              <v n="TextDefault">"255"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK"</v>
+              <v n="TextDefault">"256"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK"</v>
+              <v n="TextDefault">"512"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">""</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+          </l>
+          <l n="Languages" t="ArrayList" />
+          <v n="GuidInit">{6c7c77a0-f857-4b8e-bb4c-a87fa2d4f9df}</v>
+          <v n="GuidReInit">{aaf83a43-4025-4f1e-9845-fa8b60d36e16}</v>
+          <v n="GuidExitX">{75c7c878-20b8-4620-8fd3-43c70bd45900}</v>
+        </o>
+      </Data>
+      <TypeList>
+        <Type n="ArrayList">System.Collections.ArrayList</Type>
+        <Type n="Guid">System.Guid</Type>
+        <Type n="String">System.String</Type>
+        <Type n="TextListEnumerationTextListObject">{4b60233c-f940-4beb-b331-82133b520151}</Type>
+        <Type n="TextListRow">{53da1be7-ad25-47c3-b0e8-e26286dad2e0}</Type>
+      </TypeList>
+    </XmlArchive>
+  </EnumerationTextList>
+</TcPlcObject>

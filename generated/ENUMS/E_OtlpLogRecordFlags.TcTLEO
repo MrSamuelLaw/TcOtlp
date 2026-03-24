@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <EnumerationTextList Name="E_OtlpLogRecordFlags" Id="{55d84a96-816a-4aea-85db-082f8ca72fbb}">
+  <EnumerationTextList Name="E_OtlpLogRecordFlags" Id="{492646b6-410c-4683-a63f-ad2aee939c60}">
     <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 {attribute 'qualified_only'}
 {attribute 'strict'}
@@ -34,9 +34,9 @@ END_TYPE
             </o>
           </l>
           <l n="Languages" t="ArrayList" />
-          <v n="GuidInit">{c5d67872-aaac-4784-b8b3-2a591ca982bd}</v>
-          <v n="GuidReInit">{e83189a9-e312-4e9d-852c-442655d65fef}</v>
-          <v n="GuidExitX">{dfde444f-ee5d-468b-97b1-4bb6bbf20f37}</v>
+          <v n="GuidInit">{45fcb561-2839-4c9d-b0aa-1c4c7fb9647f}</v>
+          <v n="GuidReInit">{78e1ee9c-650b-4d3c-8da2-8f38ae91c382}</v>
+          <v n="GuidExitX">{38260d38-a992-47e9-a761-a73f7d6fd380}</v>
         </o>
       </Data>
       <TypeList>

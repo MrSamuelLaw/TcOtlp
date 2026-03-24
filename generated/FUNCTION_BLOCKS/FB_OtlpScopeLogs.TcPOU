@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_OtlpScopeLogs" Id="{2b8103c3-b5a6-4eb0-a90a-1dbc527cb53e}" SpecialFunc="None">
+  <POU Name="FB_OtlpScopeLogs" Id="{a7d64f28-72cb-4e0c-857d-226c52338a40}" SpecialFunc="None">
     <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 {attribute 'enable_dynamic_creation'}
 FUNCTION_BLOCK FB_OtlpScopeLogs IMPLEMENTS I_OtlpSerializable
@@ -14,7 +14,7 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="SerializeToProtoJson" Id="{3c3b910a-3679-4703-b573-b677fc8a5b41}">
+    <Method Name="SerializeToProtoJson" Id="{32a35354-87f3-4bf2-99b1-4415060bcb30}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD SerializeToProtoJson
 VAR_INPUT
@@ -45,7 +45,7 @@ END_IF
 parser.AddStringMember(node, 'schemaUrl', THIS^._sSchemaUrl);]]></ST>
       </Implementation>
     </Method>
-    <Method Name="FB_exit" Id="{4f407972-f5a1-45ee-ac05-b09d2a76c954}">
+    <Method Name="FB_exit" Id="{d1593766-2ddc-4edf-98a4-ff8c8decd1f3}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD FB_exit : BOOL
 VAR_INPUT
@@ -69,7 +69,7 @@ IF THIS^._nLogRecordsCount > 0 THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="AddLogRecords" Id="{16224cf1-15eb-4787-b8b0-3fecc2c9ad18}">
+    <Method Name="AddLogRecords" Id="{438c2271-d92e-4656-9127-437518ef37f0}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD AddLogRecords : POINTER TO FB_OtlpLogRecord
 VAR
@@ -83,10 +83,10 @@ END_VAR
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Property Name="pScope" Id="{8c40a721-27ac-4bd2-8cd3-a3c22fe61184}">
+    <Property Name="pScope" Id="{47453b87-d38f-43ce-84a9-2db5b6ee897d}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY pScope : POINTER TO FB_OtlpInstrumentationScope]]></Declaration>
-      <Get Name="Get" Id="{694a9cdf-64e1-4234-89e7-527933dcf85f}">
+      <Get Name="Get" Id="{97e77f19-bbff-4b8d-af04-76aa4684f397}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -94,7 +94,7 @@ END_VAR
           <ST><![CDATA[pScope := THIS^._pScope;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{91a3be5c-2a9e-49d4-a3b1-7ede73f16118}">
+      <Set Name="Set" Id="{4b0308b9-a20b-4eba-a05e-b4716931301d}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -103,10 +103,10 @@ END_VAR
         </Implementation>
       </Set>
     </Property>
-    <Property Name="nLogRecordsCount" Id="{1b6f5510-3cec-4684-a6b7-63bc26a968c1}">
+    <Property Name="nLogRecordsCount" Id="{a30e8f58-1c91-4392-9aaf-069ca7f00443}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY nLogRecordsCount : UDINT]]></Declaration>
-      <Get Name="Get" Id="{12ff843e-e12d-491e-b6dc-084d7ede2e86}">
+      <Get Name="Get" Id="{fb488598-ab56-492f-a46b-e2ac27f7fa04}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -115,10 +115,10 @@ END_VAR
         </Implementation>
       </Get>
     </Property>
-    <Property Name="sSchemaUrl" Id="{e88249bf-19f1-4ad4-8bbd-b40131a64b8c}">
+    <Property Name="sSchemaUrl" Id="{ac137298-6971-4fd6-86a0-2db7047cbff5}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 PROPERTY sSchemaUrl : STRING(255)]]></Declaration>
-      <Get Name="Get" Id="{b06952de-cfeb-4d4d-bb0d-0b475b7de88c}">
+      <Get Name="Get" Id="{33c79170-a413-47bd-ac46-9af890489239}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>
@@ -126,7 +126,7 @@ END_VAR
           <ST><![CDATA[sSchemaUrl := THIS^._sSchemaUrl;]]></ST>
         </Implementation>
       </Get>
-      <Set Name="Set" Id="{0ca72367-454c-47f4-b2de-480957ee6757}">
+      <Set Name="Set" Id="{2141b3a9-3688-4522-888d-be59bc774c9e}">
         <Declaration><![CDATA[VAR
 END_VAR
 ]]></Declaration>

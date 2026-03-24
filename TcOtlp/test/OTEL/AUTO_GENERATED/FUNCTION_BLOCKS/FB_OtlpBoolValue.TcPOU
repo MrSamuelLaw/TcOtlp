@@ -1,6 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_OtlpBoolValue" Id="{e45b5ede-4e54-443a-9af9-500af076fa5e}" SpecialFunc="None">
+  <POU Name="FB_OtlpBoolValue" Id="{221e6484-0d13-4b19-9d86-5f68658ba707}" SpecialFunc="None">
     <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 {attribute 'enable_dynamic_creation'}
 FUNCTION_BLOCK FB_OtlpBoolValue IMPLEMENTS I_OtlpAnyValue
@@ -11,7 +11,39 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="SerializeToProtoJson" Id="{b4d4e351-0b18-4031-8145-3fe90f626377}">
+    <Property Name="bValue" Id="{42323935-41be-485a-9497-f34cc2084bdc}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY bValue : BOOL]]></Declaration>
+      <Get Name="Get" Id="{4b0aa07f-1d1f-42c6-8386-bb707d1c5a92}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[bValue := THIS^._bValue;]]></ST>
+        </Implementation>
+      </Get>
+      <Set Name="Set" Id="{876d4769-3440-4b1a-a456-370cacf61356}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[THIS^._bValue := bValue;]]></ST>
+        </Implementation>
+      </Set>
+    </Property>
+    <Property Name="eValueType" Id="{3f5b1a6a-92b1-473f-9c20-afbebf0d158c}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
+      <Get Name="Get" Id="{e8186dc8-7582-4ec5-b915-7faea309fcb2}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[eValueType := E_OtlpAnyValueType.BOOL_VALUE;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="SerializeToProtoJson" Id="{8a46c333-5fa6-4194-8845-80fbf616376b}">
       <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
 METHOD SerializeToProtoJson
 VAR_INPUT
@@ -23,37 +55,5 @@ END_VAR
         <ST><![CDATA[parser.AddBoolMember(node, 'boolValue', THIS^._bValue);]]></ST>
       </Implementation>
     </Method>
-    <Property Name="eValueType" Id="{abebfb73-8c50-46d6-afc2-819012579801}">
-      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
-PROPERTY eValueType : E_OtlpAnyValueType]]></Declaration>
-      <Get Name="Get" Id="{ba8d75d3-6990-4ce5-ab46-1b5e620078e5}">
-        <Declaration><![CDATA[VAR
-END_VAR
-]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[eValueType := E_OtlpAnyValueType.BOOL_VALUE;]]></ST>
-        </Implementation>
-      </Get>
-    </Property>
-    <Property Name="bValue" Id="{75058639-f97b-400d-96f5-5ffe5f8595b1}">
-      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
-PROPERTY bValue : BOOL]]></Declaration>
-      <Get Name="Get" Id="{777056b7-9743-4425-afd3-cd60909312ab}">
-        <Declaration><![CDATA[VAR
-END_VAR
-]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[bValue := THIS^._bValue;]]></ST>
-        </Implementation>
-      </Get>
-      <Set Name="Set" Id="{662ceaa7-8676-4fea-9203-1f7557748df0}">
-        <Declaration><![CDATA[VAR
-END_VAR
-]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[THIS^._bValue := bValue;]]></ST>
-        </Implementation>
-      </Set>
-    </Property>
   </POU>
 </TcPlcObject>

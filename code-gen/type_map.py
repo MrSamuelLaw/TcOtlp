@@ -25,6 +25,7 @@ PROTO_TO_ST: dict[str, str] = {
 BYTES_FIELD_SIZES: dict[str, int] = {
     "trace_id": 16,
     "span_id": 8,
+    "parent_span_id": 8,
 }
 
 ST_TO_JSON_METHOD: dict[str, str] = {

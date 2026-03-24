@@ -36,6 +36,15 @@
     <Compile Include="TEST_OTEL\TEST_EXPORTING\FB_HttpLogExportIntegrationTest.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\FUNCTION_BLOCKS\F_BytesToHex.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_HttpBatchSpanExporter.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="TEST_OTEL\TEST_EXPORTING\FB_HttpSpanExportIntegrationTest.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\AUTO_GENERATED\ENUMS\E_OtlpAnyValueType.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
@@ -43,6 +52,15 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\AUTO_GENERATED\ENUMS\E_OtlpSeverityNumber.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\AUTO_GENERATED\ENUMS\E_OtlpSpanFlags.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\AUTO_GENERATED\ENUMS\E_OtlpSpanKind.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\AUTO_GENERATED\ENUMS\E_OtlpStatusCode.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpArrayValue.TcPOU">
@@ -60,6 +78,9 @@
     <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpEntityRef.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpEvent.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpInstrumentationScope.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -70,6 +91,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpKvlistValue.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpLink.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpLogRecord.TcPOU">
@@ -84,10 +108,25 @@
     <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpResourceLogs.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpResourceSpans.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpScopeLogs.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpScopeSpans.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpSpan.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpStatus.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpStringValue.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\AUTO_GENERATED\FUNCTION_BLOCKS\FB_OtlpTracesData.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\AUTO_GENERATED\INTERFACES\I_OtlpAnyValue.TcIO">

@@ -1,0 +1,85 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_OtlpTracesData" Id="{f71b4221-35e5-4a7b-8674-cb761c6389db}" SpecialFunc="None">
+    <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_OtlpTracesData IMPLEMENTS I_OtlpSerializable
+VAR
+	_arrResourceSpans : ARRAY[0..99] OF POINTER TO FB_OtlpResourceSpans;
+	_nResourceSpansCount : UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="AddResourceSpans" Id="{cdf03d6b-621c-4bc3-b9f3-ecd34d822757}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD AddResourceSpans : POINTER TO FB_OtlpResourceSpans
+VAR
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._nResourceSpansCount < 100 THEN
+	AddResourceSpans := __NEW(FB_OtlpResourceSpans);
+	THIS^._arrResourceSpans[THIS^._nResourceSpansCount] := AddResourceSpans;
+	THIS^._nResourceSpansCount := THIS^._nResourceSpansCount + 1;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_exit" Id="{b03ce599-dba7-43a1-bd3b-e9de0e161541}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD FB_exit : BOOL
+VAR_INPUT
+	bInCopyCode : BOOL;
+END_VAR
+VAR
+	i : UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._nResourceSpansCount > 0 THEN
+	FOR i := 0 TO THIS^._nResourceSpansCount - 1 DO
+		IF THIS^._arrResourceSpans[i] <> 0 THEN
+			__DELETE(THIS^._arrResourceSpans[i]);
+		END_IF
+	END_FOR
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="nResourceSpansCount" Id="{0d9fdcc6-a656-4290-a819-a1a797f4ac5e}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+PROPERTY nResourceSpansCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{8be6dab7-edbd-45f2-8c32-819691f7038b}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[nResourceSpansCount := THIS^._nResourceSpansCount;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="SerializeToProtoJson" Id="{e1cf8365-b7a2-4a96-b374-ffd4f430aa7c}">
+      <Declaration><![CDATA[(* AUTO GENERATED CODE, DO NOT MODIFY THIS FILE DIRECTLY *)
+METHOD SerializeToProtoJson
+VAR_INPUT
+	parser : REFERENCE TO FB_JsonDynDomParser;
+	node   : SJsonValue;
+END_VAR
+VAR
+	i : UDINT;
+	arrNode : SJsonValue;
+	elemNode : SJsonValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._nResourceSpansCount > 0 THEN
+	arrNode := parser.AddArrayMember(node, 'resourceSpans', 0);
+	FOR i := 0 TO THIS^._nResourceSpansCount - 1 DO
+		elemNode := parser.PushbackJsonValue(arrNode, '{}');
+		THIS^._arrResourceSpans[i]^.SerializeToProtoJson(parser, elemNode);
+	END_FOR
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

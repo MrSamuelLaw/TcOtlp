@@ -92,12 +92,22 @@ def _classify_field(field: dict, current_package: str, ast: dict) -> dict:
         file_key = None
         type_name = proto_type.rsplit(".", 1)[-1] if "." in proto_type else proto_type
 
-    # Check if it's an enum in the AST
+    # Check if it's an enum in the AST (top-level or nested inside messages)
     is_enum = False
     if file_key and ast:
         from loader import find_elements
         enums = find_elements(ast, file_key, "Enum")
         is_enum = any(e["name"] == type_name for e in enums)
+        if not is_enum:
+            # Also check enums nested inside messages
+            messages = find_elements(ast, file_key, "Message")
+            for msg in messages:
+                for elem in msg.get("elements", []):
+                    if elem is not None and elem.get("_type") == "Enum" and elem.get("name") == type_name:
+                        is_enum = True
+                        break
+                if is_enum:
+                    break
 
     if is_enum:
         enum_st_name = proto_name_to_enum(type_name)
@@ -184,6 +194,7 @@ def _build_serialize_to_proto_json_method(fb_name: str, fields: list[dict]) -> s
     needs_elem = False
     needs_arr = False
     needs_obj = False
+    needs_sTemp = False
 
     for f in fields:
         if f["kind"] in ("repeated_message", "repeated_scalar"):
@@ -192,6 +203,8 @@ def _build_serialize_to_proto_json_method(fb_name: str, fields: list[dict]) -> s
             needs_arr = True
         if f["kind"] == "message":
             needs_obj = True
+        if f["kind"] == "bytes":
+            needs_sTemp = True
 
     var_lines = ["VAR"]
     if needs_i:
@@ -202,6 +215,8 @@ def _build_serialize_to_proto_json_method(fb_name: str, fields: list[dict]) -> s
         var_lines.append("\telemNode : SJsonValue;")
     if needs_obj:
         var_lines.append("\tobjNode : SJsonValue;")
+    if needs_sTemp:
+        var_lines.append("\tsTemp : STRING(255);")
     var_lines.append("END_VAR")
     var_decl = "\n".join(var_lines)
 
@@ -221,9 +236,18 @@ def _build_serialize_to_proto_json_method(fb_name: str, fields: list[dict]) -> s
             body_lines.append("")
 
         elif f["kind"] == "bytes":
-            # Bytes fields serialized as base64 string — for now, skip or add placeholder
+            # Bytes fields in OTLP/JSON are lowercase hex-encoded strings.
+            # We use the helper function F_BytesToHex to convert.
             st_name = f["st_name"]
-            body_lines.append(f"// TODO: serialize bytes field '{json_key}' (base64 encoding)")
+            st_type = f["st_type"]  # e.g. "ARRAY[0..15] OF BYTE"
+            import re
+            m = re.search(r"ARRAY\[0\.\.(\d+)\]", st_type)
+            if m:
+                num_bytes = int(m.group(1)) + 1
+                body_lines.append(f"sTemp := F_BytesToHex(pBytes := ADR(THIS^._{st_name}), nLen := {num_bytes});")
+                body_lines.append(f"parser.AddStringMember(node, '{json_key}', sTemp);")
+            else:
+                body_lines.append(f"// TODO: serialize bytes field '{json_key}' (unknown size)")
             body_lines.append("")
 
         elif f["kind"] == "message":
@@ -571,10 +595,10 @@ def generate_fb(
     """
     pou_id = _new_guid()
 
-    # Extract fields (skip Reserved, Comment, etc.)
+    # Extract fields (skip Reserved, Comment, None, nested Messages, etc.)
     raw_fields = [
         e for e in message_node["elements"]
-        if e.get("_type") == "Field"
+        if e is not None and e.get("_type") == "Field"
     ]
 
     # Classify each field
