@@ -1,0 +1,755 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_ProcessStartupTelemetryDemoTestSuite" Id="{6f95f950-4d23-4a39-95f8-8d94cba8c7ce}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ProcessStartupTelemetryDemoTestSuite EXTENDS FB_TestSuite
+VAR
+	// ── Success story state ─────────────────────────────────────────
+	_tracesData : FB_OtlpTracesData;
+	_logsData : FB_OtlpLogsData;
+	_step : INT;
+	_tOverallTimeout : TON := (PT := T#30S);
+
+	// Dynamic GUID generation for unique trace/span IDs
+	_fbCreateGuid : FB_CreateGUID;
+	_arrGuids : ARRAY[0..3] OF GUID;  // [0]=traceId, [1]=ignition, [2]=pump, [3]=valve
+	_bGuidsReady : BOOL;
+	_bGuidsStarted : BOOL;
+
+	_arrTraceId : ARRAY[0..15] OF BYTE;
+	_arrIgnitionSpanId : ARRAY[0..7] OF BYTE;
+	_arrPumpSpanId : ARRAY[0..7] OF BYTE;
+	_arrValveSpanId : ARRAY[0..7] OF BYTE;
+
+	// HTTP exporters to send data to SigNoz
+	_traceExporter : FB_HttpBatchSpanExporter;
+	_logExporter : FB_HttpBatchLogExporter;
+	_bTraceExportStarted : BOOL;
+	_bLogExportStarted : BOOL;
+	_nExportTimeout : TON := (PT := T#10S);
+
+	// ── Failure story state ─────────────────────────────────────────
+	_fTracesData : FB_OtlpTracesData;
+	_fLogsData : FB_OtlpLogsData;
+	_fStep : INT;
+	_fOverallTimeout : TON := (PT := T#30S);
+
+	_fCreateGuid : FB_CreateGUID;
+	_fGuids : ARRAY[0..3] OF GUID;
+	_fGuidsReady : BOOL;
+	_fGuidsStarted : BOOL;
+
+	_fTraceId : ARRAY[0..15] OF BYTE;
+	_fIgnitionSpanId : ARRAY[0..7] OF BYTE;
+	_fPumpSpanId : ARRAY[0..7] OF BYTE;
+	_fValveSpanId : ARRAY[0..7] OF BYTE;
+
+	_fTraceExporter : FB_HttpBatchSpanExporter;
+	_fLogExporter : FB_HttpBatchLogExporter;
+	_fTraceExportStarted : BOOL;
+	_fLogExportStarted : BOOL;
+	_fExportTimeout : TON := (PT := T#10S);
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.TestTimedStartupTelemetryStory();
+THIS^.TestValvePressureTransmitterFailureStory();]]></ST>
+    </Implementation>
+    <Method Name="TestValvePressureTransmitterFailureStory" Id="{a1b2c3d4-e5f6-7890-abcd-ef1234567890}">
+      <Declaration><![CDATA[METHOD TestValvePressureTransmitterFailureStory
+VAR
+	pResourceSpans : POINTER TO FB_OtlpResourceSpans;
+	pResource : POINTER TO FB_OtlpResource;
+	pScopeSpans : POINTER TO FB_OtlpScopeSpans;
+	pScope : POINTER TO FB_OtlpInstrumentationScope;
+	pSpan : POINTER TO FB_OtlpSpan;
+	pEvent : POINTER TO FB_OtlpEvent;
+	pStatus : POINTER TO FB_OtlpStatus;
+	pResourceLogs : POINTER TO FB_OtlpResourceLogs;
+	pLogScope : POINTER TO FB_OtlpInstrumentationScope;
+	pScopeLogs : POINTER TO FB_OtlpScopeLogs;
+	pLogRecord : POINTER TO FB_OtlpLogRecord;
+
+	// Synthetic timestamp offsets (nanoseconds) — cascading waterfall over ~10s
+	// Ignition:  0s  → 10s  (root, wraps everything)
+	// Pump:      1s  →  7s  (child of ignition, waits for valve then aborts)
+	// Valve:     2s  →  5s  (child of pump, PT failure at 3s, span ends at 5s)
+	// Events:    valve opening at 2s, PT fault at 3s, valve aborted at 5s,
+	//            pump aborted at 7s
+	nT0 : ULINT;  // base "now" in Unix nanoseconds
+	nOneSecNs : ULINT := ULINT#1000000000;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TcUnit.TEST_ORDERED('Demo: valve pressure transmitter failure aborts startup with error telemetry') THEN
+
+// Global watchdog to prevent this demo from stalling indefinitely.
+_fOverallTimeout(IN := TRUE);
+_fOverallTimeout();
+IF _fOverallTimeout.Q THEN
+	THIS^.AssertTrue(FALSE, 'Failure demo timed out before telemetry story completed');
+	TcUnit.TEST_FINISHED();
+	RETURN;
+END_IF
+
+// Generate unique GUIDs for trace/span IDs before building any telemetry.
+IF NOT _fGuidsReady THEN
+	_fCreateGuid(
+		bExecute        := NOT _fGuidsStarted,
+		sNetId          := '',
+		tTimeout        := T#2S,
+		pGuidBuffer     := ADR(_fGuids),
+		nGuidBufferSize := SIZEOF(_fGuids)
+	);
+	_fGuidsStarted := TRUE;
+
+	IF NOT _fCreateGuid.bBusy AND _fGuidsStarted THEN
+		IF _fCreateGuid.bError THEN
+			THIS^.AssertTrue(FALSE, 'FB_CreateGUID failed - cannot generate trace/span IDs (failure story)');
+			TcUnit.TEST_FINISHED();
+			RETURN;
+		END_IF
+		// Extract trace ID (16 bytes from GUID[0]) and span IDs (8 bytes each from GUID[1..3])
+		MEMCPY(ADR(_fTraceId), ADR(_fGuids[0]), 16);
+		MEMCPY(ADR(_fIgnitionSpanId), ADR(_fGuids[1]), 8);
+		MEMCPY(ADR(_fPumpSpanId), ADR(_fGuids[2]), 8);
+		MEMCPY(ADR(_fValveSpanId), ADR(_fGuids[3]), 8);
+		_fGuidsReady := TRUE;
+	END_IF
+	RETURN;
+END_IF
+
+CASE _fStep OF
+	0:
+		// Base timestamp = current time in Unix nanoseconds.
+		nT0 := (F_GetSystemTime() - ULINT#116444736000000000) * ULINT#100;
+
+		// ═════════════════════════════════════════════════════════════
+		// TRACES — three ResourceSpans (one per service), failure scenario
+		// ═════════════════════════════════════════════════════════════
+
+		// ── Ignition service: root span 0s → 10s ────────────────────
+		pResourceSpans := _fTracesData.AddResourceSpans();
+		pResource := __NEW(FB_OtlpResource);
+		pResource^.AddStringAttribute('service.name', 'ignition');
+		pResourceSpans^.pResource := pResource;
+		pScopeSpans := pResourceSpans^.AddScopeSpans();
+		pScope := __NEW(FB_OtlpInstrumentationScope);
+		pScope^.sName := 'tcotlp.demo';
+		pScope^.sVersion := '1.0.0';
+		pScopeSpans^.pScope := pScope;
+
+		pSpan := pScopeSpans^.AddSpans();
+		pSpan^.arrTraceId := _fTraceId;
+		pSpan^.arrSpanId := _fIgnitionSpanId;
+		pSpan^.sName := 'ignition.startup-request';
+		pSpan^.eKind := E_OtlpSpanKind.SPAN_KIND_SERVER;
+		pSpan^.nStartTimeUnixNano := nT0;
+		pSpan^.nEndTimeUnixNano := nT0 + (nOneSecNs * ULINT#10);
+		pSpan^.AddStringAttribute('user.name', 'operator.demo');
+
+		pStatus := __NEW(FB_OtlpStatus);
+		pStatus^.eCode := E_OtlpStatusCode.STATUS_CODE_ERROR;
+		pStatus^.sMessage := 'Startup aborted: valve pressure transmitter failure';
+		pSpan^.pStatus := pStatus;
+
+		// ── Pump service: child of ignition, 1s → 7s (aborted) ──────
+		pResourceSpans := _fTracesData.AddResourceSpans();
+		pResource := __NEW(FB_OtlpResource);
+		pResource^.AddStringAttribute('service.name', 'high-service-pump');
+		pResourceSpans^.pResource := pResource;
+		pScopeSpans := pResourceSpans^.AddScopeSpans();
+		pScope := __NEW(FB_OtlpInstrumentationScope);
+		pScope^.sName := 'tcotlp.demo';
+		pScope^.sVersion := '1.0.0';
+		pScopeSpans^.pScope := pScope;
+
+		pSpan := pScopeSpans^.AddSpans();
+		pSpan^.arrTraceId := _fTraceId;
+		pSpan^.arrSpanId := _fPumpSpanId;
+		pSpan^.arrParentSpanId := _fIgnitionSpanId;
+		pSpan^.sName := 'high-service-pump.startup';
+		pSpan^.eKind := E_OtlpSpanKind.SPAN_KIND_INTERNAL;
+		pSpan^.nStartTimeUnixNano := nT0 + (nOneSecNs * ULINT#1);
+		pSpan^.nEndTimeUnixNano := nT0 + (nOneSecNs * ULINT#7);
+		pSpan^.AddStringAttribute('unit.id', '1');
+
+		pStatus := __NEW(FB_OtlpStatus);
+		pStatus^.eCode := E_OtlpStatusCode.STATUS_CODE_ERROR;
+		pStatus^.sMessage := 'Pump startup aborted: valve failed to open';
+		pSpan^.pStatus := pStatus;
+
+		pEvent := pSpan^.AddEvents();
+		pEvent^.nTimeUnixNano := nT0 + (nOneSecNs * ULINT#1);
+		pEvent^.sName := 'pump.waiting-for-valve';
+		pEvent^.AddStringAttribute('unit.id', '1');
+
+		pEvent := pSpan^.AddEvents();
+		pEvent^.nTimeUnixNano := nT0 + (nOneSecNs * ULINT#7);
+		pEvent^.sName := 'pump.startup-aborted';
+		pEvent^.AddStringAttribute('unit.id', '1');
+		pEvent^.AddStringAttribute('reason', 'valve pressure transmitter failure');
+
+		// ── Valve service: child of pump, 2s → 5s (PT failure) ──────
+		pResourceSpans := _fTracesData.AddResourceSpans();
+		pResource := __NEW(FB_OtlpResource);
+		pResource^.AddStringAttribute('service.name', 'high-service-valve');
+		pResourceSpans^.pResource := pResource;
+		pScopeSpans := pResourceSpans^.AddScopeSpans();
+		pScope := __NEW(FB_OtlpInstrumentationScope);
+		pScope^.sName := 'tcotlp.demo';
+		pScope^.sVersion := '1.0.0';
+		pScopeSpans^.pScope := pScope;
+
+		pSpan := pScopeSpans^.AddSpans();
+		pSpan^.arrTraceId := _fTraceId;
+		pSpan^.arrSpanId := _fValveSpanId;
+		pSpan^.arrParentSpanId := _fPumpSpanId;
+		pSpan^.sName := 'high-service-valve.opening';
+		pSpan^.eKind := E_OtlpSpanKind.SPAN_KIND_INTERNAL;
+		pSpan^.nStartTimeUnixNano := nT0 + (nOneSecNs * ULINT#2);
+		pSpan^.nEndTimeUnixNano := nT0 + (nOneSecNs * ULINT#5);
+		pSpan^.AddStringAttribute('unit.id', '1');
+
+		pStatus := __NEW(FB_OtlpStatus);
+		pStatus^.eCode := E_OtlpStatusCode.STATUS_CODE_ERROR;
+		pStatus^.sMessage := 'Pressure transmitter PT-101 signal lost: valve opening aborted';
+		pSpan^.pStatus := pStatus;
+
+		pEvent := pSpan^.AddEvents();
+		pEvent^.nTimeUnixNano := nT0 + (nOneSecNs * ULINT#2);
+		pEvent^.sName := 'valve.opening-started';
+		pEvent^.AddStringAttribute('unit.id', '1');
+
+		pEvent := pSpan^.AddEvents();
+		pEvent^.nTimeUnixNano := nT0 + (nOneSecNs * ULINT#3);
+		pEvent^.sName := 'valve.pressure-transmitter-fault';
+		pEvent^.AddStringAttribute('unit.id', '1');
+		pEvent^.AddStringAttribute('transmitter.id', 'PT-101');
+		pEvent^.AddStringAttribute('fault.type', 'signal-lost');
+
+		pEvent := pSpan^.AddEvents();
+		pEvent^.nTimeUnixNano := nT0 + (nOneSecNs * ULINT#5);
+		pEvent^.sName := 'valve.opening-aborted';
+		pEvent^.AddStringAttribute('unit.id', '1');
+		pEvent^.AddStringAttribute('reason', 'pressure transmitter PT-101 fault');
+
+		// ═════════════════════════════════════════════════════════════
+		// LOGS — three ResourceLogs, timestamps match trace offsets
+		// ═════════════════════════════════════════════════════════════
+
+		// ── Ignition logs ───────────────────────────────────────────
+		pResourceLogs := _fLogsData.AddResourceLogs();
+		pResource := __NEW(FB_OtlpResource);
+		pResource^.AddStringAttribute('service.name', 'ignition');
+		pResourceLogs^.pResource := pResource;
+		pScopeLogs := pResourceLogs^.AddScopeLogs();
+		pLogScope := __NEW(FB_OtlpInstrumentationScope);
+		pLogScope^.sName := 'tcotlp.demo';
+		pLogScope^.sVersion := '1.0.0';
+		pScopeLogs^.pScope := pLogScope;
+
+		pLogRecord := pScopeLogs^.AddLogRecords();
+		pLogRecord^.nTimeUnixNano := nT0;
+		pLogRecord^.nObservedTimeUnixNano := nT0;
+		pLogRecord^.eSeverityNumber := E_OtlpSeverityNumber.SEVERITY_NUMBER_INFO;
+		pLogRecord^.sSeverityText := 'INFO';
+		pLogRecord^.sEventName := 'ignition.request.received';
+		pLogRecord^.arrTraceId := _fTraceId;
+		pLogRecord^.arrSpanId := _fIgnitionSpanId;
+		pLogRecord^.AddStringAttribute('user.name', 'operator.demo');
+
+		pLogRecord := pScopeLogs^.AddLogRecords();
+		pLogRecord^.nTimeUnixNano := nT0 + (nOneSecNs * ULINT#10);
+		pLogRecord^.nObservedTimeUnixNano := nT0 + (nOneSecNs * ULINT#10);
+		pLogRecord^.eSeverityNumber := E_OtlpSeverityNumber.SEVERITY_NUMBER_ERROR;
+		pLogRecord^.sSeverityText := 'ERROR';
+		pLogRecord^.sEventName := 'ignition.startup-aborted';
+		pLogRecord^.arrTraceId := _fTraceId;
+		pLogRecord^.arrSpanId := _fIgnitionSpanId;
+		pLogRecord^.AddStringAttribute('reason', 'valve pressure transmitter failure');
+
+		// ── Pump logs ───────────────────────────────────────────────
+		pResourceLogs := _fLogsData.AddResourceLogs();
+		pResource := __NEW(FB_OtlpResource);
+		pResource^.AddStringAttribute('service.name', 'high-service-pump');
+		pResourceLogs^.pResource := pResource;
+		pScopeLogs := pResourceLogs^.AddScopeLogs();
+		pLogScope := __NEW(FB_OtlpInstrumentationScope);
+		pLogScope^.sName := 'tcotlp.demo';
+		pLogScope^.sVersion := '1.0.0';
+		pScopeLogs^.pScope := pLogScope;
+
+		pLogRecord := pScopeLogs^.AddLogRecords();
+		pLogRecord^.nTimeUnixNano := nT0 + (nOneSecNs * ULINT#1);
+		pLogRecord^.nObservedTimeUnixNano := nT0 + (nOneSecNs * ULINT#1);
+		pLogRecord^.eSeverityNumber := E_OtlpSeverityNumber.SEVERITY_NUMBER_INFO;
+		pLogRecord^.sSeverityText := 'INFO';
+		pLogRecord^.sEventName := 'high-service-pump.waiting-for-valve';
+		pLogRecord^.arrTraceId := _fTraceId;
+		pLogRecord^.arrSpanId := _fPumpSpanId;
+		pLogRecord^.AddStringAttribute('unit.id', '1');
+
+		pLogRecord := pScopeLogs^.AddLogRecords();
+		pLogRecord^.nTimeUnixNano := nT0 + (nOneSecNs * ULINT#7);
+		pLogRecord^.nObservedTimeUnixNano := nT0 + (nOneSecNs * ULINT#7);
+		pLogRecord^.eSeverityNumber := E_OtlpSeverityNumber.SEVERITY_NUMBER_ERROR;
+		pLogRecord^.sSeverityText := 'ERROR';
+		pLogRecord^.sEventName := 'high-service-pump.startup-aborted';
+		pLogRecord^.arrTraceId := _fTraceId;
+		pLogRecord^.arrSpanId := _fPumpSpanId;
+		pLogRecord^.AddStringAttribute('unit.id', '1');
+		pLogRecord^.AddStringAttribute('reason', 'valve failed to open');
+
+		// ── Valve logs ──────────────────────────────────────────────
+		pResourceLogs := _fLogsData.AddResourceLogs();
+		pResource := __NEW(FB_OtlpResource);
+		pResource^.AddStringAttribute('service.name', 'high-service-valve');
+		pResourceLogs^.pResource := pResource;
+		pScopeLogs := pResourceLogs^.AddScopeLogs();
+		pLogScope := __NEW(FB_OtlpInstrumentationScope);
+		pLogScope^.sName := 'tcotlp.demo';
+		pLogScope^.sVersion := '1.0.0';
+		pScopeLogs^.pScope := pLogScope;
+
+		pLogRecord := pScopeLogs^.AddLogRecords();
+		pLogRecord^.nTimeUnixNano := nT0 + (nOneSecNs * ULINT#2);
+		pLogRecord^.nObservedTimeUnixNano := nT0 + (nOneSecNs * ULINT#2);
+		pLogRecord^.eSeverityNumber := E_OtlpSeverityNumber.SEVERITY_NUMBER_INFO;
+		pLogRecord^.sSeverityText := 'INFO';
+		pLogRecord^.sEventName := 'high-service-valve.opening-started';
+		pLogRecord^.arrTraceId := _fTraceId;
+		pLogRecord^.arrSpanId := _fValveSpanId;
+		pLogRecord^.AddStringAttribute('unit.id', '1');
+
+		pLogRecord := pScopeLogs^.AddLogRecords();
+		pLogRecord^.nTimeUnixNano := nT0 + (nOneSecNs * ULINT#3);
+		pLogRecord^.nObservedTimeUnixNano := nT0 + (nOneSecNs * ULINT#3);
+		pLogRecord^.eSeverityNumber := E_OtlpSeverityNumber.SEVERITY_NUMBER_ERROR;
+		pLogRecord^.sSeverityText := 'ERROR';
+		pLogRecord^.sEventName := 'high-service-valve.pressure-transmitter-fault';
+		pLogRecord^.arrTraceId := _fTraceId;
+		pLogRecord^.arrSpanId := _fValveSpanId;
+		pLogRecord^.AddStringAttribute('unit.id', '1');
+		pLogRecord^.AddStringAttribute('transmitter.id', 'PT-101');
+		pLogRecord^.AddStringAttribute('fault.type', 'signal-lost');
+
+		pLogRecord := pScopeLogs^.AddLogRecords();
+		pLogRecord^.nTimeUnixNano := nT0 + (nOneSecNs * ULINT#5);
+		pLogRecord^.nObservedTimeUnixNano := nT0 + (nOneSecNs * ULINT#5);
+		pLogRecord^.eSeverityNumber := E_OtlpSeverityNumber.SEVERITY_NUMBER_ERROR;
+		pLogRecord^.sSeverityText := 'ERROR';
+		pLogRecord^.sEventName := 'high-service-valve.opening-aborted';
+		pLogRecord^.arrTraceId := _fTraceId;
+		pLogRecord^.arrSpanId := _fValveSpanId;
+		pLogRecord^.AddStringAttribute('unit.id', '1');
+		pLogRecord^.AddStringAttribute('reason', 'pressure transmitter PT-101 fault');
+
+		// Configure exporters to send telemetry to SigNoz.
+		_fTraceExporter.sHostName := 'otlp.breakingthelaw.xyz';
+		_fTraceExporter.nHostPort := 4318;
+		_fTraceExporter.sUri := '/v1/traces';
+		_fTraceExporter.bNoServerCertCheck := TRUE;
+		_fTraceExporter.sCaCertPath := 'C:\Users\samue\Desktop\programming projects\TcOtlp\certs\isrg-root-x1.pem';
+
+		_fLogExporter.sHostName := 'otlp.breakingthelaw.xyz';
+		_fLogExporter.nHostPort := 4318;
+		_fLogExporter.sUri := '/v1/logs';
+		_fLogExporter.bNoServerCertCheck := TRUE;
+		_fLogExporter.sCaCertPath := 'C:\Users\samue\Desktop\programming projects\TcOtlp\certs\isrg-root-x1.pem';
+
+		_fStep := 1;
+
+	1:
+		// Export traces
+		IF NOT _fTraceExportStarted THEN
+			_fTraceExporter.Export(_fTracesData);
+			_fTraceExportStarted := TRUE;
+			_fExportTimeout(IN := TRUE);
+		END_IF
+
+		_fTraceExporter();
+		_fExportTimeout();
+
+		IF _fTraceExporter.bDone THEN
+			THIS^.AssertTrue(_fTraceExporter.nHttpStatus >= 200 AND _fTraceExporter.nHttpStatus < 300,
+				CONCAT('Failure trace export expected 2xx, got ', UINT_TO_STRING(_fTraceExporter.nHttpStatus)));
+			_fExportTimeout(IN := FALSE);
+			_fExportTimeout();
+			_fStep := 2;
+		ELSIF _fTraceExporter.bError THEN
+			THIS^.AssertTrue(FALSE,
+				CONCAT('Failure trace export failed: ', _fTraceExporter.sLastError));
+			TcUnit.TEST_FINISHED();
+			RETURN;
+		ELSIF _fExportTimeout.Q THEN
+			THIS^.AssertTrue(FALSE, 'Failure trace export timed out after 10s');
+			TcUnit.TEST_FINISHED();
+			RETURN;
+		END_IF
+
+	2:
+		// Export logs
+		IF NOT _fLogExportStarted THEN
+			_fLogExporter.Export(_fLogsData);
+			_fLogExportStarted := TRUE;
+			_fExportTimeout(IN := TRUE);
+		END_IF
+
+		_fLogExporter();
+		_fExportTimeout();
+
+		IF _fLogExporter.bDone THEN
+			THIS^.AssertTrue(_fLogExporter.nHttpStatus >= 200 AND _fLogExporter.nHttpStatus < 300,
+				CONCAT('Failure log export expected 2xx, got ', UINT_TO_STRING(_fLogExporter.nHttpStatus)));
+			_fOverallTimeout(IN := FALSE);
+			_fOverallTimeout();
+			TcUnit.TEST_FINISHED();
+		ELSIF _fLogExporter.bError THEN
+			THIS^.AssertTrue(FALSE,
+				CONCAT('Failure log export failed: ', _fLogExporter.sLastError));
+			TcUnit.TEST_FINISHED();
+		ELSIF _fExportTimeout.Q THEN
+			THIS^.AssertTrue(FALSE, 'Failure log export timed out after 10s');
+			TcUnit.TEST_FINISHED();
+		END_IF
+END_CASE
+
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TestTimedStartupTelemetryStory" Id="{e7afe624-2354-45d2-b7b4-b72b554e76f0}">
+      <Declaration><![CDATA[METHOD TestTimedStartupTelemetryStory
+VAR
+	pResourceSpans : POINTER TO FB_OtlpResourceSpans;
+	pResource : POINTER TO FB_OtlpResource;
+	pScopeSpans : POINTER TO FB_OtlpScopeSpans;
+	pScope : POINTER TO FB_OtlpInstrumentationScope;
+	pSpan : POINTER TO FB_OtlpSpan;
+	pEvent : POINTER TO FB_OtlpEvent;
+	pResourceLogs : POINTER TO FB_OtlpResourceLogs;
+	pLogScope : POINTER TO FB_OtlpInstrumentationScope;
+	pScopeLogs : POINTER TO FB_OtlpScopeLogs;
+	pLogRecord : POINTER TO FB_OtlpLogRecord;
+
+	// Synthetic timestamp offsets (nanoseconds) — cascading waterfall over ~10s
+	// Ignition:  0s  → 10s  (root, wraps everything)
+	// Pump:      1s  →  9s  (child of ignition, waits for valve then turns on)
+	// Valve:     2s  →  8s  (child of pump, opening sequence)
+	// Events:    valve 10% at 5s, valve fully open at 8s, pump turns on at 8s
+	nT0 : ULINT;  // base "now" in Unix nanoseconds
+	nOneSecNs : ULINT := ULINT#1000000000;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF TcUnit.TEST_ORDERED('Demo: ignition to pump to valve startup with ~10s telemetry timeline') THEN
+
+// Global watchdog to prevent this demo from stalling indefinitely.
+_tOverallTimeout(IN := TRUE);
+_tOverallTimeout();
+IF _tOverallTimeout.Q THEN
+	THIS^.AssertTrue(FALSE, 'Demo timed out before telemetry story completed');
+	TcUnit.TEST_FINISHED();
+	RETURN;
+END_IF
+
+// Generate unique GUIDs for trace/span IDs before building any telemetry.
+IF NOT _bGuidsReady THEN
+	_fbCreateGuid(
+		bExecute        := NOT _bGuidsStarted,
+		sNetId          := '',
+		tTimeout        := T#2S,
+		pGuidBuffer     := ADR(_arrGuids),
+		nGuidBufferSize := SIZEOF(_arrGuids)
+	);
+	_bGuidsStarted := TRUE;
+
+	IF NOT _fbCreateGuid.bBusy AND _bGuidsStarted THEN
+		IF _fbCreateGuid.bError THEN
+			THIS^.AssertTrue(FALSE, 'FB_CreateGUID failed - cannot generate trace/span IDs');
+			TcUnit.TEST_FINISHED();
+			RETURN;
+		END_IF
+		// Extract trace ID (16 bytes from GUID[0]) and span IDs (8 bytes each from GUID[1..3])
+		MEMCPY(ADR(_arrTraceId), ADR(_arrGuids[0]), 16);
+		MEMCPY(ADR(_arrIgnitionSpanId), ADR(_arrGuids[1]), 8);
+		MEMCPY(ADR(_arrPumpSpanId), ADR(_arrGuids[2]), 8);
+		MEMCPY(ADR(_arrValveSpanId), ADR(_arrGuids[3]), 8);
+		_bGuidsReady := TRUE;
+	END_IF
+	RETURN;
+END_IF
+
+CASE _step OF
+	0:
+		// Base timestamp = current time in Unix nanoseconds.
+		// All span/event times use synthetic offsets from this base so the
+		// trace waterfall cascades over ~10 simulated seconds instantly.
+		nT0 := (F_GetSystemTime() - ULINT#116444736000000000) * ULINT#100;
+
+		// ═════════════════════════════════════════════════════════════
+		// TRACES — three ResourceSpans (one per service), cascading
+		// ═════════════════════════════════════════════════════════════
+
+		// ── Ignition service: root span 0s → 10s ────────────────────
+		pResourceSpans := _tracesData.AddResourceSpans();
+		pResource := __NEW(FB_OtlpResource);
+		pResource^.AddStringAttribute('service.name', 'ignition');
+		pResourceSpans^.pResource := pResource;
+		pScopeSpans := pResourceSpans^.AddScopeSpans();
+		pScope := __NEW(FB_OtlpInstrumentationScope);
+		pScope^.sName := 'tcotlp.demo';
+		pScope^.sVersion := '1.0.0';
+		pScopeSpans^.pScope := pScope;
+
+		pSpan := pScopeSpans^.AddSpans();
+		pSpan^.arrTraceId := _arrTraceId;
+		pSpan^.arrSpanId := _arrIgnitionSpanId;
+		pSpan^.sName := 'ignition.startup-request';
+		pSpan^.eKind := E_OtlpSpanKind.SPAN_KIND_SERVER;
+		pSpan^.nStartTimeUnixNano := nT0;
+		pSpan^.nEndTimeUnixNano := nT0 + (nOneSecNs * ULINT#10);
+		pSpan^.AddStringAttribute('user.name', 'operator.demo');
+
+		// ── Pump service: child of ignition, 1s → 9s ────────────────
+		pResourceSpans := _tracesData.AddResourceSpans();
+		pResource := __NEW(FB_OtlpResource);
+		pResource^.AddStringAttribute('service.name', 'high-service-pump');
+		pResourceSpans^.pResource := pResource;
+		pScopeSpans := pResourceSpans^.AddScopeSpans();
+		pScope := __NEW(FB_OtlpInstrumentationScope);
+		pScope^.sName := 'tcotlp.demo';
+		pScope^.sVersion := '1.0.0';
+		pScopeSpans^.pScope := pScope;
+
+		pSpan := pScopeSpans^.AddSpans();
+		pSpan^.arrTraceId := _arrTraceId;
+		pSpan^.arrSpanId := _arrPumpSpanId;
+		pSpan^.arrParentSpanId := _arrIgnitionSpanId;
+		pSpan^.sName := 'high-service-pump.startup';
+		pSpan^.eKind := E_OtlpSpanKind.SPAN_KIND_INTERNAL;
+		pSpan^.nStartTimeUnixNano := nT0 + (nOneSecNs * ULINT#1);
+		pSpan^.nEndTimeUnixNano := nT0 + (nOneSecNs * ULINT#9);
+		pSpan^.AddStringAttribute('unit.id', '1');
+
+		pEvent := pSpan^.AddEvents();
+		pEvent^.nTimeUnixNano := nT0 + (nOneSecNs * ULINT#1);
+		pEvent^.sName := 'pump.waiting-for-valve';
+		pEvent^.AddStringAttribute('unit.id', '1');
+
+		pEvent := pSpan^.AddEvents();
+		pEvent^.nTimeUnixNano := nT0 + (nOneSecNs * ULINT#8);
+		pEvent^.sName := 'pump.turned-on';
+		pEvent^.AddStringAttribute('unit.id', '1');
+
+		// ── Valve service: child of pump, 2s → 8s ───────────────────
+		pResourceSpans := _tracesData.AddResourceSpans();
+		pResource := __NEW(FB_OtlpResource);
+		pResource^.AddStringAttribute('service.name', 'high-service-valve');
+		pResourceSpans^.pResource := pResource;
+		pScopeSpans := pResourceSpans^.AddScopeSpans();
+		pScope := __NEW(FB_OtlpInstrumentationScope);
+		pScope^.sName := 'tcotlp.demo';
+		pScope^.sVersion := '1.0.0';
+		pScopeSpans^.pScope := pScope;
+
+		pSpan := pScopeSpans^.AddSpans();
+		pSpan^.arrTraceId := _arrTraceId;
+		pSpan^.arrSpanId := _arrValveSpanId;
+		pSpan^.arrParentSpanId := _arrPumpSpanId;
+		pSpan^.sName := 'high-service-valve.opening';
+		pSpan^.eKind := E_OtlpSpanKind.SPAN_KIND_INTERNAL;
+		pSpan^.nStartTimeUnixNano := nT0 + (nOneSecNs * ULINT#2);
+		pSpan^.nEndTimeUnixNano := nT0 + (nOneSecNs * ULINT#8);
+		pSpan^.AddStringAttribute('unit.id', '1');
+
+		pEvent := pSpan^.AddEvents();
+		pEvent^.nTimeUnixNano := nT0 + (nOneSecNs * ULINT#2);
+		pEvent^.sName := 'valve.opening-started';
+		pEvent^.AddStringAttribute('unit.id', '1');
+
+		pEvent := pSpan^.AddEvents();
+		pEvent^.nTimeUnixNano := nT0 + (nOneSecNs * ULINT#5);
+		pEvent^.sName := 'valve.open.10-percent';
+		pEvent^.AddStringAttribute('unit.id', '1');
+		pEvent^.AddStringAttribute('elapsed.ms', '3000');
+
+		pEvent := pSpan^.AddEvents();
+		pEvent^.nTimeUnixNano := nT0 + (nOneSecNs * ULINT#8);
+		pEvent^.sName := 'valve.open.fully-open';
+		pEvent^.AddStringAttribute('unit.id', '1');
+		pEvent^.AddStringAttribute('elapsed.ms', '6000');
+
+		// ═════════════════════════════════════════════════════════════
+		// LOGS — three ResourceLogs, timestamps match trace offsets
+		// ═════════════════════════════════════════════════════════════
+
+		// ── Ignition logs ───────────────────────────────────────────
+		pResourceLogs := _logsData.AddResourceLogs();
+		pResource := __NEW(FB_OtlpResource);
+		pResource^.AddStringAttribute('service.name', 'ignition');
+		pResourceLogs^.pResource := pResource;
+		pScopeLogs := pResourceLogs^.AddScopeLogs();
+		pLogScope := __NEW(FB_OtlpInstrumentationScope);
+		pLogScope^.sName := 'tcotlp.demo';
+		pLogScope^.sVersion := '1.0.0';
+		pScopeLogs^.pScope := pLogScope;
+
+		pLogRecord := pScopeLogs^.AddLogRecords();
+		pLogRecord^.nTimeUnixNano := nT0;
+		pLogRecord^.nObservedTimeUnixNano := nT0;
+		pLogRecord^.eSeverityNumber := E_OtlpSeverityNumber.SEVERITY_NUMBER_INFO;
+		pLogRecord^.sSeverityText := 'INFO';
+		pLogRecord^.sEventName := 'ignition.request.received';
+		pLogRecord^.arrTraceId := _arrTraceId;
+		pLogRecord^.arrSpanId := _arrIgnitionSpanId;
+		pLogRecord^.AddStringAttribute('user.name', 'operator.demo');
+
+		// ── Pump logs ───────────────────────────────────────────────
+		pResourceLogs := _logsData.AddResourceLogs();
+		pResource := __NEW(FB_OtlpResource);
+		pResource^.AddStringAttribute('service.name', 'high-service-pump');
+		pResourceLogs^.pResource := pResource;
+		pScopeLogs := pResourceLogs^.AddScopeLogs();
+		pLogScope := __NEW(FB_OtlpInstrumentationScope);
+		pLogScope^.sName := 'tcotlp.demo';
+		pLogScope^.sVersion := '1.0.0';
+		pScopeLogs^.pScope := pLogScope;
+
+		pLogRecord := pScopeLogs^.AddLogRecords();
+		pLogRecord^.nTimeUnixNano := nT0 + (nOneSecNs * ULINT#1);
+		pLogRecord^.nObservedTimeUnixNano := nT0 + (nOneSecNs * ULINT#1);
+		pLogRecord^.eSeverityNumber := E_OtlpSeverityNumber.SEVERITY_NUMBER_INFO;
+		pLogRecord^.sSeverityText := 'INFO';
+		pLogRecord^.sEventName := 'high-service-pump.waiting-for-valve';
+		pLogRecord^.arrTraceId := _arrTraceId;
+		pLogRecord^.arrSpanId := _arrPumpSpanId;
+		pLogRecord^.AddStringAttribute('unit.id', '1');
+
+		pLogRecord := pScopeLogs^.AddLogRecords();
+		pLogRecord^.nTimeUnixNano := nT0 + (nOneSecNs * ULINT#8);
+		pLogRecord^.nObservedTimeUnixNano := nT0 + (nOneSecNs * ULINT#8);
+		pLogRecord^.eSeverityNumber := E_OtlpSeverityNumber.SEVERITY_NUMBER_INFO;
+		pLogRecord^.sSeverityText := 'INFO';
+		pLogRecord^.sEventName := 'high-service-pump.turned-on';
+		pLogRecord^.arrTraceId := _arrTraceId;
+		pLogRecord^.arrSpanId := _arrPumpSpanId;
+		pLogRecord^.AddStringAttribute('unit.id', '1');
+
+		// ── Valve logs ──────────────────────────────────────────────
+		pResourceLogs := _logsData.AddResourceLogs();
+		pResource := __NEW(FB_OtlpResource);
+		pResource^.AddStringAttribute('service.name', 'high-service-valve');
+		pResourceLogs^.pResource := pResource;
+		pScopeLogs := pResourceLogs^.AddScopeLogs();
+		pLogScope := __NEW(FB_OtlpInstrumentationScope);
+		pLogScope^.sName := 'tcotlp.demo';
+		pLogScope^.sVersion := '1.0.0';
+		pScopeLogs^.pScope := pLogScope;
+
+		pLogRecord := pScopeLogs^.AddLogRecords();
+		pLogRecord^.nTimeUnixNano := nT0 + (nOneSecNs * ULINT#2);
+		pLogRecord^.nObservedTimeUnixNano := nT0 + (nOneSecNs * ULINT#2);
+		pLogRecord^.eSeverityNumber := E_OtlpSeverityNumber.SEVERITY_NUMBER_INFO;
+		pLogRecord^.sSeverityText := 'INFO';
+		pLogRecord^.sEventName := 'high-service-valve.opening-started';
+		pLogRecord^.arrTraceId := _arrTraceId;
+		pLogRecord^.arrSpanId := _arrValveSpanId;
+		pLogRecord^.AddStringAttribute('unit.id', '1');
+
+		pLogRecord := pScopeLogs^.AddLogRecords();
+		pLogRecord^.nTimeUnixNano := nT0 + (nOneSecNs * ULINT#5);
+		pLogRecord^.nObservedTimeUnixNano := nT0 + (nOneSecNs * ULINT#5);
+		pLogRecord^.eSeverityNumber := E_OtlpSeverityNumber.SEVERITY_NUMBER_INFO;
+		pLogRecord^.sSeverityText := 'INFO';
+		pLogRecord^.sEventName := 'high-service-valve.opening-10-percent';
+		pLogRecord^.arrTraceId := _arrTraceId;
+		pLogRecord^.arrSpanId := _arrValveSpanId;
+		pLogRecord^.AddStringAttribute('unit.id', '1');
+		pLogRecord^.AddStringAttribute('elapsed.ms', '3000');
+
+		pLogRecord := pScopeLogs^.AddLogRecords();
+		pLogRecord^.nTimeUnixNano := nT0 + (nOneSecNs * ULINT#8);
+		pLogRecord^.nObservedTimeUnixNano := nT0 + (nOneSecNs * ULINT#8);
+		pLogRecord^.eSeverityNumber := E_OtlpSeverityNumber.SEVERITY_NUMBER_INFO;
+		pLogRecord^.sSeverityText := 'INFO';
+		pLogRecord^.sEventName := 'high-service-valve.fully-open';
+		pLogRecord^.arrTraceId := _arrTraceId;
+		pLogRecord^.arrSpanId := _arrValveSpanId;
+		pLogRecord^.AddStringAttribute('unit.id', '1');
+		pLogRecord^.AddStringAttribute('elapsed.ms', '6000');
+
+		// Configure exporters to send telemetry to SigNoz.
+		_traceExporter.sHostName := 'otlp.breakingthelaw.xyz';
+		_traceExporter.nHostPort := 4318;
+		_traceExporter.sUri := '/v1/traces';
+		_traceExporter.bNoServerCertCheck := TRUE;
+		_traceExporter.sCaCertPath := 'C:\Users\samue\Desktop\programming projects\TcOtlp\certs\isrg-root-x1.pem';
+
+		_logExporter.sHostName := 'otlp.breakingthelaw.xyz';
+		_logExporter.nHostPort := 4318;
+		_logExporter.sUri := '/v1/logs';
+		_logExporter.bNoServerCertCheck := TRUE;
+		_logExporter.sCaCertPath := 'C:\Users\samue\Desktop\programming projects\TcOtlp\certs\isrg-root-x1.pem';
+
+		_step := 1;
+
+	1:
+		// Export traces
+		IF NOT _bTraceExportStarted THEN
+			_traceExporter.Export(_tracesData);
+			_bTraceExportStarted := TRUE;
+			_nExportTimeout(IN := TRUE);
+		END_IF
+
+		_traceExporter();
+		_nExportTimeout();
+
+		IF _traceExporter.bDone THEN
+			THIS^.AssertTrue(_traceExporter.nHttpStatus >= 200 AND _traceExporter.nHttpStatus < 300,
+				CONCAT('Trace export expected 2xx, got ', UINT_TO_STRING(_traceExporter.nHttpStatus)));
+			_nExportTimeout(IN := FALSE);
+			_nExportTimeout();
+			_step := 2;
+		ELSIF _traceExporter.bError THEN
+			THIS^.AssertTrue(FALSE,
+				CONCAT('Trace export failed: ', _traceExporter.sLastError));
+			TcUnit.TEST_FINISHED();
+			RETURN;
+		ELSIF _nExportTimeout.Q THEN
+			THIS^.AssertTrue(FALSE, 'Trace export timed out after 10s');
+			TcUnit.TEST_FINISHED();
+			RETURN;
+		END_IF
+
+	2:
+		// Export logs
+		IF NOT _bLogExportStarted THEN
+			_logExporter.Export(_logsData);
+			_bLogExportStarted := TRUE;
+			_nExportTimeout(IN := TRUE);
+		END_IF
+
+		_logExporter();
+		_nExportTimeout();
+
+		IF _logExporter.bDone THEN
+			THIS^.AssertTrue(_logExporter.nHttpStatus >= 200 AND _logExporter.nHttpStatus < 300,
+				CONCAT('Log export expected 2xx, got ', UINT_TO_STRING(_logExporter.nHttpStatus)));
+			_tOverallTimeout(IN := FALSE);
+			_tOverallTimeout();
+			TcUnit.TEST_FINISHED();
+		ELSIF _logExporter.bError THEN
+			THIS^.AssertTrue(FALSE,
+				CONCAT('Log export failed: ', _logExporter.sLastError));
+			TcUnit.TEST_FINISHED();
+		ELSIF _nExportTimeout.Q THEN
+			THIS^.AssertTrue(FALSE, 'Log export timed out after 10s');
+			TcUnit.TEST_FINISHED();
+		END_IF
+END_CASE
+
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

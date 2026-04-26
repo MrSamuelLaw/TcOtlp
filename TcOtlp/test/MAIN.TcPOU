@@ -7,6 +7,7 @@ VAR
 	httpBatchLogExporterTestSuite: FB_HttpBatchLogExporterTestSuite();
 	httpLogExportIntegrationTest: FB_HttpLogExportIntegrationTest();
 	httpSpanExportIntegrationTest: FB_HttpSpanExportIntegrationTest();
+	processStartupTelemetryDemoTestSuite: FB_ProcessStartupTelemetryDemoTestSuite();
 END_VAR
 ]]></Declaration>
     <Implementation>

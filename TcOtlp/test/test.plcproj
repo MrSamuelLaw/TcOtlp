@@ -45,6 +45,9 @@
     <Compile Include="TEST_OTEL\TEST_EXPORTING\FB_HttpSpanExportIntegrationTest.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TEST_OTEL\TEST_DEMOS\FB_ProcessStartupTelemetryDemoTestSuite.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\AUTO_GENERATED\ENUMS\E_OtlpAnyValueType.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
@@ -142,6 +145,7 @@
     <Folder Include="OTEL\FUNCTION_BLOCKS"/>
     <Folder Include="TEST_OTEL"/>
     <Folder Include="TEST_OTEL\TEST_EXPORTING"/>
+    <Folder Include="TEST_OTEL\TEST_DEMOS"/>
     <Folder Include="TEST_OTEL\TEST_SERIALIZATION"/>
     <Folder Include="OTEL\AUTO_GENERATED\ENUMS"/>
     <Folder Include="OTEL\AUTO_GENERATED\INTERFACES"/>
