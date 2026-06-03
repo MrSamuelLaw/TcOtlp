@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Itf Name="I_AnyValue" Id="{fc55bdb3-176f-48d0-b16b-8f81387d6392}">
+    <Declaration><![CDATA[INTERFACE I_AnyValue
+]]></Declaration>
+    <Property Name="e_type" Id="{93be3d1e-bc55-433c-aff5-219b32efa5aa}">
+      <Declaration><![CDATA[PROPERTY e_type : E_ValueType]]></Declaration>
+      <Get Name="Get" Id="{1fe53f1f-9bfa-46a6-b341-4633639c944d}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Property Name="self" Id="{062a2415-3b25-4eb4-808c-7921eedb4007}">
+      <Declaration><![CDATA[PROPERTY self : PVOID]]></Declaration>
+      <Get Name="Get" Id="{65bbb363-6dec-4e83-a47c-2e0e134c6be3}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+  </Itf>
+</TcPlcObject>

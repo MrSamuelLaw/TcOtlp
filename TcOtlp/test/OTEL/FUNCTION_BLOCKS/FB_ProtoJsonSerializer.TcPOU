@@ -1,0 +1,79 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_ProtoJsonSerializer" Id="{932f076d-7af8-433b-a20e-1bed32694275}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_ProtoJsonSerializer
+
+VAR_OUTPUT
+	parser: FB_JsonDynDomParser;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="serializeLogRecords" Id="{b8a8c67a-1965-4a40-a234-bd6d6547456b}">
+      <Declaration><![CDATA[METHOD serializeLogRecords : SJsonValue
+VAR_IN_OUT
+	head: ST_LogRecordNode;
+END_VAR
+
+VAR
+	_idx: UDINT := 0;
+	_buf: STRING;
+	_obj: SJsonValue;
+	_pNode: POINTER TO ST_LogRecordNode;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// initialize the object
+serializeLogRecords := THIS^.parser.NewDocument();
+THIS^.parser.SetArray(serializeLogRecords, 0);
+
+// serialize the logs one by one
+_pNode := ADR(head);
+FOR _idx := 0 TO 1000 DO
+	IF _pNode = 0 OR_ELSE _pNode^.ptr = 0 THEN
+		// return if pointer is no longer valid
+		RETURN;
+	ELSE
+		// create a json object and appent it to the array
+		_obj := THIS^.parser.PushbackJsonValue(serializeLogRecords, '{}');
+		// serailize the required fields
+		_buf := _pNode^.ptr^.severityText;
+		THIS^.parser.AddStringMember(_obj, 'severityText', _buf);
+		
+		// serialize the optional fields
+		THIS^.serializeStringValue(_obj, ADR('eventName'), _pNode^.ptr^.eventName);
+		
+		// move on to the next node
+		_pNode := _pNode^.nxt;
+	END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="serializeSpans" Id="{aa1207b8-620b-48a0-a58c-fb94253c5c1b}">
+      <Declaration><![CDATA[METHOD serializeSpans : SJsonValue
+VAR_IN_OUT
+	logRecords	: ARRAY [*] OF FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="serializeStringValue" Id="{a5d8f280-538f-436e-b57c-fc6ce9363756}">
+      <Declaration><![CDATA[METHOD serializeStringValue
+VAR_IN_OUT
+	v: SJsonValue;
+END_VAR
+VAR_INPUT
+	pKey: POINTER TO STRING;  // allows for any length of key
+	pVal: POINTER TO FB_StringValue;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pKey <> 0 AND_THEN pVal <> 0 AND_THEN  pVal^.pString <> 0 THEN
+	THIS^.parser.AddStringMember(v, pKey^, pVal^.pString^);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

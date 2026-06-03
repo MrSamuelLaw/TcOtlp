@@ -1,0 +1,53 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestProtoJsonSerializer" Id="{355aaa54-d854-4f5d-a742-3803c7661c44}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TestProtoJsonSerializer EXTENDS FB_TestSuite
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.TestSerializeLogRecord();]]></ST>
+    </Implementation>
+    <Method Name="TestSerializeLogRecord" Id="{432059f0-a68e-4217-85ac-25035b48c8cb}">
+      <Declaration><![CDATA[METHOD TestSerializeLogRecord : REFERENCE TO FB_Test
+VAR
+	ser: FB_ProtoJsonSerializer();
+	node:  ST_LogRecordNode;
+	arr: SJsonValue;
+	obj: SJsonValue;
+	mem: SJsonValue;
+	actStr: STRING;
+	expStr: STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test SerializeLogRecord');
+	// initialize the node pointer
+	node.ptr := __NEW(FB_LogRecord(
+		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG,
+		eventName:=0)
+	);
+	// serialize the log(s)
+	arr := ser.serializeLogRecords(node);
+	
+	// grab the first value from the array
+	obj := ser.parser.GetArrayValueByIdx(arr, 0);
+	
+	// do the checks
+	mem := ser.parser.FindMember(obj, 'severityText');
+	actStr := ser.parser.GetString(mem);
+	expStr := 'SEVERITY_NUMBER_DEBUG';
+	THIS^.AssertEquals_STRING(expStr, actStr, 'severityText does not serialzie correctly');
+	
+	
+	// clean up the node pointer
+	IF (node.ptr <> 0) THEN
+		__DELETE(node.ptr);
+	ELSE
+		THIS^.AssertTrue(node.ptr <> 0, 'Unexpected invalid ST_LogRecordNode pointer');
+	END_IF;
+
+TcUnit.TEST_FINISHED();
+]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

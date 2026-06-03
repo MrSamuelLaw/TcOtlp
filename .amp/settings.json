@@ -1,8 +1,7 @@
 {
   "amp.mcpServers": {
-     "signozmcp": {
-       "url": "http://signozmcp.breakingthelaw.xyz/mcp"
-     }
-  }
-  
+    //  "signozmcp": {
+    //    "url": "http://signozmcp.breakingthelaw.xyz/mcp"
+    //  }
+  } 
 }

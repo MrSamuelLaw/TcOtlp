@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestLogRecord" Id="{8169a373-6109-45e2-82a5-c987e1f2f647}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TestLogRecord EXTENDS FB_TestSuite
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.TestLogRecord();]]></ST>
+    </Implementation>
+    <Method Name="TestLogRecord" Id="{ecc71309-4ec8-4346-a2a8-71e632b9ed96}">
+      <Declaration><![CDATA[METHOD TestLogRecord : REFERENCE TO FB_Test
+VAR
+	pLogRecord: POINTER TO FB_LogRecord;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test LogRecord');
+	pLogRecord := __NEW(FB_LogRecord(
+		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_ERROR,
+		eventName:=ADR('LOG RECORD TEST')
+	));
+	IF pLogRecord <> 0 THEN
+		__DELETE(pLogRecord);
+	END_IF
+
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

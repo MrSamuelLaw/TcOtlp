@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_StringValue" Id="{29fbd388-5d87-497c-bbf9-7bd05aaf4955}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_StringValue EXTENDS FB_AnyValueMixin IMPLEMENTS I_AnyValue 
+VAR_OUTPUT
+	pString: POINTER TO STRING;
+	len: UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Property Name="e_type" Id="{7a917b77-2681-43bb-9b88-e95deea347a0}">
+      <Declaration><![CDATA[PROPERTY e_type : E_ValueType]]></Declaration>
+      <Get Name="Get" Id="{6de4a9ef-ba89-4edd-993e-02dd4f286833}">
+        <Declaration><![CDATA[
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[e_type := E_ValueType.E_StringValue;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="FB_Exit" Id="{435310b9-42ec-4f3e-8242-4e4b7d6f84f4}">
+      <Declaration><![CDATA[//FB_Exit must be implemented explicitly. If there is an implementation, then the
+//method is called before the controller removes the code of the function block instance
+//(implicit call). The return value is not evaluated.
+METHOD FB_Exit: BOOL
+VAR_INPUT
+    bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).  
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[__DELETE(THIS^.pString);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{c6da3bd3-1b80-4b65-a1c2-1f8fa4ee9dc6}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)   
+	pString: POINTER TO STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// an extra character is needed for the terminating character, which is a literal 0 just like "cstrings"
+THIS^.len := LEN2(pString) + 1;
+THIS^.pString := __NEW(BYTE, THIS^.len);
+MEMCPY(THIS^.pString, pString, THIS^.len);]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

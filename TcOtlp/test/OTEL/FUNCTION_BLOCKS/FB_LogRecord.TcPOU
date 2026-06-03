@@ -1,0 +1,58 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LogRecord" Id="{cc455288-1c9b-49ff-9835-96f0e748c0de}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_LogRecord
+VAR_INPUT
+	severityNumber: E_SeverityNumber;
+	eventName: POINTER TO FB_StringValue;
+END_VAR
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="FB_Exit" Id="{abe31f98-c1d5-4ef4-91e3-56059cf93707}">
+      <Declaration><![CDATA[//FB_Exit must be implemented explicitly. If there is an implementation, then the
+//method is called before the controller removes the code of the function block instance
+//(implicit call). The return value is not evaluated.
+METHOD FB_Exit: BOOL
+VAR_INPUT
+    bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).  
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^.eventName <> 0 THEN __DELETE(THIS^.eventName); END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{8ccf0625-4a21-4c44-9811-2620e095d968}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	severityNumber: E_SeverityNumber;
+	eventName: POINTER TO STRING := 0;  
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.severityNumber := severityNumber;
+IF eventName <> 0 THEN THIS^.eventName := __NEW(FB_StringValue(pString:=eventName)); END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="severityText" Id="{05c0c7ed-4dd1-46f2-b733-b4a1bc94ddcb}">
+      <Declaration><![CDATA[PROPERTY severityText : STRING(30)]]></Declaration>
+      <Get Name="Get" Id="{a6ea0245-a5cb-4691-8871-18ac3fb64ff9}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[severityText := TO_STRING(THIS^.severityNumber);]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+  </POU>
+</TcPlcObject>

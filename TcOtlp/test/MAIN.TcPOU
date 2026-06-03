@@ -3,10 +3,13 @@
   <POU Name="MAIN" Id="{1fa3e08a-8235-40d5-a330-62ab1eea7a52}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM MAIN
 VAR
+	fbTestLogRecord: FB_TestLogRecord();
+	fbTestManagedValue: FB_TestAnyValue();
+	fbTestProtoJsonSerializer: FB_TestProtoJsonSerializer();
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[TcUnit.RUN_IN_SEQUENCE();]]></ST>
+      <ST><![CDATA[TcUnit.RUN();]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

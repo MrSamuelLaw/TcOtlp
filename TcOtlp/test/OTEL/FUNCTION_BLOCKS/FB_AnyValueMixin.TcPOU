@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_AnyValueMixin" Id="{fa23aef4-03db-46f0-8771-757f9c0b52ec}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK ABSTRACT FB_AnyValueMixin
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Property Name="self" Id="{851b5bc4-fa66-45a9-9a4f-1632051f2364}">
+      <Declaration><![CDATA[PROPERTY self : PVOID]]></Declaration>
+      <Get Name="Get" Id="{a203eea4-91b0-4683-808e-622aa3814ad0}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[self := THIS;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+  </POU>
+</TcPlcObject>
