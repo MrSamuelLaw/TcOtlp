@@ -1,0 +1,65 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestFileExporter" Id="{652c2ccf-e368-4316-b865-a55144794447}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TestFileExporter EXTENDS FB_TestSuite
+VAR
+	_node:  ST_LogRecordLinkedListNode;
+	_exporter: FB_LogRecordFileExporter;
+	_cycles: UDINT;
+	_initialized: BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.TestExportLogRecord();]]></ST>
+    </Implementation>
+    <Method Name="TestExportLogRecord" Id="{62c42b19-8451-4cb9-878c-1813787327e9}">
+      <Declaration><![CDATA[METHOD TestExportLogRecord : REFERENCE TO FB_Test]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test FileExportLogRecord');
+	// initialize the data
+	IF NOT _initialized THEN
+		_node.ptr := __NEW(FB_LogRecord(
+			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG,
+			eventName:=0)
+		);
+		_cycles := 0;
+		_initialized := TRUE;
+	END_IF
+	
+	IF _node.ptr = 0 THEN
+		THIS^.AssertTrue(FALSE, 'Failed to allocate test log record');
+		_initialized := FALSE;
+		TcUnit.TEST_FINISHED();
+		RETURN;
+	END_IF
+
+	_exporter(
+		filepath := 'C:\Users\samue\Desktop\programming projects\TcOtlp\logs.jsonl',
+		head:=_node,
+		execute:=TRUE
+	);
+	_cycles := _cycles + 1;
+
+	IF _exporter.currentState = E_FileExporterState.error THEN
+		THIS^.AssertTrue(FALSE, 'FB_LogRecordFileExporter failed to open the log file');
+	ELSIF _cycles > GVL.MAX_INSTANCES THEN
+		THIS^.AssertTrue(FALSE, 'Timed out waiting for FB_LogRecordFileExporter to finish');
+	ELSIF _exporter.currentState = E_FileExporterState.idle AND _cycles = 1 THEN
+		RETURN;
+	ELSIF _exporter.currentState <> E_FileExporterState.idle THEN
+		RETURN;
+	END_IF
+
+	// clean up the node pointer
+	IF (_node.ptr <> 0) THEN
+		__DELETE(_node.ptr);
+	ELSE
+		THIS^.AssertTrue(_node.ptr <> 0, 'Unexpected invalid ST_LogRecordNode pointer');
+	END_IF
+	_initialized := FALSE;
+	_cycles := 0;
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

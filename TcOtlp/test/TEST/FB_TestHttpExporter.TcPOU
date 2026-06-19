@@ -1,0 +1,50 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestHttpExporter" Id="{081006c6-8828-46ba-97aa-66676c3e7cb0}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TestHttpExporter EXTENDS FB_TestSuite
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.TestExportLogRecord();]]></ST>
+    </Implementation>
+    <Method Name="TestExportLogRecord" Id="{ec2a4b08-3d56-4642-abdb-2a48eaa4b55a}">
+      <Declaration><![CDATA[METHOD TestExportLogRecord : REFERENCE TO FB_Test
+VAR
+	ser: FB_BaseProtoJsonSerializer();
+	node:  ST_LogRecordLinkedListNode;
+	arr: SJsonValue;
+	obj: SJsonValue;
+	mem: SJsonValue;
+	actStr: STRING;
+	expStr: STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test SerializeLogRecord');
+	// initialize the node pointer
+	node.ptr := __NEW(FB_LogRecord(
+		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG,
+		eventName:=0)
+	);
+	// serialize the log(s)
+	arr := ser.serializeLogRecords(node);
+	
+	// grab the first value from the array
+	obj := ser.parser.GetArrayValueByIdx(arr, 0);
+	
+	// do the checks
+	
+	
+	
+	// clean up the node pointer
+	IF (node.ptr <> 0) THEN
+		__DELETE(node.ptr);
+	ELSE
+		THIS^.AssertTrue(node.ptr <> 0, 'Unexpected invalid ST_LogRecordNode pointer');
+	END_IF;
+
+TcUnit.TEST_FINISHED();
+]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

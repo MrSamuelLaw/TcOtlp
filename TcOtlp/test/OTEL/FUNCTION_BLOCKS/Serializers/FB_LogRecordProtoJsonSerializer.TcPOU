@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LogRecordProtoJsonSerializer" Id="{9d5713d1-8fd3-47fe-b5ed-3ec522cca7f6}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProtoJsonSerializer EXTENDS FB_BaseProtoJsonSerializer
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="serializeLogRecords" Id="{c8755357-2d5c-4040-a054-202bb0d2153c}">
+      <Declaration><![CDATA[METHOD serializeLogRecords
+
+VAR_INPUT
+	head: ST_LogRecordLinkedListNode;
+END_VAR
+
+VAR
+	_idx: UDINT := 0;
+	_buf: STRING;
+	_obj: SJsonValue;
+	_pNode: POINTER TO ST_LogRecordLinkedListNode;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.jsonVal := THIS^.parser.NewDocument();
+THIS^.parser.SetArray(THIS^.jsonVal, 0);
+
+// serialize the logs one by one
+_pNode := ADR(head);
+FOR _idx := 0 TO GVL.MAX_INSTANCES DO
+	IF _pNode = 0 OR_ELSE _pNode^.ptr = 0 THEN
+		// return if pointer is no longer valid
+		RETURN;
+	ELSE
+		// create a json object and appent it to the array
+		_obj := THIS^.parser.PushbackJsonValue(THIS^.jsonVal, '{}');
+		// serailize the required fields
+		_buf := _pNode^.ptr^.severityText;
+		THIS^.parser.AddStringMember(_obj, 'severityText', _buf);
+		
+		// serialize the optional fields
+		THIS^.serializeStringValue(_obj, ADR('eventName'), _pNode^.ptr^.eventName);
+		
+		// move on to the next node
+		_pNode := _pNode^.nxt;
+	END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

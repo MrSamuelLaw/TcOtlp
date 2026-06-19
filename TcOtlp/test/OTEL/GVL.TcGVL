@@ -2,7 +2,7 @@
 <TcPlcObject Version="1.1.0.1">
   <GVL Name="GVL" Id="{2c8a878d-5952-40c2-818b-cd6117aea204}">
     <Declaration><![CDATA[{attribute 'qualified_only'}
-VAR_GLOBAL
+VAR_GLOBAL CONSTANT
 	MAX_INSTANCES: UDINT := 1000;
 END_VAR]]></Declaration>
   </GVL>

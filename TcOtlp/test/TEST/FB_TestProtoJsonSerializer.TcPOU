@@ -9,8 +9,8 @@
     <Method Name="TestSerializeLogRecord" Id="{432059f0-a68e-4217-85ac-25035b48c8cb}">
       <Declaration><![CDATA[METHOD TestSerializeLogRecord : REFERENCE TO FB_Test
 VAR
-	ser: FB_ProtoJsonSerializer();
-	node:  ST_LogRecordNode;
+	ser: FB_LogRecordProtoJsonSerializer();
+	node:  ST_LogRecordLinkedListNode;
 	arr: SJsonValue;
 	obj: SJsonValue;
 	mem: SJsonValue;
@@ -26,10 +26,10 @@ END_VAR
 		eventName:=0)
 	);
 	// serialize the log(s)
-	arr := ser.serializeLogRecords(node);
+	ser.serializeLogRecords(node);
 	
 	// grab the first value from the array
-	obj := ser.parser.GetArrayValueByIdx(arr, 0);
+	obj := ser.parser.GetArrayValueByIdx(ser.jsonVal, 0);
 	
 	// do the checks
 	mem := ser.parser.FindMember(obj, 'severityText');

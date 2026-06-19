@@ -1,0 +1,134 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LogRecordFileExporter" Id="{5851db96-6302-4f2a-9f8c-695c558b4c7f}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordFileExporter
+VAR_INPUT
+	filepath: 		T_MaxString;  // path to the root file
+	head: 			ST_LogRecordLinkedListNode;  // records to serialize
+	execute: BOOL;
+	// maxFileSize: 	UDINT;  // size at which to auto rotate the file
+	// maxFiles: 		UDINT;  // max number of files to keep in the rotation
+END_VAR
+
+VAR_OUTPUT
+	currentState: E_FileExporterState;
+	nErrId: UDINT;
+END_VAR
+
+VAR
+	_hFile: 		UINT;
+	_idx:			UDINT;
+	_len:			UDINT;
+	_execRTrig:		R_TRIG;
+	_pString:		POINTER TO STRING;
+	_obj:			SJsonValue;
+	_arrayPtr:		SJsonAIterator;
+	_arrayEnd:		SJsonAIterator;
+	_pNode: 		ST_LogRecordLinkedListNode;
+	_fileOpener: 	FB_FileOpen;
+	_fileWriter:	FB_FileWrite;
+	_fileCloser:	FB_FileClose;
+	_computedState: E_FileExporterState;
+	_statusCode: 	E_FileExporterErrorCode;
+	_serializer: 	FB_LogRecordProtoJsonSerializer;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[_execRTrig(CLK := execute);
+
+CASE currentState OF
+	E_FileExporterState.error:
+		_statusCode := E_FileExporterErrorCode.UNSET;
+		_computedState := E_FileExporterState.idle;
+		
+	E_FileExporterState.idle:
+		IF head.ptr <> 0 AND _execRTrig.Q THEN
+			nErrId := 0;
+			_computedState := E_FileExporterState.serializing;
+		END_IF
+		
+	E_FileExporterState.serializing:
+		_serializer.serializeLogRecords(head);
+		IF _serializer.jsonVal = 0 THEN
+			_statusCode := E_FileExporterErrorCode.SERIALIZATION_ERROR;
+			_computedState := E_FileExporterState.error;
+		ELSE
+			_computedState := E_FileExporterState.opening;
+		END_IF
+	
+	E_FileExporterState.opening:
+		IF _fileOpener.bError THEN
+			_statusCode := E_FileExporterErrorCode.FILE_OPEN_ERROR;
+			nErrId := _fileOpener.nErrId;
+			_computedState := E_FileExporterState.error;
+		ELSIF NOT _fileOpener.bBusy THEN
+			_hFile := _fileOpener.hFile;
+			_arrayPtr := _serializer.parser.ArrayBegin(_serializer.jsonVal);
+			_arrayEnd := _serializer.parser.ArrayEnd(_serializer.jsonVal);
+			_computedState := E_FileExporterState.buffering;
+		END_IF
+	
+	E_FileExporterState.buffering:
+		// cast the object to the string
+		_obj := _serializer.parser.GetArrayValue(_arrayPtr);
+		_len := _serializer.parser.GetJsonLength(_obj);  // this includes the null terminating character "0"
+		_pString := __NEW(BYTE, (_len + 1));  // + 1 for new line
+		_serializer.parser.CopyJson(_obj, _pString^, _len);
+		CONCAT2(_pString, ADR('$N'), _pString, _len + 1);
+		// increment the pointer and the counter
+		_arrayPtr := _serializer.parser.NextArray(_arrayPtr);
+		_idx := _idx + 1;
+		
+		_computedState := E_FileExporterState.writing;
+		
+	E_FileExporterState.writing:
+		// TODO: Add error handling
+		IF NOT _fileWriter.bBusy THEN
+			__DELETE(_pString);
+			IF _idx < GVL.MAX_INSTANCES AND _arrayPtr <> _arrayEnd THEN
+				_computedState := E_FileExporterState.buffering;
+			ELSE
+				_computedState := E_FileExporterState.closing;
+			END_IF
+		END_IF
+		
+	E_FileExporterState.closing:
+		// TODO: Add error handling
+		IF NOT _fileCloser.bBusy THEN
+			_computedState := E_FileExporterState.idle;
+		END_IF
+	
+END_CASE
+
+currentState := _computedState;
+
+
+IF currentState <= E_FileExporterState.serializing THEN _hFile := 0; END_IF
+IF currentState < E_FileExporterState.buffering THEN _idx := 0; END_IF
+
+
+_fileOpener(
+	sNetId := '',
+	sPathName := filepath,
+	bExecute := currentState = E_FileExporterState.opening,
+	nMode := FOPEN_MODEAPPEND OR FOPEN_MODETEXT,
+	ePath := PATH_GENERIC,
+	tTimeout := DEFAULT_ADS_TIMEOUT
+);
+
+_fileWriter(
+	hFile := _hfile,
+	bExecute := currentState = E_FileExporterState.writing,
+	pWriteBuff := _pString,
+	cbWriteLen := _len
+);
+
+_fileCloser(
+	hFile := _hFile,
+	bExecute := currentState = E_FileExporterState.closing
+);
+
+]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

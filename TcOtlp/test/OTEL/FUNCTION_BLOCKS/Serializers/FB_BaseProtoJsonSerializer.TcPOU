@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_BaseProtoJsonSerializer" Id="{932f076d-7af8-433b-a20e-1bed32694275}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_BaseProtoJsonSerializer
+
+VAR_OUTPUT
+	parser: FB_JsonDynDomParser;
+	jsonVal: SJsonValue;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="serializeStringValue" Id="{a5d8f280-538f-436e-b57c-fc6ce9363756}">
+      <Declaration><![CDATA[METHOD serializeStringValue
+VAR_IN_OUT
+	v: SJsonValue;
+END_VAR
+VAR_INPUT
+	pKey: POINTER TO STRING;  // allows for any length of key
+	pVal: POINTER TO FB_StringValue;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pKey <> 0 AND_THEN pVal <> 0 AND_THEN  pVal^.pString <> 0 THEN
+	THIS^.parser.AddStringMember(v, pKey^, pVal^.pString^);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

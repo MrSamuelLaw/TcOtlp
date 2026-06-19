@@ -21,25 +21,46 @@
     <Compile Include="MAIN.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\ENUMS\E_FileExporterErrorCode.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\ENUMS\E_FileExporterState.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\ENUMS\E_HttpExporterState.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\ENUMS\E_SeverityNumber.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\ENUMS\E_ValueType.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_AnyValueMixin.TcPOU">
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Exporters\FB_LogRecordFileExporter.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_ProtoJsonSerializer.TcPOU">
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Exporters\FB_LogRecordHttpExporter.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_LogRecord.TcPOU">
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Logs\FB_LogRecord.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_Span.TcPOU">
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Serializers\FB_LogRecordProtoJsonSerializer.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\FB_StringValue.TcPOU">
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Serializers\FB_SpanProtoJsonSerializer.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Serializers\FB_BaseProtoJsonSerializer.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Trace\FB_Span.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_AnyValueMixin.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_StringValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\GVL.TcGVL">
@@ -49,10 +70,13 @@
     <Compile Include="OTEL\INTERFACES\I_AnyValue.TcIO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\STRUCTS\ST_LogRecordNode.TcDUT">
+    <Compile Include="OTEL\STRUCTS\ST_LogRecordLinkedListNode.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="PlcTask.TcTTO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="TEST\FB_TestFileExporter.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TEST\FB_TestLogRecord.TcPOU">
@@ -64,10 +88,18 @@
     <Compile Include="TEST\FB_TestProtoJsonSerializer.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TEST\FB_TestHttpExporter.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="OTEL" />
     <Folder Include="OTEL\FUNCTION_BLOCKS" />
+    <Folder Include="OTEL\FUNCTION_BLOCKS\Exporters" />
+    <Folder Include="OTEL\FUNCTION_BLOCKS\Logs" />
+    <Folder Include="OTEL\FUNCTION_BLOCKS\Serializers" />
+    <Folder Include="OTEL\FUNCTION_BLOCKS\Trace" />
+    <Folder Include="OTEL\FUNCTION_BLOCKS\Values" />
     <Folder Include="OTEL\INTERFACES" />
     <Folder Include="OTEL\ENUMS" />
     <Folder Include="OTEL\FUNCTIONS" />
