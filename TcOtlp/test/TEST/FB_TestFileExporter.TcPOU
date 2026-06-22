@@ -2,62 +2,104 @@
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_TestFileExporter" Id="{652c2ccf-e368-4316-b865-a55144794447}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_TestFileExporter EXTENDS FB_TestSuite
-VAR
-	_node:  ST_LogRecordLinkedListNode;
-	_exporter: FB_LogRecordFileExporter;
-	_cycles: UDINT;
-	_initialized: BOOL;
-END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[THIS^.TestExportLogRecord();]]></ST>
     </Implementation>
     <Method Name="TestExportLogRecord" Id="{62c42b19-8451-4cb9-878c-1813787327e9}">
-      <Declaration><![CDATA[METHOD TestExportLogRecord : REFERENCE TO FB_Test]]></Declaration>
+      <Declaration><![CDATA[METHOD TestExportLogRecord : REFERENCE TO FB_Test
+
+VAR_INST
+	_cycles: 		UDINT;
+	_state:			USINT;
+	_fileFinder: 	FB_EnumFindFileEntry;
+	_fileDeleter:	FB_FileDelete;
+	_node:  		ST_LogRecordLinkedListNode;
+	_exporter: 		FB_LogRecordFileExporter;
+END_VAR
+
+VAR CONSTANT
+	_filepath: STRING := 'C:\Users\samue\Desktop\programming projects\TcOtlp\logs.jsonl';
+END_VAR
+
+VAR
+	fileSize: ULINT;
+END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test FileExportLogRecord');
-	// initialize the data
-	IF NOT _initialized THEN
-		_node.ptr := __NEW(FB_LogRecord(
-			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG,
-			eventName:=0)
-		);
-		_cycles := 0;
-		_initialized := TRUE;
-	END_IF
+	CASE _state OF
+		0: // initialization
+			_cycles := 0;
+			_node.ptr := __NEW(FB_LogRecord(
+				severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG,
+				eventName:=0)
+			);
+			// verify that the pointer is valid
+			IF _node.ptr <> 0 THEN
+				_state := 10;
+				RETURN;
+			ELSE
+				THIS^.AssertTrue(FALSE, 'Failed to allocate test log record');
+			END_IF
+			
+		10: // export
+			_exporter(
+				filepath:=_filepath,
+				head:=_node,
+				execute:=TRUE
+			);
+			_cycles := _cycles + 1;
+			IF _exporter.currentState <> E_FileExporterState.error THEN
+				IF _exporter.currentState = E_FileExporterState.idle THEN
+					// assert no errors occured
+					THIS^.AssertEquals_UDINT(0, _exporter.fileOpenerErrId, 'Unexpected file opener error');
+					THIS^.AssertEquals_UDINT(0, _exporter.fileWriterErrId, 'Unexpected file writer error');
+					THIS^.AssertEquals_UDINT(0, _exporter.fileCloserErrId, 'Unexpected file closer error');
+					_state := 20;
+				END_IF
+				RETURN;
+			ELSIF _exporter.currentState = E_FileExporterState.error THEN
+				THIS^.AssertTrue(FALSE, 'FB_LogRecordFileExporter failed to export logs to file');
+			ELSIF _cycles > GVL.MAX_INSTANCES THEN
+				THIS^.AssertTrue(FALSE, 'Timed out waiting for FB_LogRecordFileExporter to finish');
+			END_IF
+			
+		20: // verify file is non-empty
+			_fileFinder(
+				sPathName:=_filepath,
+				bExecute:=TRUE,
+			);
+			IF NOT _fileFinder.bBusy THEN
+				fileSize := ULARGE_TO_ULINT(_fileFinder.stFindFile.fileSize);
+				THIS^.AssertTrue(fileSize > 0, 'File size = 0, expected non-empty file');
+				_state := 30;
+			END_IF
+			RETURN;
+		
+		30: // cleanup the file
+			_fileDeleter(
+				sPathName:=_filepath,
+				bExecute:=TRUE,
+			);
+			IF _fileDeleter.bBusy THEN
+				RETURN;
+			END_IF
+	END_CASE
 	
-	IF _node.ptr = 0 THEN
-		THIS^.AssertTrue(FALSE, 'Failed to allocate test log record');
-		_initialized := FALSE;
-		TcUnit.TEST_FINISHED();
-		RETURN;
-	END_IF
-
-	_exporter(
-		filepath := 'C:\Users\samue\Desktop\programming projects\TcOtlp\logs.jsonl',
-		head:=_node,
-		execute:=TRUE
-	);
-	_cycles := _cycles + 1;
-
-	IF _exporter.currentState = E_FileExporterState.error THEN
-		THIS^.AssertTrue(FALSE, 'FB_LogRecordFileExporter failed to open the log file');
-	ELSIF _cycles > GVL.MAX_INSTANCES THEN
-		THIS^.AssertTrue(FALSE, 'Timed out waiting for FB_LogRecordFileExporter to finish');
-	ELSIF _exporter.currentState = E_FileExporterState.idle AND _cycles = 1 THEN
-		RETURN;
-	ELSIF _exporter.currentState <> E_FileExporterState.idle THEN
-		RETURN;
-	END_IF
-
+	
+	// assert that the test finished
+	THIS^.AssertEquals_USINT(30, _state, 'Test did not complete as expeected');
+	
 	// clean up the node pointer
 	IF (_node.ptr <> 0) THEN
 		__DELETE(_node.ptr);
 	ELSE
 		THIS^.AssertTrue(_node.ptr <> 0, 'Unexpected invalid ST_LogRecordNode pointer');
 	END_IF
-	_initialized := FALSE;
-	_cycles := 0;
+	
+	// reset the state
+	_state := 0;
+	
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

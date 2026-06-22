@@ -11,8 +11,11 @@ VAR_INPUT
 END_VAR
 
 VAR_OUTPUT
-	currentState: E_FileExporterState;
-	nErrId: UDINT;
+	currentState: 	E_FileExporterState;
+	errorCode:		E_FileExporterErrorCode;
+	fileOpenerErrId: 	UDINT;
+	fileWriterErrId: 	UDINT;
+	fileCloserErrId: 	UDINT;		
 END_VAR
 
 VAR
@@ -29,7 +32,6 @@ VAR
 	_fileWriter:	FB_FileWrite;
 	_fileCloser:	FB_FileClose;
 	_computedState: E_FileExporterState;
-	_statusCode: 	E_FileExporterErrorCode;
 	_serializer: 	FB_LogRecordProtoJsonSerializer;
 END_VAR
 ]]></Declaration>
@@ -37,20 +39,17 @@ END_VAR
       <ST><![CDATA[_execRTrig(CLK := execute);
 
 CASE currentState OF
-	E_FileExporterState.error:
-		_statusCode := E_FileExporterErrorCode.UNSET;
-		_computedState := E_FileExporterState.idle;
 		
-	E_FileExporterState.idle:
+	E_FileExporterState.idle, E_FileExporterState.error:
 		IF head.ptr <> 0 AND _execRTrig.Q THEN
-			nErrId := 0;
+			errorCode := E_FileExporterErrorCode.UNSET;
 			_computedState := E_FileExporterState.serializing;
 		END_IF
 		
 	E_FileExporterState.serializing:
 		_serializer.serializeLogRecords(head);
 		IF _serializer.jsonVal = 0 THEN
-			_statusCode := E_FileExporterErrorCode.SERIALIZATION_ERROR;
+			errorCode := E_FileExporterErrorCode.SERIALIZATION_ERROR;
 			_computedState := E_FileExporterState.error;
 		ELSE
 			_computedState := E_FileExporterState.opening;
@@ -58,8 +57,7 @@ CASE currentState OF
 	
 	E_FileExporterState.opening:
 		IF _fileOpener.bError THEN
-			_statusCode := E_FileExporterErrorCode.FILE_OPEN_ERROR;
-			nErrId := _fileOpener.nErrId;
+			errorCode := E_FileExporterErrorCode.FILE_OPEN_ERROR;
 			_computedState := E_FileExporterState.error;
 		ELSIF NOT _fileOpener.bBusy THEN
 			_hFile := _fileOpener.hFile;
@@ -115,19 +113,21 @@ _fileOpener(
 	ePath := PATH_GENERIC,
 	tTimeout := DEFAULT_ADS_TIMEOUT
 );
+fileOpenerErrId := _fileOpener.nErrId;
 
 _fileWriter(
-	hFile := _hfile,
+	hFile := _hFile,
 	bExecute := currentState = E_FileExporterState.writing,
 	pWriteBuff := _pString,
 	cbWriteLen := _len
 );
+fileWriterErrId := _fileWriter.nErrId;
 
 _fileCloser(
 	hFile := _hFile,
 	bExecute := currentState = E_FileExporterState.closing
 );
-
+fileCloserErrId := _fileCloser.nErrId;
 ]]></ST>
     </Implementation>
   </POU>
