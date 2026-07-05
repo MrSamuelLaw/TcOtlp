@@ -6,7 +6,11 @@
 {attribute 'to_string'}
 TYPE E_ValueType :
 (
-	E_StringValue := 0
+	E_StringValue := 0,
+	E_BytesValue,
+	E_TraceIdValue,
+	E_SpanIdValue,
+	E_AnyValue
 );
 END_TYPE
 ]]></Declaration>
@@ -17,6 +21,26 @@ END_TYPE
             <o>
               <v n="TextID">"E_StringValue"</v>
               <v n="TextDefault">"0"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"E_BytesValue"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"E_TraceIdValue"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"E_SpanIdValue"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"E_AnyValue"</v>
+              <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>

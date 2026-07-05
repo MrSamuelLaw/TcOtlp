@@ -4,8 +4,15 @@
     <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
 FUNCTION_BLOCK FB_LogRecord
 VAR_INPUT
+	// required values
 	severityNumber: E_SeverityNumber;
-	eventName: POINTER TO FB_StringValue;
+	timestamp: 		ULINT;
+	
+	// optional values
+	eventName: 	POINTER TO FB_StringValue;
+	traceId: 	POINTER TO FB_TraceIdValue;
+	spanId: 	POINTER TO FB_SpanIdValue;
+	// body: 		POINTER TO FB_AnyValue;
 END_VAR
 
 ]]></Declaration>
@@ -19,10 +26,12 @@ END_VAR
 METHOD FB_Exit: BOOL
 VAR_INPUT
     bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).  
-END_VAR
-]]></Declaration>
+END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF THIS^.eventName <> 0 THEN __DELETE(THIS^.eventName); END_IF]]></ST>
+        <ST><![CDATA[IF THIS^.eventName <> 0 THEN __DELETE(THIS^.eventName); END_IF
+IF THIS^.traceId <> 0 THEN __DELETE(THIS^.traceId); END_IF
+IF THIS^.spanId <> 0 THEN __DELETE(THIS^.spanId); END_IF
+// IF THIS^.body <> 0 THEN __DELETE(THIS^.body); END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Init" Id="{8ccf0625-4a21-4c44-9811-2620e095d968}">
@@ -34,13 +43,24 @@ METHOD FB_Init: BOOL
 VAR_INPUT
     bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
     bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	// required values
 	severityNumber: E_SeverityNumber;
-	eventName: POINTER TO STRING := 0;  
+	timestamp: 		ULINT;
+	// optional values
+	eventName: 	POINTER TO STRING := 0; 
+	traceId: 	POINTER TO BYTE := 0;   // should be 16 bytes long
+	spanId:		POINTER TO BYTE := 0;	// should be 8 bytes long
+// 	body: 		POINTER TO FB_AnyValue := 0;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[THIS^.severityNumber := severityNumber;
-IF eventName <> 0 THEN THIS^.eventName := __NEW(FB_StringValue(pString:=eventName)); END_IF]]></ST>
+        <ST><![CDATA[// required values
+THIS^.severityNumber := severityNumber;
+THIS^.timestamp := timestamp;
+// optional value with checks
+IF eventName <> 0 THEN THIS^.eventName := __NEW(FB_StringValue(pString:=eventName));  END_IF
+IF traceId <> 0 THEN THIS^.traceId := __NEW(FB_TraceIdValue(pBytes:=traceId)); END_IF
+IF spanId <> 0 THEN THIS^.spanId := __NEW(FB_SpanIdValue(pBytes:=spanId)); END_IF]]></ST>
       </Implementation>
     </Method>
     <Property Name="severityText" Id="{05c0c7ed-4dd1-46f2-b733-b4a1bc94ddcb}">

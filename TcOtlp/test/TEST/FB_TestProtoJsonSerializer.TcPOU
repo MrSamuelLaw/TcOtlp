@@ -14,6 +14,7 @@ VAR
 	arr: SJsonValue;
 	obj: SJsonValue;
 	mem: SJsonValue;
+	guid_: ARRAY [0..15] OF BYTE := [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
 	actStr: STRING;
 	expStr: STRING;
 END_VAR
@@ -23,8 +24,12 @@ END_VAR
 	// initialize the node pointer
 	node.ptr := __NEW(FB_LogRecord(
 		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG,
-		eventName:=0)
-	);
+		timestamp:=ULINT#1581452773000000789,
+		eventName:=ADR('Serialization Event'),
+		traceId:=ADR(guid_),
+		spanId:=0
+		// spanId:=ADR(guid_.Data4)
+	));
 	// serialize the log(s)
 	ser.serializeLogRecords(node);
 	
@@ -37,6 +42,10 @@ END_VAR
 	expStr := 'SEVERITY_NUMBER_DEBUG';
 	THIS^.AssertEquals_STRING(expStr, actStr, 'severityText does not serialzie correctly');
 	
+	mem := ser.parser.FindMember(obj, 'timeUnixNano');
+	actStr := ser.parser.GetString(mem);
+	expStr := '1581452773000000789';
+	THIS^.AssertEquals_STRING(expStr, actStr, 'timeUnixNano does not serialize correctly');
 	
 	// clean up the node pointer
 	IF (node.ptr <> 0) THEN

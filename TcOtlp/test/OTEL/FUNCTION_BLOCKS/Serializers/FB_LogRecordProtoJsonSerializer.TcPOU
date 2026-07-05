@@ -15,7 +15,7 @@ END_VAR
 
 VAR
 	_idx: UDINT := 0;
-	_buf: STRING;
+	_buf: T_MaxString;
 	_obj: SJsonValue;
 	_pNode: POINTER TO ST_LogRecordLinkedListNode;
 END_VAR]]></Declaration>
@@ -32,12 +32,17 @@ FOR _idx := 0 TO GVL.MAX_INSTANCES DO
 	ELSE
 		// create a json object and appent it to the array
 		_obj := THIS^.parser.PushbackJsonValue(THIS^.jsonVal, '{}');
+		
 		// serailize the required fields
-		_buf := _pNode^.ptr^.severityText;
+		_buf := _pNode^.ptr^.severityText;  // properties require intermediate variables
 		THIS^.parser.AddStringMember(_obj, 'severityText', _buf);
+		THIS^.serializeULINTValue(_obj, ADR('timeUnixNano'), _pNode^.ptr^.timestamp);
 		
 		// serialize the optional fields
 		THIS^.serializeStringValue(_obj, ADR('eventName'), _pNode^.ptr^.eventName);
+		THIS^.serializeTraceIdValue(_obj, ADR('traceId'), _pNode^.ptr^.traceId);
+		THIS^.serializeSpanIdValue(_obj, ADR('spanId'), _pNode^.ptr^.spanId);
+// 		THIS^.serializeAnyValue(_obj, ADR('body'), _pNode^.ptr^.body);
 		
 		// move on to the next node
 		_pNode := _pNode^.nxt;

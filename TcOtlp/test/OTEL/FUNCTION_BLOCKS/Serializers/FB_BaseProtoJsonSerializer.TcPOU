@@ -10,6 +10,97 @@ END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="_serializeBytes" Id="{07016bcd-d229-46fb-8e82-336747340800}">
+      <Declaration><![CDATA[METHOD _serializeBytes : BOOL
+VAR_INPUT
+	pBytes: 	POINTER TO BYTE;	// pointer to bytes to encode
+	nBytes: 	UDINT := 0;			// number of bytes to encode
+	pStr: 		POINTER TO STRING;  // location to put the encoded bytes
+	len:		UDINT;				// len of location to put the encoded bytes
+	encoding: 	E_BytesEncoding;	// encoding format
+END_VAR
+
+VAR
+	_idx: UDINT;
+	_nibble: BYTE;
+	_requiredLen: UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_serializeBytes := FALSE;
+
+IF pStr <> 0 AND len > 0 AND pBytes <> 0 AND nBytes > 0 THEN
+	_requiredLen := nBytes * 2;
+	IF len <= _requiredLen THEN
+		RETURN;
+	END_IF
+	
+	pStr^ := '';
+	// encode bytes to a STRING
+	CASE encoding OF
+		E_BytesEncoding.hex:
+			// Loop from 0 to len - 1 (Standard 0-based array boundary)
+            FOR _idx := 0 TO (nBytes - 1) DO 
+                // 1. Extract High Nibble (Upper 4 bits)
+                _nibble := SHR(pBytes[_idx], 4) AND 16#0F;
+                pStr^[(_idx * 2)] := SEL(_nibble < 10, _nibble + 16#37, _nibble + 16#30);  // ASCII '0' to '9' | ASCII 'A' to 'F'
+                // 2. Extract Low Nibble (Lower 4 bits)
+                _nibble := pBytes[_idx] AND 16#0F;
+				pStr^[(_idx * 2) + 1] := SEL(_nibble < 10, _nibble + 16#37, _nibble + 16#30);
+            END_FOR
+            
+            // 3. Force a Null-Terminator at the end of the string
+			pStr^[_requiredLen] := 0;
+			_serializeBytes := TRUE;
+	END_CASE
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="serializeBytesValue" Id="{df3da918-2675-4cca-b7e4-c1d3cee5cc40}">
+      <Declaration><![CDATA[METHOD serializeBytesValue
+VAR_IN_OUT
+	v: SJsonValue;
+END_VAR
+VAR_INPUT
+	pKey: POINTER TO STRING;
+	pVal: POINTER TO FB_BytesValue;
+END_VAR
+VAR
+	_idx: INT;
+	_encodedStr: T_MaxString;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF  pKey <> 0 AND pVal <> 0 AND_THEN pVal^.pBytes <> 0 THEN
+	THIS^._serializeBytes(pVal^.pBytes, pVal^.len, ADR(_encodedStr), SIZEOF(_encodedStr), E_BytesEncoding.base64);
+	THIS^.parser.AddStringMember(v, pKey^ ,_encodedStr);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="serializeSpanIdValue" Id="{9afc261b-39d5-4d44-b105-baf2b6a972f5}">
+      <Declaration><![CDATA[METHOD serializeSpanIdValue
+VAR_IN_OUT
+	v: SJsonValue;
+END_VAR
+VAR_INPUT
+	pKey: POINTER TO STRING;
+	pVal: POINTER TO FB_SpanIdValue;
+END_VAR
+VAR
+	_encodedStr: STRING(16);  // 2 * 8 bytes
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pKey <> 0 AND pVal <> 0 THEN
+	THIS^._serializeBytes(
+		ADR(pVal^.bytes), 
+		SIZEOF(pVal^.bytes), 
+		ADR(_encodedStr), 
+		SIZEOF(_encodedStr), 
+		E_BytesEncoding.hex
+	);
+	THIS^.parser.AddStringMember(v, pKey^ ,_encodedStr);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="serializeStringValue" Id="{a5d8f280-538f-436e-b57c-fc6ce9363756}">
       <Declaration><![CDATA[METHOD serializeStringValue
 VAR_IN_OUT
@@ -24,6 +115,54 @@ END_VAR
       <Implementation>
         <ST><![CDATA[IF pKey <> 0 AND_THEN pVal <> 0 AND_THEN  pVal^.pString <> 0 THEN
 	THIS^.parser.AddStringMember(v, pKey^, pVal^.pString^);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="serializeTraceIdValue" Id="{4de4eecb-e305-4f14-9eca-bec6bc920cae}">
+      <Declaration><![CDATA[METHOD serializeTraceIdValue
+VAR_IN_OUT
+	v: SJsonValue;
+END_VAR
+VAR_INPUT
+	pKey: POINTER TO STRING;
+	pVal: POINTER TO FB_TraceIdValue;
+END_VAR
+VAR
+	_encodedStr: STRING(32);  // 2 * 16 bytes
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pKey <> 0 AND pVal <> 0 THEN
+	THIS^._serializeBytes(
+		ADR(pVal^.bytes), 
+		SIZEOF(pVal^.bytes), 
+		ADR(_encodedStr), 
+		SIZEOF(_encodedStr),
+		E_BytesEncoding.hex	
+	);
+	THIS^.parser.AddStringMember(v, pKey^ ,_encodedStr);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="serializeULINTValue" Id="{ed77e117-47f8-424d-87e6-a60cdeac8a6d}">
+      <Declaration><![CDATA[METHOD serializeULINTValue
+VAR_IN_OUT
+	v: SJsonValue;
+END_VAR
+VAR_INPUT
+	pKey: POINTER TO STRING;  // allows for any length of key
+	val: ULINT;
+END_VAR
+VAR
+	_buf: STRING(20);  // 2^64 is max max value of ULINT which is 20 chars max
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pKey <> 0 THEN
+	// ProtoJSON encodes uint64/fixed64 values as decimal strings.
+	_buf := ULINT_TO_STRING(val);
+	THIS^.parser.AddStringMember(v, pKey^, _buf);
 END_IF]]></ST>
       </Implementation>
     </Method>

@@ -1,0 +1,165 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestOtlpValue" Id="{af6fe3bb-585a-451a-bfdf-1f4164768687}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TestOtlpValue EXTENDS FB_TestSuite
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.TestStringValue();
+THIS^.TestTraceIdValue();
+THIS^.TestSpanIdValue();]]></ST>
+    </Implementation>
+    <Method Name="TestSpanIdValue" Id="{20785b23-5401-4cfe-b8e4-280e09ef3a63}">
+      <Declaration><![CDATA[METHOD TestSpanIdValue : REFERENCE TO FB_Test
+VAR
+	_flag: BOOL;
+	_idx: USINT;
+	expected: ARRAY [0..spanIdLen-1] OF BYTE;
+	pValue: POINTER TO FB_SpanIdValue;
+	expectedType: E_ValueType := E_ValueType.E_SpanIdValue;
+	actualType: E_ValueType;
+	guid_: GUID;
+	anyValue: I_OtlpValue;
+END_VAR
+
+VAR CONSTANT
+	spanIdLen: USINT := 8;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test SpanIdValue');
+
+	
+	pValue := __NEW(FB_SpanIdValue(pBytes:=ADR(guid_)));
+ 	THIS^.AssertTrue(pValue <> 0, 'Unexpected null pointer when attempting to create a span id');
+ 	IF pValue <> 0 THEN
+		anyValue := pValue^;
+		// assert type is correct
+		actualType := anyValue.eType;
+		THIS^.AssertEquals(
+			expectedType,
+			actualType,
+			'Unexpected value type for span id.'
+		);
+		// test that the data is matches
+		MEMCPY(ADR(expected), ADR(guid_), spanIdLen);
+		THIS^.AssertEquals(
+			expected,
+			pValue^.bytes,
+			'span ids do not match'
+		);
+		// test that value is being copied and not referenced
+		guid_.Data1 := 5;
+		MEMCPY(ADR(expected), ADR(guid_), spanIdLen);
+		
+		_flag := TRUE;
+		FOR _idx := 0 TO spanIdLen-1 DO
+			IF pValue^.bytes[_idx] <> expected[_idx] THEN
+				_flag := FALSE;
+				EXIT;
+			END_IF
+		END_FOR
+		THIS^.AssertFalse(
+			_flag,
+			'span ids match when they shoudldn$'t'
+		);
+		
+		// cleanup data
+		__DELETE(pValue);
+ END_IF
+
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TestStringValue" Id="{2baeab92-0710-4fb0-9984-fda6a680188d}">
+      <Declaration><![CDATA[METHOD TestStringValue : REFERENCE TO FB_Test
+VAR
+	actual: STRING;
+	expected: STRING;
+	pValue: POINTER TO FB_StringValue;
+	anyValue: I_OtlpValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test StringValue');
+
+ pValue := __NEW(FB_StringValue(pString:=ADR('string literal')));
+ THIS^.AssertTrue(pValue <> 0, 'Unexpected null pointer when attempting to create a string');
+ IF pValue <> 0 THEN
+ 	anyValue := pValue^;
+ 	// test that the data is correct
+	actual := pValue^.pString^;
+	expected := 'string literal';
+	THIS^.AssertEquals(
+		expected,
+		actual,
+		'strings do not match'
+	);
+ 	__DELETE(pValue);
+ END_IF
+
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TestTraceIdValue" Id="{71948acc-8e48-4a1b-976e-fddbadfd085d}">
+      <Declaration><![CDATA[METHOD TestTraceIdValue : REFERENCE TO FB_Test
+VAR
+	_flag: BOOL;
+	_idx: USINT;
+	expected: ARRAY [0..traceIdLen-1] OF BYTE;
+	expectedType: E_ValueType := E_ValueType.E_TraceIdValue;
+	actualType: E_ValueType;
+	pValue: POINTER TO FB_TraceIdValue;
+	guid_: GUID;
+	anyValue: I_OtlpValue;
+END_VAR
+
+VAR CONSTANT
+	traceIdLen: USINT := 16;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test TraceIdValue');
+
+	
+	pValue := __NEW(FB_TraceIdValue(pBytes:=ADR(guid_)));
+ 	THIS^.AssertTrue(pValue <> 0, 'Unexpected null pointer when attempting to create a trace id');
+ 	IF pValue <> 0 THEN
+		anyValue := pValue^;
+		// assert type is correct
+		actualType := anyValue.eType;
+		THIS^.AssertEquals(
+			expectedType,
+			actualType,
+			'Unexpected value type for trace id.'
+		);
+		// test that the data is matches
+		MEMCPY(ADR(expected), ADR(guid_), traceIdLen);
+		THIS^.AssertEquals(
+			expected,
+			pValue^.bytes,
+			'trace ids do not match'
+		);
+		// test that value is being copied and not referenced
+		guid_.Data1 := 5;
+		MEMCPY(ADR(expected), ADR(guid_), traceIdLen);
+		
+		_flag := TRUE;
+		FOR _idx := 0 TO traceIdLen-1 DO
+			IF pValue^.bytes[_idx] <> expected[_idx] THEN
+				_flag := FALSE;
+				EXIT;
+			END_IF
+		END_FOR
+		THIS^.AssertFalse(
+			_flag,
+			'trace ids match when they shoudldn$'t'
+		);
+		
+		// cleanup data
+		__DELETE(pValue);
+ END_IF
+
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

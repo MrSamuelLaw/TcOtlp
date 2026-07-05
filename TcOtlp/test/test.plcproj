@@ -21,6 +21,9 @@
     <Compile Include="MAIN.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\ENUMS\E_BytesEncoding.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\ENUMS\E_FileExporterErrorCode.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
@@ -39,9 +42,6 @@
     <Compile Include="OTEL\FUNCTION_BLOCKS\Exporters\FB_LogRecordFileExporter.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Exporters\FB_LogRecordHttpExporter.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="OTEL\FUNCTION_BLOCKS\Logs\FB_LogRecord.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -57,10 +57,19 @@
     <Compile Include="OTEL\FUNCTION_BLOCKS\Trace\FB_Span.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_AnyValueMixin.TcPOU">
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_OtlpValueMixin.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_StringValue.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_BytesValue.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_TraceIdValue.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_SpanIdValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\GVL.TcGVL">
@@ -68,6 +77,9 @@
       <LinkAlways>true</LinkAlways>
     </Compile>
     <Compile Include="OTEL\INTERFACES\I_AnyValue.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\INTERFACES\I_OtlpValue.TcIO">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\STRUCTS\ST_LogRecordLinkedListNode.TcDUT">
@@ -82,13 +94,10 @@
     <Compile Include="TEST\FB_TestLogRecord.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="TEST\FB_TestAnyValue.TcPOU">
+    <Compile Include="TEST\FB_TestOtlpValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TEST\FB_TestProtoJsonSerializer.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="TEST\FB_TestHttpExporter.TcPOU">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>

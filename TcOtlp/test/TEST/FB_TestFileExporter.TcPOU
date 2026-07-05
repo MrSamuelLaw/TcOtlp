@@ -4,10 +4,14 @@
     <Declaration><![CDATA[FUNCTION_BLOCK FB_TestFileExporter EXTENDS FB_TestSuite
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[THIS^.TestExportLogRecord();]]></ST>
+      <ST><![CDATA[THIS^.TestExportLogRecord(cleanup:=FALSE);]]></ST>
     </Implementation>
     <Method Name="TestExportLogRecord" Id="{62c42b19-8451-4cb9-878c-1813787327e9}">
       <Declaration><![CDATA[METHOD TestExportLogRecord : REFERENCE TO FB_Test
+
+VAR_INPUT
+	cleanup: BOOL := TRUE;
+END_VAR
 
 VAR_INST
 	_cycles: 		UDINT;
@@ -23,17 +27,29 @@ VAR CONSTANT
 END_VAR
 
 VAR
-	fileSize: ULINT;
+	_fileSize: ULINT;
+	_guid: GUID;
+	_data1: DWORD := 123;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test FileExportLogRecord');
 	CASE _state OF
 		0: // initialization
+			_exporter(
+				filepath:=_filepath,
+				head:=_node,
+				execute:=FALSE
+			);
 			_cycles := 0;
+			_guid.Data1 := _data1;
 			_node.ptr := __NEW(FB_LogRecord(
 				severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG,
-				eventName:=0)
-			);
+				timestamp:=ULINT#1581452773000000789,
+				eventName:=ADR('TestSerializationEvent'),
+				traceId:=ADR(_guid),
+				spanId:=ADR(_guid.Data4)
+// 				body:=0
+			));
 			// verify that the pointer is valid
 			IF _node.ptr <> 0 THEN
 				_state := 10;
@@ -70,19 +86,21 @@ END_VAR]]></Declaration>
 				bExecute:=TRUE,
 			);
 			IF NOT _fileFinder.bBusy THEN
-				fileSize := ULARGE_TO_ULINT(_fileFinder.stFindFile.fileSize);
-				THIS^.AssertTrue(fileSize > 0, 'File size = 0, expected non-empty file');
+				_fileSize := ULARGE_TO_ULINT(_fileFinder.stFindFile.fileSize);
+				THIS^.AssertTrue(_fileSize > 0, 'File size = 0, expected non-empty file');
 				_state := 30;
 			END_IF
 			RETURN;
 		
 		30: // cleanup the file
-			_fileDeleter(
-				sPathName:=_filepath,
-				bExecute:=TRUE,
-			);
-			IF _fileDeleter.bBusy THEN
-				RETURN;
+			IF cleanup THEN
+				_fileDeleter(
+					sPathName:=_filepath,
+					bExecute:=TRUE,
+				);
+				IF _fileDeleter.bBusy THEN
+					RETURN;
+				END_IF
 			END_IF
 	END_CASE
 	
@@ -93,6 +111,7 @@ END_VAR]]></Declaration>
 	// clean up the node pointer
 	IF (_node.ptr <> 0) THEN
 		__DELETE(_node.ptr);
+		_node.ptr := 0;
 	ELSE
 		THIS^.AssertTrue(_node.ptr <> 0, 'Unexpected invalid ST_LogRecordNode pointer');
 	END_IF

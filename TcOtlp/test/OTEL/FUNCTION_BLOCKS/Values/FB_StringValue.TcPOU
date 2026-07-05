@@ -2,22 +2,20 @@
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_StringValue" Id="{29fbd388-5d87-497c-bbf9-7bd05aaf4955}" SpecialFunc="None">
     <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
-FUNCTION_BLOCK FB_StringValue EXTENDS FB_AnyValueMixin IMPLEMENTS I_AnyValue 
+FUNCTION_BLOCK FB_StringValue EXTENDS FB_OtlpValueMixin IMPLEMENTS I_AnyValue
 VAR_OUTPUT
 	pString: POINTER TO STRING;
 	len: UDINT;
-END_VAR
-]]></Declaration>
+END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Property Name="e_type" Id="{7a917b77-2681-43bb-9b88-e95deea347a0}">
-      <Declaration><![CDATA[PROPERTY e_type : E_ValueType]]></Declaration>
-      <Get Name="Get" Id="{6de4a9ef-ba89-4edd-993e-02dd4f286833}">
-        <Declaration><![CDATA[
-]]></Declaration>
+    <Property Name="eType" Id="{35797e98-a42e-407f-8287-a86a64bbf017}">
+      <Declaration><![CDATA[PROPERTY eType : E_ValueType]]></Declaration>
+      <Get Name="Get" Id="{771e5d83-1cc2-43e7-8c8a-6a444c95ac77}">
+        <Declaration><![CDATA[]]></Declaration>
         <Implementation>
-          <ST><![CDATA[e_type := E_ValueType.E_StringValue;]]></ST>
+          <ST><![CDATA[eType := E_ValueType.E_StringValue;]]></ST>
         </Implementation>
       </Get>
     </Property>
@@ -31,7 +29,10 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[__DELETE(THIS^.pString);]]></ST>
+        <ST><![CDATA[IF THIS^.pString <> 0 THEN
+	__DELETE(THIS^.pString);
+	THIS^.pString := 0;
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Init" Id="{c6da3bd3-1b80-4b65-a1c2-1f8fa4ee9dc6}">
@@ -42,7 +43,7 @@ END_VAR
 METHOD FB_Init: BOOL
 VAR_INPUT
     bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
-    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)   
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
 	pString: POINTER TO STRING;
 END_VAR
 ]]></Declaration>
