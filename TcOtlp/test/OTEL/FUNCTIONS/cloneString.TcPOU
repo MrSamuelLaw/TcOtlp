@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="cloneString" Id="{aafd7a8c-a9f9-40cb-8f77-6c08337d8e0e}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION cloneString : POINTER TO FB_String
+VAR_INPUT
+	pSrc: POINTER TO FB_String;
+END_VAR
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF pSrc <> 0 THEN
+	cloneString := __NEW(FB_String(pString:=pSrc^.pString));
+ELSE
+	cloneString := 0;
+END_IF]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

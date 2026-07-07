@@ -10,14 +10,14 @@
       <Declaration><![CDATA[METHOD serializeLogRecords
 
 VAR_INPUT
-	head: ST_LogRecordLinkedListNode;
+	head: ST_LinkedListNode_LogRecord;
 END_VAR
 
 VAR
 	_idx: UDINT := 0;
 	_buf: T_MaxString;
 	_obj: SJsonValue;
-	_pNode: POINTER TO ST_LogRecordLinkedListNode;
+	_pNode: POINTER TO ST_LinkedListNode_LogRecord;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[THIS^.jsonVal := THIS^.parser.NewDocument();
@@ -42,7 +42,7 @@ FOR _idx := 0 TO GVL.MAX_INSTANCES DO
 		THIS^.serializeStringValue(_obj, ADR('eventName'), _pNode^.ptr^.eventName);
 		THIS^.serializeTraceIdValue(_obj, ADR('traceId'), _pNode^.ptr^.traceId);
 		THIS^.serializeSpanIdValue(_obj, ADR('spanId'), _pNode^.ptr^.spanId);
-// 		THIS^.serializeAnyValue(_obj, ADR('body'), _pNode^.ptr^.body);
+		THIS^.serializeAnyValue(_obj, ADR('body'), _pNode^.ptr^.body);
 		
 		// move on to the next node
 		_pNode := _pNode^.nxt;

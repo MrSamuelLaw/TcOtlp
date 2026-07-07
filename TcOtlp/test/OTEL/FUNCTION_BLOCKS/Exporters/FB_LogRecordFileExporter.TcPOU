@@ -4,7 +4,7 @@
     <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordFileExporter
 VAR_INPUT
 	filepath: 		T_MaxString;  // path to the root file
-	head: 			ST_LogRecordLinkedListNode;  // records to serialize
+	head: 			ST_LinkedListNode_LogRecord;  // records to serialize
 	execute: BOOL;
 	// maxFileSize: 	UDINT;  // size at which to auto rotate the file
 	// maxFiles: 		UDINT;  // max number of files to keep in the rotation
@@ -27,7 +27,7 @@ VAR
 	_obj:			SJsonValue;
 	_arrayPtr:		SJsonAIterator;
 	_arrayEnd:		SJsonAIterator;
-	_pNode: 		ST_LogRecordLinkedListNode;
+	_pNode: 		ST_LinkedListNode_LogRecord;
 	_fileOpener: 	FB_FileOpen;
 	_fileWriter:	FB_FileWrite;
 	_fileCloser:	FB_FileClose;

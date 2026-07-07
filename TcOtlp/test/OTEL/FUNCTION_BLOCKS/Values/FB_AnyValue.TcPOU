@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_AnyValue" Id="{ded18306-68d2-4405-b771-761d4aa3f677}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK ABSTRACT FB_AnyValue EXTENDS FB_OtlpValueMixin IMPLEMENTS I_OtlpValue
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="delete" Id="{86d3a7ce-6868-4d24-99f2-1892df9a286c}">
+      <Declaration><![CDATA[METHOD ABSTRACT delete
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="eType" Id="{516a8d71-2631-45bf-9dd6-2becf5f4e651}">
+      <Declaration><![CDATA[PROPERTY ABSTRACT eType : E_ValueType]]></Declaration>
+      <Get Name="Get" Id="{7b0372bd-bf22-4369-8533-5ee73c5848f0}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+  </POU>
+</TcPlcObject>

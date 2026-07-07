@@ -18,7 +18,7 @@ VAR_INST
 	_state:			USINT;
 	_fileFinder: 	FB_EnumFindFileEntry;
 	_fileDeleter:	FB_FileDelete;
-	_node:  		ST_LogRecordLinkedListNode;
+	_node:  		ST_LinkedListNode_LogRecord;
 	_exporter: 		FB_LogRecordFileExporter;
 END_VAR
 
@@ -30,6 +30,10 @@ VAR
 	_fileSize: ULINT;
 	_guid: GUID;
 	_data1: DWORD := 123;
+	_pBody: POINTER TO FB_String;
+	_pVal: POINTER TO FB_String;
+	_pAttr: POINTER TO FB_KeyValue;
+	_head: ST_LinkedListNode_KeyValue;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test FileExportLogRecord');
@@ -42,13 +46,18 @@ END_VAR]]></Declaration>
 			);
 			_cycles := 0;
 			_guid.Data1 := _data1;
+			_pBody := __NEW(FB_String(pString:=ADR('This is a test for a string body')));
+			_pVal := __NEW(FB_String(pString:=ADR('pVal')));
+			_pAttr := __NEW(FB_KeyValue(pKey:=ADR('stats.duration'), pVal:=_pVal));
+			_head.ptr:=_pAttr;
 			_node.ptr := __NEW(FB_LogRecord(
 				severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG,
 				timestamp:=ULINT#1581452773000000789,
 				eventName:=ADR('TestSerializationEvent'),
 				traceId:=ADR(_guid),
-				spanId:=ADR(_guid.Data4)
-// 				body:=0
+				spanId:=ADR(_guid.Data4),
+				body:=_pBody,
+				attributes:=ADR(_head)
 			));
 			// verify that the pointer is valid
 			IF _node.ptr <> 0 THEN

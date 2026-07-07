@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="cloneAnyValue" Id="{40804519-e153-40c7-ad32-8f98734c6fc1}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION cloneAnyValue : POINTER TO FB_AnyValue
+VAR_INPUT
+	pSrc: POINTER TO FB_AnyValue;
+END_VAR
+VAR
+	_type: E_ValueType;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF pSrc <> 0 THEN
+	_type := pSrc^.eType;
+	CASE _type OF
+		E_ValueType.E_String:
+			cloneAnyValue := cloneString(pSrc);
+		E_ValueType.E_Bytes:
+			cloneAnyValue := cloneBytes(pSrc);
+		ELSE
+			cloneAnyValue := 0;
+	END_CASE
+ELSE
+	cloneAnyValue := 0;
+END_IF]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

@@ -10,25 +10,28 @@
       <Declaration><![CDATA[METHOD TestSerializeLogRecord : REFERENCE TO FB_Test
 VAR
 	ser: FB_LogRecordProtoJsonSerializer();
-	node:  ST_LogRecordLinkedListNode;
+	node:  ST_LinkedListNode_LogRecord;
 	arr: SJsonValue;
 	obj: SJsonValue;
 	mem: SJsonValue;
 	guid_: ARRAY [0..15] OF BYTE := [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
 	actStr: STRING;
 	expStr: STRING;
+	pBody: POINTER TO FB_String;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test SerializeLogRecord');
 	// initialize the node pointer
+	pBody := __NEW(FB_String(pString:=ADR('This is a body string value')));
 	node.ptr := __NEW(FB_LogRecord(
 		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG,
 		timestamp:=ULINT#1581452773000000789,
 		eventName:=ADR('Serialization Event'),
 		traceId:=ADR(guid_),
-		spanId:=0
-		// spanId:=ADR(guid_.Data4)
+		spanId:=0,
+		body:=pBody,
+		attributes:=0
 	));
 	// serialize the log(s)
 	ser.serializeLogRecords(node);

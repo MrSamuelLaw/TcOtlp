@@ -1,7 +1,0 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<TcPlcObject Version="1.1.0.1">
-  <Itf Name="I_AnyValue" Id="{c0f0ff74-2bb3-413c-81f8-cdd5aff1e8b0}">
-    <Declaration><![CDATA[INTERFACE I_AnyValue EXTENDS I_OtlpValue
-]]></Declaration>
-  </Itf>
-</TcPlcObject>

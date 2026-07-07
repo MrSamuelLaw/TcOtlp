@@ -1,20 +1,30 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_SpanIdValue" Id="{5bf3062c-d603-43ca-8490-cc9822c82385}" SpecialFunc="None">
+  <POU Name="FB_SpanId" Id="{5bf3062c-d603-43ca-8490-cc9822c82385}" SpecialFunc="None">
     <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
-FUNCTION_BLOCK FB_SpanIdValue EXTENDS FB_OtlpValueMixin IMPLEMENTS I_OtlpValue
+FUNCTION_BLOCK FB_SpanId EXTENDS FB_OtlpValueMixin IMPLEMENTS I_OtlpValue
 VAR_OUTPUT
 	bytes: ARRAY [0..7] OF BYTE;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="delete" Id="{e7cda35d-3a46-47f9-bedc-fb9f4eebf05c}">
+      <Declaration><![CDATA[METHOD delete
+VAR
+	pSelf: POINTER TO FB_SpanId;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[pSelf := THIS;
+__DELETE(pSelf);]]></ST>
+      </Implementation>
+    </Method>
     <Property Name="eType" Id="{386b755d-4227-473a-8d9f-1dcee7cc6d49}">
       <Declaration><![CDATA[PROPERTY eType : E_ValueType]]></Declaration>
       <Get Name="Get" Id="{43f7c6c3-7397-4194-ac11-7e0b8b201aec}">
         <Declaration><![CDATA[]]></Declaration>
         <Implementation>
-          <ST><![CDATA[eType := E_ValueType.E_SpanIdValue;]]></ST>
+          <ST><![CDATA[eType := E_ValueType.E_SpanId;]]></ST>
         </Implementation>
       </Get>
     </Property>

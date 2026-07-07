@@ -9,10 +9,12 @@ VAR_INPUT
 	timestamp: 		ULINT;
 	
 	// optional values
-	eventName: 	POINTER TO FB_StringValue;
-	traceId: 	POINTER TO FB_TraceIdValue;
-	spanId: 	POINTER TO FB_SpanIdValue;
-	// body: 		POINTER TO FB_AnyValue;
+	eventName: 	POINTER TO FB_String; 
+	traceId: 	POINTER TO FB_TraceId;
+	traceFlags: POINTER TO BYTE;
+	spanId: 	POINTER TO FB_SpanId;
+	body: 		POINTER TO FB_AnyValue;
+	attributes: POINTER TO ST_LinkedListNode_KeyValue;
 END_VAR
 
 ]]></Declaration>
@@ -25,13 +27,32 @@ END_VAR
 //(implicit call). The return value is not evaluated.
 METHOD FB_Exit: BOOL
 VAR_INPUT
-    bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).  
+    bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).
+END_VAR
+VAR
+	_idx: UDINT;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF THIS^.eventName <> 0 THEN __DELETE(THIS^.eventName); END_IF
-IF THIS^.traceId <> 0 THEN __DELETE(THIS^.traceId); END_IF
-IF THIS^.spanId <> 0 THEN __DELETE(THIS^.spanId); END_IF
-// IF THIS^.body <> 0 THEN __DELETE(THIS^.body); END_IF]]></ST>
+        <ST><![CDATA[IF THIS^.eventName <> 0 THEN THIS^.eventName^.delete(); END_IF
+IF THIS^.traceId <> 0 THEN THIS^.traceId^.delete(); END_IF
+IF THIS^.spanId <> 0 THEN THIS^.spanId^.delete(); END_IF
+IF THIS^.body <> 0 THEN THIS^.body^.delete(); END_IF
+// delete all the attributes
+IF THIS^.attributes <> 0 THEN
+	FOR _idx := 0 TO GVL.MAX_INSTANCES DO
+		// use an interface cast to delete the value
+		IF THIS^.attributes^.ptr <> 0 THEN 
+			THIS^.attributes^.ptr^.delete();
+			THIS^.attributes^.ptr := 0;
+		END_IF
+		// try to move to the next node otherwise exit
+		IF THIS^.attributes^.nxt <> 0 THEN
+			THIS^.attributes^.ptr := THIS^.attributes^.nxt;
+		ELSE
+			EXIT;
+		END_IF
+	END_FOR
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Init" Id="{8ccf0625-4a21-4c44-9811-2620e095d968}">
@@ -50,17 +71,21 @@ VAR_INPUT
 	eventName: 	POINTER TO STRING := 0; 
 	traceId: 	POINTER TO BYTE := 0;   // should be 16 bytes long
 	spanId:		POINTER TO BYTE := 0;	// should be 8 bytes long
-// 	body: 		POINTER TO FB_AnyValue := 0;
+	body: 		POINTER TO FB_AnyValue;
+	attributes: POINTER TO ST_LinkedListNode_KeyValue;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[// required values
 THIS^.severityNumber := severityNumber;
 THIS^.timestamp := timestamp;
-// optional value with checks
-IF eventName <> 0 THEN THIS^.eventName := __NEW(FB_StringValue(pString:=eventName));  END_IF
-IF traceId <> 0 THEN THIS^.traceId := __NEW(FB_TraceIdValue(pBytes:=traceId)); END_IF
-IF spanId <> 0 THEN THIS^.spanId := __NEW(FB_SpanIdValue(pBytes:=spanId)); END_IF]]></ST>
+
+// optional value with ptr checks
+IF eventName <> 0 THEN THIS^.eventName := __NEW(FB_String(pString:=eventName));  END_IF
+IF traceId <> 0 THEN THIS^.traceId := __NEW(FB_TraceId(pBytes:=traceId)); END_IF
+IF spanId <> 0 THEN THIS^.spanId := __NEW(FB_SpanId(pBytes:=spanId)); END_IF
+IF body <> 0 THEN THIS^.body := cloneAnyValue(body); END_IF
+IF attributes <> 0 THEN THIS^.attributes := cloneLinkedList_KeyValue(attributes); END_IF]]></ST>
       </Implementation>
     </Method>
     <Property Name="severityText" Id="{05c0c7ed-4dd1-46f2-b733-b4a1bc94ddcb}">

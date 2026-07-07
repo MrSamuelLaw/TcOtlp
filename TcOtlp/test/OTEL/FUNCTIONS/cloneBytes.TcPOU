@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="cloneBytes" Id="{7e39529e-baa4-47dd-9aab-95057f60cf23}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION cloneBytes : POINTER TO FB_Bytes
+VAR_INPUT
+	pSrc: POINTER TO FB_Bytes;
+END_VAR
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF pSrc <> 0 THEN
+	cloneBytes := __NEW(FB_Bytes(
+		pBytes:=pSrc^.pBytes,
+		nBytes:=pSrc^.nBytes
+	));
+ELSE
+	cloneBytes := 0;
+END_IF]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

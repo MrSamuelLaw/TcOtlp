@@ -4,18 +4,66 @@
     <Declaration><![CDATA[FUNCTION_BLOCK FB_TestOtlpValue EXTENDS FB_TestSuite
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[THIS^.TestStringValue();
-THIS^.TestTraceIdValue();
-THIS^.TestSpanIdValue();]]></ST>
+      <ST><![CDATA[THIS^.TestString();
+THIS^.TestTraceId();
+THIS^.TestSpanId();
+THIS^.TestKeyValue();]]></ST>
     </Implementation>
-    <Method Name="TestSpanIdValue" Id="{20785b23-5401-4cfe-b8e4-280e09ef3a63}">
-      <Declaration><![CDATA[METHOD TestSpanIdValue : REFERENCE TO FB_Test
+    <Method Name="TestKeyValue" Id="{acdf0ac0-9096-4212-a7b1-9f8272d53f53}">
+      <Declaration><![CDATA[METHOD TestKeyValue : REFERENCE TO FB_Test
+VAR
+	pKeyVal: POINTER TO FB_KeyValue;
+	pVal: POINTER TO FB_String;
+	anyValue: POINTER TO FB_AnyValue;
+	expectedType: E_ValueType := E_ValueType.E_KeyValue;
+	actualType: E_ValueType;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test KeyValue');
+	pVal := __NEW(FB_String(pString:=ADR('Value')));
+	pKeyVal := __NEW(FB_KeyValue(pKey:=ADR('Key'), pVal:=pVal));
+ 	IF pVal <> 0 AND pKeyVal <> 0 THEN
+		anyValue := pKeyVal;
+		// assert type is correct
+		actualType := anyValue^.eType;
+		THIS^.AssertEquals(
+			expectedType,
+			actualType,
+			'Unexpected value type for key value.'
+		);
+		// test that the data matches matches
+		THIS^.AssertEquals_STRING(
+			Actual:=pKeyVal^.pKey^,
+			Expected:='Key',
+			Message:='Unexpected Key Value'
+		);
+		pVal^.delete();
+		pVal := pKeyVal^.pVal;
+		THIS^.AssertEquals_STRING(
+			Actual:=pVal^.pString^,
+			Expected:='Value',
+			Message:='Unexpected Value'
+		);
+		// cleanup data
+	IF pKeyVal <> 0 THEN 
+		pKeyVal^.delete();
+	ELSIF pVal <> 0 THEN 
+		pVal^.delete();
+	END_IF
+	
+ END_IF
+
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TestSpanId" Id="{20785b23-5401-4cfe-b8e4-280e09ef3a63}">
+      <Declaration><![CDATA[METHOD TestSpanId : REFERENCE TO FB_Test
 VAR
 	_flag: BOOL;
 	_idx: USINT;
 	expected: ARRAY [0..spanIdLen-1] OF BYTE;
-	pValue: POINTER TO FB_SpanIdValue;
-	expectedType: E_ValueType := E_ValueType.E_SpanIdValue;
+	pValue: POINTER TO FB_SpanId;
+	expectedType: E_ValueType := E_ValueType.E_SpanId;
 	actualType: E_ValueType;
 	guid_: GUID;
 	anyValue: I_OtlpValue;
@@ -28,7 +76,7 @@ END_VAR]]></Declaration>
         <ST><![CDATA[TcUnit.TEST('Test SpanIdValue');
 
 	
-	pValue := __NEW(FB_SpanIdValue(pBytes:=ADR(guid_)));
+	pValue := __NEW(FB_SpanId(pBytes:=ADR(guid_)));
  	THIS^.AssertTrue(pValue <> 0, 'Unexpected null pointer when attempting to create a span id');
  	IF pValue <> 0 THEN
 		anyValue := pValue^;
@@ -69,22 +117,22 @@ END_VAR]]></Declaration>
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
-    <Method Name="TestStringValue" Id="{2baeab92-0710-4fb0-9984-fda6a680188d}">
-      <Declaration><![CDATA[METHOD TestStringValue : REFERENCE TO FB_Test
+    <Method Name="TestString" Id="{2baeab92-0710-4fb0-9984-fda6a680188d}">
+      <Declaration><![CDATA[METHOD TestString : REFERENCE TO FB_Test
 VAR
 	actual: STRING;
 	expected: STRING;
-	pValue: POINTER TO FB_StringValue;
-	anyValue: I_OtlpValue;
+	pValue: POINTER TO FB_String;
+	anyValue: POINTER TO FB_AnyValue;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test StringValue');
 
- pValue := __NEW(FB_StringValue(pString:=ADR('string literal')));
+ pValue := __NEW(FB_String(pString:=ADR('string literal')));
  THIS^.AssertTrue(pValue <> 0, 'Unexpected null pointer when attempting to create a string');
  IF pValue <> 0 THEN
- 	anyValue := pValue^;
+ 	anyValue := pValue;
  	// test that the data is correct
 	actual := pValue^.pString^;
 	expected := 'string literal';
@@ -99,15 +147,15 @@ END_VAR
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
-    <Method Name="TestTraceIdValue" Id="{71948acc-8e48-4a1b-976e-fddbadfd085d}">
-      <Declaration><![CDATA[METHOD TestTraceIdValue : REFERENCE TO FB_Test
+    <Method Name="TestTraceId" Id="{71948acc-8e48-4a1b-976e-fddbadfd085d}">
+      <Declaration><![CDATA[METHOD TestTraceId : REFERENCE TO FB_Test
 VAR
 	_flag: BOOL;
 	_idx: USINT;
 	expected: ARRAY [0..traceIdLen-1] OF BYTE;
-	expectedType: E_ValueType := E_ValueType.E_TraceIdValue;
+	expectedType: E_ValueType := E_ValueType.E_TraceId;
 	actualType: E_ValueType;
-	pValue: POINTER TO FB_TraceIdValue;
+	pValue: POINTER TO FB_TraceId;
 	guid_: GUID;
 	anyValue: I_OtlpValue;
 END_VAR
@@ -120,7 +168,7 @@ END_VAR
         <ST><![CDATA[TcUnit.TEST('Test TraceIdValue');
 
 	
-	pValue := __NEW(FB_TraceIdValue(pBytes:=ADR(guid_)));
+	pValue := __NEW(FB_TraceId(pBytes:=ADR(guid_)));
  	THIS^.AssertTrue(pValue <> 0, 'Unexpected null pointer when attempting to create a trace id');
  	IF pValue <> 0 THEN
 		anyValue := pValue^;

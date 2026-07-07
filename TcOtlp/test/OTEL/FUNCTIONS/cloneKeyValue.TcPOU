@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="cloneKeyValue" Id="{83032960-6a65-469d-afc9-0ee68677e7f2}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION cloneKeyValue : POINTER TO FB_KeyValue
+VAR_INPUT
+	pSrc: POINTER TO FB_KeyValue;
+END_VAR
+VAR
+	_pVal: POINTER TO FB_AnyValue;
+	clineKeyValue: POINTER TO FB_KeyValue;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF pSrc <> 0 THEN
+	_pVal := cloneAnyValue(pSrc^.pVal);
+	clineKeyValue := __NEW(FB_KeyValue(
+		pKey:=pSrc^.pKey,
+		pVal:=_pVal
+	));
+ELSE
+	cloneKeyValue := 0;
+END_IF]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

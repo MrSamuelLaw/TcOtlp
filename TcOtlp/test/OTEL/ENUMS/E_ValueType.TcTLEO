@@ -6,11 +6,12 @@
 {attribute 'to_string'}
 TYPE E_ValueType :
 (
-	E_StringValue := 0,
-	E_BytesValue,
-	E_TraceIdValue,
-	E_SpanIdValue,
-	E_AnyValue
+	E_String := 0,
+	E_Bytes,
+	E_TraceId,
+	E_SpanId,
+	E_AnyValue,
+	E_KeyValue
 );
 END_TYPE
 ]]></Declaration>
@@ -19,27 +20,32 @@ END_TYPE
         <o xml:space="preserve" t="TextListEnumerationTextListObject">
           <l n="TextList" t="ArrayList" cet="TextListRow">
             <o>
-              <v n="TextID">"E_StringValue"</v>
+              <v n="TextID">"E_String"</v>
               <v n="TextDefault">"0"</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
-              <v n="TextID">"E_BytesValue"</v>
+              <v n="TextID">"E_Bytes"</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
-              <v n="TextID">"E_TraceIdValue"</v>
+              <v n="TextID">"E_TraceId"</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
-              <v n="TextID">"E_SpanIdValue"</v>
+              <v n="TextID">"E_SpanId"</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
               <v n="TextID">"E_AnyValue"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"E_KeyValue"</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>

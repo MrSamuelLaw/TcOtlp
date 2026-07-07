@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="cloneLinkedList_KeyValue" Id="{ed06f09a-e2b0-45ca-bd8e-a77006306166}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION cloneLinkedList_KeyValue : POINTER TO ST_LinkedListNode_KeyValue
+VAR_INPUT
+	head: POINTER TO ST_LinkedListNode_KeyValue;
+END_VAR
+VAR
+	_idx: UDINT;
+	_node: POINTER TO ST_LinkedListNode_KeyValue;
+	_nxtNode: POINTER TO ST_LinkedListNode_KeyValue;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF head <> 0 AND_THEN head^.ptr <> 0 THEN
+	// initialize a new node and copy the value
+	cloneLinkedList_KeyValue := __NEW(ST_LinkedListNode_KeyValue);
+	cloneLinkedList_KeyValue^.ptr := cloneKeyValue(head^.ptr);
+	cloneLinkedList_KeyValue^.nxt := head^.nxt;
+	// iterate over populating the subsequent nodes
+	_node := cloneLinkedList_KeyValue;
+	FOR _idx := 0 TO GVL.MAX_INSTANCES DO
+		IF _node^.nxt <> 0 THEN
+			// create new node and copy values to it
+			_nxtNode := __NEW(ST_LinkedListNode_KeyValue);
+			_nxtNode^.ptr := cloneKeyValue(_node^.nxt^.ptr);
+			_nxtNode^.nxt := _node^.nxt^.nxt;
+			_node^.nxt := _nxtNode;
+			_node := _nxtNode;
+		ELSE
+			// when the nxt opinter is 0 the iteration is over so we can return
+			RETURN;
+		END_IF
+	END_FOR
+ELSE
+	cloneLinkedList_KeyValue := 0;
+END_IF]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

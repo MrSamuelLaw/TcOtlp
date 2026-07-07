@@ -1,0 +1,71 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_String" Id="{29fbd388-5d87-497c-bbf9-7bd05aaf4955}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_String EXTENDS FB_AnyValue IMPLEMENTS I_OtlpValue
+VAR_OUTPUT
+	pString: POINTER TO STRING;
+	len: UDINT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="delete" Id="{7f99e5b0-366a-49b5-ba45-4cdbaf429152}">
+      <Declaration><![CDATA[METHOD delete
+VAR
+	pSelf: POINTER TO FB_String;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[pSelf := THIS;
+__DELETE(pSelf);]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="eType" Id="{35797e98-a42e-407f-8287-a86a64bbf017}">
+      <Declaration><![CDATA[PROPERTY eType : E_ValueType]]></Declaration>
+      <Get Name="Get" Id="{771e5d83-1cc2-43e7-8c8a-6a444c95ac77}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[eType := E_ValueType.E_String;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="FB_Exit" Id="{435310b9-42ec-4f3e-8242-4e4b7d6f84f4}">
+      <Declaration><![CDATA[//FB_Exit must be implemented explicitly. If there is an implementation, then the
+//method is called before the controller removes the code of the function block instance
+//(implicit call). The return value is not evaluated.
+METHOD FB_Exit: BOOL
+VAR_INPUT
+    bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).  
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^.pString <> 0 THEN
+	__DELETE(THIS^.pString);
+	THIS^.pString := 0;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{c6da3bd3-1b80-4b65-a1c2-1f8fa4ee9dc6}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	pString: POINTER TO STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// an extra character is needed for the terminating character, which is a literal 0 just like "cstrings"
+// TODO, create a failing test case that causes issues when a null pString pointer is passed, then fix it.
+// IF pString <> 0 THEN
+	THIS^.len := LEN2(pString) + 1;
+	THIS^.pString := __NEW(BYTE, THIS^.len);
+	MEMCPY(THIS^.pString, pString, THIS^.len);
+// END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

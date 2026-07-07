@@ -1,25 +1,40 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_BytesValue" Id="{7df6c5c0-c120-4198-9271-cd924c58ec8e}" SpecialFunc="None">
+  <POU Name="FB_KeyValue" Id="{8780a23e-cbf3-48bf-8fff-1d17430936ad}" SpecialFunc="None">
     <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
-FUNCTION_BLOCK FB_BytesValue EXTENDS FB_OtlpValueMixin IMPLEMENTS I_OtlpValue
+FUNCTION_BLOCK FB_KeyValue EXTENDS FB_OtlpValueMixin IMPLEMENTS I_OtlpValue
 VAR_OUTPUT
-	pBytes: POINTER TO BYTE;
-	len: UDINT;
-END_VAR]]></Declaration>
+	pKey: POINTER TO STRING;
+	pVal: POINTER TO FB_AnyValue;
+END_VAR
+]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Property Name="eType" Id="{b608c525-022c-4018-b526-845392a0dbe6}">
-      <Declaration><![CDATA[PROPERTY eType : E_ValueType]]></Declaration>
-      <Get Name="Get" Id="{b59be21e-63a9-41a0-b508-4518e06bc8dc}">
-        <Declaration><![CDATA[]]></Declaration>
+    <Method Name="delete" Id="{72419ca3-b889-48b2-ba00-e715a127399e}">
+      <Declaration><![CDATA[METHOD delete
+VAR
+	pSelf: POINTER TO FB_KeyValue;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[pSelf := THIS;
+__DELETE(pSelf);]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="eType" Id="{c2e82dd7-6dca-4765-8d95-f8cdb21c0a06}">
+      <Declaration><![CDATA[{warning 'Add property implementation'}
+PROPERTY eType : E_ValueType
+]]></Declaration>
+      <Get Name="Get" Id="{2d2213cf-22e8-45af-948d-469cf23853fd}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
         <Implementation>
-          <ST><![CDATA[eType := E_ValueType.E_BytesValue;]]></ST>
+          <ST><![CDATA[eType := E_ValueType.E_KeyValue;]]></ST>
         </Implementation>
       </Get>
     </Property>
-    <Method Name="FB_Exit" Id="{1b45169c-e232-4e93-9e12-ff3cb5580298}">
+    <Method Name="FB_Exit" Id="{3e29dca2-c132-46d7-b434-02454cf38aee}">
       <Declaration><![CDATA[//FB_Exit must be implemented explicitly. If there is an implementation, then the
 //method is called before the controller removes the code of the function block instance
 //(implicit call). The return value is not evaluated.
@@ -29,13 +44,11 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF THIS^.pBytes <> 0 THEN
-	__DELETE(THIS^.pBytes);
-	THIS^.pBytes := 0;
-END_IF]]></ST>
+        <ST><![CDATA[IF THIS^.pKey <> 0 THEN __DELETE(THIS^.pKey); END_IF
+IF THIS^.pVal <> 0 THEN THIS^.pVal^.delete(); END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="FB_Init" Id="{45c74048-59f4-44fb-8f24-5dc2cdc9033c}">
+    <Method Name="FB_Init" Id="{0ded1b83-877d-444a-a70d-64070bc67700}">
       <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
 //The return value is not evaluated. For a specific influence, you can also declare the
 //methods explicitly and provide additional code there with the standard initialization
@@ -44,15 +57,22 @@ METHOD FB_Init: BOOL
 VAR_INPUT
     bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
     bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
-	len: UDINT;
-	pBytes: POINTER TO BYTE;
+	pKey: POINTER TO STRING;
+	pVal: POINTER TO FB_AnyValue;
 END_VAR
-]]></Declaration>
+VAR
+	_len: UDINT;
+END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[// an extra character is needed for the terminating character, which is a literal 0 just like "cstrings"
-THIS^.len := len;
-THIS^.pBytes := __NEW(BYTE, THIS^.len);
-MEMCPY(THIS^.pBytes, pBytes, THIS^.len);]]></ST>
+IF pKey <> 0 AND pVal <> 0 THEN
+	// assign pKey by copy
+	_len := LEN2(pKey) + 1;
+	THIS^.pKey := __NEW(BYTE, _len);
+	MEMCPY(THIS^.pKey, pKey, _len);
+	// assign the pointer
+	THIS^.pVal := cloneAnyValue(pVal);
+END_IF]]></ST>
       </Implementation>
     </Method>
   </POU>

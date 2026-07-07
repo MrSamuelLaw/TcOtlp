@@ -11,30 +11,24 @@
       <Declaration><![CDATA[METHOD TestLogRecord : REFERENCE TO FB_Test
 VAR
 	pLogRecord: POINTER TO FB_LogRecord;
-	pBody: POINTER TO FB_StringValue;
-// 	pAnyValue: POINTER TO FB_AnyValue;
+	pBody: POINTER TO FB_String;
 	guid_: GUID;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test LogRecord');
-// 	pBody := __NEW(FB_StringValue(pString:=ADR('This is the body for a log record')));
-// 	pAnyValue := __NEW(FB_AnyValue(value:=pBody));
-	IF pBody <> 0 THEN
-		pLogRecord := __NEW(FB_LogRecord(
-			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_ERROR,
-			timestamp:=ULINT#1581452773000000789,
-			eventName:=ADR('LOG RECORD TEST'),
-			traceId:= ADR(guid_),
-			spanId:= ADR(guid_.Data4)
-// 			body:=pBody^
-		));
-		IF pLogRecord <> 0 THEN
-			__DELETE(pLogRecord);
-		END_IF
-	END_IF
-	IF pBody <> 0 THEN
-		__DELETE(pBody);
+	pBody := __NEW(FB_String(pString:=ADR('This is the body for a log record')));
+	pLogRecord := __NEW(FB_LogRecord(
+		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_ERROR,
+		timestamp:=ULINT#1581452773000000789,
+		eventName:=ADR('LOG RECORD TEST'),
+		traceId:= ADR(guid_),
+		spanId:= ADR(guid_.Data4),
+		body:=pBody,
+		attributes:=0
+	));
+	IF pLogRecord <> 0 THEN
+		__DELETE(pLogRecord);
 	END_IF
 
 TcUnit.TEST_FINISHED();]]></ST>

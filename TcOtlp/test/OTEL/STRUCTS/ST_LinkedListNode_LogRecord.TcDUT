@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_LinkedListNode_LogRecord" Id="{35baa8d2-2a1f-4ad9-9ca5-92e0a2d59953}">
+    <Declaration><![CDATA[TYPE ST_LinkedListNode_LogRecord :
+STRUCT
+	ptr: POINTER TO FB_LogRecord;
+	nxt: POINTER TO ST_LinkedListNode_LogRecord;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

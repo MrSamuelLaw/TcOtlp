@@ -39,6 +39,21 @@
     <Compile Include="OTEL\ENUMS\E_ValueType.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\FUNCTIONS\cloneAnyValue.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\FUNCTIONS\cloneKeyValue.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\FUNCTIONS\cloneString.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\FUNCTIONS\cloneBytes.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\FUNCTIONS\cloneLinkedList_KeyValue.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\FUNCTION_BLOCKS\Exporters\FB_LogRecordFileExporter.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -57,32 +72,38 @@
     <Compile Include="OTEL\FUNCTION_BLOCKS\Trace\FB_Span.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_AnyValue.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_KeyValue.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_OtlpValueMixin.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_StringValue.TcPOU">
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_String.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_BytesValue.TcPOU">
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_Bytes.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_TraceIdValue.TcPOU">
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_TraceId.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_SpanIdValue.TcPOU">
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_SpanId.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\GVL.TcGVL">
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
     </Compile>
-    <Compile Include="OTEL\INTERFACES\I_AnyValue.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="OTEL\INTERFACES\I_OtlpValue.TcIO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\STRUCTS\ST_LogRecordLinkedListNode.TcDUT">
+    <Compile Include="OTEL\STRUCTS\ST_LinkedListNode_KeyValue.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\STRUCTS\ST_LinkedListNode_LogRecord.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="PlcTask.TcTTO">

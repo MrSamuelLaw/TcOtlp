@@ -55,6 +55,34 @@ IF pStr <> 0 AND len > 0 AND pBytes <> 0 AND nBytes > 0 THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
+    <Method Name="serializeAnyValue" Id="{ce526a8b-754d-4e21-9b26-8200d43a6f87}">
+      <Declaration><![CDATA[METHOD serializeAnyValue : BOOL
+VAR_IN_OUT
+	v: SJsonValue;
+END_VAR
+VAR_INPUT
+	pKey: POINTER TO STRING;
+	pVal: POINTER TO FB_AnyValue;
+END_VAR
+VAR
+	_v: SJsonValue;
+	_type: E_ValueType;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pVal <> 0 THEN
+	_type := pVal^.eType;
+	CASE _type OF
+		E_ValueType.E_String:
+		// add a field with key = pKey
+		_v := THIS^.parser.AddObjectMember(v, pKey^);
+		// but the value needs to be 'dType: val' for example "body": {"stringValue": "my string value"}
+		THIS^.serializeStringValue(_v, ADR('stringValue'), pVal);
+	ELSE
+		//pass
+	END_CASE
+END_IF]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="serializeBytesValue" Id="{df3da918-2675-4cca-b7e4-c1d3cee5cc40}">
       <Declaration><![CDATA[METHOD serializeBytesValue
 VAR_IN_OUT
@@ -62,7 +90,7 @@ VAR_IN_OUT
 END_VAR
 VAR_INPUT
 	pKey: POINTER TO STRING;
-	pVal: POINTER TO FB_BytesValue;
+	pVal: POINTER TO FB_Bytes;
 END_VAR
 VAR
 	_idx: INT;
@@ -70,7 +98,7 @@ VAR
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF  pKey <> 0 AND pVal <> 0 AND_THEN pVal^.pBytes <> 0 THEN
-	THIS^._serializeBytes(pVal^.pBytes, pVal^.len, ADR(_encodedStr), SIZEOF(_encodedStr), E_BytesEncoding.base64);
+	THIS^._serializeBytes(pVal^.pBytes, pVal^.nBytes, ADR(_encodedStr), SIZEOF(_encodedStr), E_BytesEncoding.base64);
 	THIS^.parser.AddStringMember(v, pKey^ ,_encodedStr);
 END_IF]]></ST>
       </Implementation>
@@ -82,7 +110,7 @@ VAR_IN_OUT
 END_VAR
 VAR_INPUT
 	pKey: POINTER TO STRING;
-	pVal: POINTER TO FB_SpanIdValue;
+	pVal: POINTER TO FB_SpanId;
 END_VAR
 VAR
 	_encodedStr: STRING(16);  // 2 * 8 bytes
@@ -108,7 +136,7 @@ VAR_IN_OUT
 END_VAR
 VAR_INPUT
 	pKey: POINTER TO STRING;  // allows for any length of key
-	pVal: POINTER TO FB_StringValue;
+	pVal: POINTER TO FB_String;
 END_VAR
 
 ]]></Declaration>
@@ -125,7 +153,7 @@ VAR_IN_OUT
 END_VAR
 VAR_INPUT
 	pKey: POINTER TO STRING;
-	pVal: POINTER TO FB_TraceIdValue;
+	pVal: POINTER TO FB_TraceId;
 END_VAR
 VAR
 	_encodedStr: STRING(32);  // 2 * 16 bytes
