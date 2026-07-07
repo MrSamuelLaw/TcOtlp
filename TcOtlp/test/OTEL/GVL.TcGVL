@@ -3,7 +3,12 @@
   <GVL Name="GVL" Id="{2c8a878d-5952-40c2-818b-cd6117aea204}">
     <Declaration><![CDATA[{attribute 'qualified_only'}
 VAR_GLOBAL CONSTANT
-	MAX_INSTANCES: UDINT := 1000;
+	// OTLP specific limits
+	MAX_LOG_RECORDS: 	UDINT := 100;	// Maximum number of log records to buffer to
+	MAX_ATTRIBUTES: 	UDINT := 20;	// Maximum number of attributes allowed on a log record
+	MAX_STRING_LEN:		UDINT := 1023;	// Maximum length for the FB_String data
+	// Program/logic safety limits
+	MAX_LOOP_COUNT:		UDINT := 1000;  // Maximum iterations a for/while loop can have
 END_VAR]]></Declaration>
   </GVL>
 </TcPlcObject>

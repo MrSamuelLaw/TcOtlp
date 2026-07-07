@@ -52,10 +52,11 @@ END_VAR
 	
 	// clean up the node pointer
 	IF (node.ptr <> 0) THEN
-		__DELETE(node.ptr);
+		node.ptr^.delete();
 	ELSE
 		THIS^.AssertTrue(node.ptr <> 0, 'Unexpected invalid ST_LogRecordNode pointer');
 	END_IF;
+	IF pBody <> 0 THEN  pBody^.delete(); END_IF
 
 TcUnit.TEST_FINISHED();
 ]]></ST>

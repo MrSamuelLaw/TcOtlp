@@ -27,9 +27,8 @@ END_VAR
 		body:=pBody,
 		attributes:=0
 	));
-	IF pLogRecord <> 0 THEN
-		__DELETE(pLogRecord);
-	END_IF
+	IF pLogRecord <> 0 THEN pLogRecord^.delete(); END_IF
+	IF pBody <> 0 THEN pBody^.delete(); END_IF
 
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>

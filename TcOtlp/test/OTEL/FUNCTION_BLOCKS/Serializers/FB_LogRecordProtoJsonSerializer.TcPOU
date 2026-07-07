@@ -25,7 +25,7 @@ THIS^.parser.SetArray(THIS^.jsonVal, 0);
 
 // serialize the logs one by one
 _pNode := ADR(head);
-FOR _idx := 0 TO GVL.MAX_INSTANCES DO
+FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
 	IF _pNode = 0 OR_ELSE _pNode^.ptr = 0 THEN
 		// return if pointer is no longer valid
 		RETURN;

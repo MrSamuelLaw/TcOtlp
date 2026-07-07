@@ -12,14 +12,16 @@ VAR
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[IF head <> 0 AND_THEN head^.ptr <> 0 THEN
+      <ST><![CDATA[IF head = 0 OR_ELSE head^.ptr <> 0 THEN
+	cloneLinkedList_KeyValue := 0;
+ELSE
 	// initialize a new node and copy the value
 	cloneLinkedList_KeyValue := __NEW(ST_LinkedListNode_KeyValue);
 	cloneLinkedList_KeyValue^.ptr := cloneKeyValue(head^.ptr);
 	cloneLinkedList_KeyValue^.nxt := head^.nxt;
 	// iterate over populating the subsequent nodes
 	_node := cloneLinkedList_KeyValue;
-	FOR _idx := 0 TO GVL.MAX_INSTANCES DO
+	FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
 		IF _node^.nxt <> 0 THEN
 			// create new node and copy values to it
 			_nxtNode := __NEW(ST_LinkedListNode_KeyValue);
@@ -32,8 +34,6 @@ END_VAR
 			RETURN;
 		END_IF
 	END_FOR
-ELSE
-	cloneLinkedList_KeyValue := 0;
 END_IF]]></ST>
     </Implementation>
   </POU>

@@ -33,6 +33,9 @@
     <Compile Include="OTEL\ENUMS\E_HttpExporterState.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\ENUMS\E_LogRecordFlag.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\ENUMS\E_SeverityNumber.TcTLEO">
       <SubType>Code</SubType>
     </Compile>

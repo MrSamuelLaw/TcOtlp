@@ -34,6 +34,10 @@ VAR
 	_pVal: POINTER TO FB_String;
 	_pAttr: POINTER TO FB_KeyValue;
 	_head: ST_LinkedListNode_KeyValue;
+END_VAR
+
+VAR CONSTANT
+	MAX_CYCLES: UDINT := 1000;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test FileExportLogRecord');
@@ -59,6 +63,9 @@ END_VAR]]></Declaration>
 				body:=_pBody,
 				attributes:=ADR(_head)
 			));
+			IF _pBody <> 0 THEN _pBody^.delete(); END_IF
+			IF _pVal <> 0 THEN _pVal^.delete(); END_IF
+			IF _pAttr <> 0 THEN _pAttr^.delete(); END_IF
 			// verify that the pointer is valid
 			IF _node.ptr <> 0 THEN
 				_state := 10;
@@ -85,7 +92,7 @@ END_VAR]]></Declaration>
 				RETURN;
 			ELSIF _exporter.currentState = E_FileExporterState.error THEN
 				THIS^.AssertTrue(FALSE, 'FB_LogRecordFileExporter failed to export logs to file');
-			ELSIF _cycles > GVL.MAX_INSTANCES THEN
+			ELSIF _cycles > MAX_CYCLES THEN
 				THIS^.AssertTrue(FALSE, 'Timed out waiting for FB_LogRecordFileExporter to finish');
 			END_IF
 			

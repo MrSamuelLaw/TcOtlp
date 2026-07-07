@@ -83,7 +83,7 @@ CASE currentState OF
 		// TODO: Add error handling
 		IF NOT _fileWriter.bBusy THEN
 			__DELETE(_pString);
-			IF _idx < GVL.MAX_INSTANCES AND _arrayPtr <> _arrayEnd THEN
+			IF _idx < GVL.MAX_LOG_RECORDS AND _arrayPtr <> _arrayEnd THEN
 				_computedState := E_FileExporterState.buffering;
 			ELSE
 				_computedState := E_FileExporterState.closing;

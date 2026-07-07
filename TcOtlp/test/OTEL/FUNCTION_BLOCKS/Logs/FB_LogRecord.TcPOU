@@ -11,16 +11,28 @@ VAR_INPUT
 	// optional values
 	eventName: 	POINTER TO FB_String; 
 	traceId: 	POINTER TO FB_TraceId;
-	traceFlags: POINTER TO BYTE;
+	traceFlags: POINTER TO E_LogRecordFlag;
 	spanId: 	POINTER TO FB_SpanId;
 	body: 		POINTER TO FB_AnyValue;
 	attributes: POINTER TO ST_LinkedListNode_KeyValue;
+	// droppedAttributesCount: UDINT; while part of the schema, its not documented on the OTLP website or data model pages, so I did not implement it.
 END_VAR
 
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="delete" Id="{3cb201ad-0be2-4ce4-945f-e69f0fb01637}">
+      <Declaration><![CDATA[METHOD delete
+VAR
+	pSelf: POINTER TO FB_LogRecord;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[pSelf := THIS;
+__DELETE(pSelf);]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="FB_Exit" Id="{abe31f98-c1d5-4ef4-91e3-56059cf93707}">
       <Declaration><![CDATA[//FB_Exit must be implemented explicitly. If there is an implementation, then the
 //method is called before the controller removes the code of the function block instance
@@ -31,6 +43,7 @@ VAR_INPUT
 END_VAR
 VAR
 	_idx: UDINT;
+	_node: POINTER TO ST_LinkedListNode_KeyValue;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF THIS^.eventName <> 0 THEN THIS^.eventName^.delete(); END_IF
@@ -39,16 +52,18 @@ IF THIS^.spanId <> 0 THEN THIS^.spanId^.delete(); END_IF
 IF THIS^.body <> 0 THEN THIS^.body^.delete(); END_IF
 // delete all the attributes
 IF THIS^.attributes <> 0 THEN
-	FOR _idx := 0 TO GVL.MAX_INSTANCES DO
+	FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
 		// use an interface cast to delete the value
 		IF THIS^.attributes^.ptr <> 0 THEN 
 			THIS^.attributes^.ptr^.delete();
-			THIS^.attributes^.ptr := 0;
 		END_IF
 		// try to move to the next node otherwise exit
 		IF THIS^.attributes^.nxt <> 0 THEN
-			THIS^.attributes^.ptr := THIS^.attributes^.nxt;
+			_node := THIS^.attributes^.nxt;
+			__DELETE(THIS^.attributes);
+			THIS^.attributes := _node;
 		ELSE
+			__DELETE(THIS^.attributes);
 			EXIT;
 		END_IF
 	END_FOR
