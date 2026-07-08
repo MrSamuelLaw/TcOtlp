@@ -36,13 +36,17 @@ FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
 		// serailize the required fields
 		_buf := _pNode^.ptr^.severityText;  // properties require intermediate variables
 		THIS^.parser.AddStringMember(_obj, 'severityText', _buf);
-		THIS^.serializeULINTValue(_obj, ADR('timeUnixNano'), _pNode^.ptr^.timestamp);
+		THIS^.serializeFixed64Value(_obj, ADR('timeUnixNano'), _pNode^.ptr^.timestamp);
 		
 		// serialize the optional fields
 		THIS^.serializeStringValue(_obj, ADR('eventName'), _pNode^.ptr^.eventName);
 		THIS^.serializeTraceIdValue(_obj, ADR('traceId'), _pNode^.ptr^.traceId);
+		IF _pNode^.ptr^.traceFlags <> 0 THEN
+			THIS^.serializeFixed32Value(_obj, ADR('flags'), TO_UDINT(_pNode^.ptr^.traceFlags^));
+		END_IF
 		THIS^.serializeSpanIdValue(_obj, ADR('spanId'), _pNode^.ptr^.spanId);
 		THIS^.serializeAnyValue(_obj, ADR('body'), _pNode^.ptr^.body);
+		THIS^.serializeKeyValues(_obj, ADR('attributes'), _pNode^.ptr^.attributes);
 		
 		// move on to the next node
 		_pNode := _pNode^.nxt;

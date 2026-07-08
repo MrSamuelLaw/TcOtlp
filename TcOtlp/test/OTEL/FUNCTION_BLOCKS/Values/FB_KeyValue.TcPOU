@@ -22,9 +22,7 @@ __DELETE(pSelf);]]></ST>
       </Implementation>
     </Method>
     <Property Name="eType" Id="{c2e82dd7-6dca-4765-8d95-f8cdb21c0a06}">
-      <Declaration><![CDATA[{warning 'Add property implementation'}
-PROPERTY eType : E_ValueType
-]]></Declaration>
+      <Declaration><![CDATA[PROPERTY eType : E_ValueType]]></Declaration>
       <Get Name="Get" Id="{2d2213cf-22e8-45af-948d-469cf23853fd}">
         <Declaration><![CDATA[VAR
 END_VAR

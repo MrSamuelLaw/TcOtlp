@@ -23,6 +23,7 @@ END_VAR
 		timestamp:=ULINT#1581452773000000789,
 		eventName:=ADR('LOG RECORD TEST'),
 		traceId:= ADR(guid_),
+		traceFlags:=0,
 		spanId:= ADR(guid_.Data4),
 		body:=pBody,
 		attributes:=0

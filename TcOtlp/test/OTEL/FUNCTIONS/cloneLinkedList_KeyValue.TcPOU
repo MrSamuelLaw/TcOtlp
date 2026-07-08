@@ -12,7 +12,7 @@ VAR
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[IF head = 0 OR_ELSE head^.ptr <> 0 THEN
+      <ST><![CDATA[IF head = 0 OR_ELSE head^.ptr = 0 THEN
 	cloneLinkedList_KeyValue := 0;
 ELSE
 	// initialize a new node and copy the value

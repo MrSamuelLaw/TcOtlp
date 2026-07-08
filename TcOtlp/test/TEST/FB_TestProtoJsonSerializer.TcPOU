@@ -14,25 +14,40 @@ VAR
 	arr: SJsonValue;
 	obj: SJsonValue;
 	mem: SJsonValue;
+	attrArr: SJsonValue;
+	attrObj: SJsonValue;
 	guid_: ARRAY [0..15] OF BYTE := [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
 	actStr: STRING;
 	expStr: STRING;
+	actFlags: UDINT;
+	flags: E_LogRecordFlag := E_LogRecordFlag.LOG_RECORD_FLAGS_TRACE_FLAGS_MASK;
 	pBody: POINTER TO FB_String;
+	pVal: POINTER TO FB_String;
+	pAttr: POINTER TO FB_KeyValue;
+	head: ST_LinkedListNode_KeyValue;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test SerializeLogRecord');
 	// initialize the node pointer
 	pBody := __NEW(FB_String(pString:=ADR('This is a body string value')));
+	pVal := __NEW(FB_String(pString:=ADR('pVal')));
+	pAttr := __NEW(FB_KeyValue(pKey:=ADR('stats.duration'), pVal:=pVal));
+	head.ptr := pAttr;
 	node.ptr := __NEW(FB_LogRecord(
 		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG,
 		timestamp:=ULINT#1581452773000000789,
 		eventName:=ADR('Serialization Event'),
 		traceId:=ADR(guid_),
+		traceFlags:=ADR(flags),
 		spanId:=0,
 		body:=pBody,
-		attributes:=0
+		attributes:=ADR(head)
 	));
+	IF pVal <> 0 THEN pVal^.delete(); END_IF
+	IF pAttr <> 0 THEN pAttr^.delete(); END_IF
+	THIS^.AssertTrue(node.ptr^.attributes <> 0, 'Expected test log record to clone attributes');
+	THIS^.AssertTrue(node.ptr^.attributes^.ptr <> 0, 'Expected cloned attributes to contain a key/value');
 	// serialize the log(s)
 	ser.serializeLogRecords(node);
 	
@@ -49,6 +64,20 @@ END_VAR
 	actStr := ser.parser.GetString(mem);
 	expStr := '1581452773000000789';
 	THIS^.AssertEquals_STRING(expStr, actStr, 'timeUnixNano does not serialize correctly');
+	
+	mem := ser.parser.FindMember(obj, 'flags');
+	actFlags := ser.parser.GetUint(mem);
+	THIS^.AssertEquals_UDINT(255, actFlags, 'flags does not serialize correctly');
+	
+	attrArr := ser.parser.FindMember(obj, 'attributes');
+	attrObj := ser.parser.GetArrayValueByIdx(attrArr, 0);
+	mem := ser.parser.FindMember(attrObj, 'key');
+	actStr := ser.parser.GetString(mem);
+	THIS^.AssertEquals_STRING('stats.duration', actStr, 'attribute key does not serialize correctly');
+	mem := ser.parser.FindMember(attrObj, 'value');
+	mem := ser.parser.FindMember(mem, 'stringValue');
+	actStr := ser.parser.GetString(mem);
+	THIS^.AssertEquals_STRING('pVal', actStr, 'attribute value does not serialize correctly');
 	
 	// clean up the node pointer
 	IF (node.ptr <> 0) THEN

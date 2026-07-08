@@ -85,6 +85,7 @@ VAR_INPUT
 	// optional values
 	eventName: 	POINTER TO STRING := 0; 
 	traceId: 	POINTER TO BYTE := 0;   // should be 16 bytes long
+	traceFlags: POINTER TO E_LogRecordFlag := 0;
 	spanId:		POINTER TO BYTE := 0;	// should be 8 bytes long
 	body: 		POINTER TO FB_AnyValue;
 	attributes: POINTER TO ST_LinkedListNode_KeyValue;
@@ -98,6 +99,10 @@ THIS^.timestamp := timestamp;
 // optional value with ptr checks
 IF eventName <> 0 THEN THIS^.eventName := __NEW(FB_String(pString:=eventName));  END_IF
 IF traceId <> 0 THEN THIS^.traceId := __NEW(FB_TraceId(pBytes:=traceId)); END_IF
+IF traceFlags <> 0 THEN
+	THIS^.traceFlags := __NEW(E_LogRecordFlag);
+	IF THIS^.traceFlags <> 0 THEN THIS^.traceFlags^ := traceFlags^; END_IF
+END_IF
 IF spanId <> 0 THEN THIS^.spanId := __NEW(FB_SpanId(pBytes:=spanId)); END_IF
 IF body <> 0 THEN THIS^.body := cloneAnyValue(body); END_IF
 IF attributes <> 0 THEN THIS^.attributes := cloneLinkedList_KeyValue(attributes); END_IF]]></ST>

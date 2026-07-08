@@ -20,6 +20,7 @@ VAR_INST
 	_fileDeleter:	FB_FileDelete;
 	_node:  		ST_LinkedListNode_LogRecord;
 	_exporter: 		FB_LogRecordFileExporter;
+	_flags: E_LogRecordFlag := E_LogRecordFlag.LOG_RECORD_FLAGS_TRACE_FLAGS_MASK;
 END_VAR
 
 VAR CONSTANT
@@ -59,6 +60,7 @@ END_VAR]]></Declaration>
 				timestamp:=ULINT#1581452773000000789,
 				eventName:=ADR('TestSerializationEvent'),
 				traceId:=ADR(_guid),
+				traceFlags:=ADR(_flags),
 				spanId:=ADR(_guid.Data4),
 				body:=_pBody,
 				attributes:=ADR(_head)
@@ -68,6 +70,10 @@ END_VAR]]></Declaration>
 			IF _pAttr <> 0 THEN _pAttr^.delete(); END_IF
 			// verify that the pointer is valid
 			IF _node.ptr <> 0 THEN
+				THIS^.AssertTrue(_node.ptr^.traceFlags <> 0, 'Expected test log record to have trace flags');
+				THIS^.AssertEquals_UDINT(255, TO_UDINT(_node.ptr^.traceFlags^), 'Unexpected test log record trace flags');
+				THIS^.AssertTrue(_node.ptr^.attributes <> 0, 'Expected test log record to clone attributes');
+				THIS^.AssertTrue(_node.ptr^.attributes^.ptr <> 0, 'Expected cloned attributes to contain a key/value');
 				_state := 10;
 				RETURN;
 			ELSE

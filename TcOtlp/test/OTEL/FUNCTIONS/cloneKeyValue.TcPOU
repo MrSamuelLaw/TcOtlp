@@ -5,17 +5,12 @@
 VAR_INPUT
 	pSrc: POINTER TO FB_KeyValue;
 END_VAR
-VAR
-	_pVal: POINTER TO FB_AnyValue;
-	clineKeyValue: POINTER TO FB_KeyValue;
-END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[IF pSrc <> 0 THEN
-	_pVal := cloneAnyValue(pSrc^.pVal);
-	clineKeyValue := __NEW(FB_KeyValue(
+	cloneKeyValue := __NEW(FB_KeyValue(
 		pKey:=pSrc^.pKey,
-		pVal:=_pVal
+		pVal:=pSrc^.pVal
 	));
 ELSE
 	cloneKeyValue := 0;
