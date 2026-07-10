@@ -39,7 +39,7 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[THIS^.free();]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Init" Id="{92512704-d1be-4109-bc86-ea075a165ecc}">
@@ -55,7 +55,18 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[MEMCPY(ADR(THIS^.bytes), pBytes, 16);]]></ST>
+        <ST><![CDATA[IF pBytes <> 0 THEN
+	MEMCPY(ADR(THIS^.bytes), pBytes, 16);
+	THIS^._initialized := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{f2521e9b-00ca-4214-9c98-a50a3ee6d37e}">
+      <Declaration><![CDATA[METHOD free]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// just resets values to defaults
+MEMSET(ADR(THIS^.bytes), 0, SIZEOF(THIS^.bytes));
+THIS^._initialized := FALSE;]]></ST>
       </Implementation>
     </Method>
   </POU>

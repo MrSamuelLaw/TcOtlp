@@ -42,8 +42,7 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF THIS^.pKey <> 0 THEN __DELETE(THIS^.pKey); END_IF
-IF THIS^.pVal <> 0 THEN THIS^.pVal^.delete(); END_IF]]></ST>
+        <ST><![CDATA[THIS^.free();]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Init" Id="{0ded1b83-877d-444a-a70d-64070bc67700}">
@@ -65,12 +64,28 @@ END_VAR]]></Declaration>
         <ST><![CDATA[// an extra character is needed for the terminating character, which is a literal 0 just like "cstrings"
 IF pKey <> 0 AND pVal <> 0 THEN
 	// assign pKey by copy
-	_len := LEN2(pKey) + 1;
+	_len := MIN(LEN2(pKey), GVL.MAX_STRING_LEN) + 1;
 	THIS^.pKey := __NEW(BYTE, _len);
 	MEMCPY(THIS^.pKey, pKey, _len);
 	// assign the pointer
 	THIS^.pVal := cloneAnyValue(pVal);
 END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{f43303d8-cb9a-4788-90b7-d0e19760a4b9}">
+      <Declaration><![CDATA[(* deallocates all data owned by the value without deleting the object itself.*)
+METHOD free
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^.pKey <> 0 THEN
+	__DELETE(THIS^.pKey);
+	THIS^.pKey := 0;
+END_IF
+IF THIS^.pVal <> 0 THEN
+	THIS^.pVal^.delete();
+	THIS^.pVal := 0;
+END_IF
+THIS^._initialized := FALSE;]]></ST>
       </Implementation>
     </Method>
   </POU>

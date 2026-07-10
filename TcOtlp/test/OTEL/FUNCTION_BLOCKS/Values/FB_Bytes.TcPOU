@@ -39,10 +39,7 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF THIS^.pBytes <> 0 THEN
-	__DELETE(THIS^.pBytes);
-	THIS^.pBytes := 0;
-END_IF]]></ST>
+        <ST><![CDATA[THIS^.free();]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Init" Id="{45c74048-59f4-44fb-8f24-5dc2cdc9033c}">
@@ -63,6 +60,18 @@ END_VAR
 THIS^.nBytes := nBytes;
 THIS^.pBytes := __NEW(BYTE, THIS^.nBytes);
 MEMCPY(THIS^.pBytes, pBytes, THIS^.nBytes);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{d114e566-2b89-4629-bba6-a5034773194b}">
+      <Declaration><![CDATA[(* deallocates all data owned by the value without deleting the object itself.*)
+METHOD free
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^.pBytes <> 0 THEN
+	__DELETE(THIS^.pBytes);
+	THIS^.pBytes := 0;
+END_IF
+THIS^._initialized := FALSE;]]></ST>
       </Implementation>
     </Method>
   </POU>

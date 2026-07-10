@@ -60,18 +60,19 @@ END_VAR]]></Declaration>
 				timestamp:=ULINT#1581452773000000789,
 				eventName:=ADR('TestSerializationEvent'),
 				traceId:=ADR(_guid),
-				traceFlags:=ADR(_flags),
+				flags:=ADR(_flags),
 				spanId:=ADR(_guid.Data4),
 				body:=_pBody,
-				attributes:=ADR(_head)
+				attributes:=ADR(_head),
+				droppedAttributesCount:=0
 			));
 			IF _pBody <> 0 THEN _pBody^.delete(); END_IF
 			IF _pVal <> 0 THEN _pVal^.delete(); END_IF
 			IF _pAttr <> 0 THEN _pAttr^.delete(); END_IF
 			// verify that the pointer is valid
 			IF _node.ptr <> 0 THEN
-				THIS^.AssertTrue(_node.ptr^.traceFlags <> 0, 'Expected test log record to have trace flags');
-				THIS^.AssertEquals_UDINT(255, TO_UDINT(_node.ptr^.traceFlags^), 'Unexpected test log record trace flags');
+				THIS^.AssertTrue(_node.ptr^.flags <> 0, 'Expected test log record to have trace flags');
+				THIS^.AssertEquals_UDINT(255, TO_UDINT(_node.ptr^.flags^), 'Unexpected test log record trace flags');
 				THIS^.AssertTrue(_node.ptr^.attributes <> 0, 'Expected test log record to clone attributes');
 				THIS^.AssertTrue(_node.ptr^.attributes^.ptr <> 0, 'Expected cloned attributes to contain a key/value');
 				_state := 10;

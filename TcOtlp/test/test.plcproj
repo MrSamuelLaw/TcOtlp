@@ -24,9 +24,6 @@
     <Compile Include="OTEL\ENUMS\E_BytesEncoding.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\ENUMS\E_FileExporterErrorCode.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="OTEL\ENUMS\E_FileExporterState.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
@@ -37,6 +34,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\ENUMS\E_SeverityNumber.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\ENUMS\E_ValueFactoryStatus.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\ENUMS\E_ValueType.TcTLEO">
@@ -57,10 +57,16 @@
     <Compile Include="OTEL\FUNCTIONS\cloneLinkedList_KeyValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Common\FB_InstrumentationScope.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\FUNCTION_BLOCKS\Exporters\FB_LogRecordFileExporter.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\FUNCTION_BLOCKS\Logs\FB_LogRecord.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Logs\FB_ScopeLogs.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\FUNCTION_BLOCKS\Serializers\FB_LogRecordProtoJsonSerializer.TcPOU">
@@ -94,6 +100,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_SpanId.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\ValueFactory.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\GVL.TcGVL">
@@ -130,6 +139,7 @@
     <Folder Include="OTEL\FUNCTION_BLOCKS" />
     <Folder Include="OTEL\FUNCTION_BLOCKS\Exporters" />
     <Folder Include="OTEL\FUNCTION_BLOCKS\Logs" />
+    <Folder Include="OTEL\FUNCTION_BLOCKS\Common" />
     <Folder Include="OTEL\FUNCTION_BLOCKS\Serializers" />
     <Folder Include="OTEL\FUNCTION_BLOCKS\Trace" />
     <Folder Include="OTEL\FUNCTION_BLOCKS\Values" />

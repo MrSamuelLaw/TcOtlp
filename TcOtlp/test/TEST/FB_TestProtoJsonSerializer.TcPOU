@@ -39,10 +39,11 @@ END_VAR
 		timestamp:=ULINT#1581452773000000789,
 		eventName:=ADR('Serialization Event'),
 		traceId:=ADR(guid_),
-		traceFlags:=ADR(flags),
+		flags:=ADR(flags),
 		spanId:=0,
 		body:=pBody,
-		attributes:=ADR(head)
+		attributes:=ADR(head),
+		droppedAttributesCount:=0
 	));
 	IF pVal <> 0 THEN pVal^.delete(); END_IF
 	IF pAttr <> 0 THEN pAttr^.delete(); END_IF

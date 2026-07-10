@@ -3,7 +3,7 @@
   <POU Name="cloneLinkedList_KeyValue" Id="{ed06f09a-e2b0-45ca-bd8e-a77006306166}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION cloneLinkedList_KeyValue : POINTER TO ST_LinkedListNode_KeyValue
 VAR_INPUT
-	head: POINTER TO ST_LinkedListNode_KeyValue;
+	pHead: POINTER TO ST_LinkedListNode_KeyValue;
 END_VAR
 VAR
 	_idx: UDINT;
@@ -12,13 +12,13 @@ VAR
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[IF head = 0 OR_ELSE head^.ptr = 0 THEN
+      <ST><![CDATA[IF pHead = 0 OR_ELSE pHead^.ptr = 0 THEN
 	cloneLinkedList_KeyValue := 0;
 ELSE
 	// initialize a new node and copy the value
 	cloneLinkedList_KeyValue := __NEW(ST_LinkedListNode_KeyValue);
-	cloneLinkedList_KeyValue^.ptr := cloneKeyValue(head^.ptr);
-	cloneLinkedList_KeyValue^.nxt := head^.nxt;
+	cloneLinkedList_KeyValue^.ptr := cloneKeyValue(pHead^.ptr);
+	cloneLinkedList_KeyValue^.nxt := pHead^.nxt;
 	// iterate over populating the subsequent nodes
 	_node := cloneLinkedList_KeyValue;
 	FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO

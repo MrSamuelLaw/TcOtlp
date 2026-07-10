@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_InstrumentationScope" Id="{2653ff67-e022-4efa-b596-af6f99ea5690}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_InstrumentationScope
+VAR_INPUT
+	name: FB_String;  	// This is where the boogy monster is... 
+						// how do I declare that the name is required while allowing for proper cleanup?
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="FB_Exit" Id="{acbe4270-8cd7-4609-b3fa-dbfbcdcccf0f}">
+      <Declaration><![CDATA[//FB_Exit must be implemented explicitly. If there is an implementation, then the
+//method is called before the controller removes the code of the function block instance
+//(implicit call). The return value is not evaluated.
+METHOD FB_Exit: BOOL
+VAR_INPUT
+    bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).  
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.name.free();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

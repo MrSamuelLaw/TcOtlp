@@ -2,10 +2,21 @@
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_OtlpValueMixin" Id="{fa23aef4-03db-46f0-8771-757f9c0b52ec}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK ABSTRACT FB_OtlpValueMixin
-]]></Declaration>
+VAR
+	_initialized: BOOL;
+END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Property Name="initialized" Id="{ef380410-8cf2-41d5-95b7-9d34f3a0df15}">
+      <Declaration><![CDATA[PROPERTY initialized : BOOL]]></Declaration>
+      <Get Name="Get" Id="{31c9724b-873d-48bc-9352-fc0c07d21e13}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[initialized := THIS^._initialized;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
     <Property Name="self" Id="{851b5bc4-fa66-45a9-9a4f-1632051f2364}">
       <Declaration><![CDATA[PROPERTY self : PVOID]]></Declaration>
       <Get Name="Get" Id="{a203eea4-91b0-4683-808e-622aa3814ad0}">

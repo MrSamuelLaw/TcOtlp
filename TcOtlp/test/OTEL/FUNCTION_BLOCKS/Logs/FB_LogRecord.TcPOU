@@ -11,11 +11,11 @@ VAR_INPUT
 	// optional values
 	eventName: 	POINTER TO FB_String; 
 	traceId: 	POINTER TO FB_TraceId;
-	traceFlags: POINTER TO E_LogRecordFlag;
+	flags: POINTER TO E_LogRecordFlag;
 	spanId: 	POINTER TO FB_SpanId;
 	body: 		POINTER TO FB_AnyValue;
 	attributes: POINTER TO ST_LinkedListNode_KeyValue;
-	// droppedAttributesCount: UDINT; while part of the schema, its not documented on the OTLP website or data model pages, so I did not implement it.
+	droppedAttributesCount: POINTER TO UDINT;
 END_VAR
 
 ]]></Declaration>
@@ -44,10 +44,16 @@ END_VAR
 VAR
 	_idx: UDINT;
 	_node: POINTER TO ST_LinkedListNode_KeyValue;
+	_pTraceFlags: POINTER TO UDINT;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF THIS^.eventName <> 0 THEN THIS^.eventName^.delete(); END_IF
 IF THIS^.traceId <> 0 THEN THIS^.traceId^.delete(); END_IF
+IF THIS^.flags <> 0 THEN
+	_pTraceFlags := THIS^.flags;
+	__DELETE(_pTraceFlags);
+	THIS^.flags := 0;
+END_IF
 IF THIS^.spanId <> 0 THEN THIS^.spanId^.delete(); END_IF
 IF THIS^.body <> 0 THEN THIS^.body^.delete(); END_IF
 // delete all the attributes
@@ -85,10 +91,11 @@ VAR_INPUT
 	// optional values
 	eventName: 	POINTER TO STRING := 0; 
 	traceId: 	POINTER TO BYTE := 0;   // should be 16 bytes long
-	traceFlags: POINTER TO E_LogRecordFlag := 0;
+	flags: 		POINTER TO E_LogRecordFlag := 0;
 	spanId:		POINTER TO BYTE := 0;	// should be 8 bytes long
 	body: 		POINTER TO FB_AnyValue;
 	attributes: POINTER TO ST_LinkedListNode_KeyValue;
+	droppedAttributesCount: POINTER TO UDINT;
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -99,13 +106,17 @@ THIS^.timestamp := timestamp;
 // optional value with ptr checks
 IF eventName <> 0 THEN THIS^.eventName := __NEW(FB_String(pString:=eventName));  END_IF
 IF traceId <> 0 THEN THIS^.traceId := __NEW(FB_TraceId(pBytes:=traceId)); END_IF
-IF traceFlags <> 0 THEN
-	THIS^.traceFlags := __NEW(E_LogRecordFlag);
-	IF THIS^.traceFlags <> 0 THEN THIS^.traceFlags^ := traceFlags^; END_IF
+IF flags <> 0 THEN 
+	THIS^.flags := __NEW(E_LogRecordFlag);
+	THIS^.flags^ := flags^;
 END_IF
 IF spanId <> 0 THEN THIS^.spanId := __NEW(FB_SpanId(pBytes:=spanId)); END_IF
 IF body <> 0 THEN THIS^.body := cloneAnyValue(body); END_IF
-IF attributes <> 0 THEN THIS^.attributes := cloneLinkedList_KeyValue(attributes); END_IF]]></ST>
+IF attributes <> 0 THEN THIS^.attributes := cloneLinkedList_KeyValue(attributes); END_IF
+IF droppedAttributesCount <> 0 THEN
+	THIS^.droppedAttributesCount := __NEW(UDINT);
+	THIS^.droppedAttributesCount^ := droppedAttributesCount^;
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Property Name="severityText" Id="{05c0c7ed-4dd1-46f2-b733-b4a1bc94ddcb}">

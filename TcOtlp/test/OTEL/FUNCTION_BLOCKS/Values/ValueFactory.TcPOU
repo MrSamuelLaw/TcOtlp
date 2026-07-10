@@ -1,0 +1,59 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="ValueFactory" Id="{d187342c-6b4d-42f2-9536-f4c1c2d2d7f1}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM ValueFactory
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="createString" Id="{c9d254c2-678b-419f-ac3c-e884e66c3532}">
+      <Declaration><![CDATA[METHOD createString: POINTER TO FB_String
+
+VAR_INPUT
+	pDest: POINTER TO FB_String;
+	pString: POINTER TO STRING;
+END_VAR
+
+VAR_OUTPUT
+	sts: E_ValueFactoryStatus;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pDest <> 0  THEN
+	createString := pDest;
+	sts := E_ValueFactoryStatus.POINTER_ALREADY_ALLOCATED;
+	RETURN;
+END_IF
+
+IF pString = 0 THEN
+	createString := pDest;
+	sts := E_ValueFactoryStatus.INVALID_PARAMETERS;
+	RETURN;
+END_IF
+
+createString := __NEW(FB_String(pString:=pString));
+IF createString = 0 THEN
+	sts := E_ValueFactoryStatus.OUT_OF_MEMORY;
+ELSE
+	sts := E_ValueFactoryStatus.SUCCESS;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="createTraceId" Id="{34de56b8-186c-4fd3-a48c-783b8c21d02f}">
+      <Declaration><![CDATA[METHOD createTraceId : POINTER TO FB_TraceId
+VAR_INPUT
+	pDest: POINTER TO FB_TraceId;
+	pSrc: POINTER TO BYTE;
+END_VAR
+VAR_OUTPUT
+	sts: E_ValueFactoryStatus;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

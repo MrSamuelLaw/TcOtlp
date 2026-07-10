@@ -23,10 +23,11 @@ END_VAR
 		timestamp:=ULINT#1581452773000000789,
 		eventName:=ADR('LOG RECORD TEST'),
 		traceId:= ADR(guid_),
-		traceFlags:=0,
+		flags:=0,
 		spanId:= ADR(guid_.Data4),
 		body:=pBody,
-		attributes:=0
+		attributes:=0,
+		droppedAttributesCount:=0
 	));
 	IF pLogRecord <> 0 THEN pLogRecord^.delete(); END_IF
 	IF pBody <> 0 THEN pBody^.delete(); END_IF

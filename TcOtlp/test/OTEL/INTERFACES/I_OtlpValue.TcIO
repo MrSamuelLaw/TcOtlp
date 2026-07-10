@@ -1,17 +1,26 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <Itf Name="I_OtlpValue" Id="{fc55bdb3-176f-48d0-b16b-8f81387d6392}">
-    <Declaration><![CDATA[INTERFACE I_OtlpValue
-]]></Declaration>
+    <Declaration><![CDATA[INTERFACE I_OtlpValue]]></Declaration>
     <Method Name="delete" Id="{ca464e23-6694-4db7-b1ae-3a14ba19c61b}">
-      <Declaration><![CDATA[METHOD delete
-VAR_INPUT
-END_VAR
+      <Declaration><![CDATA[// method used to delete all data held by the value and then delete the object itself.
+METHOD delete
 ]]></Declaration>
     </Method>
     <Property Name="eType" Id="{f215879f-eadf-4cab-a2f7-31f77a67d6d2}">
       <Declaration><![CDATA[PROPERTY eType : E_ValueType]]></Declaration>
       <Get Name="Get" Id="{bdc18bae-f138-4217-a020-1f99bbb64531}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Method Name="free" Id="{063e0f66-c6cb-45a4-a9ca-6cfd5e61a0ea}">
+      <Declaration><![CDATA[// deallocates all data owned by the value without deleting the object itself.
+METHOD free
+]]></Declaration>
+    </Method>
+    <Property Name="initialized" Id="{3e48eded-59f0-48ef-a8a3-61bdc2b31bcf}">
+      <Declaration><![CDATA[PROPERTY initialized : BOOL]]></Declaration>
+      <Get Name="Get" Id="{e05413a8-f893-458a-ba3f-daf70d044397}">
         <Declaration><![CDATA[]]></Declaration>
       </Get>
     </Property>

@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="Copy" Id="{b45a59a4-175b-4e02-9bc9-46c307a24d29}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM Copy
+VAR
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

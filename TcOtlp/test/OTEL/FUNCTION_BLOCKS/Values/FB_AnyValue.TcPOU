@@ -22,5 +22,13 @@
         </Implementation>
       </Get>
     </Property>
+    <Method Name="free" Id="{7cccd8b3-2131-4b23-8124-c1d537a212e8}">
+      <Declaration><![CDATA[(* deallocates all data owned by the value without deleting the object itself.*)
+METHOD ABSTRACT free
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
   </POU>
 </TcPlcObject>
