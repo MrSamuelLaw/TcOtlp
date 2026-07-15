@@ -24,16 +24,16 @@ VAR
 	pBody: POINTER TO FB_String;
 	pVal: POINTER TO FB_String;
 	pAttr: POINTER TO FB_KeyValue;
-	head: ST_LinkedListNode_KeyValue;
+	attributes: FB_LinkedList_KeyValue;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test SerializeLogRecord');
 	// initialize the node pointer
-	pBody := ValueFactory.createString(pBody, ADR('This is a body string value'));
-	pVal := ValueFactory.createString(pVal, ADR('pVal'));
-	pAttr := ValueFactory.createKeyValue(pAttr, ADR('stats.duration'), pVal);
-	head.ptr := pAttr;
+	ValueFactory.createString(pBody, ADR('This is a body string value'));
+	ValueFactory.createString(pVal, ADR('pVal'));
+	ValueFactory.createKeyValue(pAttr, ADR('stats.duration'), pVal);
+	attributes.append(pAttr);
 	// this will eventually not be instantiated directly with __NEW, instead a logger will instantiate it.
 	node.ptr := __NEW(FB_LogRecord(
 		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG,
@@ -43,13 +43,13 @@ END_VAR
 		flags:=ADR(flags),
 		spanId:=0,
 		body:=pBody,
-		attributes:=ADR(head),
+		attributes:=ADR(attributes),
 		droppedAttributesCount:=0
 	));
 	IF pVal <> 0 THEN pVal := pVal^.delete(); END_IF
 	IF pAttr <> 0 THEN pAttr := pAttr^.delete(); END_IF
-	THIS^.AssertTrue(node.ptr^.attributes <> 0, 'Expected test log record to clone attributes');
-	THIS^.AssertTrue(node.ptr^.attributes^.ptr <> 0, 'Expected cloned attributes to contain a key/value');
+	node.ptr^.attributes.reset();
+	THIS^.AssertTrue(node.ptr^.attributes.next() <> 0, 'Expected cloned attributes to contain a key/value');
 	// serialize the log(s)
 	ser.serializeLogRecords(node);
 	
@@ -66,6 +66,11 @@ END_VAR
 	actStr := ser.parser.GetString(mem);
 	expStr := '1581452773000000789';
 	THIS^.AssertEquals_STRING(expStr, actStr, 'timeUnixNano does not serialize correctly');
+	
+	mem := ser.parser.FindMember(obj, 'traceId');
+	actStr := ser.parser.GetString(mem);
+	expStr := '000102030405060708090A0B0C0D0E0F';
+	THIS^.AssertEquals_STRING(expStr, actStr, 'traceId does not serialize correctly');
 	
 	mem := ser.parser.FindMember(obj, 'flags');
 	actFlags := ser.parser.GetUint(mem);

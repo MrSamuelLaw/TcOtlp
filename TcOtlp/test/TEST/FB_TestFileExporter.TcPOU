@@ -34,7 +34,7 @@ VAR
 	_pBody: POINTER TO FB_String;
 	_pVal: POINTER TO FB_String;
 	_pAttr: POINTER TO FB_KeyValue;
-	_head: ST_LinkedListNode_KeyValue;
+	_attributes: FB_LinkedList_KeyValue;
 END_VAR
 
 VAR CONSTANT
@@ -51,10 +51,10 @@ END_VAR]]></Declaration>
 			);
 			_cycles := 0;
 			_guid.Data1 := _data1;
-			_pBody := ValueFactory.createString(_pBody, ADR('This is a test for a string body'));
-			_pVal := ValueFactory.createString(_pVal, ADR('pVal'));
-			_pAttr := ValueFactory.createKeyValue(_pAttr, ADR('stats.duration'), _pVal);
-			_head.ptr:=_pAttr;
+			ValueFactory.createString(_pBody, ADR('This is a test for a string body'));
+			ValueFactory.createString(_pVal, ADR('pVal'));
+			ValueFactory.createKeyValue(_pAttr, ADR('stats.duration'), _pVal);
+			_attributes.append(_pAttr);
 			// Once FB_Logger has been implemented this should migrate away from using __NEW
 			_node.ptr := __NEW(FB_LogRecord(
 				severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG,
@@ -64,7 +64,7 @@ END_VAR]]></Declaration>
 				flags:=ADR(_flags),
 				spanId:=ADR(_guid.Data4),
 				body:=_pBody,
-				attributes:=ADR(_head),
+				attributes:=ADR(_attributes),
 				droppedAttributesCount:=0
 			));
 			IF _pBody <> 0 THEN _pBody^.delete(); END_IF
@@ -74,8 +74,8 @@ END_VAR]]></Declaration>
 			IF _node.ptr <> 0 THEN
 				THIS^.AssertTrue(_node.ptr^.flags <> 0, 'Expected test log record to have trace flags');
 				THIS^.AssertEquals_UDINT(255, TO_UDINT(_node.ptr^.flags^), 'Unexpected test log record trace flags');
-				THIS^.AssertTrue(_node.ptr^.attributes <> 0, 'Expected test log record to clone attributes');
-				THIS^.AssertTrue(_node.ptr^.attributes^.ptr <> 0, 'Expected cloned attributes to contain a key/value');
+				_node.ptr^.attributes.reset();
+				THIS^.AssertTrue(_node.ptr^.attributes.next() <> 0, 'Expected cloned attributes to contain a key/value');
 				_state := 10;
 				RETURN;
 			ELSE

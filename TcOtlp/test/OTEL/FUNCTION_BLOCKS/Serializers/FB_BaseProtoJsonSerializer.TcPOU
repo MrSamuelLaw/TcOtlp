@@ -165,27 +165,29 @@ VAR_IN_OUT
 END_VAR
 VAR_INPUT
 	pKey: POINTER TO STRING;
-	pHead: POINTER TO ST_LinkedListNode_KeyValue;
+	pValues: POINTER TO FB_LinkedList_KeyValue;
 END_VAR
 VAR
 	_idx: UDINT;
 	_arr: SJsonValue;
 	_obj: SJsonValue;
-	_pNode: POINTER TO ST_LinkedListNode_KeyValue;
+	_pValue: POINTER TO FB_KeyValue;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pKey <> 0 AND pHead <> 0 AND_THEN pHead^.ptr <> 0 THEN
+        <ST><![CDATA[IF pKey <> 0 AND pValues <> 0 THEN
+	pValues^.reset();
+	_pValue := pValues^.next();
+	IF _pValue = 0 THEN RETURN; END_IF
+
 	_arr := THIS^.parser.AddArrayMember(v, pKey^, 0);
-	_pNode := pHead;
-	FOR _idx := 0 TO GVL.MAX_ATTRIBUTES DO
-		IF _pNode = 0 OR_ELSE _pNode^.ptr = 0 THEN
-			RETURN;
-		END_IF
+	FOR _idx := 1 TO GVL.MAX_ATTRIBUTES DO
+		IF _pValue = 0 THEN EXIT; END_IF
 		_obj := THIS^.parser.PushbackJsonValue(_arr, '{}');
-		THIS^.serializeKeyValue(_obj, _pNode^.ptr);
-		_pNode := _pNode^.nxt;
+		THIS^.serializeKeyValue(_obj, _pValue);
+		_pValue := pValues^.next();
 	END_FOR
+	pValues^.reset();
 END_IF]]></ST>
       </Implementation>
     </Method>

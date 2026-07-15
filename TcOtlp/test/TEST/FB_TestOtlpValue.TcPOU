@@ -23,16 +23,16 @@ END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test KeyValue');
 	// test failure for invalid data
-	pKeyVal := ValueFactory.createKeyValue(pKeyVal, ADR('Key'), 0, sts=>sts);
+	sts := ValueFactory.createKeyValue(pKeyVal, ADR('Key'), 0);
 	THIS^.AssertTrue(sts=E_ValueFactoryStatus.INVALID_PARAMETERS, 'Expected FB_KeyValue creation to fail due to invalid parameters');
 	
 	// create a valid pointer
-	pVal := ValueFactory.createString(pVal, ADR('Value'));
-	pKeyVal := ValueFactory.createKeyValue(pKeyVal, ADR('Key'), pVal, sts=>sts);
+	ValueFactory.createString(pVal, ADR('Value'));
+	sts := ValueFactory.createKeyValue(pKeyVal, ADR('Key'), pVal);
 	THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS, 'Unexpected status when trying to create an FB_KeyValue');
 	
 	// assert that the FB_String fails to initialize for invalid pointer and nothing happens
-	pKeyVal := ValueFactory.createKeyValue(pKeyVal, ADR('Key'), pVal, sts=>sts);
+	sts := ValueFactory.createKeyValue(pKeyVal, ADR('Key'), pVal);
 	THIS^.AssertTrue(sts=E_ValueFactoryStatus.POINTER_ALREADY_ALLOCATED, 'Expected FB_KeyValue creation to fail due to non-zero pointer');
 	
  	IF pVal <> 0 AND pKeyVal <> 0 THEN
@@ -210,15 +210,15 @@ END_VAR]]></Declaration>
         <ST><![CDATA[TcUnit.TEST('Test SpanIdValue');
 	
 	// assert that FB_TraceId fails to initialize for invalid data
-	pValue := ValueFactory.createSpanId(pDest:=pValue, pBytes:=0, nSize:=0, sts=>sts);
+	sts := ValueFactory.createSpanId(pDest:=pValue, pBytes:=0, nSize:=0);
 	THIS^.AssertTrue(sts=E_ValueFactoryStatus.INVALID_PARAMETERS, 'Expected span id creation to fail due to invalid parameters');
 	
 	// create a valid FB_TraceId
-	pValue := ValueFactory.createSpanId(pDest:=pValue, pBytes:=ADR(guid_), nSize:=SIZEOF(guid_), sts=>sts);
+	sts := ValueFactory.createSpanId(pDest:=pValue, pBytes:=ADR(guid_), nSize:=SIZEOF(guid_));
 	THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS, 'Unexpected status when trying to create an FB_SpanId');
 	
 	// assert that the FB_TraceId fails to initialize for an allocated pointer and nothing happens
-	pValue := ValueFactory.createSpanId(pDest:=pValue, pBytes:=ADR(guid_), nSize:=SIZEOF(guid_), sts=>sts);
+	sts := ValueFactory.createSpanId(pDest:=pValue, pBytes:=ADR(guid_), nSize:=SIZEOF(guid_));
 	THIS^.AssertTrue(sts=E_ValueFactoryStatus.POINTER_ALREADY_ALLOCATED, 'Expected span id creation to fail due to non-zero pointer');
 	
  	IF pValue <> 0 THEN
@@ -273,15 +273,15 @@ END_VAR
         <ST><![CDATA[TcUnit.TEST('Test StringValue');
 
 	// assert that FB_String fails to initialize for invalid data
-	pValue := ValueFactory.createString(pDest:=pValue, pString:=0, sts=>sts);
+	sts := ValueFactory.createString(pDest:=pValue, pString:=0);
 	THIS^.AssertTrue(sts=E_ValueFactoryStatus.INVALID_PARAMETERS, 'Expected string creation to fail due to invalid parameters');
 	
 	// create a valid FB_String
-	pValue := ValueFactory.createString(pDest:=pValue, pString:=ADR('FB_String'), sts=>sts);
+	sts := ValueFactory.createString(pDest:=pValue, pString:=ADR('FB_String'));
 	THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS, 'Unexpected status when trying to create an FB_String');
 	
 	// assert that the FB_String fails to initialize for invalid pointer and nothing happens
-	pValue := ValueFactory.createString(pDest:=pValue, pString:=ADR('FB_String'), sts=>sts);
+	sts := ValueFactory.createString(pDest:=pValue, pString:=ADR('FB_String'));
 	THIS^.AssertTrue(sts=E_ValueFactoryStatus.POINTER_ALREADY_ALLOCATED, 'Expected string creation to fail due to non-zero pointer');
 	
 	// verify the data from the string
@@ -329,15 +329,15 @@ END_VAR
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test TraceIdValue');
 	// assert that FB_TraceId fails to initialize for invalid data
-	pValue := ValueFactory.createTraceId(pDest:=pValue, pBytes:=0, nSize:=0, sts=>sts);
+	sts := ValueFactory.createTraceId(pDest:=pValue, pBytes:=0, nSize:=0);
 	THIS^.AssertTrue(sts=E_ValueFactoryStatus.INVALID_PARAMETERS, 'Expected trace id creation to fail due to invalid parameters');
 	
 	// create a valid FB_TraceId
-	pValue := ValueFactory.createTraceId(pDest:=pValue, pBytes:=ADR(guid_), nSize:=SIZEOF(guid_), sts=>sts);
+	sts := ValueFactory.createTraceId(pDest:=pValue, pBytes:=ADR(guid_), nSize:=SIZEOF(guid_));
 	THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS, 'Unexpected status when trying to create an FB_TraceId');
 	
 	// assert that the FB_TraceId fails to initialize for an allocated pointer and nothing happens
-	pValue := ValueFactory.createTraceId(pDest:=pValue, pBytes:=ADR(guid_), nSize:=SIZEOF(guid_), sts=>sts);
+	sts := ValueFactory.createTraceId(pDest:=pValue, pBytes:=ADR(guid_), nSize:=SIZEOF(guid_));
 	THIS^.AssertTrue(sts=E_ValueFactoryStatus.POINTER_ALREADY_ALLOCATED, 'Expected trace id creation to fail due to non-zero pointer');
 	
  	IF pValue <> 0 THEN

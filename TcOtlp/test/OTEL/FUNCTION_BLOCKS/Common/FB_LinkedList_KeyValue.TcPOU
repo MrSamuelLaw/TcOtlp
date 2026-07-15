@@ -1,0 +1,127 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LinkedList_KeyValue" Id="{cf073bde-f48d-4029-b947-e958e98bbb16}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LinkedList_KeyValue
+VAR
+	_head: POINTER TO ST_LinkedListNode;
+	_tail: POINTER TO ST_LinkedListNode;
+	_cursor: POINTER TO ST_LinkedListNode;
+	_count: UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="append" Id="{29d543f3-3e33-4876-b1bf-4a2f0254ef43}">
+      <Declaration><![CDATA[METHOD append : BOOL
+VAR_IN_OUT
+	pValue: POINTER TO FB_KeyValue;
+END_VAR
+VAR
+	_node: POINTER TO ST_LinkedListNode;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[append := FALSE;
+
+IF pValue = 0 OR_ELSE THIS^._count >= GVL.MAX_ATTRIBUTES THEN
+	RETURN;
+END_IF
+
+_node := __NEW(ST_LinkedListNode);
+IF _node = 0 THEN
+	RETURN;
+END_IF
+
+_node^.val := pValue;
+_node^.nxt := 0;
+
+IF THIS^._tail = 0 THEN
+	THIS^._head := _node;
+	THIS^._cursor := _node;
+ELSE
+	THIS^._tail^.nxt := _node;
+END_IF
+
+THIS^._tail := _node;
+THIS^._count := THIS^._count + 1;
+// Ownership transfers only after the value has been linked successfully.
+pValue := 0;
+append := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="delete" Id="{f9021c46-76c2-487d-94ee-ff53a1bc6bec}">
+      <Declaration><![CDATA[METHOD delete : ULINT
+VAR
+	pSelf: POINTER TO FB_LinkedList_KeyValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[pSelf := THIS;
+__DELETE(pSelf);
+delete := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Exit" Id="{686344bf-91ee-4a2a-b059-004362cdb29b}">
+      <Declaration><![CDATA[METHOD FB_Exit : BOOL
+VAR_INPUT
+	bInCopyCode: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bInCopyCode THEN
+	THIS^.free();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{cac7191c-0f7c-4339-b12b-895becc570f8}">
+      <Declaration><![CDATA[METHOD free
+VAR
+	_idx: UDINT;
+	_node: POINTER TO ST_LinkedListNode;
+	_kv: POINTER TO FB_KeyValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR _idx := 0 TO GVL.MAX_ATTRIBUTES DO
+	IF THIS^._head = 0 THEN
+		EXIT;
+	END_IF
+
+	_node := THIS^._head;
+	THIS^._head := _node^.nxt;
+	IF _node^.val <> 0 THEN
+		_kv := _node^.val;
+		_node^.val := 0;
+		_kv := _kv^.delete();
+	END_IF
+	__DELETE(_node);
+END_FOR
+
+THIS^._head := 0;
+THIS^._tail := 0;
+THIS^._cursor := 0;
+THIS^._count := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="next" Id="{a8ca5105-d23e-40b3-adba-9bbe23230589}">
+      <Declaration><![CDATA[METHOD next : POINTER TO FB_KeyValue
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[next := 0;
+
+IF THIS^._cursor <> 0 THEN
+	next := THIS^._cursor^.val;
+	THIS^._cursor := THIS^._cursor^.nxt;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="reset" Id="{8ff040db-0c4f-4ccd-95b1-134233b77487}">
+      <Declaration><![CDATA[METHOD reset
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._cursor := THIS^._head;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

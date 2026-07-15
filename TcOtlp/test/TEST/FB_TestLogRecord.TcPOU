@@ -17,7 +17,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test LogRecord');
-	pBody := ValueFactory.createString(pBody, ADR('This is the body for a log record'));
+	ValueFactory.createString(pBody, ADR('This is the body for a log record'));
 	pLogRecord := __NEW(FB_LogRecord(
 		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_ERROR,
 		timestamp:=ULINT#1581452773000000789,

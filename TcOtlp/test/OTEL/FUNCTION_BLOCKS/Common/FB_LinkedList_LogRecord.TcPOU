@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LinkedList_LogRecord" Id="{9e1ecc03-058c-4b23-92d3-3bd422ae83cb}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LinkedList_LogRecord
+VAR
+	_head: POINTER TO ST_LinkedListNode;
+	_tail: POINTER TO ST_LinkedListNode;
+	_cursor: POINTER TO ST_LinkedListNode;
+	_count: UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="append" Id="{160c78e0-3b3f-49cd-8c42-eefe5336e9d8}">
+      <Declaration><![CDATA[METHOD append : BOOL
+VAR_INPUT
+	pValue: POINTER TO FB_LogRecord;
+END_VAR
+VAR
+	_node: POINTER TO ST_LinkedListNode;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[append := FALSE;
+
+IF pValue = 0 OR_ELSE THIS^._count >= GVL.MAX_LOG_RECORDS THEN
+	RETURN;
+END_IF
+
+_node := __NEW(ST_LinkedListNode);
+IF _node = 0 THEN
+	RETURN;
+END_IF
+
+_node^.val := pValue;
+_node^.nxt := 0;
+
+IF THIS^._tail = 0 THEN
+	THIS^._head := _node;
+	THIS^._cursor := _node;
+ELSE
+	THIS^._tail^.nxt := _node;
+END_IF
+
+THIS^._tail := _node;
+THIS^._count := THIS^._count + 1;
+append := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="clear" Id="{fbd1c94b-c09e-4d95-a598-0cd5bb8a61f6}">
+      <Declaration><![CDATA[METHOD clear
+VAR
+	_idx: UDINT;
+	_node: POINTER TO ST_LinkedListNode;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR _idx := 1 TO GVL.MAX_LOG_RECORDS DO
+	IF THIS^._head = 0 THEN
+		EXIT;
+	END_IF
+
+	_node := THIS^._head;
+	THIS^._head := THIS^._head^.nxt;
+	__DELETE(_node);
+END_FOR
+
+THIS^._head := 0;
+THIS^._tail := 0;
+THIS^._cursor := 0;
+THIS^._count := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Exit" Id="{6d9d65b6-2d68-47f0-b7cb-88e631d7acef}">
+      <Declaration><![CDATA[METHOD FB_Exit : BOOL
+VAR_INPUT
+	bInCopyCode: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.clear();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="next" Id="{720ec83f-b785-4449-92d1-d6ec1cfa78ab}">
+      <Declaration><![CDATA[METHOD next : POINTER TO FB_LogRecord
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[next := 0;
+
+IF THIS^._cursor <> 0 THEN
+	next := THIS^._cursor^.val;
+	THIS^._cursor := THIS^._cursor^.nxt;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="reset" Id="{8e5c6da1-a3e7-4711-8032-291e4a16dc6e}">
+      <Declaration><![CDATA[METHOD reset
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._cursor := THIS^._head;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

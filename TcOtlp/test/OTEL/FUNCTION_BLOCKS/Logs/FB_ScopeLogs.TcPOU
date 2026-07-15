@@ -4,7 +4,7 @@
     <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
 FUNCTION_BLOCK FB_ScopeLogs
 VAR_OUTPUT
-	// logRecords: POINTER TO 
+	logRecords: FB_LinkedList_LogRecord;
 END_VAR
 ]]></Declaration>
     <Implementation>

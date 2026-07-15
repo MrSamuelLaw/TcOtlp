@@ -8,8 +8,8 @@ END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[IF pSrc <> 0 THEN
-	cloneKeyValue := ValueFactory.createKeyValue(
-		pDest:=0,
+	ValueFactory.createKeyValue(
+		pDest:=cloneKeyValue,
 		pKey:=pSrc^.pKey,
 		pVal:=pSrc^.pVal);
 ELSE

@@ -46,7 +46,7 @@ FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
 		END_IF
 		THIS^.serializeSpanIdValue(_obj, _pNode^.ptr^.spanId);
 		THIS^.serializeAnyValue(_obj, ADR('body'), _pNode^.ptr^.body);
-		THIS^.serializeKeyValues(_obj, ADR('attributes'), _pNode^.ptr^.attributes);
+		THIS^.serializeKeyValues(_obj, ADR('attributes'), ADR(_pNode^.ptr^.attributes));
 		
 		// move on to the next node
 		_pNode := _pNode^.nxt;

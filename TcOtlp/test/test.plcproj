@@ -54,7 +54,10 @@
     <Compile Include="OTEL\FUNCTIONS\cloneString.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTIONS\cloneLinkedList_KeyValue.TcPOU">
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Common\FB_LinkedList_KeyValue.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Common\FB_LinkedList_LogRecord.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\FUNCTION_BLOCKS\Common\FB_InstrumentationScope.TcPOU">
@@ -64,6 +67,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\FUNCTION_BLOCKS\Logs\FB_LogRecord.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Logs\FB_ScopeLogs.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\FUNCTION_BLOCKS\Serializers\FB_LogRecordProtoJsonSerializer.TcPOU">
@@ -109,7 +115,7 @@
     <Compile Include="OTEL\INTERFACES\I_OtlpValue.TcIO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\STRUCTS\ST_LinkedListNode_KeyValue.TcDUT">
+    <Compile Include="OTEL\STRUCTS\ST_LinkedListNode.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\STRUCTS\ST_LinkedListNode_LogRecord.TcDUT">
