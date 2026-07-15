@@ -51,10 +51,11 @@ END_VAR]]></Declaration>
 			);
 			_cycles := 0;
 			_guid.Data1 := _data1;
-			_pBody := __NEW(FB_String(pString:=ADR('This is a test for a string body')));
-			_pVal := __NEW(FB_String(pString:=ADR('pVal')));
-			_pAttr := __NEW(FB_KeyValue(pKey:=ADR('stats.duration'), pVal:=_pVal));
+			_pBody := ValueFactory.createString(_pBody, ADR('This is a test for a string body'));
+			_pVal := ValueFactory.createString(_pVal, ADR('pVal'));
+			_pAttr := ValueFactory.createKeyValue(_pAttr, ADR('stats.duration'), _pVal);
 			_head.ptr:=_pAttr;
+			// Once FB_Logger has been implemented this should migrate away from using __NEW
 			_node.ptr := __NEW(FB_LogRecord(
 				severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG,
 				timestamp:=ULINT#1581452773000000789,
@@ -133,8 +134,7 @@ END_VAR]]></Declaration>
 	
 	// clean up the node pointer
 	IF (_node.ptr <> 0) THEN
-		__DELETE(_node.ptr);
-		_node.ptr := 0;
+		_node.ptr := _node.ptr^.delete();
 	ELSE
 		THIS^.AssertTrue(_node.ptr <> 0, 'Unexpected invalid ST_LogRecordNode pointer');
 	END_IF

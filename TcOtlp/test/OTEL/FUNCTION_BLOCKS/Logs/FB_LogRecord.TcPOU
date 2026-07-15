@@ -11,7 +11,7 @@ VAR_INPUT
 	// optional values
 	eventName: 	POINTER TO FB_String; 
 	traceId: 	POINTER TO FB_TraceId;
-	flags: POINTER TO E_LogRecordFlag;
+	flags: 		POINTER TO E_LogRecordFlag;
 	spanId: 	POINTER TO FB_SpanId;
 	body: 		POINTER TO FB_AnyValue;
 	attributes: POINTER TO ST_LinkedListNode_KeyValue;
@@ -23,14 +23,15 @@ END_VAR
       <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="delete" Id="{3cb201ad-0be2-4ce4-945f-e69f0fb01637}">
-      <Declaration><![CDATA[METHOD delete
+      <Declaration><![CDATA[METHOD delete: ULINT
 VAR
 	pSelf: POINTER TO FB_LogRecord;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[pSelf := THIS;
-__DELETE(pSelf);]]></ST>
+__DELETE(pSelf);
+delete := 0;]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Exit" Id="{abe31f98-c1d5-4ef4-91e3-56059cf93707}">
@@ -40,40 +41,9 @@ __DELETE(pSelf);]]></ST>
 METHOD FB_Exit: BOOL
 VAR_INPUT
     bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).
-END_VAR
-VAR
-	_idx: UDINT;
-	_node: POINTER TO ST_LinkedListNode_KeyValue;
-	_pTraceFlags: POINTER TO UDINT;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF THIS^.eventName <> 0 THEN THIS^.eventName^.delete(); END_IF
-IF THIS^.traceId <> 0 THEN THIS^.traceId^.delete(); END_IF
-IF THIS^.flags <> 0 THEN
-	_pTraceFlags := THIS^.flags;
-	__DELETE(_pTraceFlags);
-	THIS^.flags := 0;
-END_IF
-IF THIS^.spanId <> 0 THEN THIS^.spanId^.delete(); END_IF
-IF THIS^.body <> 0 THEN THIS^.body^.delete(); END_IF
-// delete all the attributes
-IF THIS^.attributes <> 0 THEN
-	FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
-		// use an interface cast to delete the value
-		IF THIS^.attributes^.ptr <> 0 THEN 
-			THIS^.attributes^.ptr^.delete();
-		END_IF
-		// try to move to the next node otherwise exit
-		IF THIS^.attributes^.nxt <> 0 THEN
-			_node := THIS^.attributes^.nxt;
-			__DELETE(THIS^.attributes);
-			THIS^.attributes := _node;
-		ELSE
-			__DELETE(THIS^.attributes);
-			EXIT;
-		END_IF
-	END_FOR
-END_IF]]></ST>
+        <ST><![CDATA[THIS^.free();]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Init" Id="{8ccf0625-4a21-4c44-9811-2620e095d968}">
@@ -104,18 +74,53 @@ THIS^.severityNumber := severityNumber;
 THIS^.timestamp := timestamp;
 
 // optional value with ptr checks
-IF eventName <> 0 THEN THIS^.eventName := __NEW(FB_String(pString:=eventName));  END_IF
-IF traceId <> 0 THEN THIS^.traceId := __NEW(FB_TraceId(pBytes:=traceId)); END_IF
+IF eventName <> 0 THEN THIS^.eventName := ValueFactory.createString(THIS^.eventName, eventName); END_IF
+IF traceId <> 0 THEN THIS^.traceId := ValueFactory.createTraceId(THIS^.traceId, traceId, SIZEOF(traceId)); END_IF
 IF flags <> 0 THEN 
 	THIS^.flags := __NEW(E_LogRecordFlag);
 	THIS^.flags^ := flags^;
 END_IF
-IF spanId <> 0 THEN THIS^.spanId := __NEW(FB_SpanId(pBytes:=spanId)); END_IF
+IF spanId <> 0 THEN THIS^.spanId := ValueFactory.createSpanId(THIS^.spanId, spanId, SIZEOF(traceId)); END_IF
 IF body <> 0 THEN THIS^.body := cloneAnyValue(body); END_IF
 IF attributes <> 0 THEN THIS^.attributes := cloneLinkedList_KeyValue(attributes); END_IF
 IF droppedAttributesCount <> 0 THEN
 	THIS^.droppedAttributesCount := __NEW(UDINT);
 	THIS^.droppedAttributesCount^ := droppedAttributesCount^;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{541f418c-aa49-48c2-ae9d-c6d4738509a3}">
+      <Declaration><![CDATA[METHOD free
+VAR
+	_idx: UDINT;
+	_node: POINTER TO ST_LinkedListNode_KeyValue;
+	_pTraceFlags: POINTER TO UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^.eventName <> 0 THEN THIS^.eventName := THIS^.eventName^.delete(); END_IF
+IF THIS^.traceId <> 0 THEN THIS^.traceId := THIS^.traceId^.delete(); END_IF
+IF THIS^.flags <> 0 THEN
+	_pTraceFlags := THIS^.flags;
+	__DELETE(_pTraceFlags);
+	THIS^.flags := 0;
+END_IF
+IF THIS^.spanId <> 0 THEN THIS^.spanId := THIS^.spanId^.delete(); END_IF
+IF THIS^.body <> 0 THEN THIS^.body := THIS^.body^.delete(); END_IF
+
+// Delete all attributes.
+FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
+	IF THIS^.attributes = 0 THEN EXIT; END_IF
+	IF THIS^.attributes^.ptr <> 0 THEN
+		THIS^.attributes^.ptr := THIS^.attributes^.ptr^.delete();
+	END_IF
+	_node := THIS^.attributes^.nxt;
+	__DELETE(THIS^.attributes);
+	THIS^.attributes := _node;
+END_FOR
+
+IF THIS^.droppedAttributesCount <> 0 THEN
+	__DELETE(THIS^.droppedAttributesCount);
+	THIS^.droppedAttributesCount := 0;
 END_IF]]></ST>
       </Implementation>
     </Method>

@@ -7,6 +7,161 @@
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="createKeyValue" Id="{24aad023-b447-4a30-a636-682e068d33e5}">
+      <Declaration><![CDATA[METHOD createKeyValue: POINTER TO FB_KeyValue;
+VAR_INPUT
+	pDest: POINTER TO FB_KeyValue;
+	pKey: POINTER TO STRING;
+	pVal: POINTER TO FB_AnyValue;
+END_VAR
+VAR_OUTPUT
+	sts: E_ValueFactoryStatus;
+END_VAR
+
+VAR
+	_pKey: POINTER TO STRING;
+	_pVal: POINTER TO FB_AnyValue;
+	_len: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[createKeyValue := 0;
+IF pKey = 0 OR pVal = 0 THEN
+	sts := E_ValueFactoryStatus.INVALID_PARAMETERS;
+	RETURN;
+END_IF
+
+IF pDest <> 0 THEN
+	createKeyValue := pDest;
+	sts := E_ValueFactoryStatus.POINTER_ALREADY_ALLOCATED;
+	RETURN;
+END_IF
+
+IF NOT pVal^.initialized THEN
+	sts := E_ValueFactoryStatus.INVALID_PARAMETERS;
+	RETURN;
+END_IF
+
+// clone all owned data before allocating the value itself
+_len := MIN(LEN2(pKey), GVL.MAX_STRING_LEN) + 1;
+_pKey := __NEW(BYTE, _len);
+IF _pKey = 0 THEN
+	sts := E_ValueFactoryStatus.OUT_OF_MEMORY;
+	RETURN;
+END_IF
+MEMCPY(_pKey, pKey, _len);
+
+_pVal := cloneAnyValue(pVal);
+IF _pVal = 0 THEN
+	sts := E_ValueFactoryStatus.OUT_OF_MEMORY;
+	__DELETE(_pKey);
+	RETURN;
+END_IF
+
+IF NOT _pVal^.initialized THEN
+	sts := E_ValueFactoryStatus.OUT_OF_MEMORY;
+	__DELETE(_pKey);
+	_pVal := _pVal^.delete();
+	RETURN;
+END_IF
+
+createKeyValue := __NEW(FB_KeyValue(pKey:=_pKey, pVal:=_pVal));
+IF createKeyValue = 0 THEN
+	sts := E_ValueFactoryStatus.OUT_OF_MEMORY;
+	__DELETE(_pKey);
+	_pVal := _pVal^.delete();
+ELSE
+	sts := E_ValueFactoryStatus.SUCCESS;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="createNumber" Id="{3bcb96ce-f273-4452-a75d-ea53e63d4d25}">
+      <Declaration><![CDATA[METHOD createNumber : POINTER TO FB_Number
+VAR_INPUT
+	pDest: POINTER TO FB_Number;
+	value: ANY_NUM;
+END_VAR
+VAR_OUTPUT
+	sts: E_ValueFactoryStatus;
+END_VAR
+VAR
+	_pValue: POINTER TO BYTE;
+	_size: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[createNumber := 0;
+IF pDest <> 0 THEN
+	createNumber := pDest;
+	sts := E_ValueFactoryStatus.POINTER_ALREADY_ALLOCATED;
+	RETURN;
+END_IF
+
+IF value.pValue = 0 OR value.diSize <= 0 THEN
+	sts := E_ValueFactoryStatus.INVALID_PARAMETERS;
+	RETURN;
+END_IF
+
+// Copy the concrete numeric value so the wrapper never retains caller-owned data.
+_size := TO_UDINT(value.diSize);
+_pValue := __NEW(BYTE, _size);
+IF _pValue = 0 THEN
+	sts := E_ValueFactoryStatus.OUT_OF_MEMORY;
+	RETURN;
+END_IF
+MEMCPY(_pValue, value.pValue, _size);
+
+createNumber := __NEW(FB_Number(
+	typeClass:=value.typeclass,
+	pValue:=_pValue,
+	diSize:=value.diSize
+));
+IF createNumber = 0 THEN
+	sts := E_ValueFactoryStatus.OUT_OF_MEMORY;
+	__DELETE(_pValue);
+ELSE
+	sts := E_ValueFactoryStatus.SUCCESS;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="createSpanId" Id="{8c55c398-28af-4759-b54f-4b55d341d11a}">
+      <Declaration><![CDATA[METHOD createSpanId: POINTER TO FB_SpanId
+VAR_INPUT
+	pDest: POINTER TO FB_SpanId;
+	pBytes: POINTER TO BYTE;
+	nSize: UDINT;
+END_VAR
+VAR_OUTPUT
+	sts: E_ValueFactoryStatus;
+END_VAR
+VAR CONSTANT
+	nSpanIdBytes: UDINT := 8;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[createSpanId := 0;
+IF pDest <> 0 THEN
+	createSpanId := pDest;
+	sts := E_ValueFactoryStatus.POINTER_ALREADY_ALLOCATED;
+	RETURN;
+END_IF
+
+IF pBytes = 0 OR nSize < nSpanIdBytes THEN
+	createSpanId := pDest;
+	sts := E_ValueFactoryStatus.INVALID_PARAMETERS;
+	RETURN;
+END_IF
+
+createSpanId := __NEW(FB_SpanId);
+IF createSpanId = 0 THEN
+	sts := E_ValueFactoryStatus.OUT_OF_MEMORY;
+ELSE
+	MEMCPY(ADR(createSpanId^.bytes), pBytes, SIZEOF(createSpanId^.bytes));
+	sts := E_ValueFactoryStatus.SUCCESS;
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="createString" Id="{c9d254c2-678b-419f-ac3c-e884e66c3532}">
       <Declaration><![CDATA[METHOD createString: POINTER TO FB_String
 
@@ -18,9 +173,15 @@ END_VAR
 VAR_OUTPUT
 	sts: E_ValueFactoryStatus;
 END_VAR
+
+VAR
+	_pString: POINTER TO STRING;
+	_len: UDINT;
+END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pDest <> 0  THEN
+        <ST><![CDATA[createString := 0;
+IF pDest <> 0  THEN
 	createString := pDest;
 	sts := E_ValueFactoryStatus.POINTER_ALREADY_ALLOCATED;
 	RETURN;
@@ -32,9 +193,20 @@ IF pString = 0 THEN
 	RETURN;
 END_IF
 
-createString := __NEW(FB_String(pString:=pString));
+// clone the string into a new pointer so as to not use mutable data
+// an extra character is needed for the terminating character, which is a literal 0 just like "cstrings"
+_len := MIN(LEN2(pString), GVL.MAX_STRING_LEN) + 1;
+_pString := __NEW(BYTE, _len);
+IF _pString = 0 THEN
+	sts := E_ValueFactoryStatus.OUT_OF_MEMORY;
+	RETURN;
+END_IF
+MEMCPY(_pString, pString, _len);
+
+createString := __NEW(FB_String(pString:=_pString));
 IF createString = 0 THEN
 	sts := E_ValueFactoryStatus.OUT_OF_MEMORY;
+	__DELETE(_pString);
 ELSE
 	sts := E_ValueFactoryStatus.SUCCESS;
 END_IF
@@ -45,14 +217,37 @@ END_IF
       <Declaration><![CDATA[METHOD createTraceId : POINTER TO FB_TraceId
 VAR_INPUT
 	pDest: POINTER TO FB_TraceId;
-	pSrc: POINTER TO BYTE;
+	pBytes: POINTER TO BYTE;
+	nSize: UDINT;
 END_VAR
 VAR_OUTPUT
 	sts: E_ValueFactoryStatus;
 END_VAR
-]]></Declaration>
+VAR CONSTANT
+	nTraceIdBytes: UDINT := 16;
+END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[createTraceId := 0;
+IF pDest <> 0 THEN
+	createTraceId := pDest;
+	sts := E_ValueFactoryStatus.POINTER_ALREADY_ALLOCATED;
+	RETURN;
+END_IF
+
+IF pBytes = 0 OR nSize < nTraceIdBytes THEN
+	createTraceId := pDest;
+	sts := E_ValueFactoryStatus.INVALID_PARAMETERS;
+	RETURN;
+END_IF
+
+createTraceId := __NEW(FB_TraceId);
+IF createTraceId = 0 THEN
+	sts := E_ValueFactoryStatus.OUT_OF_MEMORY;
+ELSE
+	MEMCPY(ADR(createTraceId^.bytes), pBytes, SIZEOF(createTraceId^.bytes));
+	sts := E_ValueFactoryStatus.SUCCESS;
+END_IF
+]]></ST>
       </Implementation>
     </Method>
   </POU>

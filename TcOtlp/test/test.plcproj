@@ -24,6 +24,9 @@
     <Compile Include="OTEL\ENUMS\E_BytesEncoding.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\ENUMS\E_FileExporterErrorCode.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\ENUMS\E_FileExporterState.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
@@ -51,9 +54,6 @@
     <Compile Include="OTEL\FUNCTIONS\cloneString.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTIONS\cloneBytes.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="OTEL\FUNCTIONS\cloneLinkedList_KeyValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -64,9 +64,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\FUNCTION_BLOCKS\Logs\FB_LogRecord.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Logs\FB_ScopeLogs.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\FUNCTION_BLOCKS\Serializers\FB_LogRecordProtoJsonSerializer.TcPOU">
@@ -84,6 +81,9 @@
     <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_AnyValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_Number.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_KeyValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -91,9 +91,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_String.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_Bytes.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_TraceId.TcPOU">

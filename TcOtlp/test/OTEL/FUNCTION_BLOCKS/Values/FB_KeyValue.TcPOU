@@ -12,13 +12,14 @@ END_VAR
       <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="delete" Id="{72419ca3-b889-48b2-ba00-e715a127399e}">
-      <Declaration><![CDATA[METHOD delete
+      <Declaration><![CDATA[METHOD delete: ULINT
 VAR
 	pSelf: POINTER TO FB_KeyValue;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[pSelf := THIS;
-__DELETE(pSelf);]]></ST>
+__DELETE(pSelf);
+delete := 0;]]></ST>
       </Implementation>
     </Method>
     <Property Name="eType" Id="{c2e82dd7-6dca-4765-8d95-f8cdb21c0a06}">
@@ -57,19 +58,13 @@ VAR_INPUT
 	pKey: POINTER TO STRING;
 	pVal: POINTER TO FB_AnyValue;
 END_VAR
-VAR
-	_len: UDINT;
-END_VAR]]></Declaration>
+]]></Declaration>
       <Implementation>
-        <ST><![CDATA[// an extra character is needed for the terminating character, which is a literal 0 just like "cstrings"
-IF pKey <> 0 AND pVal <> 0 THEN
-	// assign pKey by copy
-	_len := MIN(LEN2(pKey), GVL.MAX_STRING_LEN) + 1;
-	THIS^.pKey := __NEW(BYTE, _len);
-	MEMCPY(THIS^.pKey, pKey, _len);
-	// assign the pointer
-	THIS^.pVal := cloneAnyValue(pVal);
-END_IF]]></ST>
+        <ST><![CDATA[(* Validation and allocation are handled by ValueFactory.createKeyValue. The
+factory transfers ownership of both pointers only after every step succeeds. *)
+THIS^.pKey := pKey;
+THIS^.pVal := pVal;
+THIS^._initialized := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="free" Id="{f43303d8-cb9a-4788-90b7-d0e19760a4b9}">
@@ -82,8 +77,7 @@ METHOD free
 	THIS^.pKey := 0;
 END_IF
 IF THIS^.pVal <> 0 THEN
-	THIS^.pVal^.delete();
-	THIS^.pVal := 0;
+	THIS^.pVal := THIS^.pVal^.delete();
 END_IF
 THIS^._initialized := FALSE;]]></ST>
       </Implementation>

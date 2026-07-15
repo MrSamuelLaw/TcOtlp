@@ -8,10 +8,10 @@ END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[IF pSrc <> 0 THEN
-	cloneKeyValue := __NEW(FB_KeyValue(
+	cloneKeyValue := ValueFactory.createKeyValue(
+		pDest:=0,
 		pKey:=pSrc^.pKey,
-		pVal:=pSrc^.pVal
-	));
+		pVal:=pSrc^.pVal);
 ELSE
 	cloneKeyValue := 0;
 END_IF]]></ST>

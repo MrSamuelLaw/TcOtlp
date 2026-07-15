@@ -4,7 +4,7 @@
     <Declaration><![CDATA[INTERFACE I_OtlpValue]]></Declaration>
     <Method Name="delete" Id="{ca464e23-6694-4db7-b1ae-3a14ba19c61b}">
       <Declaration><![CDATA[// method used to delete all data held by the value and then delete the object itself.
-METHOD delete
+METHOD delete: ULINT
 ]]></Declaration>
     </Method>
     <Property Name="eType" Id="{f215879f-eadf-4cab-a2f7-31f77a67d6d2}">
@@ -21,12 +21,6 @@ METHOD free
     <Property Name="initialized" Id="{3e48eded-59f0-48ef-a8a3-61bdc2b31bcf}">
       <Declaration><![CDATA[PROPERTY initialized : BOOL]]></Declaration>
       <Get Name="Get" Id="{e05413a8-f893-458a-ba3f-daf70d044397}">
-        <Declaration><![CDATA[]]></Declaration>
-      </Get>
-    </Property>
-    <Property Name="self" Id="{062a2415-3b25-4eb4-808c-7921eedb4007}">
-      <Declaration><![CDATA[PROPERTY self : PVOID]]></Declaration>
-      <Get Name="Get" Id="{65bbb363-6dec-4e83-a47c-2e0e134c6be3}">
         <Declaration><![CDATA[]]></Declaration>
       </Get>
     </Property>

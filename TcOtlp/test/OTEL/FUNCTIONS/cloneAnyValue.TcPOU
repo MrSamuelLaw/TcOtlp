@@ -7,6 +7,10 @@ VAR_INPUT
 END_VAR
 VAR
 	_type: E_ValueType;
+	_pNumberSrc: POINTER TO FB_Number;
+	_pNumberDest: POINTER TO FB_Number;
+	_pValue: POINTER TO BYTE;
+	_size: UDINT;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -15,8 +19,28 @@ END_VAR
 	CASE _type OF
 		E_ValueType.E_String:
 			cloneAnyValue := cloneString(pSrc);
-		E_ValueType.E_Bytes:
-			cloneAnyValue := cloneBytes(pSrc);
+		E_ValueType.E_Number:
+			_pNumberSrc := pSrc;
+			IF _pNumberSrc^.initialized AND
+				_pNumberSrc^.value.pValue <> 0 AND
+				_pNumberSrc^.value.diSize > 0
+			THEN
+				_size := TO_UDINT(_pNumberSrc^.value.diSize);
+				_pValue := __NEW(BYTE, _size);
+				IF _pValue <> 0 THEN
+					MEMCPY(_pValue, _pNumberSrc^.value.pValue, _size);
+					_pNumberDest := __NEW(FB_Number(
+						typeClass:=_pNumberSrc^.value.typeclass,
+						pValue:=_pValue,
+						diSize:=_pNumberSrc^.value.diSize
+					));
+					IF _pNumberDest = 0 THEN
+						__DELETE(_pValue);
+					ELSE
+						cloneAnyValue := _pNumberDest;
+					END_IF
+				END_IF
+			END_IF
 		ELSE
 			cloneAnyValue := 0;
 	END_CASE

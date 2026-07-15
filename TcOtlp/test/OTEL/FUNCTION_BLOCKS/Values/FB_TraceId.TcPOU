@@ -10,14 +10,15 @@ END_VAR]]></Declaration>
       <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="delete" Id="{c97e0256-4d82-467f-8451-1a78cc35cf61}">
-      <Declaration><![CDATA[METHOD delete
+      <Declaration><![CDATA[METHOD delete: ULINT
 
 VAR
 	pSelf: POINTER TO FB_TraceId;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[pSelf := THIS;
-__DELETE(pSelf);]]></ST>
+__DELETE(pSelf);
+delete := 0;]]></ST>
       </Implementation>
     </Method>
     <Property Name="eType" Id="{a8e38517-e28e-4988-8201-c1e2d19bf319}">
@@ -51,14 +52,12 @@ METHOD FB_Init: BOOL
 VAR_INPUT
     bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
     bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)   
-	pBytes: POINTER TO BYTE;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pBytes <> 0 THEN
-	MEMCPY(ADR(THIS^.bytes), pBytes, 16);
-	THIS^._initialized := TRUE;
-END_IF]]></ST>
+        <ST><![CDATA[(* Validation and byte copying are handled by ValueFactory.createTraceId so an
+invalid value is never allocated. *)
+THIS^._initialized := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="free" Id="{f2521e9b-00ca-4214-9c98-a50a3ee6d37e}">

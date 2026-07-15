@@ -7,7 +7,7 @@
       <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="delete" Id="{86d3a7ce-6868-4d24-99f2-1892df9a286c}">
-      <Declaration><![CDATA[METHOD ABSTRACT delete
+      <Declaration><![CDATA[METHOD ABSTRACT delete: ULINT
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[]]></ST>

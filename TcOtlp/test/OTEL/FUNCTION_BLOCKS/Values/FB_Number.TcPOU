@@ -1,35 +1,37 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_Bytes" Id="{7df6c5c0-c120-4198-9271-cd924c58ec8e}" SpecialFunc="None">
+  <POU Name="FB_Number" Id="{c5fb9a17-5d56-41cb-88c0-bdfb63683555}" SpecialFunc="None">
     <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
-FUNCTION_BLOCK FB_Bytes EXTENDS FB_AnyValue IMPLEMENTS I_OtlpValue
+FUNCTION_BLOCK FB_Number EXTENDS FB_AnyValue IMPLEMENTS I_OtlpValue
 VAR_OUTPUT
-	pBytes: POINTER TO BYTE;
-	nBytes: UDINT;
-END_VAR]]></Declaration>
+	value: AnyType;
+END_VAR
+]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="delete" Id="{a84cf570-7168-4c1f-8aaf-539288163ab7}">
-      <Declaration><![CDATA[METHOD delete
+    <Method Name="delete" Id="{81626baf-73e9-474d-8fdb-3db32f627943}">
+      <Declaration><![CDATA[(* method used to delete all data held by the value and then delete the object itself.*)
+METHOD delete : ULINT
 VAR
-	pSelf: POINTER TO FB_Bytes;
+	pSelf: POINTER TO FB_Number;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[pSelf := THIS;
-__DELETE(pSelf);]]></ST>
+__DELETE(pSelf);
+delete := 0;]]></ST>
       </Implementation>
     </Method>
-    <Property Name="eType" Id="{b608c525-022c-4018-b526-845392a0dbe6}">
+    <Property Name="eType" Id="{5bc99ae1-764d-46dc-ad39-c02b186a1dfd}">
       <Declaration><![CDATA[PROPERTY eType : E_ValueType]]></Declaration>
-      <Get Name="Get" Id="{b59be21e-63a9-41a0-b508-4518e06bc8dc}">
+      <Get Name="Get" Id="{7e33065d-f409-44ce-a7b2-721cf13cf094}">
         <Declaration><![CDATA[]]></Declaration>
         <Implementation>
-          <ST><![CDATA[eType := E_ValueType.E_Bytes;]]></ST>
+          <ST><![CDATA[eType := E_ValueType.E_Number;]]></ST>
         </Implementation>
       </Get>
     </Property>
-    <Method Name="FB_Exit" Id="{1b45169c-e232-4e93-9e12-ff3cb5580298}">
+    <Method Name="FB_Exit" Id="{7b92b00a-edbb-42b3-adc5-8a7e65018ece}">
       <Declaration><![CDATA[//FB_Exit must be implemented explicitly. If there is an implementation, then the
 //method is called before the controller removes the code of the function block instance
 //(implicit call). The return value is not evaluated.
@@ -42,7 +44,7 @@ END_VAR
         <ST><![CDATA[THIS^.free();]]></ST>
       </Implementation>
     </Method>
-    <Method Name="FB_Init" Id="{45c74048-59f4-44fb-8f24-5dc2cdc9033c}">
+    <Method Name="FB_Init" Id="{d6aad393-9bab-4c5d-928a-ab98d173ed73}">
       <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
 //The return value is not evaluated. For a specific influence, you can also declare the
 //methods explicitly and provide additional code there with the standard initialization
@@ -51,26 +53,29 @@ METHOD FB_Init: BOOL
 VAR_INPUT
     bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
     bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
-	pBytes: POINTER TO BYTE;
-	nBytes: UDINT;
+	typeClass: __SYSTEM.TYPE_CLASS;
+	pValue: POINTER TO BYTE;
+	diSize: DINT;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[// an extra character is needed for the terminating character, which is a literal 0 just like "cstrings"
-THIS^.nBytes := nBytes;
-THIS^.pBytes := __NEW(BYTE, THIS^.nBytes);
-MEMCPY(THIS^.pBytes, pBytes, THIS^.nBytes);]]></ST>
+        <ST><![CDATA[(* ValueFactory owns validation and allocation. FB_Number takes ownership of
+the copied value and its type metadata only after every allocation succeeds. *)
+THIS^.value.typeclass := typeClass;
+THIS^.value.pValue := pValue;
+THIS^.value.diSize := diSize;
+THIS^._initialized := pValue <> 0 AND diSize > 0;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="free" Id="{d114e566-2b89-4629-bba6-a5034773194b}">
+    <Method Name="free" Id="{befe6018-20a6-42af-8f70-d8bf62cbbf12}">
       <Declaration><![CDATA[(* deallocates all data owned by the value without deleting the object itself.*)
 METHOD free
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF THIS^.pBytes <> 0 THEN
-	__DELETE(THIS^.pBytes);
-	THIS^.pBytes := 0;
+        <ST><![CDATA[IF THIS^.value.pValue <> 0 THEN
+	__DELETE(THIS^.value.pValue);
 END_IF
+MEMSET(ADR(THIS^.value), 0, SIZEOF(THIS^.value));
 THIS^._initialized := FALSE;]]></ST>
       </Implementation>
     </Method>

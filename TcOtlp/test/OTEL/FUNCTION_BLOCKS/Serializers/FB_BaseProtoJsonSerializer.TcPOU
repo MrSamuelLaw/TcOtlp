@@ -83,24 +83,63 @@ END_VAR]]></Declaration>
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="serializeBytesValue" Id="{df3da918-2675-4cca-b7e4-c1d3cee5cc40}">
-      <Declaration><![CDATA[METHOD serializeBytesValue
+    <Method Name="serializeFixed32Value" Id="{5c9cb533-514e-40ea-9775-5d28e3bc73f5}">
+      <Declaration><![CDATA[METHOD serializeFixed32Value
 VAR_IN_OUT
 	v: SJsonValue;
 END_VAR
 VAR_INPUT
-	pKey: POINTER TO STRING;
-	pVal: POINTER TO FB_Bytes;
+	pKey: POINTER TO STRING;  // allows for any length of key
+	val: UDINT;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pKey <> 0 THEN
+	// ProtoJSON encodes fixed32 values as JSON numbers.
+	THIS^.parser.AddUintMember(v, pKey^, val);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="serializeFixed64Value" Id="{c146981b-e283-4f71-ad5b-00a98b72548a}">
+      <Declaration><![CDATA[METHOD serializeFixed64Value
+VAR_IN_OUT
+	v: SJsonValue;
+END_VAR
+VAR_INPUT
+	pKey: POINTER TO STRING;  // allows for any length of key
+	val: ULINT;
 END_VAR
 VAR
-	_idx: INT;
-	_encodedStr: T_MaxString;
-END_VAR]]></Declaration>
+	_buf: STRING(20);  // 2^64 is max value of fixed64 which is 20 chars max
+END_VAR
+
+]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF  pKey <> 0 AND pVal <> 0 AND_THEN pVal^.pBytes <> 0 THEN
-	THIS^._serializeBytes(pVal^.pBytes, pVal^.nBytes, ADR(_encodedStr), SIZEOF(_encodedStr), E_BytesEncoding.base64);
-	THIS^.parser.AddStringMember(v, pKey^ ,_encodedStr);
+        <ST><![CDATA[IF pKey <> 0 THEN
+	// ProtoJSON encodes fixed64 values as decimal strings.
+	_buf := ULINT_TO_STRING(val);
+	THIS^.parser.AddStringMember(v, pKey^, _buf);
 END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="serializeInstrumentationScope" Id="{d8ddb1f2-1ad0-4f05-989c-b4827ed9f34e}">
+      <Declaration><![CDATA[METHOD serializeInstrumentationScope
+VAR_IN_OUT
+	val: SJsonValue;
+	scope: FB_InstrumentationScope;
+END_VAR
+VAR
+	_obj: SJsonValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// create the object
+_obj := THIS^.parser.AddJsonMember(val, 'scope', '{}');
+
+// add data to the object
+THIS^.parser.AddStringMember(_obj, 'name', scope.name);
+THIS^.parser.AddStringMember(_obj, 'version', scope.version);]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeKeyValue" Id="{486a70c5-9e67-46b6-89f1-7a33a1497da2}">
@@ -156,7 +195,6 @@ VAR_IN_OUT
 	v: SJsonValue;
 END_VAR
 VAR_INPUT
-	pKey: POINTER TO STRING;
 	pVal: POINTER TO FB_SpanId;
 END_VAR
 VAR
@@ -164,7 +202,7 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pKey <> 0 AND pVal <> 0 THEN
+        <ST><![CDATA[IF pVal <> 0 THEN
 	THIS^._serializeBytes(
 		ADR(pVal^.bytes), 
 		SIZEOF(pVal^.bytes), 
@@ -172,7 +210,7 @@ END_VAR
 		SIZEOF(_encodedStr), 
 		E_BytesEncoding.hex
 	);
-	THIS^.parser.AddStringMember(v, pKey^ ,_encodedStr);
+	THIS^.parser.AddStringMember(v, 'spanId' ,_encodedStr);
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -199,7 +237,6 @@ VAR_IN_OUT
 	v: SJsonValue;
 END_VAR
 VAR_INPUT
-	pKey: POINTER TO STRING;
 	pVal: POINTER TO FB_TraceId;
 END_VAR
 VAR
@@ -207,7 +244,7 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pKey <> 0 AND pVal <> 0 THEN
+        <ST><![CDATA[IF pVal <> 0 THEN
 	THIS^._serializeBytes(
 		ADR(pVal^.bytes), 
 		SIZEOF(pVal^.bytes), 
@@ -215,47 +252,7 @@ END_VAR
 		SIZEOF(_encodedStr),
 		E_BytesEncoding.hex	
 	);
-	THIS^.parser.AddStringMember(v, pKey^ ,_encodedStr);
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="serializeFixed32Value" Id="{5c9cb533-514e-40ea-9775-5d28e3bc73f5}">
-      <Declaration><![CDATA[METHOD serializeFixed32Value
-VAR_IN_OUT
-	v: SJsonValue;
-END_VAR
-VAR_INPUT
-	pKey: POINTER TO STRING;  // allows for any length of key
-	val: UDINT;
-END_VAR
-
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF pKey <> 0 THEN
-	// ProtoJSON encodes fixed32 values as JSON numbers.
-	THIS^.parser.AddUintMember(v, pKey^, val);
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="serializeFixed64Value" Id="{c146981b-e283-4f71-ad5b-00a98b72548a}">
-      <Declaration><![CDATA[METHOD serializeFixed64Value
-VAR_IN_OUT
-	v: SJsonValue;
-END_VAR
-VAR_INPUT
-	pKey: POINTER TO STRING;  // allows for any length of key
-	val: ULINT;
-END_VAR
-VAR
-	_buf: STRING(20);  // 2^64 is max value of fixed64 which is 20 chars max
-END_VAR
-
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF pKey <> 0 THEN
-	// ProtoJSON encodes fixed64 values as decimal strings.
-	_buf := ULINT_TO_STRING(val);
-	THIS^.parser.AddStringMember(v, pKey^, _buf);
+	THIS^.parser.AddStringMember(v, 'traceId' ,_encodedStr);
 END_IF]]></ST>
       </Implementation>
     </Method>

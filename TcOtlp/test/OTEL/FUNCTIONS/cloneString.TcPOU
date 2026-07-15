@@ -9,7 +9,7 @@ END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[IF pSrc <> 0 THEN
-	cloneString := __NEW(FB_String(pString:=pSrc^.pString));
+	cloneString := ValueFactory.createString(pDest:=0, pString:=pSrc^.pString);
 ELSE
 	cloneString := 0;
 END_IF]]></ST>

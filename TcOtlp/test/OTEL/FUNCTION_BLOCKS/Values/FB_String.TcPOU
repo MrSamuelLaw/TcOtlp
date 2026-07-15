@@ -5,19 +5,19 @@
 FUNCTION_BLOCK FB_String EXTENDS FB_AnyValue IMPLEMENTS I_OtlpValue
 VAR_OUTPUT
 	pString: POINTER TO STRING;
-	len: UDINT;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="delete" Id="{7f99e5b0-366a-49b5-ba45-4cdbaf429152}">
-      <Declaration><![CDATA[METHOD delete
+      <Declaration><![CDATA[METHOD delete: ULINT
 VAR
 	pSelf: POINTER TO FB_String;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[pSelf := THIS;
-__DELETE(pSelf);]]></ST>
+__DELETE(pSelf);
+delete := 0;]]></ST>
       </Implementation>
     </Method>
     <Property Name="eType" Id="{35797e98-a42e-407f-8287-a86a64bbf017}">
@@ -55,15 +55,17 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pString <> 0 THEN
-	// an extra character is needed for the terminating character, which is a literal 0 just like "cstrings"
-	THIS^.len := MIN(LEN2(pString), GVL.MAX_STRING_LEN) + 1;
-	THIS^.pString := __NEW(BYTE, THIS^.len);
-	IF THIS^.pString <> 0 THEN
-		MEMCPY(THIS^.pString, pString, THIS^.len);
-		THIS^._initialized := TRUE;
-	END_IF
-END_IF]]></ST>
+        <ST><![CDATA[(* 
+Allocation and validation of the bytes is done at the
+ValueFactory and not the value iteself, that way a new value 
+never gets allocated if the initialization fails.
+*)
+THIS^.pString := pString;
+THIS^._initialized := TRUE;
+
+
+
+]]></ST>
       </Implementation>
     </Method>
     <Method Name="free" Id="{8b49426d-23c6-4374-be84-d96941a32f61}">
@@ -74,7 +76,6 @@ END_IF]]></ST>
 	__DELETE(THIS^.pString);
 	THIS^.pString := 0;
 END_IF
-THIS^.len := 0;
 THIS^._initialized := FALSE;]]></ST>
       </Implementation>
     </Method>

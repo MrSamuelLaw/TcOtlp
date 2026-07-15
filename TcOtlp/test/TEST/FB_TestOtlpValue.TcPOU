@@ -5,9 +5,10 @@
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[THIS^.TestString();
-// THIS^.TestTraceId();
-// THIS^.TestSpanId();
-// THIS^.TestKeyValue();]]></ST>
+THIS^.TestTraceId();
+THIS^.TestSpanId();
+THIS^.TestKeyValue();
+THIS^.TestNumber();]]></ST>
     </Implementation>
     <Method Name="TestKeyValue" Id="{acdf0ac0-9096-4212-a7b1-9f8272d53f53}">
       <Declaration><![CDATA[METHOD TestKeyValue : REFERENCE TO FB_Test
@@ -17,12 +18,25 @@ VAR
 	anyValue: POINTER TO FB_AnyValue;
 	expectedType: E_ValueType := E_ValueType.E_KeyValue;
 	actualType: E_ValueType;
+	sts: E_ValueFactoryStatus;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test KeyValue');
-	pVal := __NEW(FB_String(pString:=ADR('Value')));
-	pKeyVal := __NEW(FB_KeyValue(pKey:=ADR('Key'), pVal:=pVal));
+	// test failure for invalid data
+	pKeyVal := ValueFactory.createKeyValue(pKeyVal, ADR('Key'), 0, sts=>sts);
+	THIS^.AssertTrue(sts=E_ValueFactoryStatus.INVALID_PARAMETERS, 'Expected FB_KeyValue creation to fail due to invalid parameters');
+	
+	// create a valid pointer
+	pVal := ValueFactory.createString(pVal, ADR('Value'));
+	pKeyVal := ValueFactory.createKeyValue(pKeyVal, ADR('Key'), pVal, sts=>sts);
+	THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS, 'Unexpected status when trying to create an FB_KeyValue');
+	
+	// assert that the FB_String fails to initialize for invalid pointer and nothing happens
+	pKeyVal := ValueFactory.createKeyValue(pKeyVal, ADR('Key'), pVal, sts=>sts);
+	THIS^.AssertTrue(sts=E_ValueFactoryStatus.POINTER_ALREADY_ALLOCATED, 'Expected FB_KeyValue creation to fail due to non-zero pointer');
+	
  	IF pVal <> 0 AND pKeyVal <> 0 THEN
+		// confirm that it can be cast to FB_AnyValue
 		anyValue := pKeyVal;
 		// assert type is correct
 		actualType := anyValue^.eType;
@@ -37,6 +51,7 @@ END_VAR]]></Declaration>
 			Expected:='Key',
 			Message:='Unexpected Key Value'
 		);
+		// assert that it is being passed by value and not reference.
 		pVal^.delete();
 		pVal := pKeyVal^.pVal;
 		THIS^.AssertEquals_STRING(
@@ -44,14 +59,132 @@ END_VAR]]></Declaration>
 			Expected:='Value',
 			Message:='Unexpected Value'
 		);
-		// cleanup data
-	IF pKeyVal <> 0 THEN 
-		pKeyVal^.delete();
-	ELSIF pVal <> 0 THEN 
-		pVal^.delete();
 	END_IF
-	
- END_IF
+	// cleanup data
+	IF pKeyVal <> 0 THEN pKeyVal := pKeyVal^.delete();
+	ELSIF pVal <> 0 THEN pVal := pVal^.delete(); END_IF
+
+
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TestNumber" Id="{937d81b1-2ab4-4576-9edd-7d20abb54bd4}">
+      <Declaration><![CDATA[METHOD TestNumber : REFERENCE TO FB_Test
+VAR
+	nSInt: SINT := -12;
+	nInt: INT := -1234;
+	nDInt: DINT := -12345;
+	nLInt: LINT := -123456;
+	nUSInt: USINT := 12;
+	nUInt: UINT := 1234;
+	nUDInt: UDINT := 12345;
+	nULInt: ULINT := 123456;
+	fReal: REAL := 42.25;
+	fLReal: LREAL := 24.5;
+	pValue: POINTER TO FB_Number;
+	pDInt: POINTER TO DINT;
+	pOriginal: POINTER TO FB_Number;
+	anyValue: POINTER TO FB_AnyValue;
+	sts: E_ValueFactoryStatus;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test NumberValue');
+
+// ANY_NUM accepts every signed, unsigned, and floating-point IEC numeric type.
+pValue := ValueFactory.createNumber(pDest:=pValue, value:=nSInt, sts=>sts);
+THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS AND_THEN pValue <> 0, 'Failed to create FB_Number from SINT');
+IF pValue <> 0 THEN
+	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_SINT, 'FB_Number lost the SINT type');
+	THIS^.AssertTrue(pValue^.value.diSize=SIZEOF(nSInt) AND_THEN MEMCMP(pValue^.value.pValue, ADR(nSInt), SIZEOF(nSInt))=0, 'FB_Number did not copy the SINT value');
+	pValue := pValue^.delete();
+END_IF
+
+pValue := ValueFactory.createNumber(pDest:=pValue, value:=nInt, sts=>sts);
+THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS AND_THEN pValue <> 0, 'Failed to create FB_Number from INT');
+IF pValue <> 0 THEN
+	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_INT, 'FB_Number lost the INT type');
+	THIS^.AssertTrue(pValue^.value.diSize=SIZEOF(nInt) AND_THEN MEMCMP(pValue^.value.pValue, ADR(nInt), SIZEOF(nInt))=0, 'FB_Number did not copy the INT value');
+	pValue := pValue^.delete();
+END_IF
+
+pValue := ValueFactory.createNumber(pDest:=pValue, value:=nDInt, sts=>sts);
+THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS AND_THEN pValue <> 0, 'Failed to create FB_Number from DINT');
+IF pValue <> 0 THEN
+	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_DINT, 'FB_Number lost the DINT type');
+	THIS^.AssertTrue(pValue^.value.diSize=SIZEOF(nDInt) AND_THEN MEMCMP(pValue^.value.pValue, ADR(nDInt), SIZEOF(nDInt))=0, 'FB_Number did not copy the DINT value');
+	// The wrapper owns a copy; changing the source must not change the wrapped value.
+	pDInt := pValue^.value.pValue;
+	nDInt := 7;
+	THIS^.AssertEquals_DINT(-12345, pDInt^, 'FB_Number retained a reference to the source DINT');
+	// A factory call must never replace an already allocated destination.
+	pOriginal := pValue;
+	pValue := ValueFactory.createNumber(pDest:=pValue, value:=fLReal, sts=>sts);
+	THIS^.AssertTrue(sts=E_ValueFactoryStatus.POINTER_ALREADY_ALLOCATED AND_THEN pValue=pOriginal, 'createNumber replaced an allocated destination');
+	pValue := pValue^.delete();
+END_IF
+
+pValue := ValueFactory.createNumber(pDest:=pValue, value:=nLInt, sts=>sts);
+THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS AND_THEN pValue <> 0, 'Failed to create FB_Number from LINT');
+IF pValue <> 0 THEN
+	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_LINT, 'FB_Number lost the LINT type');
+	THIS^.AssertTrue(pValue^.value.diSize=SIZEOF(nLInt) AND_THEN MEMCMP(pValue^.value.pValue, ADR(nLInt), SIZEOF(nLInt))=0, 'FB_Number did not copy the LINT value');
+	pValue := pValue^.delete();
+END_IF
+
+pValue := ValueFactory.createNumber(pDest:=pValue, value:=nUSInt, sts=>sts);
+THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS AND_THEN pValue <> 0, 'Failed to create FB_Number from USINT');
+IF pValue <> 0 THEN
+	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_USINT, 'FB_Number lost the USINT type');
+	THIS^.AssertTrue(pValue^.value.diSize=SIZEOF(nUSInt) AND_THEN MEMCMP(pValue^.value.pValue, ADR(nUSInt), SIZEOF(nUSInt))=0, 'FB_Number did not copy the USINT value');
+	pValue := pValue^.delete();
+END_IF
+
+pValue := ValueFactory.createNumber(pDest:=pValue, value:=nUInt, sts=>sts);
+THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS AND_THEN pValue <> 0, 'Failed to create FB_Number from UINT');
+IF pValue <> 0 THEN
+	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_UINT, 'FB_Number lost the UINT type');
+	THIS^.AssertTrue(pValue^.value.diSize=SIZEOF(nUInt) AND_THEN MEMCMP(pValue^.value.pValue, ADR(nUInt), SIZEOF(nUInt))=0, 'FB_Number did not copy the UINT value');
+	pValue := pValue^.delete();
+END_IF
+
+pValue := ValueFactory.createNumber(pDest:=pValue, value:=nUDInt, sts=>sts);
+THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS AND_THEN pValue <> 0, 'Failed to create FB_Number from UDINT');
+IF pValue <> 0 THEN
+	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_UDINT, 'FB_Number lost the UDINT type');
+	THIS^.AssertTrue(pValue^.value.diSize=SIZEOF(nUDInt) AND_THEN MEMCMP(pValue^.value.pValue, ADR(nUDInt), SIZEOF(nUDInt))=0, 'FB_Number did not copy the UDINT value');
+	pValue := pValue^.delete();
+END_IF
+
+pValue := ValueFactory.createNumber(pDest:=pValue, value:=nULInt, sts=>sts);
+THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS AND_THEN pValue <> 0, 'Failed to create FB_Number from ULINT');
+IF pValue <> 0 THEN
+	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_ULINT, 'FB_Number lost the ULINT type');
+	THIS^.AssertTrue(pValue^.value.diSize=SIZEOF(nULInt) AND_THEN MEMCMP(pValue^.value.pValue, ADR(nULInt), SIZEOF(nULInt))=0, 'FB_Number did not copy the ULINT value');
+	pValue := pValue^.delete();
+END_IF
+
+pValue := ValueFactory.createNumber(pDest:=pValue, value:=fReal, sts=>sts);
+THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS AND_THEN pValue <> 0, 'Failed to create FB_Number from REAL');
+IF pValue <> 0 THEN
+	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_REAL, 'FB_Number lost the REAL type');
+	THIS^.AssertTrue(pValue^.value.diSize=SIZEOF(fReal) AND_THEN MEMCMP(pValue^.value.pValue, ADR(fReal), SIZEOF(fReal))=0, 'FB_Number did not copy the REAL value');
+	pValue := pValue^.delete();
+END_IF
+
+pValue := ValueFactory.createNumber(pDest:=pValue, value:=fLReal, sts=>sts);
+THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS AND_THEN pValue <> 0, 'Failed to create FB_Number from LREAL');
+IF pValue <> 0 THEN
+	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_LREAL, 'FB_Number lost the LREAL type');
+	THIS^.AssertTrue(pValue^.value.diSize=SIZEOF(fLReal) AND_THEN MEMCMP(pValue^.value.pValue, ADR(fLReal), SIZEOF(fLReal))=0, 'FB_Number did not copy the LREAL value');
+	// Number values are valid AnyValue instances and participate in the common lifecycle.
+	anyValue := pValue;
+	THIS^.AssertTrue(anyValue^.eType=E_ValueType.E_Number AND_THEN anyValue^.initialized, 'FB_Number is not an initialized AnyValue');
+	anyValue^.free();
+	THIS^.AssertFalse(pValue^.initialized, 'Expected freed number value to be uninitialized');
+	THIS^.AssertTrue(pValue^.value.pValue=0 AND pValue^.value.diSize=0, 'Expected free to clear the owned number data');
+	pValue := pValue^.delete();
+END_IF
 
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
@@ -67,6 +200,7 @@ VAR
 	actualType: E_ValueType;
 	guid_: GUID;
 	anyValue: I_OtlpValue;
+	sts: E_ValueFactoryStatus;
 END_VAR
 
 VAR CONSTANT
@@ -74,10 +208,19 @@ VAR CONSTANT
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test SpanIdValue');
-
 	
-	pValue := __NEW(FB_SpanId(pBytes:=ADR(guid_)));
- 	THIS^.AssertTrue(pValue <> 0, 'Unexpected null pointer when attempting to create a span id');
+	// assert that FB_TraceId fails to initialize for invalid data
+	pValue := ValueFactory.createSpanId(pDest:=pValue, pBytes:=0, nSize:=0, sts=>sts);
+	THIS^.AssertTrue(sts=E_ValueFactoryStatus.INVALID_PARAMETERS, 'Expected span id creation to fail due to invalid parameters');
+	
+	// create a valid FB_TraceId
+	pValue := ValueFactory.createSpanId(pDest:=pValue, pBytes:=ADR(guid_), nSize:=SIZEOF(guid_), sts=>sts);
+	THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS, 'Unexpected status when trying to create an FB_SpanId');
+	
+	// assert that the FB_TraceId fails to initialize for an allocated pointer and nothing happens
+	pValue := ValueFactory.createSpanId(pDest:=pValue, pBytes:=ADR(guid_), nSize:=SIZEOF(guid_), sts=>sts);
+	THIS^.AssertTrue(sts=E_ValueFactoryStatus.POINTER_ALREADY_ALLOCATED, 'Expected span id creation to fail due to non-zero pointer');
+	
  	IF pValue <> 0 THEN
 		anyValue := pValue^;
 		// assert type is correct
@@ -97,7 +240,6 @@ END_VAR]]></Declaration>
 		// test that value is being copied and not referenced
 		guid_.Data1 := 5;
 		MEMCPY(ADR(expected), ADR(guid_), spanIdLen);
-		
 		_flag := TRUE;
 		FOR _idx := 0 TO spanIdLen-1 DO
 			IF pValue^.bytes[_idx] <> expected[_idx] THEN
@@ -110,8 +252,7 @@ END_VAR]]></Declaration>
 			'span ids match when they shoudldn$'t'
 		);
 		
-		// cleanup data
-		__DELETE(pValue);
+		pValue^.delete();
  END_IF
 
 TcUnit.TEST_FINISHED();]]></ST>
@@ -130,6 +271,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test StringValue');
+
 	// assert that FB_String fails to initialize for invalid data
 	pValue := ValueFactory.createString(pDest:=pValue, pString:=0, sts=>sts);
 	THIS^.AssertTrue(sts=E_ValueFactoryStatus.INVALID_PARAMETERS, 'Expected string creation to fail due to invalid parameters');
@@ -160,7 +302,6 @@ END_VAR
 		value.free();
 		THIS^.AssertFalse(pValue^.initialized, 'Expected freed string value to be uninitialized');
 		THIS^.AssertTrue(pValue^.pString = 0, 'Expected free to clear the string pointer');
-		THIS^.AssertEquals_UDINT(0, pValue^.len, 'Expected free to clear the string length');
 		pValue^.delete();
  END_IF
 
@@ -178,6 +319,7 @@ VAR
 	pValue: POINTER TO FB_TraceId;
 	guid_: GUID;
 	anyValue: I_OtlpValue;
+	sts: E_ValueFactoryStatus;
 END_VAR
 
 VAR CONSTANT
@@ -186,11 +328,20 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test TraceIdValue');
-
+	// assert that FB_TraceId fails to initialize for invalid data
+	pValue := ValueFactory.createTraceId(pDest:=pValue, pBytes:=0, nSize:=0, sts=>sts);
+	THIS^.AssertTrue(sts=E_ValueFactoryStatus.INVALID_PARAMETERS, 'Expected trace id creation to fail due to invalid parameters');
 	
-	pValue := __NEW(FB_TraceId(pBytes:=ADR(guid_)));
- 	THIS^.AssertTrue(pValue <> 0, 'Unexpected null pointer when attempting to create a trace id');
+	// create a valid FB_TraceId
+	pValue := ValueFactory.createTraceId(pDest:=pValue, pBytes:=ADR(guid_), nSize:=SIZEOF(guid_), sts=>sts);
+	THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS, 'Unexpected status when trying to create an FB_TraceId');
+	
+	// assert that the FB_TraceId fails to initialize for an allocated pointer and nothing happens
+	pValue := ValueFactory.createTraceId(pDest:=pValue, pBytes:=ADR(guid_), nSize:=SIZEOF(guid_), sts=>sts);
+	THIS^.AssertTrue(sts=E_ValueFactoryStatus.POINTER_ALREADY_ALLOCATED, 'Expected trace id creation to fail due to non-zero pointer');
+	
  	IF pValue <> 0 THEN
+		// assert that it can be cast to AnyValue
 		anyValue := pValue^;
 		// assert type is correct
 		actualType := anyValue.eType;
@@ -209,7 +360,6 @@ END_VAR
 		// test that value is being copied and not referenced
 		guid_.Data1 := 5;
 		MEMCPY(ADR(expected), ADR(guid_), traceIdLen);
-		
 		_flag := TRUE;
 		FOR _idx := 0 TO traceIdLen-1 DO
 			IF pValue^.bytes[_idx] <> expected[_idx] THEN
@@ -221,9 +371,9 @@ END_VAR
 			_flag,
 			'trace ids match when they shoudldn$'t'
 		);
-		
-		// cleanup data
-		__DELETE(pValue);
+		pValue^.free();
+		THIS^.AssertFalse(pValue^.initialized, 'Expected freed traceId value to be uninitialized');
+		pValue^.delete();
  END_IF
 
 TcUnit.TEST_FINISHED();]]></ST>
