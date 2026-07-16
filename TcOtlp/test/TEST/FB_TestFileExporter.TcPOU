@@ -18,7 +18,7 @@ VAR_INST
 	_state:			USINT;
 	_fileFinder: 	FB_EnumFindFileEntry;
 	_fileDeleter:	FB_FileDelete;
-	_node:  		ST_LinkedListNode_LogRecord;
+	_logRecords:	FB_LinkedList_LogRecord;
 	_exporter: 		FB_LogRecordFileExporter;
 	_flags: E_LogRecordFlag := E_LogRecordFlag.LOG_RECORD_FLAGS_TRACE_FLAGS_MASK;
 END_VAR
@@ -34,6 +34,7 @@ VAR
 	_pBody: POINTER TO FB_String;
 	_pVal: POINTER TO FB_String;
 	_pAttr: POINTER TO FB_KeyValue;
+	_pLogRecord: POINTER TO FB_LogRecord;
 	_attributes: FB_LinkedList_KeyValue;
 END_VAR
 
@@ -46,17 +47,19 @@ END_VAR]]></Declaration>
 		0: // initialization
 			_exporter(
 				filepath:=_filepath,
-				head:=_node,
+				logRecords:=_logRecords,
 				execute:=FALSE
 			);
 			_cycles := 0;
+			_logRecords.free();
+			_attributes.free();
 			_guid.Data1 := _data1;
 			ValueFactory.createString(_pBody, ADR('This is a test for a string body'));
 			ValueFactory.createString(_pVal, ADR('pVal'));
 			ValueFactory.createKeyValue(_pAttr, ADR('stats.duration'), _pVal);
 			_attributes.append(_pAttr);
 			// Once FB_Logger has been implemented this should migrate away from using __NEW
-			_node.ptr := __NEW(FB_LogRecord(
+			_pLogRecord := __NEW(FB_LogRecord(
 				severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG,
 				timestamp:=ULINT#1581452773000000789,
 				eventName:=ADR('TestSerializationEvent'),
@@ -70,38 +73,43 @@ END_VAR]]></Declaration>
 			IF _pBody <> 0 THEN _pBody^.delete(); END_IF
 			IF _pVal <> 0 THEN _pVal^.delete(); END_IF
 			IF _pAttr <> 0 THEN _pAttr^.delete(); END_IF
+			_attributes.free();
 			// verify that the pointer is valid
-			IF _node.ptr <> 0 THEN
-				THIS^.AssertTrue(_node.ptr^.flags <> 0, 'Expected test log record to have trace flags');
-				THIS^.AssertEquals_UDINT(255, TO_UDINT(_node.ptr^.flags^), 'Unexpected test log record trace flags');
-				_node.ptr^.attributes.reset();
-				THIS^.AssertTrue(_node.ptr^.attributes.next() <> 0, 'Expected cloned attributes to contain a key/value');
+			IF _pLogRecord <> 0 AND_THEN _logRecords.append(_pLogRecord) THEN
+				THIS^.AssertTrue(_pLogRecord^.flags <> 0, 'Expected test log record to have trace flags');
+				THIS^.AssertEquals_UDINT(255, TO_UDINT(_pLogRecord^.flags^), 'Unexpected test log record trace flags');
+				_pLogRecord^.attributes.reset();
+				THIS^.AssertTrue(_pLogRecord^.attributes.next() <> 0, 'Expected cloned attributes to contain a key/value');
 				_state := 10;
 				RETURN;
 			ELSE
-				THIS^.AssertTrue(FALSE, 'Failed to allocate test log record');
+				THIS^.AssertTrue(FALSE, 'Failed to create test log record list');
 			END_IF
 			
 		10: // export
 			_exporter(
 				filepath:=_filepath,
-				head:=_node,
+				logRecords:=_logRecords,
 				execute:=TRUE
 			);
 			_cycles := _cycles + 1;
-			IF _exporter.currentState <> E_FileExporterState.error THEN
-				IF _exporter.currentState = E_FileExporterState.idle THEN
-					// assert no errors occured
-					THIS^.AssertEquals_UDINT(0, _exporter.fileOpenerErrId, 'Unexpected file opener error');
-					THIS^.AssertEquals_UDINT(0, _exporter.fileWriterErrId, 'Unexpected file writer error');
-					THIS^.AssertEquals_UDINT(0, _exporter.fileCloserErrId, 'Unexpected file closer error');
-					_state := 20;
-				END_IF
-				RETURN;
-			ELSIF _exporter.currentState = E_FileExporterState.error THEN
+			IF _exporter.currentState = E_FileExporterState.error THEN
 				THIS^.AssertTrue(FALSE, 'FB_LogRecordFileExporter failed to export logs to file');
+				_state := 30;
+				RETURN;
 			ELSIF _cycles > MAX_CYCLES THEN
 				THIS^.AssertTrue(FALSE, 'Timed out waiting for FB_LogRecordFileExporter to finish');
+				_state := 30;
+				RETURN;
+			ELSIF _exporter.currentState = E_FileExporterState.idle THEN
+				// assert no errors occurred
+				THIS^.AssertEquals_UDINT(0, _exporter.fileOpenerErrId, 'Unexpected file opener error');
+				THIS^.AssertEquals_UDINT(0, _exporter.fileWriterErrId, 'Unexpected file writer error');
+				THIS^.AssertEquals_UDINT(0, _exporter.fileCloserErrId, 'Unexpected file closer error');
+				_state := 20;
+				RETURN;
+			ELSE
+				RETURN;
 			END_IF
 			
 		20: // verify file is non-empty
@@ -126,23 +134,15 @@ END_VAR]]></Declaration>
 					RETURN;
 				END_IF
 			END_IF
-	END_CASE
-	
-	
-	// assert that the test finished
-	THIS^.AssertEquals_USINT(30, _state, 'Test did not complete as expeected');
-	
-	// clean up the node pointer
-	IF (_node.ptr <> 0) THEN
-		_node.ptr := _node.ptr^.delete();
-	ELSE
-		THIS^.AssertTrue(_node.ptr <> 0, 'Unexpected invalid ST_LogRecordNode pointer');
-	END_IF
-	
-	// reset the state
-	_state := 0;
-	
-TcUnit.TEST_FINISHED();]]></ST>
+
+			// clean up the owned log record list
+			_logRecords.free();
+			_pLogRecord := 0;
+			THIS^.AssertTrue(_logRecords.next() = 0, 'Expected logRecords to be empty after cleanup');
+
+			_state := 0;
+			TcUnit.TEST_FINISHED();
+	END_CASE]]></ST>
       </Implementation>
     </Method>
   </POU>

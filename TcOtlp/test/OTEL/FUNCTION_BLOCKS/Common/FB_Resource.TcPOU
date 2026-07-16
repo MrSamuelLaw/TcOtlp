@@ -1,11 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_ScopeLogs" Id="{6ec0fdab-a864-4761-882f-5ef73a19da5a}" SpecialFunc="None">
+  <POU Name="FB_Resource" Id="{e8da5017-892a-47ff-87af-81316afd3381}" SpecialFunc="None">
     <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
-FUNCTION_BLOCK FB_ScopeLogs
-VAR_OUTPUT
-	logRecords: FB_LinkedList_LogRecord;
-END_VAR
+FUNCTION_BLOCK FB_Resource
+
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>

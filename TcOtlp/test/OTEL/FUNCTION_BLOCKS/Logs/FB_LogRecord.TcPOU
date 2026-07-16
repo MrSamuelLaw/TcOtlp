@@ -16,7 +16,7 @@ VAR_INPUT
 	body: 		POINTER TO FB_AnyValue;
 	droppedAttributesCount: POINTER TO UDINT;
 END_VAR
-VAR_OUTPUT
+VAR_OUTPUT CONSTANT
 	// Owned clone of the list supplied to FB_Init. Do not copy owning lists by value.
 	attributes: FB_LinkedList_KeyValue;
 END_VAR

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_LinkedList_LogRecord" Id="{9e1ecc03-058c-4b23-92d3-3bd422ae83cb}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_LinkedList_LogRecord
@@ -48,11 +48,22 @@ THIS^._count := THIS^._count + 1;
 append := TRUE;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="clear" Id="{fbd1c94b-c09e-4d95-a598-0cd5bb8a61f6}">
-      <Declaration><![CDATA[METHOD clear
+    <Method Name="FB_Exit" Id="{6d9d65b6-2d68-47f0-b7cb-88e631d7acef}">
+      <Declaration><![CDATA[METHOD FB_Exit : BOOL
+VAR_INPUT
+	bInCopyCode: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.free();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{fbd1c94b-c09e-4d95-a598-0cd5bb8a61f6}">
+      <Declaration><![CDATA[METHOD free
 VAR
 	_idx: UDINT;
 	_node: POINTER TO ST_LinkedListNode;
+	_lr: POINTER TO FB_LogRecord;
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -62,7 +73,12 @@ END_VAR
 	END_IF
 
 	_node := THIS^._head;
-	THIS^._head := THIS^._head^.nxt;
+	THIS^._head := _node^.nxt;
+	IF _node^.val <> 0 THEN
+		_lr := _node^.val;
+		_node^.val := 0;
+		_lr := _lr^.delete();
+	END_IF
 	__DELETE(_node);
 END_FOR
 
@@ -70,16 +86,6 @@ THIS^._head := 0;
 THIS^._tail := 0;
 THIS^._cursor := 0;
 THIS^._count := 0;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="FB_Exit" Id="{6d9d65b6-2d68-47f0-b7cb-88e631d7acef}">
-      <Declaration><![CDATA[METHOD FB_Exit : BOOL
-VAR_INPUT
-	bInCopyCode: BOOL;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[THIS^.clear();]]></ST>
       </Implementation>
     </Method>
     <Method Name="next" Id="{720ec83f-b785-4449-92d1-d6ec1cfa78ab}">

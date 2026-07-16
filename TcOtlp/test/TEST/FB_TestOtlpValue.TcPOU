@@ -92,7 +92,7 @@ END_VAR
         <ST><![CDATA[TcUnit.TEST('Test NumberValue');
 
 // ANY_NUM accepts every signed, unsigned, and floating-point IEC numeric type.
-pValue := ValueFactory.createNumber(pDest:=pValue, value:=nSInt, sts=>sts);
+sts := ValueFactory.createNumber(pDest:=pValue, value:=nSInt);
 THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS AND_THEN pValue <> 0, 'Failed to create FB_Number from SINT');
 IF pValue <> 0 THEN
 	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_SINT, 'FB_Number lost the SINT type');
@@ -100,7 +100,7 @@ IF pValue <> 0 THEN
 	pValue := pValue^.delete();
 END_IF
 
-pValue := ValueFactory.createNumber(pDest:=pValue, value:=nInt, sts=>sts);
+sts := ValueFactory.createNumber(pDest:=pValue, value:=nInt);
 THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS AND_THEN pValue <> 0, 'Failed to create FB_Number from INT');
 IF pValue <> 0 THEN
 	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_INT, 'FB_Number lost the INT type');
@@ -108,7 +108,7 @@ IF pValue <> 0 THEN
 	pValue := pValue^.delete();
 END_IF
 
-pValue := ValueFactory.createNumber(pDest:=pValue, value:=nDInt, sts=>sts);
+sts := ValueFactory.createNumber(pDest:=pValue, value:=nDInt);
 THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS AND_THEN pValue <> 0, 'Failed to create FB_Number from DINT');
 IF pValue <> 0 THEN
 	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_DINT, 'FB_Number lost the DINT type');
@@ -119,12 +119,12 @@ IF pValue <> 0 THEN
 	THIS^.AssertEquals_DINT(-12345, pDInt^, 'FB_Number retained a reference to the source DINT');
 	// A factory call must never replace an already allocated destination.
 	pOriginal := pValue;
-	pValue := ValueFactory.createNumber(pDest:=pValue, value:=fLReal, sts=>sts);
+	sts := ValueFactory.createNumber(pDest:=pValue, value:=fLReal);
 	THIS^.AssertTrue(sts=E_ValueFactoryStatus.POINTER_ALREADY_ALLOCATED AND_THEN pValue=pOriginal, 'createNumber replaced an allocated destination');
 	pValue := pValue^.delete();
 END_IF
 
-pValue := ValueFactory.createNumber(pDest:=pValue, value:=nLInt, sts=>sts);
+sts := ValueFactory.createNumber(pDest:=pValue, value:=nLInt);
 THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS AND_THEN pValue <> 0, 'Failed to create FB_Number from LINT');
 IF pValue <> 0 THEN
 	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_LINT, 'FB_Number lost the LINT type');
@@ -132,7 +132,7 @@ IF pValue <> 0 THEN
 	pValue := pValue^.delete();
 END_IF
 
-pValue := ValueFactory.createNumber(pDest:=pValue, value:=nUSInt, sts=>sts);
+sts := ValueFactory.createNumber(pDest:=pValue, value:=nUSInt);
 THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS AND_THEN pValue <> 0, 'Failed to create FB_Number from USINT');
 IF pValue <> 0 THEN
 	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_USINT, 'FB_Number lost the USINT type');
@@ -140,7 +140,7 @@ IF pValue <> 0 THEN
 	pValue := pValue^.delete();
 END_IF
 
-pValue := ValueFactory.createNumber(pDest:=pValue, value:=nUInt, sts=>sts);
+sts := ValueFactory.createNumber(pDest:=pValue, value:=nUInt);
 THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS AND_THEN pValue <> 0, 'Failed to create FB_Number from UINT');
 IF pValue <> 0 THEN
 	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_UINT, 'FB_Number lost the UINT type');
@@ -148,7 +148,7 @@ IF pValue <> 0 THEN
 	pValue := pValue^.delete();
 END_IF
 
-pValue := ValueFactory.createNumber(pDest:=pValue, value:=nUDInt, sts=>sts);
+sts := ValueFactory.createNumber(pDest:=pValue, value:=nUDInt);
 THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS AND_THEN pValue <> 0, 'Failed to create FB_Number from UDINT');
 IF pValue <> 0 THEN
 	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_UDINT, 'FB_Number lost the UDINT type');
@@ -156,7 +156,7 @@ IF pValue <> 0 THEN
 	pValue := pValue^.delete();
 END_IF
 
-pValue := ValueFactory.createNumber(pDest:=pValue, value:=nULInt, sts=>sts);
+sts := ValueFactory.createNumber(pDest:=pValue, value:=nULInt);
 THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS AND_THEN pValue <> 0, 'Failed to create FB_Number from ULINT');
 IF pValue <> 0 THEN
 	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_ULINT, 'FB_Number lost the ULINT type');
@@ -164,7 +164,7 @@ IF pValue <> 0 THEN
 	pValue := pValue^.delete();
 END_IF
 
-pValue := ValueFactory.createNumber(pDest:=pValue, value:=fReal, sts=>sts);
+sts := ValueFactory.createNumber(pDest:=pValue, value:=fReal);
 THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS AND_THEN pValue <> 0, 'Failed to create FB_Number from REAL');
 IF pValue <> 0 THEN
 	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_REAL, 'FB_Number lost the REAL type');
@@ -172,7 +172,7 @@ IF pValue <> 0 THEN
 	pValue := pValue^.delete();
 END_IF
 
-pValue := ValueFactory.createNumber(pDest:=pValue, value:=fLReal, sts=>sts);
+sts := ValueFactory.createNumber(pDest:=pValue, value:=fLReal);
 THIS^.AssertTrue(sts=E_ValueFactoryStatus.SUCCESS AND_THEN pValue <> 0, 'Failed to create FB_Number from LREAL');
 IF pValue <> 0 THEN
 	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_LREAL, 'FB_Number lost the LREAL type');

@@ -10,7 +10,7 @@
       <Declaration><![CDATA[METHOD TestSerializeLogRecord : REFERENCE TO FB_Test
 VAR
 	ser: FB_LogRecordProtoJsonSerializer();
-	node:  ST_LinkedListNode_LogRecord;
+	root: SJsonValue;
 	arr: SJsonValue;
 	obj: SJsonValue;
 	mem: SJsonValue;
@@ -24,7 +24,9 @@ VAR
 	pBody: POINTER TO FB_String;
 	pVal: POINTER TO FB_String;
 	pAttr: POINTER TO FB_KeyValue;
+	rec: POINTER TO FB_LogRecord;
 	attributes: FB_LinkedList_KeyValue;
+	logRecords: FB_LinkedList_LogRecord;
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -35,7 +37,8 @@ END_VAR
 	ValueFactory.createKeyValue(pAttr, ADR('stats.duration'), pVal);
 	attributes.append(pAttr);
 	// this will eventually not be instantiated directly with __NEW, instead a logger will instantiate it.
-	node.ptr := __NEW(FB_LogRecord(
+	logRecords.free();
+	rec := __NEW(FB_LogRecord(
 		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG,
 		timestamp:=ULINT#1581452773000000789,
 		eventName:=ADR('Serialization Event'),
@@ -46,15 +49,21 @@ END_VAR
 		attributes:=ADR(attributes),
 		droppedAttributesCount:=0
 	));
+	logRecords.append(rec);
 	IF pVal <> 0 THEN pVal := pVal^.delete(); END_IF
 	IF pAttr <> 0 THEN pAttr := pAttr^.delete(); END_IF
-	node.ptr^.attributes.reset();
-	THIS^.AssertTrue(node.ptr^.attributes.next() <> 0, 'Expected cloned attributes to contain a key/value');
+	rec := logRecords.next();
+	IF rec <> 0 THEN rec^.attributes.reset(); END_IF
+	THIS^.AssertTrue(rec^.attributes.next() <> 0, 'Expected cloned attributes to contain a key/value');
 	// serialize the log(s)
-	ser.serializeLogRecords(node);
+	root := ser.parser.NewDocument();
+	ser.parser.SetObject(root);
+	ser.serializeLogRecords(root, logRecords);
 	
 	// grab the first value from the array
-	obj := ser.parser.GetArrayValueByIdx(ser.jsonVal, 0);
+	arr := ser.parser.FindMember(root, 'logRecords');
+	THIS^.AssertTrue(ser.parser.IsArray(arr), 'Expected logRecords to serialize as an array member');
+	obj := ser.parser.GetArrayValueByIdx(arr, 0);
 	
 	// do the checks
 	mem := ser.parser.FindMember(obj, 'severityText');
@@ -87,11 +96,8 @@ END_VAR
 	THIS^.AssertEquals_STRING('pVal', actStr, 'attribute value does not serialize correctly');
 	
 	// clean up the node pointer
-	IF (node.ptr <> 0) THEN
-		node.ptr^.delete();
-	ELSE
-		THIS^.AssertTrue(node.ptr <> 0, 'Unexpected invalid ST_LogRecordNode pointer');
-	END_IF;
+	logRecords.free();
+	THIS^.AssertTrue(logRecords.next() = 0, 'Expected logRecords to be empty');
 	IF pBody <> 0 THEN pBody := pBody^.delete(); END_IF
 
 TcUnit.TEST_FINISHED();

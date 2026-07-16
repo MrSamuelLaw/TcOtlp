@@ -4,10 +4,13 @@
     <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordFileExporter
 VAR_INPUT
 	filepath: 		T_MaxString;  // path to the root file
-	head: 			ST_LinkedListNode_LogRecord;  // records to serialize
 	execute: BOOL;
 	// maxFileSize: 	UDINT;  // size at which to auto rotate the file
 	// maxFiles: 		UDINT;  // max number of files to keep in the rotation
+END_VAR
+
+VAR_IN_OUT
+	logRecords: 	FB_LinkedList_LogRecord;  // records to serialize
 END_VAR
 
 VAR_OUTPUT
@@ -25,9 +28,11 @@ VAR
 	_execRTrig:		R_TRIG;
 	_pString:		POINTER TO STRING;
 	_obj:			SJsonValue;
+	_jsonVal:		SJsonValue;
+	_logRecordsArray: SJsonValue;
 	_arrayPtr:		SJsonAIterator;
 	_arrayEnd:		SJsonAIterator;
-	_pNode: 		ST_LinkedListNode_LogRecord;
+	_pLogRecord: 	POINTER TO FB_LogRecord;
 	_fileOpener: 	FB_FileOpen;
 	_fileWriter:	FB_FileWrite;
 	_fileCloser:	FB_FileClose;
@@ -41,14 +46,22 @@ END_VAR
 CASE currentState OF
 		
 	E_FileExporterState.idle, E_FileExporterState.error:
-		IF head.ptr <> 0 AND _execRTrig.Q THEN
-			errorCode := E_FileExporterErrorCode.UNSET;
-			_computedState := E_FileExporterState.serializing;
+		IF _execRTrig.Q THEN
+			logRecords.reset();
+			_pLogRecord := logRecords.next();
+			logRecords.reset();
+			IF _pLogRecord <> 0 THEN
+				errorCode := E_FileExporterErrorCode.UNSET;
+				_computedState := E_FileExporterState.serializing;
+			END_IF
 		END_IF
 		
 	E_FileExporterState.serializing:
-		_serializer.serializeLogRecords(head);
-		IF _serializer.jsonVal = 0 THEN
+		_jsonVal := _serializer.parser.NewDocument();
+		_serializer.parser.SetObject(_jsonVal);
+		_serializer.serializeLogRecords(_jsonVal, logRecords);
+		_logRecordsArray := _serializer.parser.FindMember(_jsonVal, 'logRecords');
+		IF _jsonVal = 0 OR_ELSE _logRecordsArray = 0 OR_ELSE NOT _serializer.parser.IsArray(_logRecordsArray) THEN
 			errorCode := E_FileExporterErrorCode.SERIALIZATION_ERROR;
 			_computedState := E_FileExporterState.error;
 		ELSE
@@ -61,8 +74,8 @@ CASE currentState OF
 			_computedState := E_FileExporterState.error;
 		ELSIF NOT _fileOpener.bBusy THEN
 			_hFile := _fileOpener.hFile;
-			_arrayPtr := _serializer.parser.ArrayBegin(_serializer.jsonVal);
-			_arrayEnd := _serializer.parser.ArrayEnd(_serializer.jsonVal);
+			_arrayPtr := _serializer.parser.ArrayBegin(_logRecordsArray);
+			_arrayEnd := _serializer.parser.ArrayEnd(_logRecordsArray);
 			_computedState := E_FileExporterState.buffering;
 		END_IF
 	

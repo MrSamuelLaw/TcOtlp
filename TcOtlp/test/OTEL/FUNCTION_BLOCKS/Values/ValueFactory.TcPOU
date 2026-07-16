@@ -77,9 +77,11 @@ createKeyValue := E_ValueFactoryStatus.SUCCESS;
       </Implementation>
     </Method>
     <Method Name="createNumber" Id="{3bcb96ce-f273-4452-a75d-ea53e63d4d25}">
-      <Declaration><![CDATA[METHOD createNumber : POINTER TO FB_Number
-VAR_INPUT
+      <Declaration><![CDATA[METHOD createNumber : E_ValueFactoryStatus
+VAR_IN_OUT
 	pDest: POINTER TO FB_Number;
+END_VAR
+VAR_INPUT
 	value: ANY_NUM;
 END_VAR
 VAR_OUTPUT
@@ -87,19 +89,19 @@ VAR_OUTPUT
 END_VAR
 VAR
 	_pValue: POINTER TO BYTE;
+	_pNew: POINTER TO FB_Number;
 	_size: UDINT;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[createNumber := 0;
 IF pDest <> 0 THEN
-	createNumber := pDest;
-	sts := E_ValueFactoryStatus.POINTER_ALREADY_ALLOCATED;
+	createNumber := E_ValueFactoryStatus.POINTER_ALREADY_ALLOCATED;
 	RETURN;
 END_IF
 
 IF value.pValue = 0 OR value.diSize <= 0 THEN
-	sts := E_ValueFactoryStatus.INVALID_PARAMETERS;
+	createNumber := E_ValueFactoryStatus.INVALID_PARAMETERS;
 	RETURN;
 END_IF
 
@@ -112,17 +114,18 @@ IF _pValue = 0 THEN
 END_IF
 MEMCPY(_pValue, value.pValue, _size);
 
-createNumber := __NEW(FB_Number(
+_pNew := __NEW(FB_Number(
 	typeClass:=value.typeclass,
 	pValue:=_pValue,
 	diSize:=value.diSize
 ));
-IF createNumber = 0 THEN
+IF _pNew = 0 THEN
 	sts := E_ValueFactoryStatus.OUT_OF_MEMORY;
 	__DELETE(_pValue);
-ELSE
-	sts := E_ValueFactoryStatus.SUCCESS;
-END_IF]]></ST>
+END_IF
+pDest := _pNew;
+sts := E_ValueFactoryStatus.SUCCESS;
+]]></ST>
       </Implementation>
     </Method>
     <Method Name="createSpanId" Id="{8c55c398-28af-4759-b54f-4b55d341d11a}">

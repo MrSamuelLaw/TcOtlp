@@ -10,6 +10,21 @@ END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="_injectInstrumentationScope" Id="{9c8cb455-2273-4f58-affd-d3fcbf54d800}">
+      <Declaration><![CDATA[METHOD _injectInstrumentationScope
+VAR_IN_OUT
+	v: SJsonValue;
+END_VAR
+VAR
+	_obj: SJsonValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.parser.AddObjectMember(v, 'scope');
+THIS^.parser.AddStringMember(_obj, 'name', GVL.INSTRUMENTATION_SCOPE_NAME);
+THIS^.parser.AddStringMember(_obj, 'version', GVL.INSTRUMENTATION_SCOPE_VERSION);]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="_serializeBytes" Id="{07016bcd-d229-46fb-8e82-336747340800}">
       <Declaration><![CDATA[METHOD _serializeBytes : BOOL
 VAR_INPUT
@@ -121,25 +136,6 @@ END_VAR
 	_buf := ULINT_TO_STRING(val);
 	THIS^.parser.AddStringMember(v, pKey^, _buf);
 END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="serializeInstrumentationScope" Id="{d8ddb1f2-1ad0-4f05-989c-b4827ed9f34e}">
-      <Declaration><![CDATA[METHOD serializeInstrumentationScope
-VAR_IN_OUT
-	val: SJsonValue;
-	scope: FB_InstrumentationScope;
-END_VAR
-VAR
-	_obj: SJsonValue;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[// create the object
-_obj := THIS^.parser.AddJsonMember(val, 'scope', '{}');
-
-// add data to the object
-THIS^.parser.AddStringMember(_obj, 'name', scope.name);
-THIS^.parser.AddStringMember(_obj, 'version', scope.version);]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeKeyValue" Id="{486a70c5-9e67-46b6-89f1-7a33a1497da2}">

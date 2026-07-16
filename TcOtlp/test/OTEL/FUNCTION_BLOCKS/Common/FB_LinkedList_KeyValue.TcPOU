@@ -50,18 +50,6 @@ pValue := 0;
 append := TRUE;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="delete" Id="{f9021c46-76c2-487d-94ee-ff53a1bc6bec}">
-      <Declaration><![CDATA[METHOD delete : ULINT
-VAR
-	pSelf: POINTER TO FB_LinkedList_KeyValue;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[pSelf := THIS;
-__DELETE(pSelf);
-delete := 0;]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="FB_Exit" Id="{686344bf-91ee-4a2a-b059-004362cdb29b}">
       <Declaration><![CDATA[METHOD FB_Exit : BOOL
 VAR_INPUT

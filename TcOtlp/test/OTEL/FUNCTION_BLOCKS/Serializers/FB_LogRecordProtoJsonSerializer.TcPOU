@@ -8,49 +8,71 @@
     </Implementation>
     <Method Name="serializeLogRecords" Id="{c8755357-2d5c-4040-a054-202bb0d2153c}">
       <Declaration><![CDATA[METHOD serializeLogRecords
-
-VAR_INPUT
-	head: ST_LinkedListNode_LogRecord;
+VAR_IN_OUT
+	v: SJsonValue;
+	logRecords: FB_LinkedList_LogRecord;
 END_VAR
 
 VAR
 	_idx: UDINT := 0;
 	_buf: T_MaxString;
+	_arr: SJsonValue;
 	_obj: SJsonValue;
-	_pNode: POINTER TO ST_LinkedListNode_LogRecord;
+	_rec: POINTER TO FB_LogRecord;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[THIS^.jsonVal := THIS^.parser.NewDocument();
-THIS^.parser.SetArray(THIS^.jsonVal, 0);
+        <ST><![CDATA[_arr := THIS^.parser.AddArrayMember(v, 'logRecords', 0);
+IF _arr = 0 THEN
+	RETURN;
+END_IF
 
 // serialize the logs one by one
-_pNode := ADR(head);
+logRecords.reset();
 FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
-	IF _pNode = 0 OR_ELSE _pNode^.ptr = 0 THEN
-		// return if pointer is no longer valid
-		RETURN;
-	ELSE
-		// create a json object and appent it to the array
-		_obj := THIS^.parser.PushbackJsonValue(THIS^.jsonVal, '{}');
-		
-		// serailize the required fields
-		_buf := _pNode^.ptr^.severityText;  // properties require intermediate variables
-		THIS^.parser.AddStringMember(_obj, 'severityText', _buf);
-		THIS^.serializeFixed64Value(_obj, ADR('timeUnixNano'), _pNode^.ptr^.timestamp);
-		
-		// serialize the optional fields
-		THIS^.serializeStringValue(_obj, ADR('eventName'), _pNode^.ptr^.eventName);
-		THIS^.serializeTraceIdValue(_obj, _pNode^.ptr^.traceId);
-		IF _pNode^.ptr^.flags <> 0 THEN
-			THIS^.serializeFixed32Value(_obj, ADR('flags'), TO_UDINT(_pNode^.ptr^.flags^));
-		END_IF
-		THIS^.serializeSpanIdValue(_obj, _pNode^.ptr^.spanId);
-		THIS^.serializeAnyValue(_obj, ADR('body'), _pNode^.ptr^.body);
-		THIS^.serializeKeyValues(_obj, ADR('attributes'), ADR(_pNode^.ptr^.attributes));
-		
-		// move on to the next node
-		_pNode := _pNode^.nxt;
+	_rec := logRecords.next();
+	IF _rec = 0 THEN
+		EXIT;
 	END_IF
+	// create a json object and appent it to the array
+	_obj := THIS^.parser.PushbackJsonValue(_arr, '{}');
+	
+	// serailize the required fields
+	_buf := _rec^.severityText;  // properties require intermediate variables
+	THIS^.parser.AddStringMember(_obj, 'severityText', _buf);
+	THIS^.serializeFixed64Value(_obj, ADR('timeUnixNano'), _rec^.timestamp);
+	
+	// serialize the optional fields
+	THIS^.serializeStringValue(_obj, ADR('eventName'),_rec^.eventName);
+	THIS^.serializeTraceIdValue(_obj, _rec^.traceId);
+	IF _rec^.flags <> 0 THEN THIS^.serializeFixed32Value(_obj, ADR('flags'), TO_UDINT(_rec^.flags^)); END_IF
+	THIS^.serializeSpanIdValue(_obj, _rec^.spanId);
+	THIS^.serializeAnyValue(_obj, ADR('body'), _rec^.body);
+	THIS^.serializeKeyValues(_obj, ADR('attributes'), ADR(_rec^.attributes));
+END_FOR
+logRecords.reset();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="serializeScopeLogs" Id="{3d36022d-3f4c-4a69-9fa9-1799ece683a0}">
+      <Declaration><![CDATA[METHOD serializeScopeLogs
+VAR_IN_OUT
+	v: SJsonValue;	
+END_VAR
+
+VAR_INPUT
+	logRecords: FB_LinkedList_LogRecord;
+END_VAR
+VAR
+	_idx: UDINT;
+	_obj: SJsonValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// add the instrumentation scope
+THIS^._injectInstrumentationScope(v);
+
+// serialize each log record
+FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
+	// ... implement this part here
 END_FOR]]></ST>
       </Implementation>
     </Method>
