@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Logger" Id="{730b727f-4674-448e-a99c-ca00a77667b8}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Logger
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="emit" Id="{9d921a05-0a1a-4507-b871-f56b935dc996}">
+      <Declaration><![CDATA[(*
+	Function emits a log record for processing. 
+	Note that the log records will contain a reference to the logger which contains a reference to 
+	a logger provider so that the full LogData object can be serialized and exported.
+*)
+METHOD emit
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

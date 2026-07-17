@@ -55,25 +55,17 @@ logRecords.reset();]]></ST>
     <Method Name="serializeScopeLogs" Id="{3d36022d-3f4c-4a69-9fa9-1799ece683a0}">
       <Declaration><![CDATA[METHOD serializeScopeLogs
 VAR_IN_OUT
-	v: SJsonValue;	
-END_VAR
-
-VAR_INPUT
+	v: SJsonValue;
+	instrumentationScope: FB_InstrumentationScope;
 	logRecords: FB_LinkedList_LogRecord;
-END_VAR
-VAR
-	_idx: UDINT;
-	_obj: SJsonValue;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[// add the instrumentation scope
-THIS^._injectInstrumentationScope(v);
+THIS^._injectInstrumentationScope(v, instrumentationScope);
 
-// serialize each log record
-FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
-	// ... implement this part here
-END_FOR]]></ST>
+// serialize the log records associated with the scope
+THIS^.serializeLogRecords(v, logRecords);]]></ST>
       </Implementation>
     </Method>
   </POU>

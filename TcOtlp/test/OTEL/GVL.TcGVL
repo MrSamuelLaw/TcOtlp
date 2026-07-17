@@ -9,10 +9,6 @@ VAR_GLOBAL CONSTANT
 	MAX_STRING_LEN:		UDINT := 1023;	// Maximum length for the FB_String data
 	// Program/logic safety limits
 	MAX_LOOP_COUNT:		UDINT := 1000;  // Maximum iterations a for/while loop can have
-	// instrumentation scope
-	INSTRUMENTATION_SCOPE_NAME: STRING(6) := 'TcOtlp';
-	INSTRUMENTATION_SCOPE_VERSION: STRING(6) := '0.0.1a';
-	SCOPE_SCHEMA_URL: T_MaxString := 'https://opentelemetry.io/schemas/1.9.0';
 END_VAR]]></Declaration>
   </GVL>
 </TcPlcObject>

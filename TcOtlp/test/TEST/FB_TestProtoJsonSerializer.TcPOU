@@ -25,6 +25,8 @@ VAR
 	pVal: POINTER TO FB_String;
 	pAttr: POINTER TO FB_KeyValue;
 	rec: POINTER TO FB_LogRecord;
+	pInstrumentationScope: POINTER TO FB_InstrumentationScope;
+	droppedAttributesCount: UDINT := 3;
 	attributes: FB_LinkedList_KeyValue;
 	logRecords: FB_LinkedList_LogRecord;
 END_VAR
@@ -50,15 +52,43 @@ END_VAR
 		droppedAttributesCount:=0
 	));
 	logRecords.append(rec);
+	pInstrumentationScope := __NEW(FB_InstrumentationScope(
+		name:='user.instrumentation',
+		version:='1.2.3',
+		attributes:=ADR(attributes),
+		droppedAttributesCount:=ADR(droppedAttributesCount)
+	));
 	IF pVal <> 0 THEN pVal := pVal^.delete(); END_IF
 	IF pAttr <> 0 THEN pAttr := pAttr^.delete(); END_IF
 	rec := logRecords.next();
 	IF rec <> 0 THEN rec^.attributes.reset(); END_IF
 	THIS^.AssertTrue(rec^.attributes.next() <> 0, 'Expected cloned attributes to contain a key/value');
+	pInstrumentationScope^.attributes.reset();
+	THIS^.AssertTrue(pInstrumentationScope^.attributes.next() <> 0, 'Expected instrumentation scope to clone its attributes');
 	// serialize the log(s)
 	root := ser.parser.NewDocument();
 	ser.parser.SetObject(root);
-	ser.serializeLogRecords(root, logRecords);
+	ser.serializeScopeLogs(root, pInstrumentationScope^, logRecords);
+	
+	// check the user-supplied instrumentation scope
+	obj := ser.parser.FindMember(root, 'scope');
+	mem := ser.parser.FindMember(obj, 'name');
+	actStr := ser.parser.GetString(mem);
+	THIS^.AssertEquals_STRING('user.instrumentation', actStr, 'instrumentation scope name does not serialize correctly');
+	mem := ser.parser.FindMember(obj, 'version');
+	actStr := ser.parser.GetString(mem);
+	THIS^.AssertEquals_STRING('1.2.3', actStr, 'instrumentation scope version does not serialize correctly');
+	attrArr := ser.parser.FindMember(obj, 'attributes');
+	attrObj := ser.parser.GetArrayValueByIdx(attrArr, 0);
+	mem := ser.parser.FindMember(attrObj, 'key');
+	actStr := ser.parser.GetString(mem);
+	THIS^.AssertEquals_STRING('stats.duration', actStr, 'instrumentation scope attribute key does not serialize correctly');
+	mem := ser.parser.FindMember(attrObj, 'value');
+	mem := ser.parser.FindMember(mem, 'stringValue');
+	actStr := ser.parser.GetString(mem);
+	THIS^.AssertEquals_STRING('pVal', actStr, 'instrumentation scope attribute value does not serialize correctly');
+	mem := ser.parser.FindMember(obj, 'droppedAttributesCount');
+	THIS^.AssertEquals_UDINT(3, ser.parser.GetUint(mem), 'instrumentation scope droppedAttributesCount does not serialize correctly');
 	
 	// grab the first value from the array
 	arr := ser.parser.FindMember(root, 'logRecords');
@@ -99,6 +129,7 @@ END_VAR
 	logRecords.free();
 	THIS^.AssertTrue(logRecords.next() = 0, 'Expected logRecords to be empty');
 	IF pBody <> 0 THEN pBody := pBody^.delete(); END_IF
+	IF pInstrumentationScope <> 0 THEN pInstrumentationScope := pInstrumentationScope^.delete(); END_IF
 
 TcUnit.TEST_FINISHED();
 ]]></ST>

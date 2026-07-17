@@ -14,15 +14,20 @@ END_VAR]]></Declaration>
       <Declaration><![CDATA[METHOD _injectInstrumentationScope
 VAR_IN_OUT
 	v: SJsonValue;
+	instrumentationScope: FB_InstrumentationScope;
 END_VAR
 VAR
 	_obj: SJsonValue;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[THIS^.parser.AddObjectMember(v, 'scope');
-THIS^.parser.AddStringMember(_obj, 'name', GVL.INSTRUMENTATION_SCOPE_NAME);
-THIS^.parser.AddStringMember(_obj, 'version', GVL.INSTRUMENTATION_SCOPE_VERSION);]]></ST>
+        <ST><![CDATA[_obj := THIS^.parser.AddObjectMember(v, 'scope');
+THIS^.parser.AddStringMember(_obj, 'name', instrumentationScope.name);
+THIS^.parser.AddStringMember(_obj, 'version', instrumentationScope.version);
+THIS^.serializeKeyValues(_obj, ADR('attributes'), ADR(instrumentationScope.attributes));
+IF instrumentationScope.droppedAttributesCount <> 0 THEN
+	THIS^.serializeFixed32Value(_obj, ADR('droppedAttributesCount'), instrumentationScope.droppedAttributesCount^);
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="_serializeBytes" Id="{07016bcd-d229-46fb-8e82-336747340800}">

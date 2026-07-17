@@ -63,10 +63,16 @@
     <Compile Include="OTEL\FUNCTION_BLOCKS\Common\FB_LinkedList_ScopeLogs.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Common\FB_InstrumentationScope.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\FUNCTION_BLOCKS\Common\FB_Resource.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\FUNCTION_BLOCKS\Exporters\FB_LogRecordFileExporter.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\FUNCTION_BLOCKS\Logs\FB_Logger.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\FUNCTION_BLOCKS\Logs\FB_LogRecord.TcPOU">

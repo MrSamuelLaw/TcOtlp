@@ -20,7 +20,6 @@ VAR_OUTPUT CONSTANT
 	// Owned clone of the list supplied to FB_Init. Do not copy owning lists by value.
 	attributes: FB_LinkedList_KeyValue;
 END_VAR
-
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
