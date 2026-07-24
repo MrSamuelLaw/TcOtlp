@@ -10,8 +10,147 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="cloneAnyValue" Id="{de7b8f5c-4e52-4385-afb8-9a7f3648c37d}">
+      <Declaration><![CDATA[METHOD cloneAnyValue : E_PointerFactoryStatus
+VAR_IN_OUT
+	pDest: POINTER TO FB_AnyValue;
+END_VAR
+VAR_INPUT
+	pSrc: POINTER TO FB_AnyValue;
+END_VAR
+VAR
+	_type: E_ValueType;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pDest <> 0 THEN
+	cloneAnyValue := E_PointerFactoryStatus.POINTER_ALREADY_ALLOCATED;
+	RETURN;
+END_IF
+
+IF pSrc = 0 OR_ELSE (NOT pSrc^.initialized) THEN
+	cloneAnyValue := E_PointerFactoryStatus.INVALID_PARAMETERS;
+	RETURN;
+END_IF
+
+_type := pSrc^.eType;
+CASE _type OF
+	E_ValueType.E_String:
+		cloneAnyValue := ValueFactory.cloneString(pDest, pSrc);
+	E_ValueType.E_Number:
+		cloneAnyValue := ValueFactory.cloneNumber(pDest, pSrc);
+	E_ValueType.E_KeyValue:
+		cloneAnyValue := ValueFactory.cloneKeyValue(pDest, pSrc);
+	ELSE
+		cloneAnyValue := E_PointerFactoryStatus.UNSPECIFIED_ERROR;
+END_CASE
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="cloneKeyValue" Id="{a8ee2c29-a418-4ec2-8e01-8ef5052daffa}">
+      <Declaration><![CDATA[METHOD cloneKeyValue : E_PointerFactoryStatus
+VAR_IN_OUT
+	pDest: POINTER TO FB_KeyValue;
+END_VAR
+VAR_INPUT
+	pSrc: POINTER TO FB_KeyValue;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pDest <> 0 THEN
+	cloneKeyValue := E_PointerFactoryStatus.POINTER_ALREADY_ALLOCATED;
+	RETURN;
+END_IF
+
+IF pSrc = 0 OR_ELSE (NOT pSrc^.initialized) THEN
+	cloneKeyValue := E_PointerFactoryStatus.INVALID_PARAMETERS;
+	RETURN;
+END_IF
+
+cloneKeyValue := ValueFactory.createKeyValue(
+	pDest:=pDest,
+	pKey:=pSrc^.pKey,
+	pVal:=pSrc^.pVal
+);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="cloneNumber" Id="{3de2a0de-5ee7-4e65-b88c-d438e59b12f7}">
+      <Declaration><![CDATA[METHOD cloneNumber : E_PointerFactoryStatus
+VAR_IN_OUT
+	pDest: POINTER TO FB_Number;
+END_VAR
+VAR_INPUT
+	pSrc: POINTER TO FB_Number;
+END_VAR
+VAR
+	_value: AnyType;
+	_pNew: POINTER TO FB_Number;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pDest <> 0 THEN
+	cloneNumber := E_PointerFactoryStatus.POINTER_ALREADY_ALLOCATED;
+	RETURN;
+END_IF
+
+IF pSrc = 0 OR_ELSE (NOT pSrc^.initialized) OR_ELSE pSrc^.value.pValue = 0 THEN
+	cloneNumber := E_PointerFactoryStatus.INVALID_PARAMETERS;
+	RETURN;
+END_IF
+
+// because it's really verbose to extract the number back out of the number we manually clone numbers
+_value := pSrc^.value;
+_value.pValue := __NEW(BYTE, _value.diSize);
+IF _value.pValue = 0 THEN
+	cloneNumber := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	RETURN;
+END_IF
+MEMCPY(_value.pValue, pSrc^.value.pValue, TO_UDINT(_value.diSize));
+
+_pNew := __NEW(FB_Number(
+	value:=_value
+));
+IF _pNew = 0 THEN
+	cloneNumber := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	__DELETE(_value.pValue);
+	RETURN;
+END_IF
+pDest := _pNew;
+cloneNumber := E_PointerFactoryStatus.SUCCESS;
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="cloneString" Id="{11bd15c6-b673-495b-8c92-4ee038baee62}">
+      <Declaration><![CDATA[METHOD cloneString: E_PointerFactoryStatus;
+VAR_IN_OUT
+	pDest: POINTER TO FB_String;
+END_VAR
+VAR_INPUT
+	pSrc: POINTER TO FB_String;
+END_VAR
+VAR
+	_pNew: POINTER TO FB_String;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pDest <> 0 THEN
+	cloneString := E_PointerFactoryStatus.POINTER_ALREADY_ALLOCATED;
+	RETURN;
+END_IF
+
+IF pSrc = 0 OR_ELSE (NOT pSrc^.initialized) THEN
+	cloneString := E_PointerFactoryStatus.INVALID_PARAMETERS;
+	RETURN;
+END_IF
+
+cloneString := ValueFactory.createString(pDest, pString:=pSrc^.pString);
+
+]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="createKeyValue" Id="{24aad023-b447-4a30-a636-682e068d33e5}">
-      <Declaration><![CDATA[METHOD createKeyValue: E_ValueFactoryStatus
+      <Declaration><![CDATA[METHOD createKeyValue: E_PointerFactoryStatus
 VAR_IN_OUT
 	pDest: POINTER TO FB_KeyValue;
 END_VAR
@@ -28,17 +167,17 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF pKey = 0 OR pVal = 0 THEN
-	createKeyValue := E_ValueFactoryStatus.INVALID_PARAMETERS;
+	createKeyValue := E_PointerFactoryStatus.INVALID_PARAMETERS;
 	RETURN;
 END_IF
 
 IF pDest <> 0 THEN
-	createKeyValue := E_ValueFactoryStatus.POINTER_ALREADY_ALLOCATED;
+	createKeyValue := E_PointerFactoryStatus.POINTER_ALREADY_ALLOCATED;
 	RETURN;
 END_IF
 
 IF NOT pVal^.initialized THEN
-	createKeyValue := E_ValueFactoryStatus.INVALID_PARAMETERS;
+	createKeyValue := E_PointerFactoryStatus.INVALID_PARAMETERS;
 	RETURN;
 END_IF
 
@@ -46,90 +185,101 @@ END_IF
 _len := MIN(LEN2(pKey), GVL.MAX_STRING_LEN) + 1;
 _pKey := __NEW(BYTE, _len);
 IF _pKey = 0 THEN
-	createKeyValue := E_ValueFactoryStatus.OUT_OF_MEMORY;
+	createKeyValue := E_PointerFactoryStatus.OUT_OF_MEMORY;
 	RETURN;
 END_IF
 MEMCPY(_pKey, pKey, _len);
 
-_pVal := cloneAnyValue(pVal);
-IF _pVal = 0 THEN
-	createKeyValue := E_ValueFactoryStatus.OUT_OF_MEMORY;
+createKeyValue := ValueFactory.cloneAnyValue(_pVal, pVal);
+IF createKeyValue <> E_PointerFactoryStatus.SUCCESS THEN
 	__DELETE(_pKey);
-	RETURN;
-END_IF
-
-IF NOT _pVal^.initialized THEN
-	createKeyValue := E_ValueFactoryStatus.OUT_OF_MEMORY;
-	__DELETE(_pKey);
-	_pVal := _pVal^.delete();
+	IF _pVal <> 0 THEN _pVal := _pVal^.delete(); END_IF
 	RETURN;
 END_IF
 
 _pNew := __NEW(FB_KeyValue(pKey:=_pKey, pVal:=_pVal));
 IF _pNew = 0 THEN
-	createKeyValue := E_ValueFactoryStatus.OUT_OF_MEMORY;
+	createKeyValue := E_PointerFactoryStatus.OUT_OF_MEMORY;
 	__DELETE(_pKey);
 	_pVal := _pVal^.delete();
+	RETURN;
 END_IF
 pDest := _pNew;
-createKeyValue := E_ValueFactoryStatus.SUCCESS;
+createKeyValue := E_PointerFactoryStatus.SUCCESS;
 ]]></ST>
       </Implementation>
     </Method>
     <Method Name="createNumber" Id="{3bcb96ce-f273-4452-a75d-ea53e63d4d25}">
-      <Declaration><![CDATA[METHOD createNumber : E_ValueFactoryStatus
+      <Declaration><![CDATA[METHOD createNumber : E_PointerFactoryStatus
 VAR_IN_OUT
 	pDest: POINTER TO FB_Number;
 END_VAR
 VAR_INPUT
 	value: ANY_NUM;
 END_VAR
-VAR_OUTPUT
-	sts: E_ValueFactoryStatus;
-END_VAR
 VAR
-	_pValue: POINTER TO BYTE;
+	_value: AnyType;
 	_pNew: POINTER TO FB_Number;
-	_size: UDINT;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[createNumber := 0;
-IF pDest <> 0 THEN
-	createNumber := E_ValueFactoryStatus.POINTER_ALREADY_ALLOCATED;
+        <ST><![CDATA[createNumber := ValueFactory.createNumber_AnyType(pDest, value);
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="createNumber_AnyType" Id="{7e7ce9b0-0c62-4b23-bdea-24531261b359}">
+      <Declaration><![CDATA[(*
+	This method is necessary because it makes it possible to easily create
+	instance of an FB_Number from already instantiated instances of FB_Number
+	i.e. cloning, when the original number is gone, but the AnyType value exists.
+*)
+METHOD createNumber_AnyType : E_PointerFactoryStatus
+VAR_IN_OUT
+	pDest: POINTER TO FB_Number;
+END_VAR
+VAR_INPUT
+	value: AnyType;  // notice this is a struct and not the ANY_NUM keyword
+END_VAR
+VAR
+	_value: AnyType;
+	_pNew: POINTER TO FB_Number;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pDest <> 0 THEN
+	createNumber_AnyType := E_PointerFactoryStatus.POINTER_ALREADY_ALLOCATED;
 	RETURN;
 END_IF
 
 IF value.pValue = 0 OR value.diSize <= 0 THEN
-	createNumber := E_ValueFactoryStatus.INVALID_PARAMETERS;
+	createNumber_AnyType := E_PointerFactoryStatus.INVALID_PARAMETERS;
 	RETURN;
 END_IF
 
 // Copy the concrete numeric value so the wrapper never retains caller-owned data.
-_size := TO_UDINT(value.diSize);
-_pValue := __NEW(BYTE, _size);
-IF _pValue = 0 THEN
-	sts := E_ValueFactoryStatus.OUT_OF_MEMORY;
+_value.TypeClass := value.TypeClass;
+_value.diSize := value.diSize;
+_value.pValue := __NEW(BYTE, TO_UDINT(_value.diSize));
+IF _value.pValue = 0 THEN
+	createNumber_AnyType := E_PointerFactoryStatus.OUT_OF_MEMORY;
 	RETURN;
 END_IF
-MEMCPY(_pValue, value.pValue, _size);
+MEMCPY(_value.pValue, value.pValue, TO_UDINT(value.diSize));
 
-_pNew := __NEW(FB_Number(
-	typeClass:=value.typeclass,
-	pValue:=_pValue,
-	diSize:=value.diSize
-));
+_pNew := __NEW(FB_Number(value:=_value));
 IF _pNew = 0 THEN
-	sts := E_ValueFactoryStatus.OUT_OF_MEMORY;
-	__DELETE(_pValue);
+	createNumber_AnyType := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	__DELETE(_value.pValue);
+	RETURN;
 END_IF
 pDest := _pNew;
-sts := E_ValueFactoryStatus.SUCCESS;
-]]></ST>
+createNumber_AnyType := E_PointerFactoryStatus.SUCCESS;]]></ST>
       </Implementation>
     </Method>
     <Method Name="createSpanId" Id="{8c55c398-28af-4759-b54f-4b55d341d11a}">
-      <Declaration><![CDATA[METHOD createSpanId: E_ValueFactoryStatus
+      <Declaration><![CDATA[METHOD createSpanId: E_PointerFactoryStatus
 VAR_IN_OUT
 	pDest: POINTER TO FB_SpanId;
 END_VAR
@@ -143,30 +293,30 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF pDest <> 0 THEN
-	createSpanId := E_ValueFactoryStatus.POINTER_ALREADY_ALLOCATED;
+	createSpanId := E_PointerFactoryStatus.POINTER_ALREADY_ALLOCATED;
 	RETURN;
 END_IF
 
 IF pBytes = 0 OR nSize < ValueFactory.nSpanIdBytes THEN
-	createSpanId := E_ValueFactoryStatus.INVALID_PARAMETERS;
+	createSpanId := E_PointerFactoryStatus.INVALID_PARAMETERS;
 	RETURN;
 END_IF
 
 _pNew := __NEW(FB_SpanId);
 IF _pNew = 0 THEN
-	createSpanId := E_ValueFactoryStatus.OUT_OF_MEMORY;
+	createSpanId := E_PointerFactoryStatus.OUT_OF_MEMORY;
 	RETURN;
 END_IF
 
 MEMCPY(ADR(_pNew^.bytes), pBytes, SIZEOF(_pNew^.bytes));
 pDest := _pNew;
-createSpanId := E_ValueFactoryStatus.SUCCESS;
+createSpanId := E_PointerFactoryStatus.SUCCESS;
 
 ]]></ST>
       </Implementation>
     </Method>
     <Method Name="createString" Id="{c9d254c2-678b-419f-ac3c-e884e66c3532}">
-      <Declaration><![CDATA[METHOD createString: E_ValueFactoryStatus
+      <Declaration><![CDATA[METHOD createString: E_PointerFactoryStatus
 VAR_IN_OUT
 	pDest: POINTER TO FB_String;
 END_VAR
@@ -181,12 +331,12 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF pDest <> 0  THEN
-	createString := E_ValueFactoryStatus.POINTER_ALREADY_ALLOCATED;
+	createString := E_PointerFactoryStatus.POINTER_ALREADY_ALLOCATED;
 	RETURN;
 END_IF
 
 IF pString = 0 THEN
-	createString := E_ValueFactoryStatus.INVALID_PARAMETERS;
+	createString := E_PointerFactoryStatus.INVALID_PARAMETERS;
 	RETURN;
 END_IF
 
@@ -195,23 +345,24 @@ END_IF
 _len := MIN(LEN2(pString), GVL.MAX_STRING_LEN) + 1;
 _pString := __NEW(BYTE, _len);
 IF _pString = 0 THEN
-	createString := E_ValueFactoryStatus.OUT_OF_MEMORY;
+	createString := E_PointerFactoryStatus.OUT_OF_MEMORY;
 	RETURN;
 END_IF
 MEMCPY(_pString, pString, _len);
 
 _pNew := __NEW(FB_String(pString:=_pString));
 IF _pNew = 0 THEN
-	createString := E_ValueFactoryStatus.OUT_OF_MEMORY;
+	createString := E_PointerFactoryStatus.OUT_OF_MEMORY;
 	__DELETE(_pString);
+	RETURN;
 END_IF
 pDest := _pNew;
-createString := E_ValueFactoryStatus.SUCCESS;
+createString := E_PointerFactoryStatus.SUCCESS;
 ]]></ST>
       </Implementation>
     </Method>
     <Method Name="createTraceId" Id="{34de56b8-186c-4fd3-a48c-783b8c21d02f}">
-      <Declaration><![CDATA[METHOD createTraceId: E_ValueFactoryStatus
+      <Declaration><![CDATA[METHOD createTraceId: E_PointerFactoryStatus
 VAR_IN_OUT
 	pDest: POINTER TO FB_TraceId;
 END_VAR
@@ -224,23 +375,23 @@ VAR
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF pDest <> 0 THEN
-	createTraceId := E_ValueFactoryStatus.POINTER_ALREADY_ALLOCATED;
+	createTraceId := E_PointerFactoryStatus.POINTER_ALREADY_ALLOCATED;
 	RETURN;
 END_IF
 
 IF pBytes = 0 OR nSize < ValueFactory.nTraceIdBytes THEN
-	createTraceId := E_ValueFactoryStatus.INVALID_PARAMETERS;
+	createTraceId := E_PointerFactoryStatus.INVALID_PARAMETERS;
 	RETURN;
 END_IF
 
 _pNew := __NEW(FB_TraceId);
 IF _pNew = 0 THEN
-	createTraceId := E_ValueFactoryStatus.OUT_OF_MEMORY;
+	createTraceId := E_PointerFactoryStatus.OUT_OF_MEMORY;
 	RETURN;
 END_IF
 MEMCPY(ADR(_pNew^.bytes), pBytes, SIZEOF(_pNew^.bytes));
 pDest := _pNew;
-createTraceId := E_ValueFactoryStatus.SUCCESS;
+createTraceId := E_PointerFactoryStatus.SUCCESS;
 ]]></ST>
       </Implementation>
     </Method>

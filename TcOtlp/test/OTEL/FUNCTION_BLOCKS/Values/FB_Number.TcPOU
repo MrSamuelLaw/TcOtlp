@@ -53,18 +53,14 @@ METHOD FB_Init: BOOL
 VAR_INPUT
     bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
     bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
-	typeClass: __SYSTEM.TYPE_CLASS;
-	pValue: POINTER TO BYTE;
-	diSize: DINT;
+	value: AnyType;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[(* ValueFactory owns validation and allocation. FB_Number takes ownership of
 the copied value and its type metadata only after every allocation succeeds. *)
-THIS^.value.typeclass := typeClass;
-THIS^.value.pValue := pValue;
-THIS^.value.diSize := diSize;
-THIS^._initialized := pValue <> 0 AND diSize > 0;]]></ST>
+THIS^.value := value;
+THIS^._initialized := THIS^.value.pValue <> 0 AND THIS^.value.diSize > 0;]]></ST>
       </Implementation>
     </Method>
     <Method Name="free" Id="{befe6018-20a6-42af-8f70-d8bf62cbbf12}">

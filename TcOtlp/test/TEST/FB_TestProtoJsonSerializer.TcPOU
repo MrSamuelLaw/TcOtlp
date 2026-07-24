@@ -9,6 +9,8 @@
     <Method Name="TestSerializeLogRecord" Id="{432059f0-a68e-4217-85ac-25035b48c8cb}">
       <Declaration><![CDATA[METHOD TestSerializeLogRecord : REFERENCE TO FB_Test
 VAR
+	logger: FB_Logger;
+	sts: E_PointerFactoryStatus;
 	ser: FB_LogRecordProtoJsonSerializer();
 	root: SJsonValue;
 	arr: SJsonValue;
@@ -38,20 +40,26 @@ END_VAR
 	ValueFactory.createString(pVal, ADR('pVal'));
 	ValueFactory.createKeyValue(pAttr, ADR('stats.duration'), pVal);
 	attributes.append(pAttr);
-	// this will eventually not be instantiated directly with __NEW, instead a logger will instantiate it.
+	// Build the record through the fluent logger, then transfer it to the test list.
 	logRecords.free();
-	rec := __NEW(FB_LogRecord(
-		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG,
-		timestamp:=ULINT#1581452773000000789,
-		eventName:=ADR('Serialization Event'),
-		traceId:=ADR(guid_),
-		flags:=ADR(flags),
-		spanId:=0,
-		body:=pBody,
-		attributes:=ADR(attributes),
-		droppedAttributesCount:=0
-	));
-	logRecords.append(rec);
+	logger
+		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG)
+		.setTimestamp(ULINT#1581452773000000789)
+		.setEventName(ADR('Serialization Event'))
+		.setTraceId(ADR(guid_), SIZEOF(guid_))
+		.setFlags(flags)
+		.setBody(pBody^.pString)
+		.addAttribute(ADR('stats.duration'), pVal)
+		.setDroppedAttributesCount(0);
+	rec := logger.pLogRecord;
+	IF logRecords.append(rec) THEN
+		logger.pLogRecord := 0;
+	ELSE
+		THIS^.AssertTrue(FALSE, 'Expected log record list to accept the record');
+		logger.free();
+		TcUnit.TEST_FINISHED();
+		RETURN;
+	END_IF
 	pInstrumentationScope := __NEW(FB_InstrumentationScope(
 		name:='user.instrumentation',
 		version:='1.2.3',

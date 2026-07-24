@@ -1,0 +1,68 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestLogging" Id="{8169a373-6109-45e2-82a5-c987e1f2f647}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TestLogging EXTENDS FB_TestSuite
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.TestLogger();]]></ST>
+    </Implementation>
+    <Method Name="TestLogger" Id="{ecc71309-4ec8-4346-a2a8-71e632b9ed96}">
+      <Declaration><![CDATA[METHOD TestLogger : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource(schemaUrl:='');
+	provider: FB_LoggerProvider(resource:=resource);
+	scope: FB_InstrumentationScope(name:='motor1', version:='0.0.1a', schemaUrl:='');
+	logger: FB_Logger(provider, scope);
+	sts: E_PointerFactoryStatus;
+	timestamp: ULINT := ULINT#1581452773000000789;
+	traceId: ARRAY[0..ValueFactory.nTraceIdBytes-1] OF BYTE;
+	spanId: ARRAY[0..ValueFactory.nSpanIdBytes-1] OF BYTE;
+	numberValue: DINT := 42;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test LogRecord');
+	provider.addLogRecordProcessor(
+		// ... code goes here
+		(* one thought I had is that I could verify the processor
+		doesn't already exist by comparity the memory address
+		to the ones already in memory. I'm thinking the underlying
+		data structure would still be a linked list as the processors
+		should be added in the order that they are declared.
+		I could actually expose the processors linked list directly, bypassing the need for wrapper methods
+		Then the code could look like this...
+		
+		IF resetProviders THEN
+			// shutdown all the processors
+			FOR _idx := 0 TO GVL.MAX_ITERATIONS DO
+				pProcessor := provider.processors.next()
+				IF pProcessor <> 0 THEN
+					pProcessor^.shutdown();  // call free under the hood to release all the memory
+				END_IF
+			END_FOR
+			// rebuild the processors
+			processor2.setExporter(exporter1)
+			provider.processors.append(processor1);
+			provider.processors.append(processors2); 
+		END_IF
+		*)
+	)
+	sts := logger
+		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG, timestamp:=ADR(timestamp))
+		.setBody(ADR('this is the body'))
+		.setEventName(ADR('test.event'))
+		.setTraceId(ADR(traceId), SIZEOF(traceId))
+		.setSpanId(ADR(spanId), SIZEOF(spanId))
+		.setFlags(E_LogRecordFlag.LOG_RECORD_FLAGS_TRACE_FLAGS_MASK)
+		.addStringAttribute(ADR('string.key'), ADR('string value'))
+		.addNumberAttribute(ADR('number.key'), numberValue)
+		.emit();
+	
+	THIS^.AssertEquals_UDINT(sts, E_PointerFactoryStatus.SUCCESS, 'emit status was unsuccessful');
+	logger.free();
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

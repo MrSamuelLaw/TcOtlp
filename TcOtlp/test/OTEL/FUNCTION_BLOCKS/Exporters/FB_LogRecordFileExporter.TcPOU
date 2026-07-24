@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_LogRecordFileExporter" Id="{5851db96-6302-4f2a-9f8c-695c558b4c7f}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordFileExporter
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordFileExporter EXTENDS FB_LogRecordExporterBase
 VAR_INPUT
 	filepath: 		T_MaxString;  // path to the root file
 	execute: BOOL;
@@ -143,5 +143,14 @@ _fileCloser(
 fileCloserErrId := _fileCloser.nErrId;
 ]]></ST>
     </Implementation>
+    <Method Name="export" Id="{b40925c8-02a7-4045-bcc3-ff164425210b}">
+      <Declaration><![CDATA[METHOD export
+VAR_IN_OUT
+	logRecords: FB_LinkedList_LogRecord;  // records to serialize
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
   </POU>
 </TcPlcObject>

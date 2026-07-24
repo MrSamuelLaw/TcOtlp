@@ -1,12 +1,12 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_InstrumentationScope" Id="{b7d10966-7b60-4f22-b7d9-720144dd9472}" SpecialFunc="None">
-    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
-FUNCTION_BLOCK FB_InstrumentationScope
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_InstrumentationScope
 VAR_OUTPUT
 	name: T_MaxString;
 	version: T_MaxString;
-	droppedAttributesCount: POINTER TO UDINT;
+	droppedAttributesCount: UDINT;
+	schemaUrl: T_MaxString;
 END_VAR
 VAR_OUTPUT CONSTANT
 	// Owned clone of the list supplied to FB_Init. Do not copy owning lists by value.
@@ -16,30 +16,6 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="delete" Id="{5c172b4d-b259-439f-808d-b8463a414c7e}">
-      <Declaration><![CDATA[METHOD delete: ULINT
-VAR
-	pSelf: POINTER TO FB_InstrumentationScope;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[pSelf := THIS;
-__DELETE(pSelf);
-delete := 0;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="FB_Exit" Id="{19b987ea-7963-4354-8b30-47459d4f7e31}">
-      <Declaration><![CDATA[METHOD FB_Exit: BOOL
-VAR_INPUT
-	bInCopyCode: BOOL;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF NOT bInCopyCode THEN
-	THIS^.free();
-END_IF]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="FB_Init" Id="{f1944aeb-9f9c-4684-855f-98ad767fb9b0}">
       <Declaration><![CDATA[METHOD FB_Init: BOOL
 VAR_INPUT
@@ -47,50 +23,13 @@ VAR_INPUT
 	bInCopyCode: BOOL;
 	name: T_MaxString;
 	version: T_MaxString;
-	attributes: POINTER TO FB_LinkedList_KeyValue := 0;
-	droppedAttributesCount: POINTER TO UDINT := 0;
-END_VAR
-VAR
-	_idx: UDINT;
-	_pAttribute: POINTER TO FB_KeyValue;
-	_pAttributeClone: POINTER TO FB_KeyValue;
+	schemaUrl: T_MaxString;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[THIS^.name := name;
 THIS^.version := version;
-
-IF attributes <> 0 THEN
-	attributes^.reset();
-	FOR _idx := 0 TO GVL.MAX_ATTRIBUTES DO
-		_pAttribute := attributes^.next();
-		IF _pAttribute = 0 THEN EXIT; END_IF
-		_pAttributeClone := cloneKeyValue(_pAttribute);
-		IF _pAttributeClone = 0 OR_ELSE NOT THIS^.attributes.append(_pAttributeClone) THEN
-			IF _pAttributeClone <> 0 THEN
-				_pAttributeClone := _pAttributeClone^.delete();
-			END_IF
-			EXIT;
-		END_IF
-	END_FOR
-	attributes^.reset();
-END_IF
-
-IF droppedAttributesCount <> 0 THEN
-	THIS^.droppedAttributesCount := __NEW(UDINT);
-	THIS^.droppedAttributesCount^ := droppedAttributesCount^;
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="free" Id="{34df8155-a606-446b-a083-529d9b215ed9}">
-      <Declaration><![CDATA[METHOD free
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[THIS^.attributes.free();
-IF THIS^.droppedAttributesCount <> 0 THEN
-	__DELETE(THIS^.droppedAttributesCount);
-	THIS^.droppedAttributesCount := 0;
-END_IF]]></ST>
+THIS^.schemaUrl := schemaUrl;]]></ST>
       </Implementation>
     </Method>
   </POU>

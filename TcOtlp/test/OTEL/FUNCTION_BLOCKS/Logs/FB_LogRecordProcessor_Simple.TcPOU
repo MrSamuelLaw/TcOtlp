@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LogRecordProcessor_Simple" Id="{90ded010-1262-4ab5-9db9-0fd13f25279d}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProcessor_Simple EXTENDS FB_LogRecordProcessor_Base
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="onEmit" Id="{b4ba400c-9df3-4277-816c-93265418b407}">
+      <Declaration><![CDATA[METHOD onEmit
+VAR_IN_OUT
+	logRecord	: FB_LogRecord;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// do nothing]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

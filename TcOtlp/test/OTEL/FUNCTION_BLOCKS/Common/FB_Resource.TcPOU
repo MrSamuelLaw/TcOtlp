@@ -1,12 +1,34 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_Resource" Id="{e8da5017-892a-47ff-87af-81316afd3381}" SpecialFunc="None">
-    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
-FUNCTION_BLOCK FB_Resource
-
+  <POU Name="FB_Resource" Id="{e0c447a6-1944-4b4f-b809-20c0d548eeec}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Resource
+VAR_OUTPUT
+	droppedAttributesCount: UDINT;
+	schemaUrl: T_MaxString;
+END_VAR
+VAR_OUTPUT CONSTANT
+	// Owned clone of the list supplied to FB_Init. Do not copy owning lists by value.
+	attributes: FB_LinkedList_KeyValue;
+END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="FB_Init" Id="{0abdd27d-4809-4edd-9c8a-ffa2f3a8bbfc}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change) 
+	schemaUrl: T_MaxString;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.schemaUrl := schemaUrl;]]></ST>
+      </Implementation>
+    </Method>
   </POU>
 </TcPlcObject>

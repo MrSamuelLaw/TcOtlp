@@ -7,7 +7,6 @@
 TYPE E_ValueType :
 (
 	E_String := 0,
-	E_Bytes,
 	E_TraceId,
 	E_SpanId,
 	E_AnyValue,
@@ -23,11 +22,6 @@ END_TYPE
             <o>
               <v n="TextID">"E_String"</v>
               <v n="TextDefault">"0"</v>
-              <l n="LanguageTexts" t="ArrayList" />
-            </o>
-            <o>
-              <v n="TextID">"E_Bytes"</v>
-              <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>

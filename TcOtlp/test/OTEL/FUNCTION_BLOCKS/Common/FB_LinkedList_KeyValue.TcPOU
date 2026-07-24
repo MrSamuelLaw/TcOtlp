@@ -1,7 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_LinkedList_KeyValue" Id="{cf073bde-f48d-4029-b947-e958e98bbb16}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_LinkedList_KeyValue
+    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_LinkedList_KeyValue
 VAR
 	_head: POINTER TO ST_LinkedListNode;
 	_tail: POINTER TO ST_LinkedListNode;

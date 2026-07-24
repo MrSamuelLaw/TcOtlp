@@ -1,15 +1,18 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <EnumerationTextList Name="E_ValueFactoryStatus" Id="{e55bae13-9ee6-4529-91ba-5b1b6b1a0f52}">
+  <EnumerationTextList Name="E_PointerFactoryStatus" Id="{e55bae13-9ee6-4529-91ba-5b1b6b1a0f52}">
     <Declaration><![CDATA[{attribute 'qualified_only'}
 {attribute 'strict'}
 {attribute 'to_string'}
-TYPE E_ValueFactoryStatus :
+TYPE E_PointerFactoryStatus :
 (
 	SUCCESS := 0,
+	UNSPECIFIED_ERROR,
 	POINTER_ALREADY_ALLOCATED,
+	UNEXPECTED_NULL_POINTER,
 	OUT_OF_MEMORY,
-	INVALID_PARAMETERS
+	INVALID_PARAMETERS,
+	POINTER_OWNERSHIP_TRANSFER_FAILURE
 ) UDINT;
 END_TYPE
 ]]></Declaration>
@@ -23,7 +26,17 @@ END_TYPE
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
+              <v n="TextID">"UNSPECIFIED_ERROR"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
               <v n="TextID">"POINTER_ALREADY_ALLOCATED"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"UNEXPECTED_NULL_POINTER"</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
@@ -34,6 +47,11 @@ END_TYPE
             </o>
             <o>
               <v n="TextID">"INVALID_PARAMETERS"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"POINTER_OWNERSHIP_TRANSFER_FAILURE"</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>

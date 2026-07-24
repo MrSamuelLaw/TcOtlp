@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
     <diagram id="V7flSCGWel-LUja_DYGs" name="Page-1">
-        <mxGraphModel dx="1553" dy="1850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+        <mxGraphModel dx="1303" dy="1850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -197,34 +197,31 @@
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="170" value="FB_SimpleLogRecordProcessor" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=none;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-                    <mxGeometry x="602" y="-852" width="340" height="96" as="geometry"/>
+                    <mxGeometry x="602" y="-852" width="340" height="100" as="geometry"/>
                 </mxCell>
                 <mxCell id="171" value="&lt;span style=&quot;font-size: 10px;&quot;&gt;Processes LogRecords synchronously in a pipeline, used to enrich logs before exporting them.&lt;/span&gt;" style="text;strokeColor=default;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="170" vertex="1">
                     <mxGeometry y="26" width="340" height="44" as="geometry"/>
                 </mxCell>
-                <mxCell id="172" value="+ property: self -&amp;gt; PVOID (THIS)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="170" vertex="1">
-                    <mxGeometry y="70" width="340" height="26" as="geometry"/>
+                <mxCell id="172" value="&lt;span style=&quot;color: rgb(0, 0, 0);&quot;&gt;+ onEmit(logRecord: FB_LogRecord, ctx: ST_Context)&lt;/span&gt;" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="170" vertex="1">
+                    <mxGeometry y="70" width="340" height="30" as="geometry"/>
                 </mxCell>
                 <mxCell id="173" value="I_LogRecordProcessor &amp;lt;&amp;lt;interface&amp;gt;&amp;gt;" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=none;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-                    <mxGeometry x="742" y="-1052" width="440" height="122" as="geometry"/>
+                    <mxGeometry x="742" y="-1052" width="440" height="96" as="geometry"/>
                 </mxCell>
                 <mxCell id="174" value="&lt;span style=&quot;font-size: 10px;&quot;&gt;Used to define the inputs/outputs required for a log record processor&lt;/span&gt;" style="text;strokeColor=default;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="173" vertex="1">
                     <mxGeometry y="26" width="440" height="44" as="geometry"/>
                 </mxCell>
-                <mxCell id="175" value="+ property: self -&amp;gt; PVOID (THIS)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="173" vertex="1">
+                <mxCell id="182" value="+ onEmit(logRecord: FB_LogRecord, ctx: ST_Context)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="173" vertex="1">
                     <mxGeometry y="70" width="440" height="26" as="geometry"/>
                 </mxCell>
-                <mxCell id="182" value="+ onEmit(logRecord: FB_LogRecord, ctx: ST_Context)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="173" vertex="1">
-                    <mxGeometry y="96" width="440" height="26" as="geometry"/>
-                </mxCell>
                 <mxCell id="178" value="FB_BatchingLogRecordProcessor" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=none;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-                    <mxGeometry x="992" y="-852" width="340" height="96" as="geometry"/>
+                    <mxGeometry x="992" y="-852" width="340" height="110" as="geometry"/>
                 </mxCell>
                 <mxCell id="179" value="&lt;span style=&quot;font-size: 10px;&quot;&gt;Processes LogRecords asynchronously in a batch, used to aggregate logs before exporting to mitigate latency issues.&lt;/span&gt;" style="text;strokeColor=default;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="178" vertex="1">
                     <mxGeometry y="26" width="340" height="44" as="geometry"/>
                 </mxCell>
-                <mxCell id="180" value="+ property: self -&amp;gt; PVOID (THIS)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="178" vertex="1">
-                    <mxGeometry y="70" width="340" height="26" as="geometry"/>
+                <mxCell id="180" value="&lt;span style=&quot;color: rgb(0, 0, 0);&quot;&gt;+ onEmit(logRecords: FB_LinkedList_LogRecord, ctx: ST_Context)&lt;/span&gt;" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="178" vertex="1">
+                    <mxGeometry y="70" width="340" height="40" as="geometry"/>
                 </mxCell>
                 <mxCell id="181" style="edgeStyle=none;html=1;fontFamily=Helvetica;fontSize=12;fontColor=default;dashed=1;dashPattern=8 8;endArrow=block;endFill=0;" parent="1" source="178" target="173" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
@@ -250,7 +247,7 @@
                         <Array as="points">
                             <mxPoint x="440" y="-507"/>
                             <mxPoint x="440" y="-672"/>
-                            <mxPoint x="440" y="-943"/>
+                            <mxPoint x="440" y="-970"/>
                         </Array>
                     </mxGeometry>
                 </mxCell>
@@ -366,6 +363,9 @@
                 </mxCell>
                 <mxCell id="236" value="Several function blocks are mentioned in the documentation with no corresponding class diagram, such as FB_InstrumentationScope, FB_Resource. These function blocks unless otherwise specified are PODO classes that simply manage the life cycle of the data with convenience methods like free() and delete() to help manage deallocating memory." style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;strokeColor=#d6b656;arcSize=5;fillColor=#fff2cc;" vertex="1" parent="1">
                     <mxGeometry x="-90" y="-898" width="230" height="160" as="geometry"/>
+                </mxCell>
+                <mxCell id="241" value="A record will retain a reference to the logger that created it so that it can be rolled up into a scoped log for serialization." style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;strokeColor=#d6b656;arcSize=5;fillColor=#fff2cc;" vertex="1" parent="1">
+                    <mxGeometry x="410" y="-324" width="200" height="100" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>
