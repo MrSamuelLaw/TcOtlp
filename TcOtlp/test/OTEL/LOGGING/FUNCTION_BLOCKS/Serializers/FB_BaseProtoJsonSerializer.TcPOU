@@ -24,10 +24,13 @@ END_VAR
         <ST><![CDATA[_obj := THIS^.parser.AddObjectMember(v, 'scope');
 THIS^.parser.AddStringMember(_obj, 'name', instrumentationScope.name);
 THIS^.parser.AddStringMember(_obj, 'version', instrumentationScope.version);
-THIS^.serializeKeyValues(_obj, ADR('attributes'), ADR(instrumentationScope.attributes));
-IF instrumentationScope.droppedAttributesCount <> 0 THEN
-	THIS^.serializeFixed32Value(_obj, ADR('droppedAttributesCount'), instrumentationScope.droppedAttributesCount^);
-END_IF]]></ST>
+IF instrumentationScope.attributes.count > 0 THEN
+	THIS^.serializeKeyValues(_obj, ADR('attributes'), ADR(instrumentationScope.attributes));
+END_IF
+IF instrumentationScope.attributes.count > 0 OR instrumentationScope.droppedAttributesCount > 0 THEN
+	THIS^.serializeFixed32Value(_obj, ADR('droppedAttributesCount'), instrumentationScope.droppedAttributesCount);
+END_IF
+]]></ST>
       </Implementation>
     </Method>
     <Method Name="_serializeBytes" Id="{07016bcd-d229-46fb-8e82-336747340800}">

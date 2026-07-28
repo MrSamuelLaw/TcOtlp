@@ -14,7 +14,8 @@ TYPE E_FileExporterState :
 	buffering := 25,
 	writing := 30,
 	closing := 40,
-	rotating := 50
+	rotating := 50,
+	done := 99
 );
 END_TYPE
 ]]></Declaration>
@@ -65,6 +66,11 @@ END_TYPE
             <o>
               <v n="TextID">"rotating"</v>
               <v n="TextDefault">"50"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"done"</v>
+              <v n="TextDefault">"99"</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>

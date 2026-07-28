@@ -85,13 +85,16 @@
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
     </Compile>
+    <Compile Include="OTEL\LOGGING\ENUMS\E_LogRecordExporterState.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\LOGGING\ENUMS\E_LogRecordFlag.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\Exporters\FB_LogRecordExporterBase.TcPOU">
+    <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\Exporters\FB_LogRecordExporter_Base.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\Exporters\FB_LogRecordFileExporter.TcPOU">
+    <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\Exporters\FB_LogRecordExporter_File.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\FB_LinkedList_LogRecord.TcPOU">

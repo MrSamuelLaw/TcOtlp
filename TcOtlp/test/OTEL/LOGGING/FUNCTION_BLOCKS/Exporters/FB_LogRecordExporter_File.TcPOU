@@ -1,9 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_LogRecordFileExporter" Id="{5851db96-6302-4f2a-9f8c-695c558b4c7f}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordFileExporter EXTENDS FB_LogRecordExporterBase
+  <POU Name="FB_LogRecordExporter_File" Id="{5851db96-6302-4f2a-9f8c-695c558b4c7f}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordExporter_File EXTENDS FB_LogRecordExporter_Base
 VAR_INPUT
-	filepath: 		T_MaxString;  // path to the root file
 	execute: BOOL;
 	// maxFileSize: 	UDINT;  // size at which to auto rotate the file
 	// maxFiles: 		UDINT;  // max number of files to keep in the rotation
@@ -22,6 +21,7 @@ VAR_OUTPUT
 END_VAR
 
 VAR
+	_filepath: 		T_MaxString;
 	_hFile: 		UINT;
 	_idx:			UDINT;
 	_len:			UDINT;
@@ -32,7 +32,6 @@ VAR
 	_logRecordsArray: SJsonValue;
 	_arrayPtr:		SJsonAIterator;
 	_arrayEnd:		SJsonAIterator;
-	_pLogRecord: 	POINTER TO FB_LogRecord;
 	_fileOpener: 	FB_FileOpen;
 	_fileWriter:	FB_FileWrite;
 	_fileCloser:	FB_FileClose;
@@ -41,19 +40,14 @@ VAR
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[_execRTrig(CLK := execute);
+      <ST><![CDATA[_execRTrig(CLK := execute AND logRecords.count > 0);
 
 CASE currentState OF
 		
 	E_FileExporterState.idle, E_FileExporterState.error:
 		IF _execRTrig.Q THEN
-			logRecords.reset();
-			_pLogRecord := logRecords.next();
-			logRecords.reset();
-			IF _pLogRecord <> 0 THEN
-				errorCode := E_FileExporterErrorCode.UNSET;
-				_computedState := E_FileExporterState.serializing;
-			END_IF
+			errorCode := E_FileExporterErrorCode.UNSET;
+			_computedState := E_FileExporterState.serializing;
 		END_IF
 		
 	E_FileExporterState.serializing:
@@ -106,6 +100,11 @@ CASE currentState OF
 	E_FileExporterState.closing:
 		// TODO: Add error handling
 		IF NOT _fileCloser.bBusy THEN
+			_computedState := E_FileExporterState.done;
+		END_IF
+		
+	E_FileExporterState.done:
+		IF NOT execute THEN
 			_computedState := E_FileExporterState.idle;
 		END_IF
 	
@@ -120,7 +119,7 @@ IF currentState < E_FileExporterState.buffering THEN _idx := 0; END_IF
 
 _fileOpener(
 	sNetId := '',
-	sPathName := filepath,
+	sPathName := THIS^._filepath,
 	bExecute := currentState = E_FileExporterState.opening,
 	nMode := FOPEN_MODEAPPEND OR FOPEN_MODETEXT,
 	ePath := PATH_GENERIC,
@@ -144,12 +143,44 @@ fileCloserErrId := _fileCloser.nErrId;
 ]]></ST>
     </Implementation>
     <Method Name="export" Id="{b40925c8-02a7-4045-bcc3-ff164425210b}">
-      <Declaration><![CDATA[METHOD export
+      <Declaration><![CDATA[METHOD export: E_LogRecordExporterState
 VAR_IN_OUT
 	logRecords: FB_LinkedList_LogRecord;  // records to serialize
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[IF logRecords.count <= 0 THEN
+	export := E_LogRecordExporterState.SUCCESS;
+	RETURN;
+END_IF
+
+THIS^(
+	execute:=THIS^.currentState=E_FileExporterState.idle,
+	logRecords:=logRecords
+);
+CASE THIS^.currentState OF
+	E_FileExporterState.done:
+		export := E_LogRecordExporterState.SUCCESS;
+	E_FileExporterState.error:
+		export := E_LogRecordExporterState.FAILURE;
+	ELSE
+		export := E_LogRecordExporterState.BUSY;
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{749c920a-b4a3-4d4e-b81c-a6a8ffa6d49c}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	filepath: T_MaxString;  // path to the root file
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._filepath := filepath;]]></ST>
       </Implementation>
     </Method>
   </POU>

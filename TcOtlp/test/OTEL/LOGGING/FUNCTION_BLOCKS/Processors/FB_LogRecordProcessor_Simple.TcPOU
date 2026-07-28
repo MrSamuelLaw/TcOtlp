@@ -4,6 +4,7 @@
     <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProcessor_Simple IMPLEMENTS I_LogRecordProcessor;
 VAR
 	_logRecord: POINTER TO FB_LogRecord;
+	_exporter: REFERENCE TO FB_LogRecordExporter_Base;
 	_isDone: BOOL;
 END_VAR
 ]]></Declaration>
@@ -13,17 +14,34 @@ END_VAR
     <Method Name="call" Id="{bd3d4da7-f1f3-4d2f-be52-5f26e03c8761}">
       <Declaration><![CDATA[METHOD call
 VAR
-	_body: POINTER TO FB_String;
+	_records: FB_LinkedList_LogRecord;
+	_sts: E_LogRecordExporterState;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[// Temporary console exporter used to verify the end-to-end logging pipeline.
-IF 	THIS^._logRecord <> 0 AND_THEN
-	THIS^._logRecord^.body <> 0 AND_THEN 
-	THIS^._logRecord^.body^.eType = E_ValueType.E_String THEN
-	_body := THIS^._logRecord^.body;
-	ADSLOGSTR(ADSLOG_MSGTYPE_ERROR, '%s', _body^.pString^);
-	THIS^._isDone := TRUE;
-END_IF]]></ST>
+IF 	THIS^._logRecord <> 0 AND __ISVALIDREF(THIS^._exporter) THEN
+	_records.append(THIS^._logRecord);
+	_sts := THIS^._exporter.export(_records);
+	THIS^._isDone :=  _sts <> E_LogRecordExporterState.BUSY;
+	RETURN;
+END_IF
+THIS^._isDone := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{589fb0dd-a53b-43f6-9d67-5928802d20cd}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	exporter: REFERENCE TO FB_LogRecordExporter_Base;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._exporter REF= exporter;]]></ST>
       </Implementation>
     </Method>
     <Method Name="free" Id="{d85fcdb4-384c-4695-8f77-ce517f0d3431}">

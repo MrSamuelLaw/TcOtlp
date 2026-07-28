@@ -19,7 +19,7 @@ VAR_INST
 	_fileFinder: 	FB_EnumFindFileEntry;
 	_fileDeleter:	FB_FileDelete;
 	_logRecords:	FB_LinkedList_LogRecord;
-	_exporter: 		FB_LogRecordFileExporter;
+	_exporter: 		FB_LogRecordExporter_File;
 	_flags: E_LogRecordFlag := E_LogRecordFlag.LOG_RECORD_FLAGS_TRACE_FLAGS_MASK;
 END_VAR
 

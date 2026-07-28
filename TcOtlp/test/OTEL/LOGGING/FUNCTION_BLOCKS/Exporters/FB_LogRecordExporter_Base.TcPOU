@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_LogRecordExporterBase" Id="{10005d20-6707-4af6-9c91-e8fb51819d17}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK ABSTRACT FB_LogRecordExporterBase
+  <POU Name="FB_LogRecordExporter_Base" Id="{10005d20-6707-4af6-9c91-e8fb51819d17}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK ABSTRACT FB_LogRecordExporter_Base
 VAR_INPUT
 END_VAR
 VAR_OUTPUT
@@ -13,7 +13,7 @@ END_VAR
       <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="export" Id="{ae492816-f399-4168-9ef3-5fffa135683d}">
-      <Declaration><![CDATA[METHOD ABSTRACT export
+      <Declaration><![CDATA[METHOD ABSTRACT export: E_LogRecordExporterState
 VAR_IN_OUT
 	logRecords: FB_LinkedList_LogRecord;  // records to serialize
 END_VAR

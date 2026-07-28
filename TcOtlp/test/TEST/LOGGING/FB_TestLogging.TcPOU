@@ -10,11 +10,16 @@
     <Method Name="TestLogger" Id="{ecc71309-4ec8-4346-a2a8-71e632b9ed96}">
       <Declaration><![CDATA[METHOD TestLogger : REFERENCE TO FB_Test
 VAR
+	// define the resource and provider
 	resource: FB_Resource(schemaUrl:='');
-	simpleProcessor: FB_LogRecordProcessor_Simple;
 	provider: FB_LoggerProvider(resource:=resource);
+	// define the scope and the logger
 	scope: FB_InstrumentationScope(name:='motor1', version:='0.0.1a', schemaUrl:='');
 	logger: FB_Logger(provider, scope);
+	// define an empty pipeline
+	simpleProcessor: FB_LogRecordProcessor_Simple(0);
+	
+	// program variables
 	sts: E_PointerFactoryStatus;
 	processorSts: E_PointerFactoryStatus;
 	timestamp: ULINT := ULINT#1581452773000000789;
@@ -27,8 +32,11 @@ VAR
 	pStringValue: POINTER TO FB_String;
 	pNumberValue: POINTER TO FB_Number;
 END_VAR
+
 VAR CONSTANT
-	processors: ARRAY [0..0] OF I_LogRecordProcessor := [simpleProcessor];
+	processors: ARRAY [0..0] OF I_LogRecordProcessor := [
+		simpleProcessor
+	];
 END_VAR
 ]]></Declaration>
       <Implementation>

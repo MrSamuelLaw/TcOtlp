@@ -6,7 +6,9 @@ VAR
 	_head: POINTER TO ST_LinkedListNode;
 	_tail: POINTER TO ST_LinkedListNode;
 	_cursor: POINTER TO ST_LinkedListNode;
-	_count: UDINT;
+END_VAR
+VAR_OUTPUT
+	count: UDINT;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -24,7 +26,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[append := FALSE;
 
-IF pValue = 0 OR_ELSE THIS^._count >= GVL.MAX_LOG_RECORDS THEN
+IF pValue = 0 OR_ELSE THIS^.count >= GVL.MAX_LOG_RECORDS THEN
 	RETURN;
 END_IF
 
@@ -44,7 +46,7 @@ ELSE
 END_IF
 
 THIS^._tail := _node;
-THIS^._count := THIS^._count + 1;
+THIS^.count := THIS^.count + 1;
 append := TRUE;]]></ST>
       </Implementation>
     </Method>
@@ -85,7 +87,7 @@ END_FOR
 THIS^._head := 0;
 THIS^._tail := 0;
 THIS^._cursor := 0;
-THIS^._count := 0;]]></ST>
+THIS^.count := 0;]]></ST>
       </Implementation>
     </Method>
     <Method Name="next" Id="{720ec83f-b785-4449-92d1-d6ec1cfa78ab}">
