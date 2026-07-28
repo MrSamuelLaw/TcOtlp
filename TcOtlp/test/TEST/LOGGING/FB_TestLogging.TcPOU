@@ -11,43 +11,36 @@
       <Declaration><![CDATA[METHOD TestLogger : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource(schemaUrl:='');
+	simpleProcessor: FB_LogRecordProcessor_Simple;
 	provider: FB_LoggerProvider(resource:=resource);
 	scope: FB_InstrumentationScope(name:='motor1', version:='0.0.1a', schemaUrl:='');
 	logger: FB_Logger(provider, scope);
 	sts: E_PointerFactoryStatus;
+	processorSts: E_PointerFactoryStatus;
 	timestamp: ULINT := ULINT#1581452773000000789;
-	traceId: ARRAY[0..ValueFactory.nTraceIdBytes-1] OF BYTE;
-	spanId: ARRAY[0..ValueFactory.nSpanIdBytes-1] OF BYTE;
+	traceId: ARRAY[0..ValueFactory.nTraceIdBytes-1] OF BYTE := [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+	spanId: ARRAY[0..ValueFactory.nSpanIdBytes-1] OF BYTE := [16, 17, 18, 19, 20, 21, 22, 23];
 	numberValue: DINT := 42;
+	pLogRecord: POINTER TO FB_LogRecord;
+	pBody: POINTER TO FB_String;
+	pAttribute: POINTER TO FB_KeyValue;
+	pStringValue: POINTER TO FB_String;
+	pNumberValue: POINTER TO FB_Number;
+END_VAR
+VAR CONSTANT
+	processors: ARRAY [0..0] OF I_LogRecordProcessor := [simpleProcessor];
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test LogRecord');
-	provider.addLogRecordProcessor(
-		// ... code goes here
-		(* one thought I had is that I could verify the processor
-		doesn't already exist by comparity the memory address
-		to the ones already in memory. I'm thinking the underlying
-		data structure would still be a linked list as the processors
-		should be added in the order that they are declared.
-		I could actually expose the processors linked list directly, bypassing the need for wrapper methods
-		Then the code could look like this...
-		
-		IF resetProviders THEN
-			// shutdown all the processors
-			FOR _idx := 0 TO GVL.MAX_ITERATIONS DO
-				pProcessor := provider.processors.next()
-				IF pProcessor <> 0 THEN
-					pProcessor^.shutdown();  // call free under the hood to release all the memory
-				END_IF
-			END_FOR
-			// rebuild the processors
-			processor2.setExporter(exporter1)
-			provider.processors.append(processor1);
-			provider.processors.append(processors2); 
-		END_IF
-		*)
-	)
+	// verify the processor is empty
+	THIS^.AssertFalse(simpleProcessor.isFull(), 'Expected simple processor to be empty before emit');
+
+	// set the processors for the provider
+	provider(
+		processors:=processors
+	);
+	
 	sts := logger
 		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG, timestamp:=ADR(timestamp))
 		.setBody(ADR('this is the body'))
@@ -59,7 +52,16 @@ END_VAR
 		.addNumberAttribute(ADR('number.key'), numberValue)
 		.emit();
 	
-	THIS^.AssertEquals_UDINT(sts, E_PointerFactoryStatus.SUCCESS, 'emit status was unsuccessful');
+	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, sts, 'Emit status was unsuccessful');
+	THIS^.AssertTrue(logger.pLogRecord = 0, 'Expected emit to transfer ownership to the provider');
+	
+	// call the processor at the end of the loop
+	provider(
+		processors:=processors
+	);
+	
+	// Leave all pipeline owners empty so repeated runs and PLC restarts do not leak.
+	simpleProcessor.free();
 	logger.free();
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>

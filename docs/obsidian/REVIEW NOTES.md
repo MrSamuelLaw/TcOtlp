@@ -1,0 +1,3 @@
+- Define clear semantics for what each E_PointerFactoryStatus member means.
+	- Because E_PointerFactoryStatus has out grown its original scope, consider renaming and/or splitting into multiple enums.
+	- For example, OUT_OF_MEMORY is used when __NEW fails or when an internal buffer is full so the new value cannot be accepted.

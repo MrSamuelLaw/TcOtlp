@@ -21,142 +21,137 @@
     <Compile Include="MAIN.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\ENUMS\E_BytesEncoding.TcTLEO">
+    <Compile Include="OTEL\COMMON\ENUMS\E_BytesEncoding.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\ENUMS\E_FileExporterErrorCode.TcTLEO">
+    <Compile Include="OTEL\COMMON\ENUMS\E_FileExporterErrorCode.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\ENUMS\E_FileExporterState.TcTLEO">
+    <Compile Include="OTEL\COMMON\ENUMS\E_FileExporterState.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\ENUMS\E_HttpExporterState.TcTLEO">
+    <Compile Include="OTEL\COMMON\ENUMS\E_HttpExporterState.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\ENUMS\E_LogRecordFlag.TcTLEO">
+    <Compile Include="OTEL\COMMON\ENUMS\E_PointerFactoryStatus.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\ENUMS\E_SeverityNumber.TcTLEO">
+    <Compile Include="OTEL\COMMON\ENUMS\E_SeverityNumber.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\ENUMS\E_PointerFactoryStatus.TcTLEO">
+    <Compile Include="OTEL\COMMON\ENUMS\E_ValueType.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\ENUMS\E_ValueType.TcTLEO">
+    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\FB_InstrumentationScope.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Common\FB_Resource.TcPOU">
+    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\FB_LinkedList_KeyValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Common\FB_LinkedList_KeyValue.TcPOU">
+    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\FB_Resource.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Common\FB_InstrumentationScope.TcPOU">
+    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\Values\FB_AnyValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Exporters\FB_LogRecordExporterBase.TcPOU">
+    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\Values\FB_KeyValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Exporters\FB_LogRecordFileExporter.TcPOU">
+    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\Values\FB_Number.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Logs\FB_LinkedList_LogRecord.TcPOU">
+    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\Values\FB_OtlpValueMixin.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Logs\FB_Logger.TcPOU">
+    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\Values\FB_SpanId.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Logs\FB_LoggerProvider.TcPOU">
+    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\Values\FB_String.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Logs\FB_LogRecord.TcPOU">
+    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\Values\FB_TraceId.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Logs\FB_LogRecordProcessors_Batching.TcPOU">
+    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\Values\ValueFactory.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Logs\FB_LogRecordProcessor_Base.TcPOU">
+    <Compile Include="OTEL\COMMON\INTERFACES\I_OtlpValue.TcIO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Logs\FB_LogRecordProcessor_Simple.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Serializers\FB_LogRecordProtoJsonSerializer.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Serializers\FB_SpanProtoJsonSerializer.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Serializers\FB_BaseProtoJsonSerializer.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Traces\FB_Span.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_AnyValue.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_Number.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_KeyValue.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_OtlpValueMixin.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_String.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_TraceId.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\FB_SpanId.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\FUNCTION_BLOCKS\Values\ValueFactory.TcPOU">
+    <Compile Include="OTEL\COMMON\STRUCTS\ST_LinkedListNode.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\GVL.TcGVL">
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
     </Compile>
-    <Compile Include="OTEL\INTERFACES\I_OtlpValue.TcIO">
+    <Compile Include="OTEL\LOGGING\ENUMS\E_LogRecordFlag.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\STRUCTS\ST_LinkedListNode.TcDUT">
+    <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\Exporters\FB_LogRecordExporterBase.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\Exporters\FB_LogRecordFileExporter.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\FB_LinkedList_LogRecord.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\FB_Logger.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\FB_LoggerProvider.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\FB_LogRecord.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\Processors\FB_LogRecordProcessor_Simple.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\Serializers\FB_BaseProtoJsonSerializer.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\Serializers\FB_LogRecordProtoJsonSerializer.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\LOGGING\INTERFACES\I_LogRecordProcessor.TcIO">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="PlcTask.TcTTO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="TEST\FB_TestFileExporter.TcPOU">
+    <Compile Include="TEST\COMMON\FB_TestOtlpValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="TEST\FB_TestLogging.TcPOU">
+    <Compile Include="TEST\LOGGING\FB_TestFileExporter.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="TEST\FB_TestOtlpValue.TcPOU">
+    <Compile Include="TEST\LOGGING\FB_TestLogging.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="TEST\FB_TestProtoJsonSerializer.TcPOU">
+    <Compile Include="TEST\LOGGING\FB_TestProtoJsonSerializer.TcPOU">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="OTEL" />
-    <Folder Include="OTEL\FUNCTION_BLOCKS" />
-    <Folder Include="OTEL\FUNCTION_BLOCKS\Exporters" />
-    <Folder Include="OTEL\FUNCTION_BLOCKS\Logs" />
-    <Folder Include="OTEL\FUNCTION_BLOCKS\Common" />
-    <Folder Include="OTEL\FUNCTION_BLOCKS\Serializers" />
-    <Folder Include="OTEL\FUNCTION_BLOCKS\Traces" />
-    <Folder Include="OTEL\FUNCTION_BLOCKS\Values" />
-    <Folder Include="OTEL\INTERFACES" />
-    <Folder Include="OTEL\ENUMS" />
-    <Folder Include="OTEL\FUNCTIONS" />
-    <Folder Include="OTEL\STRUCTS" />
+    <Folder Include="OTEL\COMMON\ENUMS" />
+    <Folder Include="OTEL\COMMON\FUNCTION_BLOCKS" />
+    <Folder Include="OTEL\COMMON\FUNCTION_BLOCKS\Values" />
+    <Folder Include="OTEL\COMMON\INTERFACES" />
+    <Folder Include="OTEL\COMMON\STRUCTS" />
+    <Folder Include="OTEL\COMMON" />
+    <Folder Include="OTEL\LOGGING" />
+    <Folder Include="OTEL\LOGGING\ENUMS" />
+    <Folder Include="OTEL\LOGGING\FUNCTION_BLOCKS" />
+    <Folder Include="OTEL\LOGGING\FUNCTION_BLOCKS\Exporters" />
+    <Folder Include="OTEL\LOGGING\FUNCTION_BLOCKS\Processors" />
+    <Folder Include="OTEL\LOGGING\FUNCTION_BLOCKS\Serializers" />
+    <Folder Include="OTEL\LOGGING\INTERFACES" />
     <Folder Include="TEST" />
+    <Folder Include="TEST\LOGGING" />
+    <Folder Include="TEST\COMMON" />
   </ItemGroup>
   <ItemGroup>
     <PlaceholderReference Include="Tc2_Standard">

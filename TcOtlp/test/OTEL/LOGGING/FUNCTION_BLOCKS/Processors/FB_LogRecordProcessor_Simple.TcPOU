@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LogRecordProcessor_Simple" Id="{90ded010-1262-4ab5-9db9-0fd13f25279d}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProcessor_Simple IMPLEMENTS I_LogRecordProcessor;
+VAR
+	_logRecord: POINTER TO FB_LogRecord;
+	_isDone: BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="call" Id="{bd3d4da7-f1f3-4d2f-be52-5f26e03c8761}">
+      <Declaration><![CDATA[METHOD call
+VAR
+	_body: POINTER TO FB_String;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Temporary console exporter used to verify the end-to-end logging pipeline.
+IF 	THIS^._logRecord <> 0 AND_THEN
+	THIS^._logRecord^.body <> 0 AND_THEN 
+	THIS^._logRecord^.body^.eType = E_ValueType.E_String THEN
+	_body := THIS^._logRecord^.body;
+	ADSLOGSTR(ADSLOG_MSGTYPE_ERROR, '%s', _body^.pString^);
+	THIS^._isDone := TRUE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{d85fcdb4-384c-4695-8f77-ce517f0d3431}">
+      <Declaration><![CDATA[METHOD free
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._logRecord <> 0 THEN
+	THIS^._logRecord := THIS^._logRecord^.delete();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="isDone" Id="{de32fc1d-2857-4f96-ac04-f2d3d2a3574b}">
+      <Declaration><![CDATA[METHOD isDone : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[isDone := THIS^._isDone;  // point at the exporter status in the future]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="isFull" Id="{5934c8ec-c6c8-4774-9c2f-9fc684f6f018}">
+      <Declaration><![CDATA[METHOD isFull : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[isFull := THIS^._logRecord <> 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="pop" Id="{c886ec0e-55ce-4091-a825-a563b6c96cc6}">
+      <Declaration><![CDATA[METHOD pop : E_PointerFactoryStatus
+VAR_IN_OUT
+	pDest: POINTER TO FB_LogRecord;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._logRecord = 0 THEN
+	pop := E_PointerFactoryStatus.UNEXPECTED_NULL_POINTER;
+	RETURN;
+ELSIF pDest <> 0 THEN
+	pop := E_PointerFactoryStatus.POINTER_ALREADY_ALLOCATED;
+	RETURN;
+END_IF
+
+pDest := THIS^._logRecord;
+THIS^._logRecord := 0;
+pop := E_PointerFactoryStatus.SUCCESS;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="push" Id="{bf11d956-6f8d-487a-a661-c4e7fbb4d7fe}">
+      <Declaration><![CDATA[METHOD push : E_PointerFactoryStatus
+VAR_IN_OUT
+	pSrc: POINTER TO FB_LogRecord;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pSrc = 0 THEN
+	push := E_PointerFactoryStatus.UNEXPECTED_NULL_POINTER;
+	RETURN;
+ELSIF THIS^._logRecord <> 0 THEN
+	push := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	RETURN;
+END_IF
+
+THIS^._logRecord := pSrc;
+THIS^._isDone := FALSE;
+pSrc := 0;
+push := E_PointerFactoryStatus.SUCCESS;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

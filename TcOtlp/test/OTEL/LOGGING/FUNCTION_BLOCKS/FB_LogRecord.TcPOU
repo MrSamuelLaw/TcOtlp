@@ -92,15 +92,6 @@ IF THIS^.body <> 0 THEN THIS^.body := THIS^.body^.delete(); END_IF
 THIS^.attributes.free();]]></ST>
       </Implementation>
     </Method>
-    <Property Name="scope" Id="{2d91f0db-2e64-43d5-a334-9bc9275b42f0}">
-      <Declaration><![CDATA[PROPERTY scope : REFERENCE TO FB_InstrumentationScope]]></Declaration>
-      <Get Name="Get" Id="{c54c5c89-b460-4257-a677-c5849ebeab07}">
-        <Declaration><![CDATA[]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[scope REF= THIS^._logger.scope;]]></ST>
-        </Implementation>
-      </Get>
-    </Property>
     <Property Name="severityText" Id="{05c0c7ed-4dd1-46f2-b733-b4a1bc94ddcb}">
       <Declaration><![CDATA[PROPERTY severityText : STRING(30)]]></Declaration>
       <Get Name="Get" Id="{a6ea0245-a5cb-4691-8871-18ac3fb64ff9}">

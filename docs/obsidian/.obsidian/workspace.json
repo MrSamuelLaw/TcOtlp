@@ -11,13 +11,46 @@
             "id": "50e0d5ff67e71ea0",
             "type": "leaf",
             "state": {
-              "type": "empty",
-              "state": {},
+              "type": "markdown",
+              "state": {
+                "file": "TODO.md",
+                "mode": "source",
+                "source": false
+              },
               "icon": "lucide-file",
-              "title": "New tab"
+              "title": "TODO"
+            }
+          },
+          {
+            "id": "2495f1b945158ac5",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Simple Log Record Processor.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "Simple Log Record Processor"
+            }
+          },
+          {
+            "id": "42e88fcfa6b282b2",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "TODO.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "TODO"
             }
           }
-        ]
+        ],
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -90,6 +123,7 @@
             "state": {
               "type": "backlink",
               "state": {
+                "file": "TODO.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -99,7 +133,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Backlinks"
+              "title": "Backlinks for TODO"
             }
           },
           {
@@ -108,11 +142,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
+                "file": "TODO.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Outgoing links"
+              "title": "Outgoing links from TODO"
             }
           },
           {
@@ -150,12 +185,13 @@
             "state": {
               "type": "outline",
               "state": {
+                "file": "TODO.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Outline"
+              "title": "Outline of TODO"
             }
           }
         ]
@@ -176,8 +212,13 @@
       "bases:Create new base": false
     }
   },
-  "active": "50e0d5ff67e71ea0",
+  "active": "42e88fcfa6b282b2",
   "lastOpenFiles": [
+    "REVIEW NOTES.md",
+    "Simple Log Record Processor.md",
+    "Log Record Processor.md",
+    "Realtime Constraints.md",
+    "TODO.md",
     "Welcome.md"
   ]
 }

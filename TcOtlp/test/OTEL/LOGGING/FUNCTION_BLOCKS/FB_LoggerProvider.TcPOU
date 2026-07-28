@@ -2,21 +2,38 @@
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_LoggerProvider" Id="{16983c20-c68e-4842-a5af-294cf7d1f97c}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_LoggerProvider
+VAR_IN_OUT
+	processors: ARRAY [*] OF I_LogRecordProcessor;
+END_VAR
 VAR
 	_resource: REFERENCE TO FB_Resource;
-END_VAR]]></Declaration>
-    <Implementation>
-      <ST><![CDATA[]]></ST>
-    </Implementation>
-    <Method Name="addLogRecordProcessor" Id="{3febfb33-c69e-4143-a083-08317ce8c572}">
-      <Declaration><![CDATA[METHOD addLogRecordProcessor
-VAR_INPUT
+	_idx: DINT;
+	_startIdx: DINT;
+	_endIdx: DINT;
+	_curVal: I_LogRecordProcessor;
+	_nextProcessor: I_LogRecordProcessor;
+	_prevProcessor: I_LogRecordProcessor;
 END_VAR
 ]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[]]></ST>
-      </Implementation>
-    </Method>
+    <Implementation>
+      <ST><![CDATA[// check if the last processor is ready
+_startIdx := LOWER_BOUND(processors, 1);
+_endIdx := UPPER_BOUND(processors, 1);
+
+IF processors[_endIdx].isDone() THEN
+	processors[_endIdx].free();
+END_IF
+
+FOR _idx := _endIdx TO _startIdx BY -1 DO
+	// if there is only a single processor simply call the processor
+	IF _endIdx = _startIdx THEN
+		processors[_endIdx].call();
+	ELSE
+		// pass
+	END_IF
+	// skip
+END_FOR]]></ST>
+    </Implementation>
     <Method Name="FB_Init" Id="{4bf253fc-a990-4445-afd2-9dddc5216dd7}">
       <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
 //The return value is not evaluated. For a specific influence, you can also declare the
@@ -34,12 +51,23 @@ END_VAR
       </Implementation>
     </Method>
     <Method Name="onEmit" Id="{cab51e34-8571-4016-91bd-9f1916518d10}">
-      <Declaration><![CDATA[METHOD onEmit
-VAR_INPUT
+      <Declaration><![CDATA[METHOD onEmit: E_PointerFactoryStatus
+VAR_IN_OUT
+	pSrc: POINTER TO FB_LogRecord;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[// attempt to transfer the record, do nothing if the transfer fails
+IF pSrc = 0 THEN
+	onEmit := E_PointerFactoryStatus.UNEXPECTED_NULL_POINTER;
+	RETURN;
+ELSIF THIS^.processors[0].isFull() THEN
+	onEmit := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	RETURN;
+END_IF
+
+onEmit := THIS^.processors[0].push(pSrc);
+]]></ST>
       </Implementation>
     </Method>
     <Property Name="resource" Id="{5c5a395f-26fb-4f37-9459-e8fe5661bff3}">

@@ -176,10 +176,7 @@ IF THIS^.pLogRecord = 0 THEN
 END_IF
 
 // call the parents onEmit method which will take ownership of the pointer(future)
-// TODO
-
-// Until a processor takes ownership, release the completed record here.
-THIS^.pLogRecord := THIS^.pLogRecord^.delete();
+THIS^._provider.onEmit(THIS^.pLogRecord);
 
 IF THIS^.pLogRecord = 0 THEN
 	THIS^.sts := E_PointerFactoryStatus.SUCCESS;

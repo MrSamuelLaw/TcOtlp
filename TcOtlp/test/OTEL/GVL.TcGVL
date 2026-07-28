@@ -4,9 +4,10 @@
     <Declaration><![CDATA[{attribute 'qualified_only'}
 VAR_GLOBAL CONSTANT
 	// OTLP specific limits
-	MAX_LOG_RECORDS: 	UDINT := 100;	// Maximum number of log records to buffer to
-	MAX_ATTRIBUTES: 	UDINT := 20;	// Maximum number of attributes allowed on a log record
+	MAX_LOG_RECORDS: 	UDINT := 100;	// Maximum number of log records allowed in memory for a single logger provider.
+	MAX_ATTRIBUTES: 	UDINT := 20;	// Maximum number of attributes allowed on a single log record
 	MAX_STRING_LEN:		UDINT := 1023;	// Maximum length for the FB_String data
+	MAX_LOG_RECORD_PROCESSORS: UDINT := 100;  // Maximum number of log record processors allowed for a single logger provider
 	// Program/logic safety limits
 	MAX_LOOP_COUNT:		UDINT := 1000;  // Maximum iterations a for/while loop can have
 END_VAR]]></Declaration>

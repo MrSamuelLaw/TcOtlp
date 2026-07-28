@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
     <diagram id="V7flSCGWel-LUja_DYGs" name="Page-1">
-        <mxGraphModel dx="1303" dy="1850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+        <mxGraphModel dx="1022" dy="1643" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -19,10 +19,10 @@
                 <mxCell id="18" value="+ FB_Exit(...) called automatically when __DELETE is called." style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="2" vertex="1">
                     <mxGeometry y="106" width="340" height="26" as="geometry"/>
                 </mxCell>
-                <mxCell id="239" value="+ free() used to deallocate memory owned by the object, but not the object itself." style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" vertex="1" parent="2">
+                <mxCell id="239" value="+ free() used to deallocate memory owned by the object, but not the object itself." style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="2" vertex="1">
                     <mxGeometry y="132" width="340" height="38" as="geometry"/>
                 </mxCell>
-                <mxCell id="240" value="+ delete() used to delete the object itself, will automatically call FB_Exit() which SHOULD call free() to deallocate memory.&amp;nbsp;" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" vertex="1" parent="2">
+                <mxCell id="240" value="+ delete() used to delete the object itself, will automatically call FB_Exit() which SHOULD call free() to deallocate memory.&amp;nbsp;" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="2" vertex="1">
                     <mxGeometry y="170" width="340" height="60" as="geometry"/>
                 </mxCell>
                 <mxCell id="56" value="FB_String" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=none;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
@@ -74,7 +74,7 @@
                     <mxGeometry x="240" y="-190" width="200" height="100" as="geometry"/>
                 </mxCell>
                 <mxCell id="121" value="I_OtlpSerializer &amp;lt;&amp;lt;interface&amp;gt;&amp;gt;" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=none;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-                    <mxGeometry x="1483" y="-1060" width="420" height="162" as="geometry"/>
+                    <mxGeometry x="1483" y="-1030" width="420" height="162" as="geometry"/>
                 </mxCell>
                 <mxCell id="122" value="&lt;span style=&quot;font-size: 10px;&quot;&gt;Interface that classes must implement if they want to serialize OTLP objects such as LogRecords and Spans. Used to ensure that classes don&#39;t forget to implement a serialization method for a specific type. The class should keep track of the serialized value internally and provide it as an output rather than making the methods &quot;pure&quot; where they return a value.&lt;/span&gt;" style="text;strokeColor=default;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="121" vertex="1">
                     <mxGeometry y="26" width="420" height="84" as="geometry"/>
@@ -127,7 +127,7 @@
                         <mxPoint x="12" y="23" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="229" value="1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="165">
+                <mxCell id="229" value="1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="165" vertex="1" connectable="0">
                     <mxGeometry x="-0.6593" y="3" relative="1" as="geometry">
                         <mxPoint x="7" y="-10" as="offset"/>
                     </mxGeometry>
@@ -141,10 +141,10 @@
                 <mxCell id="194" value="- provider: REFERENCE TO FB_LoggerProvider." style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="157" vertex="1">
                     <mxGeometry y="170" width="340" height="26" as="geometry"/>
                 </mxCell>
-                <mxCell id="235" value="- scope: FB_InstrumentationScope" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" vertex="1" parent="157">
+                <mxCell id="235" value="- scope: FB_InstrumentationScope" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="157" vertex="1">
                     <mxGeometry y="196" width="340" height="26" as="geometry"/>
                 </mxCell>
-                <mxCell id="231" value="+ emit(record: LogRecord, ctx: ST_Context)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" vertex="1" parent="157">
+                <mxCell id="231" value="+ emit(record: LogRecord, ctx: ST_Context)" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="157" vertex="1">
                     <mxGeometry y="222" width="340" height="26" as="geometry"/>
                 </mxCell>
                 <mxCell id="190" style="edgeStyle=none;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=12;fontColor=default;endArrow=classic;endFill=1;startArrow=diamond;startFill=0;" parent="1" source="160" target="174" edge="1">
@@ -184,7 +184,7 @@
                         <mxPoint x="8" y="22" as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="237" value="1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="163">
+                <mxCell id="237" value="1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="163" vertex="1" connectable="0">
                     <mxGeometry x="0.8008" relative="1" as="geometry">
                         <mxPoint x="10" y="-7" as="offset"/>
                     </mxGeometry>
@@ -204,6 +204,24 @@
                 </mxCell>
                 <mxCell id="172" value="&lt;span style=&quot;color: rgb(0, 0, 0);&quot;&gt;+ onEmit(logRecord: FB_LogRecord, ctx: ST_Context)&lt;/span&gt;" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="170" vertex="1">
                     <mxGeometry y="70" width="340" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="243" style="edgeStyle=none;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="173" target="135">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1310" y="-1080"/>
+                            <mxPoint x="1880" y="-1080"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="245" value="Register" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="243">
+                    <mxGeometry x="-0.1396" y="2" relative="1" as="geometry">
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="246" value="1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="243">
+                    <mxGeometry x="0.9228" relative="1" as="geometry">
+                        <mxPoint x="11" y="-12" as="offset"/>
+                    </mxGeometry>
                 </mxCell>
                 <mxCell id="173" value="I_LogRecordProcessor &amp;lt;&amp;lt;interface&amp;gt;&amp;gt;" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;fillColor=none;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
                     <mxGeometry x="742" y="-1052" width="440" height="96" as="geometry"/>
@@ -361,10 +379,10 @@
                 <mxCell id="227" value="+ readonly: traceId: ARRAY [0..15] OF BYTE" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="223" vertex="1">
                     <mxGeometry y="60" width="340" height="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="236" value="Several function blocks are mentioned in the documentation with no corresponding class diagram, such as FB_InstrumentationScope, FB_Resource. These function blocks unless otherwise specified are PODO classes that simply manage the life cycle of the data with convenience methods like free() and delete() to help manage deallocating memory." style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;strokeColor=#d6b656;arcSize=5;fillColor=#fff2cc;" vertex="1" parent="1">
+                <mxCell id="236" value="Several function blocks are mentioned in the documentation with no corresponding class diagram, such as FB_InstrumentationScope, FB_Resource. These function blocks unless otherwise specified are PODO classes that simply manage the life cycle of the data with convenience methods like free() and delete() to help manage deallocating memory." style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;strokeColor=#d6b656;arcSize=5;fillColor=#fff2cc;" parent="1" vertex="1">
                     <mxGeometry x="-90" y="-898" width="230" height="160" as="geometry"/>
                 </mxCell>
-                <mxCell id="241" value="A record will retain a reference to the logger that created it so that it can be rolled up into a scoped log for serialization." style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;strokeColor=#d6b656;arcSize=5;fillColor=#fff2cc;" vertex="1" parent="1">
+                <mxCell id="241" value="A record will retain a reference to the logger that created it so that it can be rolled up into a scoped log for serialization." style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;strokeColor=#d6b656;arcSize=5;fillColor=#fff2cc;" parent="1" vertex="1">
                     <mxGeometry x="410" y="-324" width="200" height="100" as="geometry"/>
                 </mxCell>
             </root>
