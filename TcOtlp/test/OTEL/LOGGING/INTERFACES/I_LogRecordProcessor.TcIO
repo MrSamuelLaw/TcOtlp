@@ -25,14 +25,26 @@ END_VAR
 ]]></Declaration>
     </Method>
     <Method Name="pop" Id="{39b71e6a-d865-49b2-9126-16fda6e70e0f}">
-      <Declaration><![CDATA[METHOD pop: E_PointerFactoryStatus;
+      <Declaration><![CDATA[(*
+This method should transfer ownership of a LogRecord from the processors to pDest
+- If the processor has a value to give it MUST transfer ownership of the next LogRecord to pDest.
+- If the processors does not have a LogRecord to give it MUST NOT modifiy pDest.
+- IF pDest is not NULL/0 an appropriate status must be set and the next LogRecord must not be transfered.
+*)
+METHOD pop: E_PointerFactoryStatus;
 VAR_IN_OUT
 	pDest: POINTER TO FB_LogRecord;
 END_VAR
 ]]></Declaration>
     </Method>
     <Method Name="push" Id="{29c4e7ee-8432-49d0-b9ea-e6e38bbb82d0}">
-      <Declaration><![CDATA[METHOD push: E_PointerFactoryStatus
+      <Declaration><![CDATA[(*
+This method should transfer ownership of a LogRecord from pSrc to the processor.
+- If the processor is able to take the next LogRecord pSrc MUST be set to 0.
+- If the processor is not able to take the next LogRecord pSrc MUST NOT be modified
+and an appropriate status set.
+*)
+METHOD push: E_PointerFactoryStatus
 VAR_IN_OUT
 	pSrc: POINTER TO FB_LogRecord;
 END_VAR

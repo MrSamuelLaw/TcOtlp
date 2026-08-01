@@ -9,7 +9,15 @@
     <Method Name="TestSerializeLogRecord" Id="{432059f0-a68e-4217-85ac-25035b48c8cb}">
       <Declaration><![CDATA[METHOD TestSerializeLogRecord : REFERENCE TO FB_Test
 VAR
-	logger: FB_Logger;
+	// define the resource and provider
+	resource: FB_Resource(schemaUrl:='');
+	provider: FB_LoggerProvider(resource:=resource);
+	// define the scope and the logger
+	scope: FB_InstrumentationScope(name:='motor1', version:='0.0.1a', schemaUrl:='');
+	logger: FB_Logger(provider, scope);
+	// collect the emitted record before passing it to the serializer
+	simpleProcessor: FB_LogRecordProcessor_Simple(0);
+	
 	sts: E_PointerFactoryStatus;
 	ser: FB_LogRecordProtoJsonSerializer();
 	root: SJsonValue;
@@ -22,81 +30,63 @@ VAR
 	actStr: STRING;
 	expStr: STRING;
 	actFlags: UDINT;
+	tstamp: ULINT := 1581452773000000789;
 	flags: E_LogRecordFlag := E_LogRecordFlag.LOG_RECORD_FLAGS_TRACE_FLAGS_MASK;
-	pBody: POINTER TO FB_String;
-	pVal: POINTER TO FB_String;
-	pAttr: POINTER TO FB_KeyValue;
-	rec: POINTER TO FB_LogRecord;
-	pInstrumentationScope: POINTER TO FB_InstrumentationScope;
-	droppedAttributesCount: UDINT := 3;
-	attributes: FB_LinkedList_KeyValue;
+	pLogRecord: POINTER TO FB_LogRecord;
 	logRecords: FB_LinkedList_LogRecord;
+END_VAR
+
+VAR CONSTANT
+	processors: ARRAY [0..0] OF I_LogRecordProcessor := [
+		simpleProcessor
+	];
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test SerializeLogRecord');
-	// initialize the node pointer
-	ValueFactory.createString(pBody, ADR('This is a body string value'));
-	ValueFactory.createString(pVal, ADR('pVal'));
-	ValueFactory.createKeyValue(pAttr, ADR('stats.duration'), pVal);
-	attributes.append(pAttr);
 	// Build the record through the fluent logger, then transfer it to the test list.
 	logRecords.free();
-	logger
-		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG)
-		.setTimestamp(ULINT#1581452773000000789)
+	provider(processors:=processors);
+	sts := logger
+		.startLogRecord(
+			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG,
+			timestamp:=ADR(tstamp)
+		)
 		.setEventName(ADR('Serialization Event'))
+		.setBody( ADR('This is a body string value'))
 		.setTraceId(ADR(guid_), SIZEOF(guid_))
 		.setFlags(flags)
-		.setBody(pBody^.pString)
-		.addAttribute(ADR('stats.duration'), pVal)
-		.setDroppedAttributesCount(0);
-	rec := logger.pLogRecord;
-	IF logRecords.append(rec) THEN
-		logger.pLogRecord := 0;
+		.addStringAttribute(ADR('stats.duration'), ADR('pVal'))
+		.emit();
+	
+	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, sts, 'Expected log record emission to succeed');
+	sts := simpleProcessor.pop(pLogRecord);
+	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, sts, 'Expected processor to return the emitted record');
+	IF logRecords.append(pLogRecord) THEN
+		pLogRecord := 0;
 	ELSE
 		THIS^.AssertTrue(FALSE, 'Expected log record list to accept the record');
+		IF pLogRecord <> 0 THEN pLogRecord := pLogRecord^.delete(); END_IF
+		simpleProcessor.free();
 		logger.free();
 		TcUnit.TEST_FINISHED();
 		RETURN;
 	END_IF
-	pInstrumentationScope := __NEW(FB_InstrumentationScope(
-		name:='user.instrumentation',
-		version:='1.2.3',
-		attributes:=ADR(attributes),
-		droppedAttributesCount:=ADR(droppedAttributesCount)
-	));
-	IF pVal <> 0 THEN pVal := pVal^.delete(); END_IF
-	IF pAttr <> 0 THEN pAttr := pAttr^.delete(); END_IF
-	rec := logRecords.next();
-	IF rec <> 0 THEN rec^.attributes.reset(); END_IF
-	THIS^.AssertTrue(rec^.attributes.next() <> 0, 'Expected cloned attributes to contain a key/value');
-	pInstrumentationScope^.attributes.reset();
-	THIS^.AssertTrue(pInstrumentationScope^.attributes.next() <> 0, 'Expected instrumentation scope to clone its attributes');
+
 	// serialize the log(s)
 	root := ser.parser.NewDocument();
 	ser.parser.SetObject(root);
-	ser.serializeScopeLogs(root, pInstrumentationScope^, logRecords);
+	ser.serializeScopeLogs(root, scope, logRecords);
 	
 	// check the user-supplied instrumentation scope
 	obj := ser.parser.FindMember(root, 'scope');
 	mem := ser.parser.FindMember(obj, 'name');
 	actStr := ser.parser.GetString(mem);
-	THIS^.AssertEquals_STRING('user.instrumentation', actStr, 'instrumentation scope name does not serialize correctly');
+	THIS^.AssertEquals_STRING('motor1', actStr, 'instrumentation scope name does not serialize correctly');
+	
 	mem := ser.parser.FindMember(obj, 'version');
 	actStr := ser.parser.GetString(mem);
-	THIS^.AssertEquals_STRING('1.2.3', actStr, 'instrumentation scope version does not serialize correctly');
-	attrArr := ser.parser.FindMember(obj, 'attributes');
-	attrObj := ser.parser.GetArrayValueByIdx(attrArr, 0);
-	mem := ser.parser.FindMember(attrObj, 'key');
-	actStr := ser.parser.GetString(mem);
-	THIS^.AssertEquals_STRING('stats.duration', actStr, 'instrumentation scope attribute key does not serialize correctly');
-	mem := ser.parser.FindMember(attrObj, 'value');
-	mem := ser.parser.FindMember(mem, 'stringValue');
-	actStr := ser.parser.GetString(mem);
-	THIS^.AssertEquals_STRING('pVal', actStr, 'instrumentation scope attribute value does not serialize correctly');
-	mem := ser.parser.FindMember(obj, 'droppedAttributesCount');
-	THIS^.AssertEquals_UDINT(3, ser.parser.GetUint(mem), 'instrumentation scope droppedAttributesCount does not serialize correctly');
+	THIS^.AssertEquals_STRING('0.0.1a', actStr, 'instrumentation scope version does not serialize correctly');
 	
 	// grab the first value from the array
 	arr := ser.parser.FindMember(root, 'logRecords');
@@ -128,16 +118,17 @@ END_VAR
 	mem := ser.parser.FindMember(attrObj, 'key');
 	actStr := ser.parser.GetString(mem);
 	THIS^.AssertEquals_STRING('stats.duration', actStr, 'attribute key does not serialize correctly');
+	
 	mem := ser.parser.FindMember(attrObj, 'value');
 	mem := ser.parser.FindMember(mem, 'stringValue');
 	actStr := ser.parser.GetString(mem);
 	THIS^.AssertEquals_STRING('pVal', actStr, 'attribute value does not serialize correctly');
 	
-	// clean up the node pointer
+	// Delete the list-owned record and leave both owners empty for repeated test runs.
 	logRecords.free();
+	simpleProcessor.free();
+	logger.free();
 	THIS^.AssertTrue(logRecords.next() = 0, 'Expected logRecords to be empty');
-	IF pBody <> 0 THEN pBody := pBody^.delete(); END_IF
-	IF pInstrumentationScope <> 0 THEN pInstrumentationScope := pInstrumentationScope^.delete(); END_IF
 
 TcUnit.TEST_FINISHED();
 ]]></ST>

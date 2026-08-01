@@ -5,8 +5,8 @@
 VAR
 	fbTestOtlpValue: FB_TestOtlpValue();
 	fbTestLogging: FB_TestLogging();
-// 	fbTestProtoJsonSerializer: FB_TestProtoJsonSerializer();
-// 	fbTestFileExporter: FB_TestFileExporter();
+	fbTestProtoJsonSerializer: FB_TestProtoJsonSerializer();
+	fbTestFileExporter: FB_TestFileExporter();
 END_VAR
 ]]></Declaration>
     <Implementation>

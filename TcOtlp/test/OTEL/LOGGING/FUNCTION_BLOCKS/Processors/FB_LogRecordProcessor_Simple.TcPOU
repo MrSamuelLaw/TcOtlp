@@ -3,7 +3,7 @@
   <POU Name="FB_LogRecordProcessor_Simple" Id="{90ded010-1262-4ab5-9db9-0fd13f25279d}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProcessor_Simple IMPLEMENTS I_LogRecordProcessor;
 VAR
-	_logRecord: POINTER TO FB_LogRecord;
+	_records: FB_LinkedList_LogRecord;
 	_exporter: REFERENCE TO FB_LogRecordExporter_Base;
 	_isDone: BOOL;
 END_VAR
@@ -14,14 +14,11 @@ END_VAR
     <Method Name="call" Id="{bd3d4da7-f1f3-4d2f-be52-5f26e03c8761}">
       <Declaration><![CDATA[METHOD call
 VAR
-	_records: FB_LinkedList_LogRecord;
 	_sts: E_LogRecordExporterState;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[// Temporary console exporter used to verify the end-to-end logging pipeline.
-IF 	THIS^._logRecord <> 0 AND __ISVALIDREF(THIS^._exporter) THEN
-	_records.append(THIS^._logRecord);
-	_sts := THIS^._exporter.export(_records);
+        <ST><![CDATA[IF THIS^._records.count > 0 AND __ISVALIDREF(THIS^._exporter) THEN
+	_sts := THIS^._exporter.export(THIS^._records);
 	THIS^._isDone :=  _sts <> E_LogRecordExporterState.BUSY;
 	RETURN;
 END_IF
@@ -48,9 +45,7 @@ END_VAR
       <Declaration><![CDATA[METHOD free
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF THIS^._logRecord <> 0 THEN
-	THIS^._logRecord := THIS^._logRecord^.delete();
-END_IF]]></ST>
+        <ST><![CDATA[THIS^._records.free();]]></ST>
       </Implementation>
     </Method>
     <Method Name="isDone" Id="{de32fc1d-2857-4f96-ac04-f2d3d2a3574b}">
@@ -64,7 +59,7 @@ END_IF]]></ST>
       <Declaration><![CDATA[METHOD isFull : BOOL
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[isFull := THIS^._logRecord <> 0;]]></ST>
+        <ST><![CDATA[isFull := THIS^._records.count > 0;]]></ST>
       </Implementation>
     </Method>
     <Method Name="pop" Id="{c886ec0e-55ce-4091-a825-a563b6c96cc6}">
@@ -74,16 +69,17 @@ VAR_IN_OUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF THIS^._logRecord = 0 THEN
-	pop := E_PointerFactoryStatus.UNEXPECTED_NULL_POINTER;
-	RETURN;
-ELSIF pDest <> 0 THEN
+        <ST><![CDATA[IF pDest <> 0 THEN
 	pop := E_PointerFactoryStatus.POINTER_ALREADY_ALLOCATED;
 	RETURN;
 END_IF
 
-pDest := THIS^._logRecord;
-THIS^._logRecord := 0;
+pDest := THIS^._records.pop();
+IF pDest = 0 THEN
+	pop := E_PointerFactoryStatus.UNEXPECTED_NULL_POINTER;
+	RETURN;
+END_IF
+
 pop := E_PointerFactoryStatus.SUCCESS;]]></ST>
       </Implementation>
     </Method>
@@ -98,12 +94,16 @@ END_VAR
         <ST><![CDATA[IF pSrc = 0 THEN
 	push := E_PointerFactoryStatus.UNEXPECTED_NULL_POINTER;
 	RETURN;
-ELSIF THIS^._logRecord <> 0 THEN
+ELSIF THIS^._records.count > 0 THEN
 	push := E_PointerFactoryStatus.OUT_OF_MEMORY;
 	RETURN;
 END_IF
 
-THIS^._logRecord := pSrc;
+IF NOT THIS^._records.append(pSrc) THEN
+	push := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	RETURN;
+END_IF
+
 THIS^._isDone := FALSE;
 pSrc := 0;
 push := E_PointerFactoryStatus.SUCCESS;]]></ST>

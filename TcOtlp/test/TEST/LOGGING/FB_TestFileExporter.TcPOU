@@ -2,6 +2,15 @@
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_TestFileExporter" Id="{652c2ccf-e368-4316-b865-a55144794447}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_TestFileExporter EXTENDS FB_TestSuite
+VAR
+	_resource:		FB_Resource(schemaUrl:='');
+	_exporter: 		FB_LogRecordExporter_File(filepath:='C:\Users\samue\Desktop\programming projects\TcOtlp\logs.jsonl');
+	_processor:		FB_LogRecordProcessor_Simple(exporter:=_exporter);
+	_provider:		FB_LoggerProvider(resource:=_resource);
+	_scope:			FB_InstrumentationScope(name:='file-exporter-test', version:='0.0.1', schemaUrl:='');
+	_logger:		FB_Logger(_provider, _scope);
+	_processors:	ARRAY [0..0] OF I_LogRecordProcessor;
+END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[THIS^.TestExportLogRecord(cleanup:=FALSE);]]></ST>
@@ -13,95 +22,68 @@ VAR_INPUT
 	cleanup: BOOL := TRUE;
 END_VAR
 
+VAR CONSTANT
+	_filepath: STRING := 'C:\Users\samue\Desktop\programming projects\TcOtlp\logs.jsonl';
+	MAX_CYCLES: UDINT := 1000;
+END_VAR
+
 VAR_INST
 	_cycles: 		UDINT;
 	_state:			USINT;
 	_fileFinder: 	FB_EnumFindFileEntry;
 	_fileDeleter:	FB_FileDelete;
-	_logRecords:	FB_LinkedList_LogRecord;
-	_exporter: 		FB_LogRecordExporter_File;
-	_flags: E_LogRecordFlag := E_LogRecordFlag.LOG_RECORD_FLAGS_TRACE_FLAGS_MASK;
-END_VAR
-
-VAR CONSTANT
-	_filepath: STRING := 'C:\Users\samue\Desktop\programming projects\TcOtlp\logs.jsonl';
 END_VAR
 
 VAR
 	_fileSize: ULINT;
-	_guid: GUID;
-	_data1: DWORD := 123;
-	_pBody: POINTER TO FB_String;
-	_pVal: POINTER TO FB_String;
-	_pAttr: POINTER TO FB_KeyValue;
-	_pLogRecord: POINTER TO FB_LogRecord;
-	_attributes: FB_LinkedList_KeyValue;
-END_VAR
-
-VAR CONSTANT
-	MAX_CYCLES: UDINT := 1000;
+	_sts: E_PointerFactoryStatus;
+	_timestamp: ULINT := ULINT#1581452773000000789;
+	_traceId: ARRAY[0..ValueFactory.nTraceIdBytes-1] OF BYTE := [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+	_spanId: ARRAY[0..ValueFactory.nSpanIdBytes-1] OF BYTE := [16, 17, 18, 19, 20, 21, 22, 23];
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test FileExportLogRecord');
 	CASE _state OF
 		0: // initialization
-			_exporter(
-				filepath:=_filepath,
-				logRecords:=_logRecords,
-				execute:=FALSE
-			);
 			_cycles := 0;
-			_logRecords.free();
-			_attributes.free();
-			_guid.Data1 := _data1;
-			ValueFactory.createString(_pBody, ADR('This is a test for a string body'));
-			ValueFactory.createString(_pVal, ADR('pVal'));
-			ValueFactory.createKeyValue(_pAttr, ADR('stats.duration'), _pVal);
-			_attributes.append(_pAttr);
-			// Once FB_Logger has been implemented this should migrate away from using __NEW
-			_pLogRecord := __NEW(FB_LogRecord(
-				severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG,
-				timestamp:=ULINT#1581452773000000789,
-				eventName:=ADR('TestSerializationEvent'),
-				traceId:=ADR(_guid),
-				flags:=ADR(_flags),
-				spanId:=ADR(_guid.Data4),
-				body:=_pBody,
-				attributes:=ADR(_attributes),
-				droppedAttributesCount:=0
-			));
-			IF _pBody <> 0 THEN _pBody^.delete(); END_IF
-			IF _pVal <> 0 THEN _pVal^.delete(); END_IF
-			IF _pAttr <> 0 THEN _pAttr^.delete(); END_IF
-			_attributes.free();
-			// verify that the pointer is valid
-			IF _pLogRecord <> 0 AND_THEN _logRecords.append(_pLogRecord) THEN
-				THIS^.AssertTrue(_pLogRecord^.flags <> 0, 'Expected test log record to have trace flags');
-				THIS^.AssertEquals_UDINT(255, TO_UDINT(_pLogRecord^.flags^), 'Unexpected test log record trace flags');
-				_pLogRecord^.attributes.reset();
-				THIS^.AssertTrue(_pLogRecord^.attributes.next() <> 0, 'Expected cloned attributes to contain a key/value');
+			_processor.free();
+			_logger.reset();
+			_processors[0] := _processor;
+			// Bind the processor pipeline before the logger emits into the provider.
+			_provider(processors:=_processors);
+			_sts := _logger
+				.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG, timestamp:=ADR(_timestamp))
+				.setBody(ADR('This is a test for a string body'))
+				.setEventName(ADR('TestSerializationEvent'))
+				.setTraceId(ADR(_traceId), SIZEOF(_traceId))
+				.setSpanId(ADR(_spanId), SIZEOF(_spanId))
+				.setFlags(E_LogRecordFlag.LOG_RECORD_FLAGS_TRACE_FLAGS_MASK)
+				.addStringAttribute(ADR('stats.duration'), ADR('pVal'))
+				.emit();
+			THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, _sts, 'Emit status was unsuccessful');
+			THIS^.AssertTrue(_logger.pLogRecord = 0, 'Expected emit to transfer ownership to the provider');
+			IF _sts = E_PointerFactoryStatus.SUCCESS THEN
+				THIS^.AssertTrue(_processor.isFull(), 'Expected the processor to contain the emitted log record');
 				_state := 10;
 				RETURN;
 			ELSE
-				THIS^.AssertTrue(FALSE, 'Failed to create test log record list');
+				_state := 30;
+				RETURN;
 			END_IF
 			
 		10: // export
-			_exporter(
-				filepath:=_filepath,
-				logRecords:=_logRecords,
-				execute:=TRUE
-			);
+			_provider(processors:=_processors);
 			_cycles := _cycles + 1;
 			IF _exporter.currentState = E_FileExporterState.error THEN
-				THIS^.AssertTrue(FALSE, 'FB_LogRecordFileExporter failed to export logs to file');
+				THIS^.AssertTrue(FALSE, 'OTLP pipeline failed to export logs to file');
 				_state := 30;
 				RETURN;
 			ELSIF _cycles > MAX_CYCLES THEN
-				THIS^.AssertTrue(FALSE, 'Timed out waiting for FB_LogRecordFileExporter to finish');
+				THIS^.AssertTrue(FALSE, 'Timed out waiting for the OTLP pipeline to finish');
 				_state := 30;
 				RETURN;
-			ELSIF _exporter.currentState = E_FileExporterState.idle THEN
+			ELSIF _processor.isDone() THEN
+				THIS^.AssertTrue(_exporter.currentState = E_FileExporterState.done, 'Expected file exporter to finish successfully');
 				// assert no errors occurred
 				THIS^.AssertEquals_UDINT(0, _exporter.fileOpenerErrId, 'Unexpected file opener error');
 				THIS^.AssertEquals_UDINT(0, _exporter.fileWriterErrId, 'Unexpected file writer error');
@@ -135,10 +117,10 @@ END_VAR]]></Declaration>
 				END_IF
 			END_IF
 
-			// clean up the owned log record list
-			_logRecords.free();
-			_pLogRecord := 0;
-			THIS^.AssertTrue(_logRecords.next() = 0, 'Expected logRecords to be empty after cleanup');
+			// clean up the record owned by the processor
+			_processor.free();
+			_logger.free();
+			THIS^.AssertFalse(_processor.isFull(), 'Expected processor to be empty after cleanup');
 
 			_state := 0;
 			TcUnit.TEST_FINISHED();

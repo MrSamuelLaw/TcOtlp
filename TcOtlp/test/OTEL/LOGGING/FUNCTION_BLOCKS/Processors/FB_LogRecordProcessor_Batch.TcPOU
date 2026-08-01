@@ -1,0 +1,117 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LogRecordProcessor_Batch" Id="{3c63b4ac-33ba-4480-a899-f0c3be47a7cf}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProcessor_Batch IMPLEMENTS I_LogRecordProcessor;
+VAR
+	_records: FB_LinkedList_LogRecord;
+	_exporter: REFERENCE TO FB_LogRecordExporter_Base;
+	_isDone: BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="call" Id="{c793c12f-c560-4cb0-9af7-f41c9dc70a23}">
+      <Declaration><![CDATA[METHOD call
+VAR
+	_sts: E_LogRecordExporterState;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._records.count > 0 AND __ISVALIDREF(THIS^._exporter) THEN
+	_sts := THIS^._exporter.export(THIS^._records);
+	THIS^._isDone :=  _sts <> E_LogRecordExporterState.BUSY;
+	RETURN;
+END_IF
+THIS^._isDone := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{1b6c3aba-d3d8-44a7-8d93-ac13d7ad0810}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	exporter: REFERENCE TO FB_LogRecordExporter_Base;	// the exporter where the LogRecords are pushed.
+	maxQueueSize: UDINT := 2048;						// the maximum queue size. After the size is reached logs are dropped. The default value is 2048.
+	scheduledDelayMillis: UDINT := 1000;				// the delay interval in milliseconds between two consecutive exports. The default value is 1000.
+	exportTimeoutMillis: UDINT := 30000;				// how long the export can run before it is cancelled. The default value is 30000.
+	maxExportBatchSize: UDINT := 512;					// the maximum batch size of every export. It must be smaller or equal to maxQueueSize. The default value is 512.
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._exporter REF= exporter;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{f13c14df-6aac-4e5f-ae77-f40c30ac792c}">
+      <Declaration><![CDATA[METHOD free
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._records.free();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="isDone" Id="{1c97def0-8772-4d06-87e3-d35c34bfb9e7}">
+      <Declaration><![CDATA[METHOD isDone : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[isDone := THIS^._isDone;  // point at the exporter status in the future]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="isFull" Id="{9a28efb0-0745-4f94-87f0-7406b47cf5e4}">
+      <Declaration><![CDATA[METHOD isFull : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[isFull := THIS^._records.count > 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="pop" Id="{a592f6b0-b2ee-4144-8302-05f2cf676d2d}">
+      <Declaration><![CDATA[METHOD pop : E_PointerFactoryStatus
+VAR_IN_OUT
+	pDest: POINTER TO FB_LogRecord;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pDest <> 0 THEN
+	pop := E_PointerFactoryStatus.POINTER_ALREADY_ALLOCATED;
+	RETURN;
+END_IF
+
+pDest := THIS^._records.pop();
+IF pDest = 0 THEN
+	pop := E_PointerFactoryStatus.UNEXPECTED_NULL_POINTER;
+	RETURN;
+END_IF
+
+pop := E_PointerFactoryStatus.SUCCESS;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="push" Id="{677a3a86-a16f-452f-817c-08616b1f73c5}">
+      <Declaration><![CDATA[METHOD push : E_PointerFactoryStatus
+VAR_IN_OUT
+	pSrc: POINTER TO FB_LogRecord;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pSrc = 0 THEN
+	push := E_PointerFactoryStatus.UNEXPECTED_NULL_POINTER;
+	RETURN;
+ELSIF THIS^._records.count > 0 THEN
+	push := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	RETURN;
+END_IF
+
+IF NOT THIS^._records.append(pSrc) THEN
+	push := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	RETURN;
+END_IF
+
+THIS^._isDone := FALSE;
+pSrc := 0;
+push := E_PointerFactoryStatus.SUCCESS;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

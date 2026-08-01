@@ -102,6 +102,35 @@ IF THIS^._cursor <> 0 THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
+    <Method Name="pop" Id="{81f42449-d168-4086-9f3b-beae690752ef}">
+      <Declaration><![CDATA[METHOD pop : POINTER TO FB_LogRecord
+VAR
+	_node: POINTER TO ST_LinkedListNode;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[pop := 0;
+
+IF THIS^._head = 0 THEN
+	RETURN;
+END_IF
+
+_node := THIS^._head;
+THIS^._head := _node^.nxt;
+IF THIS^._cursor = _node THEN
+	THIS^._cursor := THIS^._head;
+END_IF
+IF THIS^._head = 0 THEN
+	THIS^._tail := 0;
+END_IF
+
+pop := _node^.val;
+_node^.val := 0;
+_node^.nxt := 0;
+__DELETE(_node);
+THIS^.count := THIS^.count - 1;]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="reset" Id="{8e5c6da1-a3e7-4711-8032-291e4a16dc6e}">
       <Declaration><![CDATA[METHOD reset
 ]]></Declaration>

@@ -52,6 +52,38 @@ END_FOR
 logRecords.reset();]]></ST>
       </Implementation>
     </Method>
+    <Method Name="serializeLogsData" Id="{e949baee-9209-4a36-8a48-4eaffb67bbe1}">
+      <Declaration><![CDATA[METHOD serializeLogsData
+VAR_IN_OUT
+	v: SJsonValue;
+	logRecords: FB_LinkedList_LogRecord;
+END_VAR
+VAR
+	_idx: UDINT;
+	_rec: POINTER TO FB_LogRecord;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// instantiate the document with an object
+THIS^.jsonVal := THIS^.parser.NewDocument();
+THIS^.jsonVal := THIS^.parser.SetObject(THIS^.jsonVal);
+
+// start resource logs
+THIS^.jsonVal := THIS^.parser.AddArrayMember(THIS^.jsonVal, 'resourceLogs', 0);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="serializeResourceLogs" Id="{6b43c2c7-047f-4862-9b90-b2d2c588a9af}">
+      <Declaration><![CDATA[METHOD serializeResourceLogs
+VAR_IN_OUT
+	v: SJsonValue;
+	instrumentationScope: FB_InstrumentationScope;
+	logRecords: FB_LinkedList_LogRecord;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="serializeScopeLogs" Id="{3d36022d-3f4c-4a69-9fa9-1799ece683a0}">
       <Declaration><![CDATA[METHOD serializeScopeLogs
 VAR_IN_OUT

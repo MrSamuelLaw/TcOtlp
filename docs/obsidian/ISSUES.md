@@ -1,0 +1,2 @@
+- [ ] Ran into an issue with not having a way to free the memory from a linked list without destroying the references. I'm thinking a way to handle this could maybe to create a push and pop method that could allow ownership transfer.
+- [ ] The log record json serializer doesn't sort the log records, making the files much larger than they need to be.

@@ -112,6 +112,9 @@
     <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\Processors\FB_LogRecordProcessor_Simple.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\Processors\FB_LogRecordProcessor_Batch.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\Serializers\FB_BaseProtoJsonSerializer.TcPOU">
       <SubType>Code</SubType>
     </Compile>
