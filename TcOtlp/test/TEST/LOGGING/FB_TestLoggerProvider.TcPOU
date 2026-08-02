@@ -11,6 +11,7 @@
 VAR
 	resource: FB_Resource('');
 	provider: FB_LoggerProvider(resource);
+	destroyStatus: E_LoggerProviderMethodStatus;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test LoggerProvider Logger Management');
@@ -22,12 +23,29 @@ END_VAR]]></Declaration>
 	THIS^.AssertTrue(provider.hasLogger('logger2'), 'Expected logger2 to exist');
 	THIS^.AssertTrue(provider.hasLogger('logger3'), 'Expected logger3 to exist');
 	THIS^.AssertFalse(provider.hasLogger('loggerX'), 'Expected loggerX to not exist');
-	provider.destroyLogger('logger1');
-	provider.destroyLogger('logger2');
-	provider.destroyLogger('logger3');
-	THIS^.AssertFalse(provider.hasLogger('logger1'), 'Expected logger1 to be destroyed');
+
+	// assert that it can destroy the middle, tail, and only remaining logger
+	destroyStatus := provider.destroyLogger('logger2');
+	THIS^.AssertEquals_UDINT(E_LoggerProviderMethodStatus.SUCCESS, destroyStatus, 'Expected middle logger destruction to succeed');
+	THIS^.AssertTrue(provider.hasLogger('logger1'), 'Expected logger1 to remain after destroying logger2');
 	THIS^.AssertFalse(provider.hasLogger('logger2'), 'Expected logger2 to be destroyed');
+	THIS^.AssertTrue(provider.hasLogger('logger3'), 'Expected logger3 to remain after destroying logger2');
+
+	destroyStatus := provider.destroyLogger('logger3');
+	THIS^.AssertEquals_UDINT(E_LoggerProviderMethodStatus.SUCCESS, destroyStatus, 'Expected tail logger destruction to succeed');
+	THIS^.AssertTrue(provider.hasLogger('logger1'), 'Expected logger1 to remain after destroying logger3');
 	THIS^.AssertFalse(provider.hasLogger('logger3'), 'Expected logger3 to be destroyed');
+
+	destroyStatus := provider.destroyLogger('loggerX');
+	THIS^.AssertEquals_UDINT(E_LoggerProviderMethodStatus.SUCCESS, destroyStatus, 'Expected missing logger destruction to succeed');
+	THIS^.AssertTrue(provider.hasLogger('logger1'), 'Expected missing logger destruction to leave logger1 intact');
+
+	destroyStatus := provider.destroyLogger('logger1');
+	THIS^.AssertEquals_UDINT(E_LoggerProviderMethodStatus.SUCCESS, destroyStatus, 'Expected final logger destruction to succeed');
+	THIS^.AssertFalse(provider.hasLogger('logger1'), 'Expected logger1 to be destroyed');
+
+	provider.createLogger('logger4', '0.0.0.d');
+	THIS^.AssertTrue(provider.hasLogger('logger4'), 'Expected logger creation after destroying all loggers to succeed');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

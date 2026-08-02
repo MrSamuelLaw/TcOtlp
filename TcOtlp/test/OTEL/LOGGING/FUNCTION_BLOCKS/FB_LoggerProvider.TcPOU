@@ -95,6 +95,51 @@ THIS^._loggerCount := THIS^._loggerCount + 1;
 createLogger := E_LoggerProviderMethodStatus.SUCCESS;]]></ST>
       </Implementation>
     </Method>
+    <Method Name="destroyLogger" Id="{6e0512e0-16fb-45e8-a7c6-17b5eb1f55e5}">
+      <Declaration><![CDATA[METHOD destroyLogger: E_LoggerProviderMethodStatus;
+VAR_INPUT
+	name: T_MaxString;
+END_VAR
+VAR
+	_pNode: POINTER TO ST_LinkedListNode;
+	_pPreviousNode: POINTER TO ST_LinkedListNode;
+	_pLogger: POINTER TO FB_Logger;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[destroyLogger := E_LoggerProviderMethodStatus.SUCCESS;
+_pNode := THIS^._loggerLookupHead;
+_pPreviousNode := 0;
+
+WHILE _pNode <> 0 DO
+	IF _pNode^.val <> 0 THEN
+		_pLogger := _pNode^.val;
+		IF _pLogger^.scope.name = name THEN
+			IF _pPreviousNode = 0 THEN
+				THIS^._loggerLookupHead := _pNode^.nxt;
+			ELSE
+				_pPreviousNode^.nxt := _pNode^.nxt;
+			END_IF
+
+			IF THIS^._loggerLookupTail = _pNode THEN
+				THIS^._loggerLookupTail := _pPreviousNode;
+			END_IF
+
+			_pNode^.val := 0;
+			_pLogger^.free();
+			__DELETE(_pLogger);
+			_pNode^.nxt := 0;
+			__DELETE(_pNode);
+			THIS^._loggerCount := THIS^._loggerCount - 1;
+			RETURN;
+		END_IF
+	END_IF
+
+	_pPreviousNode := _pNode;
+	_pNode := _pNode^.nxt;
+END_WHILE]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="FB_Exit" Id="{c0825389-16fb-449f-b72e-42eeae50f823}">
       <Declaration><![CDATA[METHOD FB_Exit : BOOL
 VAR_INPUT
