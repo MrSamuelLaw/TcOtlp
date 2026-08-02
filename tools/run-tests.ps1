@@ -259,6 +259,16 @@ if (-not $systemManager) {
     exit 1
 }
 
+try {
+    Write-Host "  Activating rebuilt TwinCAT configuration..."
+    $systemManager.ActivateConfiguration()
+    Write-Host "  TwinCAT configuration activated." -ForegroundColor Green
+}
+catch {
+    Write-Host "  Failed to activate the rebuilt TwinCAT configuration: $_" -ForegroundColor Red
+    exit 1
+}
+
 $tcStartRetries = 5
 for ($r = 1; $r -le $tcStartRetries; $r++) {
     try {

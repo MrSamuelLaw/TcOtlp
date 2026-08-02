@@ -100,7 +100,7 @@ END_VAR
         <ST><![CDATA[IF pSrc = 0 THEN
 	push := E_PointerFactoryStatus.UNEXPECTED_NULL_POINTER;
 	RETURN;
-ELSIF THIS^._records.count > 0 THEN
+ELSIF THIS^.isFull() THEN
 	push := E_PointerFactoryStatus.OUT_OF_MEMORY;
 	RETURN;
 END_IF

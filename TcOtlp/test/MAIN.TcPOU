@@ -3,14 +3,16 @@
   <POU Name="MAIN" Id="{1fa3e08a-8235-40d5-a330-62ab1eea7a52}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM MAIN
 VAR
-	fbTestOtlpValue: FB_TestOtlpValue();
-	fbTestLogging: FB_TestLogging();
-	fbTestProtoJsonSerializer: FB_TestProtoJsonSerializer();
-	fbTestFileExporter: FB_TestFileExporter();
+	fbTestLoggerProvider: FB_TestLoggerProvider();
+// 	fbTestOtlpValue: FB_TestOtlpValue();
+// 	fbTestLogging: FB_TestLogging();
+// 	fbTestProtoJsonSerializer: FB_TestProtoJsonSerializer();
+// 	fbTestFileExporter: FB_TestFileExporter();
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[TcUnit.RUN();]]></ST>
+      <ST><![CDATA[TcUnit.RUN();
+// SIM_MAIN();]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

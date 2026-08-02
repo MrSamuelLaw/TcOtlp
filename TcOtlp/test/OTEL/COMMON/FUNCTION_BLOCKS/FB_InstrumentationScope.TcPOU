@@ -1,7 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_InstrumentationScope" Id="{b7d10966-7b60-4f22-b7d9-720144dd9472}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_InstrumentationScope
+    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_InstrumentationScope
 VAR_OUTPUT
 	name: T_MaxString;
 	version: T_MaxString;
@@ -11,11 +12,35 @@ END_VAR
 VAR_OUTPUT CONSTANT
 	// Owned clone of the list supplied to FB_Init. Do not copy owning lists by value.
 	attributes: FB_LinkedList_KeyValue;
-END_VAR
-]]></Declaration>
+END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="delete" Id="{3922a09b-bf5a-4be6-9523-331d9d99fa02}">
+      <Declaration><![CDATA[METHOD delete : ULINT
+VAR
+	pSelf: POINTER TO FB_InstrumentationScope;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[pSelf := THIS;
+__DELETE(pSelf);
+delete := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Exit" Id="{dfd2f978-3108-4426-a903-5c90d7c5bec7}">
+      <Declaration><![CDATA[//FB_Exit must be implemented explicitly. If there is an implementation, then the
+//method is called before the controller removes the code of the function block instance
+//(implicit call). The return value is not evaluated.
+METHOD FB_Exit: BOOL
+VAR_INPUT
+    bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).  
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.free();]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="FB_Init" Id="{f1944aeb-9f9c-4684-855f-98ad767fb9b0}">
       <Declaration><![CDATA[METHOD FB_Init: BOOL
 VAR_INPUT
@@ -30,6 +55,15 @@ END_VAR
         <ST><![CDATA[THIS^.name := name;
 THIS^.version := version;
 THIS^.schemaUrl := schemaUrl;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{b8940d1a-768c-4234-9b2f-4caa954f371f}">
+      <Declaration><![CDATA[METHOD free
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.attributes.free();]]></ST>
       </Implementation>
     </Method>
   </POU>

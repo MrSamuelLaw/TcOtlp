@@ -7,8 +7,56 @@
     <Implementation>
       <ST><![CDATA[THIS^.TestLoggerProvider();
 THIS^.TestLogger();
+THIS^.TestBatchProcessor();
 ]]></ST>
     </Implementation>
+    <Method Name="TestBatchProcessor" Id="{6aab30cf-0b26-4d63-83c6-56608f3e87f0}">
+      <Declaration><![CDATA[METHOD TestBatchProcessor : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource(schemaUrl:='');
+	provider: FB_LoggerProvider(resource:=resource);
+	scope: FB_InstrumentationScope(name:='batch-processor-test', version:='0.0.1', schemaUrl:='');
+	processor: FB_LogRecordProcessor_Batch(0);
+	logger: FB_Logger(provider, scope);
+	processors: ARRAY [0..0] OF I_LogRecordProcessor;
+	firstStatus: E_PointerFactoryStatus;
+	secondStatus: E_PointerFactoryStatus;
+	thirdStatus: E_PointerFactoryStatus;
+	timestamp: ULINT := ULINT#1581452773000000789;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test Batch LogRecord Processor');
+	processor.free();
+	logger.reset();
+	processor(maxQueueSize:=3, maxExportBatchSize:=3);
+	processors[0] := processor;
+	provider(processors:=processors);
+
+	firstStatus := logger
+		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG, timestamp:=ADR(timestamp))
+		.setBody(ADR('first record'))
+		.emit();
+	secondStatus := logger
+		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(timestamp))
+		.setBody(ADR('second record'))
+		.emit();
+	thirdStatus := logger
+		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_WARN, timestamp:=ADR(timestamp))
+		.setBody(ADR('third record'))
+		.emit();
+
+	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, firstStatus, 'Expected first record to enter the batch');
+	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, secondStatus, 'Expected second record to enter the batch');
+	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, thirdStatus, 'Expected third record to enter the batch');
+	THIS^.AssertTrue(processor.isFull(), 'Expected batch queue to be full after three records');
+
+	processor.free();
+	logger.free();
+	THIS^.AssertFalse(processor.isFull(), 'Expected batch queue to be empty after cleanup');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="TestLogger" Id="{ecc71309-4ec8-4346-a2a8-71e632b9ed96}">
       <Declaration><![CDATA[METHOD TestLogger : REFERENCE TO FB_Test
 VAR
@@ -19,7 +67,7 @@ VAR
 	scope: FB_InstrumentationScope(name:='motor1', version:='0.0.1a', schemaUrl:='');
 	logger: FB_Logger(provider, scope);
 	// define an empty pipeline
-	simpleProcessor: FB_LogRecordProcessor_Simple(0);
+	simpleProcessor: FB_LogRecordProcessor_Simple(0);;
 	
 	// program variables
 	sts: E_PointerFactoryStatus;
@@ -37,7 +85,7 @@ END_VAR
 
 VAR CONSTANT
 	processors: ARRAY [0..0] OF I_LogRecordProcessor := [
-		simpleProcessor
+		slowProcessor
 	];
 END_VAR
 ]]></Declaration>
@@ -66,9 +114,11 @@ END_VAR
 	THIS^.AssertTrue(logger.pLogRecord = 0, 'Expected emit to transfer ownership to the provider');
 	
 	// call the processor at the end of the loop
-	provider(
-		processors:=processors
-	);
+	WHILE NOT processors[0].isDone() DO
+		provider(
+			processors:=processors
+		);
+	END_WHILE
 	
 	// Leave all pipeline owners empty so repeated runs and PLC restarts do not leak.
 	simpleProcessor.free();

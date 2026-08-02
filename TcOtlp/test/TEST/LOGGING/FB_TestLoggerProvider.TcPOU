@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestLoggerProvider" Id="{cda24098-20fd-4ad5-bc1f-836d215b288b}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TestLoggerProvider EXTENDS FB_TestSuite
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.manageLoggers();]]></ST>
+    </Implementation>
+    <Method Name="manageLoggers" Id="{bdefdcda-22cb-4124-9e61-9ff51ef801e6}">
+      <Declaration><![CDATA[METHOD manageLoggers : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	provider: FB_LoggerProvider(resource);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test LoggerProvider Logger Management');
+	// assert that it can create and store loggers
+	provider.createLogger('logger1', '0.0.0.a');
+	THIS^.AssertTrue(provider.hasLogger('logger1'), 'Expected logger1 to exist');
+	THIS^.AssertFalse(provider.hasLogger('loggerX'), 'Expected logger2 to not exist');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

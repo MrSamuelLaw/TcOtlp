@@ -1,3 +1,6 @@
-- [ ] Ran into an issue with not having a way to free the memory from a linked list without destroying the references. I'm thinking a way to handle this could maybe to create a push and pop method that could allow ownership transfer.
-- [ ] The log record json serializer doesn't sort the log records, making the files much larger than they need to be.
+- [ ] When a logger is changed out it can break the system because the log record retains a reference to the old logger, and then during serialization when the reference to the old logger is used, the system craps the bed.
+- [x] Ran into an issue with not having a way to free the memory from a linked list without destroying the references. I'm thinking a way to handle this could maybe to create a push and pop method that could allow ownership transfer.
+- [x] The log record json serializer doesn't sort the log records, making the files much larger than they need to be.
+- [ ] The log record json serializer uses pre-allocated arrays rather than linked lists to sort the log records, hogging up precious memory.
+- [ ] Numeric attributes are not serializing properly.
 - [ ] Resources only have attributes, so I probably need to shift the SDK to having a setup step where I can set resource attributes rather than being static. The other option is I can make it have a field "resourceId" that is not optional.

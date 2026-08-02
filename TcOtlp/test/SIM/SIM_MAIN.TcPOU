@@ -1,0 +1,50 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="SIM_MAIN" Id="{e7bb73c9-25de-42b1-a4f9-ce2c149f30b5}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM SIM_MAIN
+VAR
+	// logging config
+	resource: FB_Resource(schemaUrl:='');
+	provider: FB_LoggerProvider(resource:=resource);
+	scope: FB_InstrumentationScope(name:='motor1', version:='0.0.0a', schemaUrl:='');
+	logger1: FB_Logger(provider:=provider, scope:=scope);
+	logger2: FB_Logger(provider:=provider, scope:=scope);
+	exporter: FB_LogRecordExporter_File(filepath:='C:\Users\samue\Desktop\programming projects\TcOtlp\logs.jsonl');
+	batchProcessor1: FB_LogRecordProcessor_Batch(exporter:=exporter);
+	batchProcessor2: FB_LogRecordProcessor_Batch(exporter:=exporter);
+	processors: ARRAY [0..0] OF I_LogRecordProcessor := [
+		batchProcessor1
+	];
+	
+	// initialization setup
+	firstScan: BOOL := TRUE;
+	
+	// program variables
+	alarmFlag: BOOL;
+	motorTemp: REAL;
+	motorTempLimit: REAL := 135.00;  // °F
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF firstScan THEN
+	resource.addStringAttribute('name', 'PLC1');
+END_IF
+
+// run the loop
+provider(processors:=processors);
+
+IF motorTemp > motorTempLimit THEN // AND NOT alarmFlag THEN
+	logger1
+		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_FATAL)
+		.setEventName(ADR('motor1.over_temp_fault'))
+		.setBody(ADR('Motor 1 experienced an over temp fault... initiating auto shutdown sequence!'))
+		.addNumberAttribute(ADR('temp.limit'), motorTempLimit)
+		.addNumberAttribute(ADR('temp.actual'), motorTemp)
+		.emit();
+END_IF
+alarmFlag := motorTemp > motorTempLimit;
+
+firstScan := FALSE;]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

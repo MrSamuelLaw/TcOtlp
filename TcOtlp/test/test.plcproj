@@ -85,6 +85,9 @@
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
     </Compile>
+    <Compile Include="OTEL\LOGGING\ENUMS\E_LoggerProviderMethodStatus.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\LOGGING\ENUMS\E_LogRecordExporterState.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
@@ -127,10 +130,16 @@
     <Compile Include="PlcTask.TcTTO">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="SIM\SIM_MAIN.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="TEST\COMMON\FB_TestOtlpValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TEST\LOGGING\FB_TestFileExporter.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="TEST\LOGGING\FB_TestLoggerProvider.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TEST\LOGGING\FB_TestLogging.TcPOU">
@@ -141,6 +150,7 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="SIM" />
     <Folder Include="OTEL" />
     <Folder Include="OTEL\COMMON\ENUMS" />
     <Folder Include="OTEL\COMMON\FUNCTION_BLOCKS" />

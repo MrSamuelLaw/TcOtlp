@@ -1,14 +1,14 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_Logger" Id="{730b727f-4674-448e-a99c-ca00a77667b8}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_Logger
+    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_Logger
 VAR_OUTPUT
 	sts: E_PointerFactoryStatus;
 	pLogRecord: POINTER TO FB_LogRecord;
 END_VAR
 VAR
-	_provider: REFERENCE TO FB_LoggerProvider;
-	_scope: REFERENCE TO FB_InstrumentationScope;
+	_scope: POINTER TO FB_InstrumentationScope;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -176,7 +176,7 @@ IF THIS^.pLogRecord = 0 THEN
 END_IF
 
 // call the parents onEmit method which will take ownership of the pointer(future)
-THIS^._provider.onEmit(THIS^.pLogRecord);
+// THIS^._provider.onEmit(THIS^.pLogRecord);
 
 IF THIS^.pLogRecord = 0 THEN
 	THIS^.sts := E_PointerFactoryStatus.SUCCESS;
@@ -188,7 +188,7 @@ END_IF
 emit := THIS^.sts;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="FB_Init" Id="{78532e26-554d-4b17-9f53-803e2ee97992}">
+    <Method Name="FB_Init" Id="{8c3c5b34-9fb4-4244-bcbe-417c9db34dca}">
       <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
 //The return value is not evaluated. For a specific influence, you can also declare the
 //methods explicitly and provide additional code there with the standard initialization
@@ -196,14 +196,12 @@ emit := THIS^.sts;]]></ST>
 METHOD FB_Init: BOOL
 VAR_INPUT
     bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
-    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change) 
-	provider: REFERENCE TO FB_LoggerProvider;
-	scope: REFERENCE TO FB_InstrumentationScope;  
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	scope: POINTER TO FB_InstrumentationScope;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[THIS^._provider REF= provider;
-THIS^._scope REF=scope;]]></ST>
+        <ST><![CDATA[THIS^._scope := scope;]]></ST>
       </Implementation>
     </Method>
     <Method Name="free" Id="{7a1f6e83-7f40-420d-94fb-81b34da658fd}">
@@ -215,19 +213,12 @@ END_VAR
         <ST><![CDATA[IF THIS^.pLogRecord <> 0 THEN
 	THIS^.pLogRecord := THIS^.pLogRecord^.delete();
 END_IF
+IF THIS^._scope <> 0 THEN
+	THIS^._scope := THIS^._scope^.delete();
+END_IF
 THIS^.sts := E_PointerFactoryStatus.UNSPECIFIED_ERROR;]]></ST>
       </Implementation>
     </Method>
-    <Property Name="provider" Id="{b8ae31d1-24e7-4d67-a57c-f10f8610c10a}">
-      <Declaration><![CDATA[PROPERTY provider : REFERENCE TO FB_LoggerProvider]]></Declaration>
-      <Get Name="Get" Id="{b612e383-607e-4097-8a9d-96df79a7f4f7}">
-        <Declaration><![CDATA[
-]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[provider REF= THIS^._provider;]]></ST>
-        </Implementation>
-      </Get>
-    </Property>
     <Method Name="reset" Id="{cfc39e65-b855-4ce2-8008-a09504960012}">
       <Declaration><![CDATA[METHOD reset
 VAR_INPUT
@@ -238,12 +229,12 @@ END_VAR
 THIS^.sts := E_PointerFactoryStatus.SUCCESS;]]></ST>
       </Implementation>
     </Method>
-    <Property Name="scope" Id="{7a18f472-20df-4170-bd20-90ec2950b782}">
+    <Property Name="scope" Id="{d2e8b677-bbd2-4f19-8272-9e764fae0428}">
       <Declaration><![CDATA[PROPERTY scope : REFERENCE TO FB_InstrumentationScope]]></Declaration>
-      <Get Name="Get" Id="{fed1452e-3730-4e8b-94df-a7fac7b5d4f3}">
+      <Get Name="Get" Id="{b10b9cbb-674e-4a26-9f2c-986355dc3d28}">
         <Declaration><![CDATA[]]></Declaration>
         <Implementation>
-          <ST><![CDATA[scope REF= THIS^._scope;]]></ST>
+          <ST><![CDATA[]]></ST>
         </Implementation>
       </Get>
     </Property>
