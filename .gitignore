@@ -55,4 +55,4 @@ LineIDs.dbg.bak
 __pycache__/
 
 # obsidian env
-**/*.obsidian/
+**/*.obsidian

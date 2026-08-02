@@ -2,6 +2,12 @@
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_LogRecordProcessor_Batch" Id="{3c63b4ac-33ba-4480-a899-f0c3be47a7cf}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProcessor_Batch IMPLEMENTS I_LogRecordProcessor;
+VAR_INPUT
+	maxQueueSize: UDINT := 2048;						// the maximum queue size. After the size is reached logs are dropped. The default value is 2048.
+	scheduledDelayMillis: UDINT := 1000;				// the delay interval in milliseconds between two consecutive exports. The default value is 1000.
+	exportTimeoutMillis: UDINT := 30000;				// how long the export can run before it is cancelled. The default value is 30000.
+	maxExportBatchSize: UDINT := 512;					// the maximum batch size of every export. It must be smaller or equal to maxQueueSize. The default value is 512.
+END_VAR
 VAR
 	_records: FB_LinkedList_LogRecord;
 	_exporter: REFERENCE TO FB_LogRecordExporter_Base;
@@ -35,10 +41,6 @@ VAR_INPUT
     bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
     bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
 	exporter: REFERENCE TO FB_LogRecordExporter_Base;	// the exporter where the LogRecords are pushed.
-	maxQueueSize: UDINT := 2048;						// the maximum queue size. After the size is reached logs are dropped. The default value is 2048.
-	scheduledDelayMillis: UDINT := 1000;				// the delay interval in milliseconds between two consecutive exports. The default value is 1000.
-	exportTimeoutMillis: UDINT := 30000;				// how long the export can run before it is cancelled. The default value is 30000.
-	maxExportBatchSize: UDINT := 512;					// the maximum batch size of every export. It must be smaller or equal to maxQueueSize. The default value is 512.
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -63,7 +65,7 @@ END_VAR
       <Declaration><![CDATA[METHOD isFull : BOOL
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[isFull := THIS^._records.count > 0;]]></ST>
+        <ST><![CDATA[isFull := THIS^._records.count >= THIS^.maxQueueSize;]]></ST>
       </Implementation>
     </Method>
     <Method Name="pop" Id="{a592f6b0-b2ee-4144-8302-05f2cf676d2d}">

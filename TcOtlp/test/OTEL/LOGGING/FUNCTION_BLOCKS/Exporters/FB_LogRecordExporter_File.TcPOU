@@ -23,15 +23,11 @@ END_VAR
 VAR
 	_filepath: 		T_MaxString;
 	_hFile: 		UINT;
-	_idx:			UDINT;
 	_len:			UDINT;
 	_execRTrig:		R_TRIG;
 	_pString:		POINTER TO STRING;
-	_obj:			SJsonValue;
 	_jsonVal:		SJsonValue;
-	_logRecordsArray: SJsonValue;
-	_arrayPtr:		SJsonAIterator;
-	_arrayEnd:		SJsonAIterator;
+	_resourceLogsArray: SJsonValue;
 	_fileOpener: 	FB_FileOpen;
 	_fileWriter:	FB_FileWrite;
 	_fileCloser:	FB_FileClose;
@@ -51,11 +47,11 @@ CASE currentState OF
 		END_IF
 		
 	E_FileExporterState.serializing:
-		_jsonVal := _serializer.parser.NewDocument();
-		_serializer.parser.SetObject(_jsonVal);
-		_serializer.serializeLogRecords(_jsonVal, logRecords);
-		_logRecordsArray := _serializer.parser.FindMember(_jsonVal, 'logRecords');
-		IF _jsonVal = 0 OR_ELSE _logRecordsArray = 0 OR_ELSE NOT _serializer.parser.IsArray(_logRecordsArray) THEN
+		_serializer.serializeLogsData(logRecords);
+		_jsonVal := _serializer.jsonValue;
+		_resourceLogsArray := _serializer.parser.FindMember(_jsonVal, 'resourceLogs');
+		IF _jsonVal = 0 OR_ELSE NOT _serializer.parser.IsObject(_jsonVal)
+			OR_ELSE _resourceLogsArray = 0 OR_ELSE NOT _serializer.parser.IsArray(_resourceLogsArray) THEN
 			errorCode := E_FileExporterErrorCode.SERIALIZATION_ERROR;
 			_computedState := E_FileExporterState.error;
 		ELSE
@@ -68,33 +64,22 @@ CASE currentState OF
 			_computedState := E_FileExporterState.error;
 		ELSIF NOT _fileOpener.bBusy THEN
 			_hFile := _fileOpener.hFile;
-			_arrayPtr := _serializer.parser.ArrayBegin(_logRecordsArray);
-			_arrayEnd := _serializer.parser.ArrayEnd(_logRecordsArray);
 			_computedState := E_FileExporterState.buffering;
 		END_IF
 	
 	E_FileExporterState.buffering:
-		// cast the object to the string
-		_obj := _serializer.parser.GetArrayValue(_arrayPtr);
-		_len := _serializer.parser.GetJsonLength(_obj);  // this includes the null terminating character "0"
+		// Write one complete LogsData object per JSONL line.
+		_len := _serializer.parser.GetJsonLength(_jsonVal);  // this includes the null terminating character "0"
 		_pString := __NEW(BYTE, (_len + 1));  // + 1 for new line
-		_serializer.parser.CopyJson(_obj, _pString^, _len);
+		_serializer.parser.CopyJson(_jsonVal, _pString^, _len);
 		CONCAT2(_pString, ADR('$N'), _pString, _len + 1);
-		// increment the pointer and the counter
-		_arrayPtr := _serializer.parser.NextArray(_arrayPtr);
-		_idx := _idx + 1;
-		
 		_computedState := E_FileExporterState.writing;
 		
 	E_FileExporterState.writing:
 		// TODO: Add error handling
 		IF NOT _fileWriter.bBusy THEN
 			__DELETE(_pString);
-			IF _idx < GVL.MAX_LOG_RECORDS AND _arrayPtr <> _arrayEnd THEN
-				_computedState := E_FileExporterState.buffering;
-			ELSE
-				_computedState := E_FileExporterState.closing;
-			END_IF
+			_computedState := E_FileExporterState.closing;
 		END_IF
 		
 	E_FileExporterState.closing:
@@ -114,7 +99,6 @@ currentState := _computedState;
 
 
 IF currentState <= E_FileExporterState.serializing THEN _hFile := 0; END_IF
-IF currentState < E_FileExporterState.buffering THEN _idx := 0; END_IF
 
 
 _fileOpener(

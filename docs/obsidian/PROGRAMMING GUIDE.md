@@ -1,0 +1,2 @@
+- When naming items use the following convention `<Type>_Domain_Specifics`. For example a function block for log record that exports logs to a file might look like `FB_LogRecordExporter_File` where FB stands for function block, LogRecordExporter is the domain, and File is the specific detail.
+- A pointer "own" MUST only have one owner at any given time. The owner MUST do garbage collection when de-allocating the pointer. If the entity must be reference by another piece of code, the "borrower" MUST not cleanup/destroy the referenced object or any of its members.

@@ -6,6 +6,42 @@
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="serializeLogRecord" Id="{c41b895d-a15a-49cc-8670-1fbdb0053b6e}">
+      <Declaration><![CDATA[METHOD serializeLogRecord
+VAR_IN_OUT
+	v: SJsonValue;
+END_VAR
+VAR_INPUT
+	pLogRecord: POINTER TO FB_LogRecord;
+END_VAR
+VAR
+	_buf: T_MaxString;
+	_obj: SJsonValue;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pLogRecord = 0 THEN
+	RETURN;
+END_IF
+
+_obj := THIS^.parser.PushbackJsonValue(v, '{}');
+IF _obj = 0 THEN
+	RETURN;
+END_IF
+
+// Serialize the required fields.
+_buf := pLogRecord^.severityText;  // properties require intermediate variables
+THIS^.parser.AddStringMember(_obj, 'severityText', _buf);
+THIS^.serializeFixed64Value(_obj, ADR('timeUnixNano'), pLogRecord^.timestamp);
+
+// Serialize the optional fields.
+THIS^.serializeStringValue(_obj, ADR('eventName'), pLogRecord^.eventName);
+THIS^.serializeTraceIdValue(_obj, pLogRecord^.traceId);
+IF pLogRecord^.flags <> 0 THEN THIS^.serializeFixed32Value(_obj, ADR('flags'), TO_UDINT(pLogRecord^.flags^)); END_IF
+THIS^.serializeSpanIdValue(_obj, pLogRecord^.spanId);
+THIS^.serializeAnyValue(_obj, ADR('body'), pLogRecord^.body);
+THIS^.serializeKeyValues(_obj, ADR('attributes'), ADR(pLogRecord^.attributes));]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="serializeLogRecords" Id="{c8755357-2d5c-4040-a054-202bb0d2153c}">
       <Declaration><![CDATA[METHOD serializeLogRecords
 VAR_IN_OUT
@@ -15,9 +51,7 @@ END_VAR
 
 VAR
 	_idx: UDINT := 0;
-	_buf: T_MaxString;
 	_arr: SJsonValue;
-	_obj: SJsonValue;
 	_rec: POINTER TO FB_LogRecord;
 END_VAR]]></Declaration>
       <Implementation>
@@ -26,28 +60,14 @@ IF _arr = 0 THEN
 	RETURN;
 END_IF
 
-// serialize the logs one by one
+// Serialize every record once without removing it from the source list.
 logRecords.reset();
-FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
+FOR _idx := 0 TO GVL.MAX_LOG_RECORDS - 1 DO
 	_rec := logRecords.next();
 	IF _rec = 0 THEN
 		EXIT;
 	END_IF
-	// create a json object and appent it to the array
-	_obj := THIS^.parser.PushbackJsonValue(_arr, '{}');
-	
-	// serailize the required fields
-	_buf := _rec^.severityText;  // properties require intermediate variables
-	THIS^.parser.AddStringMember(_obj, 'severityText', _buf);
-	THIS^.serializeFixed64Value(_obj, ADR('timeUnixNano'), _rec^.timestamp);
-	
-	// serialize the optional fields
-	THIS^.serializeStringValue(_obj, ADR('eventName'),_rec^.eventName);
-	THIS^.serializeTraceIdValue(_obj, _rec^.traceId);
-	IF _rec^.flags <> 0 THEN THIS^.serializeFixed32Value(_obj, ADR('flags'), TO_UDINT(_rec^.flags^)); END_IF
-	THIS^.serializeSpanIdValue(_obj, _rec^.spanId);
-	THIS^.serializeAnyValue(_obj, ADR('body'), _rec^.body);
-	THIS^.serializeKeyValues(_obj, ADR('attributes'), ADR(_rec^.attributes));
+	THIS^.serializeLogRecord(_arr, _rec);
 END_FOR
 logRecords.reset();]]></ST>
       </Implementation>
@@ -55,33 +75,176 @@ logRecords.reset();]]></ST>
     <Method Name="serializeLogsData" Id="{e949baee-9209-4a36-8a48-4eaffb67bbe1}">
       <Declaration><![CDATA[METHOD serializeLogsData
 VAR_IN_OUT
-	v: SJsonValue;
 	logRecords: FB_LinkedList_LogRecord;
 END_VAR
 VAR
 	_idx: UDINT;
+	_resourceIdx: UDINT;
+	_scopeIdx: UDINT;
+	_resourceCount: UDINT;
+	_scopeCount: UDINT;
 	_rec: POINTER TO FB_LogRecord;
+	_recordResource: REFERENCE TO FB_Resource;
+	_recordScope: REFERENCE TO FB_InstrumentationScope;
+	_pResource: POINTER TO FB_Resource;
+	_pScope: POINTER TO FB_InstrumentationScope;
+	_resourceLogs: SJsonValue;
+	_resourceObj: SJsonValue;
+	_scopeObj: SJsonValue;
+	_resources: ARRAY [0..GVL.MAX_LOG_RECORDS - 1] OF POINTER TO FB_Resource;
+	_resourceScopeLogs: ARRAY [0..GVL.MAX_LOG_RECORDS - 1] OF SJsonValue;
+	_scopes: ARRAY [0..GVL.MAX_LOG_RECORDS - 1] OF POINTER TO FB_InstrumentationScope;
+	_scopeResources: ARRAY [0..GVL.MAX_LOG_RECORDS - 1] OF POINTER TO FB_Resource;
+	_scopeLogRecords: ARRAY [0..GVL.MAX_LOG_RECORDS - 1] OF SJsonValue;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[// instantiate the document with an object
-THIS^.jsonVal := THIS^.parser.NewDocument();
-THIS^.jsonVal := THIS^.parser.SetObject(THIS^.jsonVal);
+THIS^.jsonValue := THIS^.parser.NewDocument();
+THIS^.jsonValue := THIS^.parser.SetObject(THIS^.jsonValue);
 
-// start resource logs
-THIS^.jsonVal := THIS^.parser.AddArrayMember(THIS^.jsonVal, 'resourceLogs', 0);
-]]></ST>
+// Build resource and scope indexes while traversing the source list once. The indexes
+// contain only borrowed pointers and JSON handles; ownership stays with logRecords.
+_resourceLogs := THIS^.parser.AddArrayMember(THIS^.jsonValue, 'resourceLogs', 0);
+IF _resourceLogs = 0 THEN
+	RETURN;
+END_IF
+
+_resourceCount := 0;
+_scopeCount := 0;
+logRecords.reset();
+FOR _idx := 0 TO GVL.MAX_LOG_RECORDS - 1 DO
+	_rec := logRecords.next();
+	IF _rec = 0 THEN
+		EXIT;
+	END_IF
+
+	_recordResource REF= _rec^.resource;
+	_recordScope REF= _rec^.instrumentationScope;
+	_pResource := ADR(_recordResource);
+	_pScope := ADR(_recordScope);
+
+	// Reuse one ResourceLogs object for every record from the same resource instance.
+	_resourceIdx := 0;
+	WHILE _resourceIdx < _resourceCount DO
+		IF _resources[_resourceIdx] = _pResource THEN
+			EXIT;
+		END_IF
+		_resourceIdx := _resourceIdx + 1;
+	END_WHILE
+
+	IF _resourceIdx = _resourceCount THEN
+		_resourceObj := THIS^.parser.PushbackJsonValue(_resourceLogs, '{}');
+		IF _resourceObj = 0 THEN EXIT; END_IF
+		THIS^._injectResource(_resourceObj, _pResource^);
+		IF _pResource^.schemaUrl <> '' THEN
+			THIS^.parser.AddStringMember(_resourceObj, 'schemaUrl', _pResource^.schemaUrl);
+		END_IF
+		_resourceScopeLogs[_resourceIdx] := THIS^.parser.AddArrayMember(_resourceObj, 'scopeLogs', 0);
+		IF _resourceScopeLogs[_resourceIdx] = 0 THEN EXIT; END_IF
+		_resources[_resourceIdx] := _pResource;
+		_resourceCount := _resourceCount + 1;
+	END_IF
+
+	// Scope identity is the resource/scope pair because ScopeLogs belongs to ResourceLogs.
+	_scopeIdx := 0;
+	WHILE _scopeIdx < _scopeCount DO
+		IF _scopeResources[_scopeIdx] = _pResource AND _scopes[_scopeIdx] = _pScope THEN
+			EXIT;
+		END_IF
+		_scopeIdx := _scopeIdx + 1;
+	END_WHILE
+
+	IF _scopeIdx = _scopeCount THEN
+		_scopeObj := THIS^.parser.PushbackJsonValue(_resourceScopeLogs[_resourceIdx], '{}');
+		IF _scopeObj = 0 THEN EXIT; END_IF
+		THIS^._injectInstrumentationScope(_scopeObj, _pScope^);
+		IF _pScope^.schemaUrl <> '' THEN
+			THIS^.parser.AddStringMember(_scopeObj, 'schemaUrl', _pScope^.schemaUrl);
+		END_IF
+		_scopeLogRecords[_scopeIdx] := THIS^.parser.AddArrayMember(_scopeObj, 'logRecords', 0);
+		IF _scopeLogRecords[_scopeIdx] = 0 THEN EXIT; END_IF
+		_scopeResources[_scopeIdx] := _pResource;
+		_scopes[_scopeIdx] := _pScope;
+		_scopeCount := _scopeCount + 1;
+	END_IF
+
+	THIS^.serializeLogRecord(_scopeLogRecords[_scopeIdx], _rec);
+END_FOR
+logRecords.reset();]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeResourceLogs" Id="{6b43c2c7-047f-4862-9b90-b2d2c588a9af}">
       <Declaration><![CDATA[METHOD serializeResourceLogs
 VAR_IN_OUT
 	v: SJsonValue;
-	instrumentationScope: FB_InstrumentationScope;
+	resource: FB_Resource;
 	logRecords: FB_LinkedList_LogRecord;
 END_VAR
-]]></Declaration>
+VAR
+	_idx: UDINT;
+	_scopeIdx: UDINT;
+	_scopeCount: UDINT;
+	_rec: POINTER TO FB_LogRecord;
+	_recordResource: REFERENCE TO FB_Resource;
+	_recordScope: REFERENCE TO FB_InstrumentationScope;
+	_pResource: POINTER TO FB_Resource;
+	_pScope: POINTER TO FB_InstrumentationScope;
+	_scopeLogs: SJsonValue;
+	_scopeObj: SJsonValue;
+	_scopes: ARRAY [0..GVL.MAX_LOG_RECORDS - 1] OF POINTER TO FB_InstrumentationScope;
+	_scopeLogRecords: ARRAY [0..GVL.MAX_LOG_RECORDS - 1] OF SJsonValue;
+END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[THIS^._injectResource(v, resource);
+IF resource.schemaUrl <> '' THEN
+	THIS^.parser.AddStringMember(v, 'schemaUrl', resource.schemaUrl);
+END_IF
+
+_scopeLogs := THIS^.parser.AddArrayMember(v, 'scopeLogs', 0);
+IF _scopeLogs = 0 THEN
+	RETURN;
+END_IF
+
+// Group matching records by scope during one traversal of the source list.
+_pResource := ADR(resource);
+_scopeCount := 0;
+logRecords.reset();
+FOR _idx := 0 TO GVL.MAX_LOG_RECORDS - 1 DO
+	_rec := logRecords.next();
+	IF _rec = 0 THEN
+		EXIT;
+	END_IF
+	_recordResource REF= _rec^.resource;
+	IF ADR(_recordResource) <> _pResource THEN
+		CONTINUE;
+	END_IF
+
+	_recordScope REF= _rec^.instrumentationScope;
+	_pScope := ADR(_recordScope);
+	_scopeIdx := 0;
+	WHILE _scopeIdx < _scopeCount DO
+		IF _scopes[_scopeIdx] = _pScope THEN
+			EXIT;
+		END_IF
+		_scopeIdx := _scopeIdx + 1;
+	END_WHILE
+
+	IF _scopeIdx = _scopeCount THEN
+		_scopeObj := THIS^.parser.PushbackJsonValue(_scopeLogs, '{}');
+		IF _scopeObj = 0 THEN EXIT; END_IF
+		THIS^._injectInstrumentationScope(_scopeObj, _pScope^);
+		IF _pScope^.schemaUrl <> '' THEN
+			THIS^.parser.AddStringMember(_scopeObj, 'schemaUrl', _pScope^.schemaUrl);
+		END_IF
+		_scopeLogRecords[_scopeIdx] := THIS^.parser.AddArrayMember(_scopeObj, 'logRecords', 0);
+		IF _scopeLogRecords[_scopeIdx] = 0 THEN EXIT; END_IF
+		_scopes[_scopeIdx] := _pScope;
+		_scopeCount := _scopeCount + 1;
+	END_IF
+
+	THIS^.serializeLogRecord(_scopeLogRecords[_scopeIdx], _rec);
+END_FOR
+logRecords.reset();]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeScopeLogs" Id="{3d36022d-3f4c-4a69-9fa9-1799ece683a0}">
@@ -93,10 +256,10 @@ VAR_IN_OUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[// add the instrumentation scope
-THIS^._injectInstrumentationScope(v, instrumentationScope);
-
-// serialize the log records associated with the scope
+        <ST><![CDATA[THIS^._injectInstrumentationScope(v, instrumentationScope);
+IF instrumentationScope.schemaUrl <> '' THEN
+	THIS^.parser.AddStringMember(v, 'schemaUrl', instrumentationScope.schemaUrl);
+END_IF
 THIS^.serializeLogRecords(v, logRecords);]]></ST>
       </Implementation>
     </Method>

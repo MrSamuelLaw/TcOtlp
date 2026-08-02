@@ -92,6 +92,24 @@ IF THIS^.body <> 0 THEN THIS^.body := THIS^.body^.delete(); END_IF
 THIS^.attributes.free();]]></ST>
       </Implementation>
     </Method>
+    <Property Name="instrumentationScope" Id="{792fcf20-a8e7-4f83-b595-ea9a57655f15}">
+      <Declaration><![CDATA[PROPERTY instrumentationScope : REFERENCE TO FB_InstrumentationScope]]></Declaration>
+      <Get Name="Get" Id="{a5e973cf-7f74-40cb-a977-c8e86ed1ef19}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[instrumentationScope REF= THIS^._logger.scope;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="resource" Id="{5b61ba95-a97e-4ce4-830a-535760d705c1}">
+      <Declaration><![CDATA[PROPERTY resource : REFERENCE TO FB_Resource]]></Declaration>
+      <Get Name="Get" Id="{a6fe4510-2da3-4c30-8369-ee4528844de3}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[resource REF= THIS^._logger.provider.resource;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
     <Property Name="severityText" Id="{05c0c7ed-4dd1-46f2-b733-b4a1bc94ddcb}">
       <Declaration><![CDATA[PROPERTY severityText : STRING(30)]]></Declaration>
       <Get Name="Get" Id="{a6ea0245-a5cb-4691-8871-18ac3fb64ff9}">

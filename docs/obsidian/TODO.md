@@ -1,8 +1,9 @@
-Modeling
+## Modeling
 - [ ] Update the domain model
 	- [ ] Check if each member is an aggregate, and invariant, or a value object?
 	- [ ] I think the record itself is the aggregate. The Invariants are with respect to each member, and each member is itself a value object. Check with chat to verify.
-Infrastructure/Domain Logic
+
+## Infrastructure/Domain Logic
 - [x] Implement the log record processing pipeline
 	- [x] I have the bones of the system ready to go. Next I have to link up an exporter to a processor.
 - [ ] Determine idomatic way for an exporter to return the status of the exporter operation to the processor.
@@ -12,6 +13,7 @@ Infrastructure/Domain Logic
 	- [ ] ResourceLogs
 - [ ] Finalize interface between the log record processors and the log record exporter.
 
-Low priority
+## Low priority
 - [ ] Implement an "array" value type.
 - [ ] Implement a bytes value type.
+

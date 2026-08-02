@@ -9,11 +9,82 @@ END_VAR
 VAR_OUTPUT CONSTANT
 	// Owned clone of the list supplied to FB_Init. Do not copy owning lists by value.
 	attributes: FB_LinkedList_KeyValue;
-END_VAR
-]]></Declaration>
+END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="addNumberAttribute" Id="{ce46cd34-1a03-4fd9-92c5-8a101f00bc1a}">
+      <Declaration><![CDATA[METHOD addNumberAttribute : E_PointerFactoryStatus
+VAR_INPUT
+	key: STRING(255);
+	value: ANY_NUM;
+END_VAR
+VAR
+	_pValue: POINTER TO FB_Number;
+	_pAttribute: POINTER TO FB_KeyValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// validate the key
+IF key[0] = 0 THEN
+	addNumberAttribute := E_PointerFactoryStatus.INVALID_PARAMETERS;
+	RETURN;
+END_IF
+
+
+addNumberAttribute := ValueFactory.createNumber_AnyType(_pValue, value);
+IF addNumberAttribute = E_PointerFactoryStatus.SUCCESS THEN
+	addNumberAttribute := ValueFactory.createKeyValue(_pAttribute, ADR(key), _pValue);
+END_IF
+IF _pValue <> 0 THEN _pValue := _pValue^.delete(); END_IF
+
+IF addNumberAttribute = E_PointerFactoryStatus.SUCCESS THEN
+	IF NOT THIS^.attributes.append(_pAttribute) THEN
+		addNumberAttribute := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	END_IF
+END_IF
+
+IF _pAttribute <> 0 THEN _pAttribute := _pAttribute^.delete(); END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="addStringAttribute" Id="{c116645f-dc7a-4706-8480-5ad4b14bfb92}">
+      <Declaration><![CDATA[METHOD addStringAttribute : E_PointerFactoryStatus
+VAR_INPUT
+	key: STRING(255);
+	value: STRING(255);
+END_VAR
+VAR
+	_pValue: POINTER TO FB_String;
+	_pAttribute: POINTER TO FB_KeyValue;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// validate the key
+IF LEN(key) = 0 THEN
+	addStringAttribute := E_PointerFactoryStatus.INVALID_PARAMETERS;
+	RETURN;
+END_IF
+
+// create a new KeyValue with a string value
+addStringAttribute := ValueFactory.createString(_pValue, ADR(value));
+IF addStringAttribute = E_PointerFactoryStatus.SUCCESS THEN
+	addStringAttribute := ValueFactory.createKeyValue(_pAttribute, ADR(key), _pValue);
+END_IF
+
+// clean up the data if it's not a null pointer
+IF _pValue <> 0 THEN _pValue := _pValue^.delete(); END_IF
+
+// append the value to the attributes
+IF addStringAttribute = E_PointerFactoryStatus.SUCCESS THEN
+	IF NOT THIS^.attributes.append(_pAttribute) THEN
+		addStringAttribute := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	END_IF
+END_IF
+
+// clean up the old data if it's not a null pointer
+IF _pAttribute <> 0 THEN _pAttribute := _pAttribute^.delete(); END_IF
+]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="FB_Init" Id="{0abdd27d-4809-4edd-9c8a-ffa2f3a8bbfc}">
       <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
 //The return value is not evaluated. For a specific influence, you can also declare the

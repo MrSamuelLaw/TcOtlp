@@ -5,7 +5,9 @@
 
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[THIS^.TestLogger();]]></ST>
+      <ST><![CDATA[THIS^.TestLoggerProvider();
+THIS^.TestLogger();
+]]></ST>
     </Implementation>
     <Method Name="TestLogger" Id="{ecc71309-4ec8-4346-a2a8-71e632b9ed96}">
       <Declaration><![CDATA[METHOD TestLogger : REFERENCE TO FB_Test
@@ -71,6 +73,32 @@ END_VAR
 	// Leave all pipeline owners empty so repeated runs and PLC restarts do not leak.
 	simpleProcessor.free();
 	logger.free();
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="TestLoggerProvider" Id="{251165fe-6d8d-4560-a26c-5bf5efa16f7c}">
+      <Declaration><![CDATA[METHOD TestLoggerProvider : REFERENCE TO FB_Test
+VAR
+	itemNum: UDINT := 1234;
+	resource: FB_Resource(schemaUrl:='');
+	provider: FB_LoggerProvider(resource:=resource);
+	processor: FB_LogRecordProcessor_Simple(0);
+END_VAR
+VAR CONSTANT
+	processors: ARRAY [0..0] OF I_LogRecordProcessor := [
+		processor
+	];
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Test that if the resource isn't initialized that the logger provider isn't initialized
+TcUnit.TEST('Test LoggerProvider');
+	resource.addStringAttribute('hardware.type', 'PLC');
+	resource.addNumberAttribute('hardware.item#', itemNum);
+	provider(
+		processors:=processors
+	);
+	THIS^.AssertEquals_UDINT(resource.attributes.count, 2, 'Failed to addd attributes to resource');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

@@ -49,6 +49,7 @@ END_VAR]]></Declaration>
 			_processor.free();
 			_logger.reset();
 			_processors[0] := _processor;
+			_resource.addStringAttribute('host.id', 'PLC1');
 			// Bind the processor pipeline before the logger emits into the provider.
 			_provider(processors:=_processors);
 			_sts := _logger

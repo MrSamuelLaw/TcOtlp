@@ -5,11 +5,32 @@
 
 VAR_OUTPUT
 	parser: FB_JsonDynDomParser;
-	jsonVal: SJsonValue;
+	jsonValue: SJsonValue;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="_injectResource" Id="{56a836bc-6996-46a9-b0a3-bbca046e4c06}">
+      <Declaration><![CDATA[METHOD _injectResource
+VAR_IN_OUT
+	v: SJsonValue;
+	resource: FB_Resource;
+END_VAR
+VAR
+	_obj: SJsonValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_obj := THIS^.parser.AddObjectMember(v, 'resource');
+IF resource.attributes.count > 0 THEN
+	THIS^.serializeKeyValues(_obj, ADR('attributes'), ADR(resource.attributes));
+END_IF
+IF resource.droppedAttributesCount > 0 THEN
+	THIS^.serializeFixed32Value(_obj, ADR('droppedAttributesCount'), resource.droppedAttributesCount);
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="_injectInstrumentationScope" Id="{9c8cb455-2273-4f58-affd-d3fcbf54d800}">
       <Declaration><![CDATA[METHOD _injectInstrumentationScope
 VAR_IN_OUT
