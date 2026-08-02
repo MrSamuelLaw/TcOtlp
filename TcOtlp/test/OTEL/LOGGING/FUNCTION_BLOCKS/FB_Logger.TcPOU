@@ -234,7 +234,7 @@ THIS^.sts := E_PointerFactoryStatus.SUCCESS;]]></ST>
       <Get Name="Get" Id="{b10b9cbb-674e-4a26-9f2c-986355dc3d28}">
         <Declaration><![CDATA[]]></Declaration>
         <Implementation>
-          <ST><![CDATA[]]></ST>
+          <ST><![CDATA[scope REF= THIS^._scope^;]]></ST>
         </Implementation>
       </Get>
     </Property>

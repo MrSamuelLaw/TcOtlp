@@ -16,8 +16,18 @@ END_VAR]]></Declaration>
         <ST><![CDATA[TcUnit.TEST('Test LoggerProvider Logger Management');
 	// assert that it can create and store loggers
 	provider.createLogger('logger1', '0.0.0.a');
+	provider.createLogger('logger2', '0.0.0.b');
+	provider.createLogger('logger3', '0.0.0.c');
 	THIS^.AssertTrue(provider.hasLogger('logger1'), 'Expected logger1 to exist');
-	THIS^.AssertFalse(provider.hasLogger('loggerX'), 'Expected logger2 to not exist');
+	THIS^.AssertTrue(provider.hasLogger('logger2'), 'Expected logger2 to exist');
+	THIS^.AssertTrue(provider.hasLogger('logger3'), 'Expected logger3 to exist');
+	THIS^.AssertFalse(provider.hasLogger('loggerX'), 'Expected loggerX to not exist');
+	provider.destroyLogger('logger1');
+	provider.destroyLogger('logger2');
+	provider.destroyLogger('logger3');
+	THIS^.AssertFalse(provider.hasLogger('logger1'), 'Expected logger1 to be destroyed');
+	THIS^.AssertFalse(provider.hasLogger('logger2'), 'Expected logger2 to be destroyed');
+	THIS^.AssertFalse(provider.hasLogger('logger3'), 'Expected logger3 to be destroyed');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
