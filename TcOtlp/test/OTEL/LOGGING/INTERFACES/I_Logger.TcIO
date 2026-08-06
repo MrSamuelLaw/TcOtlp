@@ -1,0 +1,85 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Itf Name="I_Logger" Id="{fc47413b-a363-4fc6-b232-1c084c6b4c6e}">
+    <Declaration><![CDATA[INTERFACE I_Logger
+]]></Declaration>
+    <Method Name="addNumberAttribute" Id="{61400152-1813-4718-83fe-af6e2a8e6527}">
+      <Declaration><![CDATA[METHOD addNumberAttribute : I_Logger
+VAR_INPUT
+	pKey: POINTER TO STRING;
+	value: ANY_NUM;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="addStringAttribute" Id="{bc367709-2f74-421e-9d19-be28b64bbbe1}">
+      <Declaration><![CDATA[METHOD addStringAttribute : I_Logger
+VAR_INPUT
+	pKey: POINTER TO STRING;
+	pValue: POINTER TO STRING;
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="emit" Id="{1276eaba-59ed-487a-a052-cb417846419e}">
+      <Declaration><![CDATA[METHOD emit: E_PointerFactoryStatus
+
+
+
+]]></Declaration>
+    </Method>
+    <Property Name="scope" Id="{0b7e6108-f9b8-4bdc-bb52-8449298fd9b2}">
+      <Declaration><![CDATA[PROPERTY scope : REFERENCE TO FB_InstrumentationScope]]></Declaration>
+      <Get Name="Get" Id="{f5f438b1-d044-4705-9fb2-38f581048623}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Method Name="setBody" Id="{a5d9f769-9888-4af3-a02d-b34c6e8f3d1d}">
+      <Declaration><![CDATA[METHOD setBody : I_Logger
+VAR_INPUT
+	pString: POINTER TO STRING;
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="setBody_AnyValue" Id="{f4c3499a-33b9-41b4-8bb2-941208e85997}">
+      <Declaration><![CDATA[METHOD setBody_AnyValue : I_Logger
+VAR_INPUT
+	pVal: POINTER TO FB_AnyValue;
+END_VAR]]></Declaration>
+    </Method>
+    <Method Name="setEventName" Id="{66d93290-6541-483b-8340-9fe232c542cb}">
+      <Declaration><![CDATA[METHOD setEventName : I_Logger
+VAR_INPUT
+	pString: POINTER TO STRING;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="setFlags" Id="{efdd3f1f-9ad1-4ab8-9d1c-a7d23d6419d4}">
+      <Declaration><![CDATA[METHOD setFlags : I_Logger
+VAR_INPUT
+	flags: E_LogRecordFlag;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="setSpanId" Id="{689113c2-7887-43dc-89bd-36006e67b853}">
+      <Declaration><![CDATA[METHOD setSpanId : I_Logger
+VAR_INPUT
+	pBytes: POINTER TO BYTE;
+	nSize: UDINT;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="setTraceId" Id="{15b21384-94a1-4fad-8e6e-7c7bf477fee5}">
+      <Declaration><![CDATA[METHOD setTraceId : I_Logger
+VAR_INPUT
+	pBytes: POINTER TO BYTE;
+	nSize: UDINT;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="startLogRecord" Id="{be348fc6-8e98-494e-bea7-96bdb44dbba9}">
+      <Declaration><![CDATA[METHOD startLogRecord : I_Logger
+VAR_INPUT
+	severityNumber: E_SeverityNumber;
+	timestamp: POINTER TO ULINT := 0;
+END_VAR
+]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

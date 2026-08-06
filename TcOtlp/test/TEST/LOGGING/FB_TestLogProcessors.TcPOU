@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestLogProcessors" Id="{f0aa1fdf-1271-4935-af15-b23605e1dedc}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TestLogProcessors EXTENDS FB_TestSuite
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="TestSimpleProcessors" Id="{4aa68aa9-8a85-4975-8601-420ccbbed827}">
+      <Declaration><![CDATA[METHOD TestSimpleProcessors : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	provider: FB_LoggerProvider(resource);
+	processor1: FB_LogRecordProcessor_Adsmsg(0);
+	processor2: FB_LogRecordProcessor_AdsMsg(0);
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test SimpleLogProcessors');
+	resource.addStringAttribute('plc.name', 'sim.plc');
+	provider.createLogger('test', '0', '');
+	provider.getLogger('test')
+		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_ERROR)
+		.setBody(ADR('this is a test'))
+		.emit();
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

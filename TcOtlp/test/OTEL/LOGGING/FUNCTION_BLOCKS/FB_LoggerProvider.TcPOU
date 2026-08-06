@@ -2,40 +2,19 @@
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_LoggerProvider" Id="{16983c20-c68e-4842-a5af-294cf7d1f97c}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_LoggerProvider
-// VAR_IN_OUT
-// 	processors: ARRAY [*] OF I_LogRecordProcessor;
-// END_VAR
+VAR_IN_OUT
+	processors: ARRAY [*] OF I_LogRecordProcessor;
+END_VAR
 VAR
 	_resource: REFERENCE TO FB_Resource;
 	_loggerLookupHead: POINTER TO ST_LinkedListNode;
 	_loggerLookupTail: POINTER TO ST_LinkedListNode;
 	_loggerCount: UDINT;
-// 	_idx: DINT;
-// 	_startIdx: DINT;
-// 	_endIdx: DINT;
-// 	_curVal: I_LogRecordProcessor;
-// 	_nextProcessor: I_LogRecordProcessor;
-// 	_prevProcessor: I_LogRecordProcessor;
+	_noOpLogger: FB_Logger_NoOp;
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[// // check if the last processor is ready
-// _startIdx := LOWER_BOUND(processors, 1);
-// _endIdx := UPPER_BOUND(processors, 1);
-// 
-// IF processors[_endIdx].isDone() THEN
-// 	processors[_endIdx].free();
-// END_IF
-// 
-// FOR _idx := _endIdx TO _startIdx BY -1 DO
-// 	// if there is only a single processor simply call the processor
-// 	IF _endIdx = _startIdx THEN
-// 		processors[_endIdx].call();
-// 	ELSE
-// 		// pass
-// 	END_IF
-// 	// skip
-// END_FOR]]></ST>
+      <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="createLogger" Id="{222473b6-29e2-4496-aaaf-97eb9f3896f9}">
       <Declaration><![CDATA[METHOD createLogger: E_LoggerProviderMethodStatus;
@@ -66,7 +45,7 @@ IF _pScope = 0 THEN
 	RETURN;
 END_IF
 
-_pLogger := __NEW(FB_Logger(scope:=_pScope));
+_pLogger := __NEW(FB_Logger(scope:=_pScope, provider:=THIS^));
 IF _pLogger = 0 THEN
 	_pScope := _pScope^.delete();
 	createLogger := E_LoggerProviderMethodStatus.MEMORY_ALLOCATION_FAILURE;
@@ -194,6 +173,32 @@ THIS^._loggerLookupTail := 0;
 THIS^._loggerCount := 0;]]></ST>
       </Implementation>
     </Method>
+    <Method Name="getLogger" Id="{67a5ca7e-e1bb-4a00-be27-5b44252461a5}">
+      <Declaration><![CDATA[METHOD getLogger : I_Logger
+VAR_INPUT
+	name: T_MaxString;
+END_VAR
+VAR
+	_pNode: POINTER TO ST_LinkedListNode;
+	_pLogger: POINTER TO FB_Logger;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getLogger := THIS^._noOpLogger;
+_pNode := THIS^._loggerLookupHead;
+
+WHILE _pNode <> 0 DO
+	IF _pNode^.val <> 0 THEN
+		_pLogger := _pNode^.val;
+		IF _pLogger^.scope.name = name THEN
+			getLogger := _pLogger^;
+			RETURN;
+		END_IF
+	END_IF
+	_pNode := _pNode^.nxt;
+END_WHILE]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="hasLogger" Id="{59c9ec3a-a531-4232-99cf-b0c206d28afa}">
       <Declaration><![CDATA[METHOD hasLogger : BOOL
 VAR_INPUT
@@ -218,26 +223,6 @@ WHILE _pNode <> 0 DO
 	END_IF
 	_pNode := _pNode^.nxt;
 END_WHILE]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="onEmit" Id="{cab51e34-8571-4016-91bd-9f1916518d10}">
-      <Declaration><![CDATA[METHOD onEmit: E_PointerFactoryStatus
-VAR_IN_OUT
-	pSrc: POINTER TO FB_LogRecord;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[// // attempt to transfer the record, do nothing if the transfer fails
-// IF pSrc = 0 THEN
-// 	onEmit := E_PointerFactoryStatus.UNEXPECTED_NULL_POINTER;
-// 	RETURN;
-// ELSIF THIS^.processors[0].isFull() THEN
-// 	onEmit := E_PointerFactoryStatus.OUT_OF_MEMORY;
-// 	RETURN;
-// END_IF
-// 
-// onEmit := THIS^.processors[0].push(pSrc);
-]]></ST>
       </Implementation>
     </Method>
     <Property Name="resource" Id="{5c5a395f-26fb-4f37-9459-e8fe5661bff3}">

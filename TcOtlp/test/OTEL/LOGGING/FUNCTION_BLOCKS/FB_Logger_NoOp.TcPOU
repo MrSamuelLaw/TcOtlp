@@ -1,0 +1,134 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Logger_NoOp" Id="{a2a9d39f-a83e-4852-bb64-00ed716c927d}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Logger_NoOp IMPLEMENTS I_Logger
+VAR
+	_scope: FB_InstrumentationScope('no-op', 'N/A', '');
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="addNumberAttribute" Id="{32e02b11-2940-4f4a-999d-6adf68fc4d30}">
+      <Declaration><![CDATA[METHOD addNumberAttribute : I_Logger
+VAR_INPUT
+	pKey: POINTER TO STRING;
+	value: ANY_NUM;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[addNumberAttribute := THIS^;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="addStringAttribute" Id="{3173fd46-8d6d-4032-9d2d-eab2e9a1a434}">
+      <Declaration><![CDATA[METHOD addStringAttribute : I_Logger
+VAR_INPUT
+	pKey: POINTER TO STRING;
+	pValue: POINTER TO STRING;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[addStringAttribute := THIS^;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="emit" Id="{2dbfd071-168b-453e-9a69-37847e19611c}">
+      <Declaration><![CDATA[METHOD emit: E_PointerFactoryStatus
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[emit := E_PointerFactoryStatus.SUCCESS;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Exit" Id="{da8789c7-6036-4816-86ce-227b451b07b4}">
+      <Declaration><![CDATA[//FB_Exit must be implemented explicitly. If there is an implementation, then the
+//method is called before the controller removes the code of the function block instance
+//(implicit call). The return value is not evaluated.
+METHOD FB_Exit: BOOL
+VAR_INPUT
+    bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).  
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._scope.free();]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="scope" Id="{09a62c6f-fcaa-4130-bcd9-749e7852e887}">
+      <Declaration><![CDATA[PROPERTY scope : REFERENCE TO FB_InstrumentationScope]]></Declaration>
+      <Get Name="Get" Id="{931538d2-1ef0-4740-a63a-e3e37221190b}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[scope REF= THIS^._scope;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="setBody" Id="{4fd08be4-6731-44b7-8611-b8e459a99661}">
+      <Declaration><![CDATA[METHOD setBody : I_Logger
+VAR_INPUT
+	pString: POINTER TO STRING;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setBody := THIS^;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setBody_AnyValue" Id="{9f26d692-1c6e-4e5e-8e54-1708d498097c}">
+      <Declaration><![CDATA[METHOD setBody_AnyValue : I_Logger
+VAR_INPUT
+	pVal: POINTER TO FB_AnyValue;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setBody_AnyValue := THIS^;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setEventName" Id="{617e4e0d-ef4f-4753-961b-a95a0bffae3c}">
+      <Declaration><![CDATA[METHOD setEventName : I_Logger
+VAR_INPUT
+	pString: POINTER TO STRING;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setEventName := THIS^;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setFlags" Id="{1c015666-7efe-48d6-92e7-d77237bcd2d8}">
+      <Declaration><![CDATA[METHOD setFlags : I_Logger
+VAR_INPUT
+	flags: E_LogRecordFlag;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setFlags := THIS^;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setSpanId" Id="{302ac74e-4282-4d1f-b28e-582df52b750a}">
+      <Declaration><![CDATA[METHOD setSpanId : I_Logger
+VAR_INPUT
+	pBytes: POINTER TO BYTE;
+	nSize: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setSpanId := THIS^;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setTraceId" Id="{d1e2ac7a-9387-46ce-82d5-1f3d1159101b}">
+      <Declaration><![CDATA[METHOD setTraceId : I_Logger
+VAR_INPUT
+	pBytes: POINTER TO BYTE;
+	nSize: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setTraceId := THIS^;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="startLogRecord" Id="{21083a21-5af2-4c0f-80d7-b042aec7129a}">
+      <Declaration><![CDATA[METHOD startLogRecord : I_Logger
+VAR_INPUT
+	severityNumber: E_SeverityNumber;
+	timestamp: POINTER TO ULINT := 0;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[startLogRecord := THIS^;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

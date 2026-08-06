@@ -106,6 +106,9 @@
     <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\FB_Logger.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\FB_Logger_NoOp.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\FB_LoggerProvider.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -124,6 +127,9 @@
     <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\Serializers\FB_LogRecordProtoJsonSerializer.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\LOGGING\INTERFACES\I_Logger.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\LOGGING\INTERFACES\I_LogRecordProcessor.TcIO">
       <SubType>Code</SubType>
     </Compile>
@@ -136,13 +142,22 @@
     <Compile Include="TEST\COMMON\FB_TestOtlpValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TEST\LOGGING\FB_LogRecordProcessor_Adsmsg.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="TEST\LOGGING\FB_TestFileExporter.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="TEST\LOGGING\FB_TestLogger.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TEST\LOGGING\FB_TestLoggerProvider.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TEST\LOGGING\FB_TestLogging.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="TEST\LOGGING\FB_TestLogProcessors.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TEST\LOGGING\FB_TestProtoJsonSerializer.TcPOU">

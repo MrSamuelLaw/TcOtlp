@@ -4,6 +4,8 @@
     <Declaration><![CDATA[PROGRAM MAIN
 VAR
 	fbTestLoggerProvider: FB_TestLoggerProvider();
+	fbTestLogger: FB_TestLogger();
+// 	fbTestProcessors: FB_TestLogProcessors();
 // 	fbTestOtlpValue: FB_TestOtlpValue();
 // 	fbTestLogging: FB_TestLogging();
 // 	fbTestProtoJsonSerializer: FB_TestProtoJsonSerializer();

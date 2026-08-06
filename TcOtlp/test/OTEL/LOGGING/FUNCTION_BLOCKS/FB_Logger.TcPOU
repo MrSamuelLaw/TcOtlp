@@ -2,13 +2,14 @@
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_Logger" Id="{730b727f-4674-448e-a99c-ca00a77667b8}" SpecialFunc="None">
     <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
-FUNCTION_BLOCK FB_Logger
+FUNCTION_BLOCK FB_Logger IMPLEMENTS I_Logger
 VAR_OUTPUT
 	sts: E_PointerFactoryStatus;
 	pLogRecord: POINTER TO FB_LogRecord;
 END_VAR
 VAR
 	_scope: POINTER TO FB_InstrumentationScope;
+	_provider: REFERENCE TO FB_LoggerProvider;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -70,7 +71,7 @@ _shouldReturnEarly := FALSE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="addNumberAttribute" Id="{6e8ebb16-a1b8-4ed2-891a-240f2408bf80}">
-      <Declaration><![CDATA[METHOD addNumberAttribute : REFERENCE TO FB_Logger
+      <Declaration><![CDATA[METHOD addNumberAttribute : I_Logger
 VAR_INPUT
 	pKey: POINTER TO STRING;
 	value: ANY_NUM;
@@ -81,7 +82,7 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[addNumberAttribute REF= THIS^;
+        <ST><![CDATA[addNumberAttribute := THIS^;
 
 IF THIS^._shouldReturnEarly() THEN
 	RETURN;
@@ -110,7 +111,7 @@ IF _pAttribute <> 0 THEN _pAttribute := _pAttribute^.delete(); END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="addStringAttribute" Id="{ca1a9b5c-3e71-4efc-b089-bac82579b23c}">
-      <Declaration><![CDATA[METHOD addStringAttribute : REFERENCE TO FB_Logger
+      <Declaration><![CDATA[METHOD addStringAttribute : I_Logger
 VAR_INPUT
 	pKey: POINTER TO STRING;
 	pValue: POINTER TO STRING;
@@ -120,7 +121,7 @@ VAR
 	_pAttribute: POINTER TO FB_KeyValue;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[addStringAttribute REF= THIS^;
+        <ST><![CDATA[addStringAttribute := THIS^;
 
 IF THIS^._shouldReturnEarly() THEN
 	RETURN;
@@ -176,7 +177,6 @@ IF THIS^.pLogRecord = 0 THEN
 END_IF
 
 // call the parents onEmit method which will take ownership of the pointer(future)
-// THIS^._provider.onEmit(THIS^.pLogRecord);
 
 IF THIS^.pLogRecord = 0 THEN
 	THIS^.sts := E_PointerFactoryStatus.SUCCESS;
@@ -198,10 +198,12 @@ VAR_INPUT
     bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
     bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
 	scope: POINTER TO FB_InstrumentationScope;
+	provider: REFERENCE TO FB_LoggerProvider;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[THIS^._scope := scope;]]></ST>
+        <ST><![CDATA[THIS^._scope := scope;
+THIS^._provider REF= provider;]]></ST>
       </Implementation>
     </Method>
     <Method Name="free" Id="{7a1f6e83-7f40-420d-94fb-81b34da658fd}">
@@ -239,7 +241,7 @@ THIS^.sts := E_PointerFactoryStatus.SUCCESS;]]></ST>
       </Get>
     </Property>
     <Method Name="setBody" Id="{f682be3b-ac6a-4113-bd9d-b20c5c0e539e}">
-      <Declaration><![CDATA[METHOD setBody : REFERENCE TO FB_Logger
+      <Declaration><![CDATA[METHOD setBody : I_Logger
 VAR_INPUT
 	pString: POINTER TO STRING;  // use setBody_AnyValue if the body isn't a string
 END_VAR
@@ -247,7 +249,7 @@ VAR
 	_pDest: POINTER TO FB_String;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[setBody REF= THIS^;
+        <ST><![CDATA[setBody := THIS^;
 
 IF THIS^._shouldReturnEarly() THEN
 	RETURN;
@@ -269,7 +271,7 @@ IF _pDest <> 0 THEN _pDest := _pDest^.delete(); END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="setBody_AnyValue" Id="{e851deec-1a83-4031-a7b1-3298d7142b2e}">
-      <Declaration><![CDATA[METHOD setBody_AnyValue : REFERENCE TO FB_Logger
+      <Declaration><![CDATA[METHOD setBody_AnyValue : I_Logger
 VAR_INPUT
 	pVal: POINTER TO FB_AnyValue;  // use setBody_AnyValue if the body isn't a string
 END_VAR
@@ -277,7 +279,7 @@ VAR
 	_pDest: POINTER TO FB_AnyValue;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[setBody_AnyValue REF= THIS^;
+        <ST><![CDATA[setBody_AnyValue := THIS^;
 
 IF THIS^._shouldReturnEarly() THEN
 	RETURN;
@@ -306,7 +308,7 @@ IF _pDest <> 0 THEN _pDest := _pDest^.delete(); END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="setEventName" Id="{e9a59e4b-8289-499d-8865-35d6e960ff8a}">
-      <Declaration><![CDATA[METHOD setEventName : REFERENCE TO FB_Logger
+      <Declaration><![CDATA[METHOD setEventName : I_Logger
 VAR_INPUT
 	pString: POINTER TO STRING;
 END_VAR
@@ -315,7 +317,7 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[setEventName REF= THIS^;
+        <ST><![CDATA[setEventName := THIS^;
 
 IF THIS^._shouldReturnEarly() THEN
 	RETURN;
@@ -340,7 +342,7 @@ IF _pDest <> 0 THEN _pDest := _pDest^.delete(); END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="setFlags" Id="{5d379f0e-933c-4b0a-a500-5ddf2e9afe34}">
-      <Declaration><![CDATA[METHOD setFlags : REFERENCE TO FB_Logger
+      <Declaration><![CDATA[METHOD setFlags : I_Logger
 VAR_INPUT
 	flags: E_LogRecordFlag;
 END_VAR
@@ -349,7 +351,7 @@ VAR
 	_pOld: POINTER TO UDINT;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[setFlags REF= THIS^;
+        <ST><![CDATA[setFlags := THIS^;
 
 IF THIS^._shouldReturnEarly() THEN
 	RETURN;
@@ -369,7 +371,7 @@ THIS^.pLogRecord^.flags^ := flags;]]></ST>
       </Implementation>
     </Method>
     <Method Name="setSpanId" Id="{14f48eeb-ffc5-4e13-838f-969f880e1995}">
-      <Declaration><![CDATA[METHOD setSpanId : REFERENCE TO FB_Logger
+      <Declaration><![CDATA[METHOD setSpanId : I_Logger
 VAR_INPUT
 	pBytes: POINTER TO BYTE;
 	nSize: UDINT;
@@ -379,7 +381,7 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[setSpanId REF= THIS^;
+        <ST><![CDATA[setSpanId := THIS^;
 
 IF THIS^._shouldReturnEarly() THEN
 	RETURN;
@@ -404,7 +406,7 @@ IF _pDest <> 0 THEN _pDest := _pDest^.delete(); END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="setTraceId" Id="{ca3f3acd-d52b-46f3-b0a6-82a2580b7b9b}">
-      <Declaration><![CDATA[METHOD setTraceId : REFERENCE TO FB_Logger
+      <Declaration><![CDATA[METHOD setTraceId : I_Logger
 VAR_INPUT
 	pBytes: POINTER TO BYTE;
 	nSize: UDINT;
@@ -414,7 +416,7 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[setTraceId REF= THIS^;
+        <ST><![CDATA[setTraceId := THIS^;
 
 IF THIS^._shouldReturnEarly() THEN
 	RETURN;
@@ -452,7 +454,7 @@ IF _pDest <> 0 THEN _pDest := _pDest^.delete(); END_IF]]></ST>
 		.addNumberAttribute('motor.amps.avg', avgAmps) 
 		.emit();
 *)
-METHOD startLogRecord : REFERENCE TO FB_Logger
+METHOD startLogRecord : I_Logger
 VAR_INPUT
 	severityNumber: E_SeverityNumber;
 	timestamp: POINTER TO ULINT := 0;
@@ -462,7 +464,7 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[startLogRecord REF= THIS^;
+        <ST><![CDATA[startLogRecord := THIS^;
 
 // do not replace the first failure in an active fluent chain
 IF THIS^.pLogRecord <> 0 THEN

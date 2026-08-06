@@ -7,4 +7,4 @@ Any class that implements a log record processor MUST implement the following me
 - push(pSrc) -> ???
 - free()
 
-For a [[Log Record Processor]] with a full processing queue, the incoming log record WILL be deleted.
+For a [[FB_LogRecordProcessor]] with a full processing queue, the incoming log record WILL be deleted.

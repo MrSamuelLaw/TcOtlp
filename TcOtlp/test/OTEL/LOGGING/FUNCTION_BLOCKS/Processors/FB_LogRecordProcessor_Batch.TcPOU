@@ -17,20 +17,6 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="call" Id="{c793c12f-c560-4cb0-9af7-f41c9dc70a23}">
-      <Declaration><![CDATA[METHOD call
-VAR
-	_sts: E_LogRecordExporterState;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF THIS^._records.count > 0 AND __ISVALIDREF(THIS^._exporter) THEN
-	_sts := THIS^._exporter.export(THIS^._records);
-	THIS^._isDone :=  _sts <> E_LogRecordExporterState.BUSY;
-	RETURN;
-END_IF
-THIS^._isDone := TRUE;]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="FB_Init" Id="{1b6c3aba-d3d8-44a7-8d93-ac13d7ad0810}">
       <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
 //The return value is not evaluated. For a specific influence, you can also declare the
@@ -54,65 +40,14 @@ END_VAR
         <ST><![CDATA[THIS^._records.free();]]></ST>
       </Implementation>
     </Method>
-    <Method Name="isDone" Id="{1c97def0-8772-4d06-87e3-d35c34bfb9e7}">
-      <Declaration><![CDATA[METHOD isDone : BOOL
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[isDone := THIS^._isDone;  // point at the exporter status in the future]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="isFull" Id="{9a28efb0-0745-4f94-87f0-7406b47cf5e4}">
-      <Declaration><![CDATA[METHOD isFull : BOOL
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[isFull := THIS^._records.count >= THIS^.maxQueueSize;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="pop" Id="{a592f6b0-b2ee-4144-8302-05f2cf676d2d}">
-      <Declaration><![CDATA[METHOD pop : E_PointerFactoryStatus
-VAR_IN_OUT
-	pDest: POINTER TO FB_LogRecord;
+    <Method Name="onEmit" Id="{601f420a-eb68-4a65-8062-d11e0d96dc3c}">
+      <Declaration><![CDATA[METHOD onEmit
+VAR_INPUT
+	logRecord: REFERENCE TO FB_LogRecord;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pDest <> 0 THEN
-	pop := E_PointerFactoryStatus.POINTER_ALREADY_ALLOCATED;
-	RETURN;
-END_IF
-
-pDest := THIS^._records.pop();
-IF pDest = 0 THEN
-	pop := E_PointerFactoryStatus.UNEXPECTED_NULL_POINTER;
-	RETURN;
-END_IF
-
-pop := E_PointerFactoryStatus.SUCCESS;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="push" Id="{677a3a86-a16f-452f-817c-08616b1f73c5}">
-      <Declaration><![CDATA[METHOD push : E_PointerFactoryStatus
-VAR_IN_OUT
-	pSrc: POINTER TO FB_LogRecord;
-END_VAR
-
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF pSrc = 0 THEN
-	push := E_PointerFactoryStatus.UNEXPECTED_NULL_POINTER;
-	RETURN;
-ELSIF THIS^.isFull() THEN
-	push := E_PointerFactoryStatus.OUT_OF_MEMORY;
-	RETURN;
-END_IF
-
-IF NOT THIS^._records.append(pSrc) THEN
-	push := E_PointerFactoryStatus.OUT_OF_MEMORY;
-	RETURN;
-END_IF
-
-THIS^._isDone := FALSE;
-pSrc := 0;
-push := E_PointerFactoryStatus.SUCCESS;]]></ST>
+        <ST><![CDATA[]]></ST>
       </Implementation>
     </Method>
   </POU>

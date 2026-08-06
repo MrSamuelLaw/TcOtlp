@@ -3,50 +3,15 @@
   <Itf Name="I_LogRecordProcessor" Id="{a23da1f1-b1db-492f-b299-6b18bbfbda71}">
     <Declaration><![CDATA[INTERFACE I_LogRecordProcessor
 ]]></Declaration>
-    <Method Name="call" Id="{04cab341-02ca-4afe-b380-80f0bae61b13}">
-      <Declaration><![CDATA[METHOD call
-VAR_INPUT
-END_VAR
-]]></Declaration>
-    </Method>
     <Method Name="free" Id="{909496f4-b058-4633-b2d9-c5e71919d7bc}">
       <Declaration><![CDATA[METHOD free
 
 ]]></Declaration>
     </Method>
-    <Method Name="isDone" Id="{9e2dac8b-9653-4ca4-a000-3336c79c4365}">
-      <Declaration><![CDATA[METHOD isDone : BOOL
-
-]]></Declaration>
-    </Method>
-    <Method Name="isFull" Id="{07ef61b0-5606-4aa4-a6d7-0090712d968c}">
-      <Declaration><![CDATA[METHOD isFull : BOOL
-
-]]></Declaration>
-    </Method>
-    <Method Name="pop" Id="{39b71e6a-d865-49b2-9126-16fda6e70e0f}">
-      <Declaration><![CDATA[(*
-This method should transfer ownership of a LogRecord from the processors to pDest
-- If the processor has a value to give it MUST transfer ownership of the next LogRecord to pDest.
-- If the processors does not have a LogRecord to give it MUST NOT modifiy pDest.
-- IF pDest is not NULL/0 an appropriate status must be set and the next LogRecord must not be transfered.
-*)
-METHOD pop: E_PointerFactoryStatus;
-VAR_IN_OUT
-	pDest: POINTER TO FB_LogRecord;
-END_VAR
-]]></Declaration>
-    </Method>
-    <Method Name="push" Id="{29c4e7ee-8432-49d0-b9ea-e6e38bbb82d0}">
-      <Declaration><![CDATA[(*
-This method should transfer ownership of a LogRecord from pSrc to the processor.
-- If the processor is able to take the next LogRecord pSrc MUST be set to 0.
-- If the processor is not able to take the next LogRecord pSrc MUST NOT be modified
-and an appropriate status set.
-*)
-METHOD push: E_PointerFactoryStatus
-VAR_IN_OUT
-	pSrc: POINTER TO FB_LogRecord;
+    <Method Name="onEmit" Id="{fc491508-199b-489e-bb8c-b0bf24a69fdb}">
+      <Declaration><![CDATA[METHOD onEmit
+VAR_INPUT
+	logRecord: REFERENCE TO FB_LogRecord;
 END_VAR
 ]]></Declaration>
     </Method>

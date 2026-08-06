@@ -1,0 +1,38 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestLogger" Id="{d436feee-e107-4e32-97d3-4eab460c001a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TestLogger EXTENDS FB_TestSuite
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testFluentAPI();
+	
+]]></ST>
+    </Implementation>
+    <Method Name="testFluentAPI" Id="{2f018c08-67ca-4f4b-8614-26172af7e600}">
+      <Declaration><![CDATA[METHOD testFluentAPI : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	provider: FB_LoggerProvider(resource);
+	logger: I_Logger;
+	record: POINTER TO FB_LogRecord;
+	sts: E_PointerFactoryStatus;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testFluentAPI');
+	// test that the logger can build out a log record using the fluent API.
+	provider.createLogger('logger1', '0.0.1', '');
+	sts := provider.getLogger('logger1')
+		.startLogRecord(
+			E_SeverityNumber.SEVERITY_NUMBER_DEBUG
+		)
+// 		.setBody(ADR('logger1 body'))
+// 		.setEventName(ADR('logger1.event1'))
+		.emit();
+	
+	THIS^.AssertTrue(sts=E_PointerFactoryStatus.SUCCESS, 'Unexpected emit failure');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

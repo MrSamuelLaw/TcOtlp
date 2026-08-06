@@ -5,26 +5,11 @@
 VAR
 	_records: FB_LinkedList_LogRecord;
 	_exporter: REFERENCE TO FB_LogRecordExporter_Base;
-	_isDone: BOOL;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="call" Id="{bd3d4da7-f1f3-4d2f-be52-5f26e03c8761}">
-      <Declaration><![CDATA[METHOD call
-VAR
-	_sts: E_LogRecordExporterState;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF THIS^._records.count > 0 AND __ISVALIDREF(THIS^._exporter) THEN
-	_sts := THIS^._exporter.export(THIS^._records);
-	THIS^._isDone :=  _sts <> E_LogRecordExporterState.BUSY;
-	RETURN;
-END_IF
-THIS^._isDone := TRUE;]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="FB_Init" Id="{589fb0dd-a53b-43f6-9d67-5928802d20cd}">
       <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
 //The return value is not evaluated. For a specific influence, you can also declare the
@@ -48,65 +33,14 @@ END_VAR
         <ST><![CDATA[THIS^._records.free();]]></ST>
       </Implementation>
     </Method>
-    <Method Name="isDone" Id="{de32fc1d-2857-4f96-ac04-f2d3d2a3574b}">
-      <Declaration><![CDATA[METHOD isDone : BOOL
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[isDone := THIS^._isDone;  // point at the exporter status in the future]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="isFull" Id="{5934c8ec-c6c8-4774-9c2f-9fc684f6f018}">
-      <Declaration><![CDATA[METHOD isFull : BOOL
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[isFull := THIS^._records.count > 0;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="pop" Id="{c886ec0e-55ce-4091-a825-a563b6c96cc6}">
-      <Declaration><![CDATA[METHOD pop : E_PointerFactoryStatus
-VAR_IN_OUT
-	pDest: POINTER TO FB_LogRecord;
+    <Method Name="onEmit" Id="{1a689aff-c482-4d8e-b59e-78bd1c66f367}">
+      <Declaration><![CDATA[METHOD onEmit
+VAR_INPUT
+	logRecord: REFERENCE TO FB_LogRecord;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pDest <> 0 THEN
-	pop := E_PointerFactoryStatus.POINTER_ALREADY_ALLOCATED;
-	RETURN;
-END_IF
-
-pDest := THIS^._records.pop();
-IF pDest = 0 THEN
-	pop := E_PointerFactoryStatus.UNEXPECTED_NULL_POINTER;
-	RETURN;
-END_IF
-
-pop := E_PointerFactoryStatus.SUCCESS;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="push" Id="{bf11d956-6f8d-487a-a661-c4e7fbb4d7fe}">
-      <Declaration><![CDATA[METHOD push : E_PointerFactoryStatus
-VAR_IN_OUT
-	pSrc: POINTER TO FB_LogRecord;
-END_VAR
-
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF pSrc = 0 THEN
-	push := E_PointerFactoryStatus.UNEXPECTED_NULL_POINTER;
-	RETURN;
-ELSIF THIS^._records.count > 0 THEN
-	push := E_PointerFactoryStatus.OUT_OF_MEMORY;
-	RETURN;
-END_IF
-
-IF NOT THIS^._records.append(pSrc) THEN
-	push := E_PointerFactoryStatus.OUT_OF_MEMORY;
-	RETURN;
-END_IF
-
-THIS^._isDone := FALSE;
-pSrc := 0;
-push := E_PointerFactoryStatus.SUCCESS;]]></ST>
+        <ST><![CDATA[]]></ST>
       </Implementation>
     </Method>
   </POU>
