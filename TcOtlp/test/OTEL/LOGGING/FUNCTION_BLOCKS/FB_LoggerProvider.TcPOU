@@ -2,123 +2,13 @@
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_LoggerProvider" Id="{16983c20-c68e-4842-a5af-294cf7d1f97c}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_LoggerProvider
-VAR_IN_OUT
-	processors: ARRAY [*] OF I_LogRecordProcessor;
-END_VAR
 VAR
 	_resource: REFERENCE TO FB_Resource;
-	_loggerLookupHead: POINTER TO ST_LinkedListNode;
-	_loggerLookupTail: POINTER TO ST_LinkedListNode;
-	_loggerCount: UDINT;
-	_noOpLogger: FB_Logger_NoOp;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="createLogger" Id="{222473b6-29e2-4496-aaaf-97eb9f3896f9}">
-      <Declaration><![CDATA[METHOD createLogger: E_LoggerProviderMethodStatus;
-VAR_INPUT
-	name: T_MaxString;
-	version: T_MaxString;
-	schemaUrl: T_MaxString := '';
-END_VAR
-VAR
-	_pScope: POINTER TO FB_InstrumentationScope;
-	_pLogger: POINTER TO FB_Logger;
-	_pNode: POINTER TO ST_LinkedListNode;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF THIS^.hasLogger(name) THEN
-	createLogger := E_LoggerProviderMethodStatus.LOGGER_ALREADY_EXISTS;
-	RETURN;
-END_IF
-
-_pScope := __NEW(FB_InstrumentationScope(
-	name:=name,
-	version:=version,
-	schemaUrl:=schemaUrl
-));
-IF _pScope = 0 THEN
-	createLogger := E_LoggerProviderMethodStatus.MEMORY_ALLOCATION_FAILURE;
-	RETURN;
-END_IF
-
-_pLogger := __NEW(FB_Logger(scope:=_pScope, provider:=THIS^));
-IF _pLogger = 0 THEN
-	_pScope := _pScope^.delete();
-	createLogger := E_LoggerProviderMethodStatus.MEMORY_ALLOCATION_FAILURE;
-	RETURN;
-END_IF
-
-_pNode := __NEW(ST_LinkedListNode);
-IF _pNode = 0 THEN
-	_pLogger^.free();
-	__DELETE(_pLogger);
-	createLogger := E_LoggerProviderMethodStatus.MEMORY_ALLOCATION_FAILURE;
-	RETURN;
-END_IF
-
-_pNode^.val := _pLogger;
-_pNode^.nxt := 0;
-
-IF THIS^._loggerLookupTail = 0 THEN
-	THIS^._loggerLookupHead := _pNode;
-ELSE
-	THIS^._loggerLookupTail^.nxt := _pNode;
-END_IF
-
-THIS^._loggerLookupTail := _pNode;
-THIS^._loggerCount := THIS^._loggerCount + 1;
-createLogger := E_LoggerProviderMethodStatus.SUCCESS;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="destroyLogger" Id="{6e0512e0-16fb-45e8-a7c6-17b5eb1f55e5}">
-      <Declaration><![CDATA[METHOD destroyLogger: E_LoggerProviderMethodStatus;
-VAR_INPUT
-	name: T_MaxString;
-END_VAR
-VAR
-	_pNode: POINTER TO ST_LinkedListNode;
-	_pPreviousNode: POINTER TO ST_LinkedListNode;
-	_pLogger: POINTER TO FB_Logger;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[destroyLogger := E_LoggerProviderMethodStatus.SUCCESS;
-_pNode := THIS^._loggerLookupHead;
-_pPreviousNode := 0;
-
-WHILE _pNode <> 0 DO
-	IF _pNode^.val <> 0 THEN
-		_pLogger := _pNode^.val;
-		IF _pLogger^.scope.name = name THEN
-			IF _pPreviousNode = 0 THEN
-				THIS^._loggerLookupHead := _pNode^.nxt;
-			ELSE
-				_pPreviousNode^.nxt := _pNode^.nxt;
-			END_IF
-
-			IF THIS^._loggerLookupTail = _pNode THEN
-				THIS^._loggerLookupTail := _pPreviousNode;
-			END_IF
-
-			_pNode^.val := 0;
-			_pLogger^.free();
-			__DELETE(_pLogger);
-			_pNode^.nxt := 0;
-			__DELETE(_pNode);
-			THIS^._loggerCount := THIS^._loggerCount - 1;
-			RETURN;
-		END_IF
-	END_IF
-
-	_pPreviousNode := _pNode;
-	_pNode := _pNode^.nxt;
-END_WHILE]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="FB_Exit" Id="{c0825389-16fb-449f-b72e-42eeae50f823}">
       <Declaration><![CDATA[METHOD FB_Exit : BOOL
 VAR_INPUT
@@ -147,82 +37,9 @@ END_VAR
     </Method>
     <Method Name="free" Id="{8f06a7e8-a241-46ab-886c-f6f760c25d68}">
       <Declaration><![CDATA[METHOD free
-VAR
-	_pNode: POINTER TO ST_LinkedListNode;
-	_pLogger: POINTER TO FB_Logger;
-END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[WHILE THIS^._loggerLookupHead <> 0 DO
-	_pNode := THIS^._loggerLookupHead;
-	THIS^._loggerLookupHead := _pNode^.nxt;
-
-	IF _pNode^.val <> 0 THEN
-		_pLogger := _pNode^.val;
-		_pNode^.val := 0;
-		_pLogger^.free();
-		__DELETE(_pLogger);
-	END_IF
-
-	_pNode^.nxt := 0;
-	__DELETE(_pNode);
-END_WHILE
-
-THIS^._loggerLookupHead := 0;
-THIS^._loggerLookupTail := 0;
-THIS^._loggerCount := 0;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="getLogger" Id="{67a5ca7e-e1bb-4a00-be27-5b44252461a5}">
-      <Declaration><![CDATA[METHOD getLogger : I_Logger
-VAR_INPUT
-	name: T_MaxString;
-END_VAR
-VAR
-	_pNode: POINTER TO ST_LinkedListNode;
-	_pLogger: POINTER TO FB_Logger;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[getLogger := THIS^._noOpLogger;
-_pNode := THIS^._loggerLookupHead;
-
-WHILE _pNode <> 0 DO
-	IF _pNode^.val <> 0 THEN
-		_pLogger := _pNode^.val;
-		IF _pLogger^.scope.name = name THEN
-			getLogger := _pLogger^;
-			RETURN;
-		END_IF
-	END_IF
-	_pNode := _pNode^.nxt;
-END_WHILE]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="hasLogger" Id="{59c9ec3a-a531-4232-99cf-b0c206d28afa}">
-      <Declaration><![CDATA[METHOD hasLogger : BOOL
-VAR_INPUT
-	name: T_MaxString;
-END_VAR
-VAR
-	_pNode: POINTER TO ST_LinkedListNode;
-	_pLogger: POINTER TO FB_Logger;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[hasLogger := FALSE;
-_pNode := THIS^._loggerLookupHead;
-
-WHILE _pNode <> 0 DO
-	IF _pNode^.val <> 0 THEN
-		_pLogger := _pNode^.val;
-		IF _pLogger^.scope.name = name THEN
-			hasLogger := TRUE;
-			RETURN;
-		END_IF
-	END_IF
-	_pNode := _pNode^.nxt;
-END_WHILE]]></ST>
+        <ST><![CDATA[THIS^._resource.free();]]></ST>
       </Implementation>
     </Method>
     <Property Name="resource" Id="{5c5a395f-26fb-4f37-9459-e8fe5661bff3}">

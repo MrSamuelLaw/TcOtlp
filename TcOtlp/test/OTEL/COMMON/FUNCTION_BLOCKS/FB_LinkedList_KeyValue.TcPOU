@@ -15,8 +15,89 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="addNumberAttribute" Id="{5ce7a6f9-75cf-4bf9-8ec2-655b0a7ea8b4}">
+      <Declaration><![CDATA[METHOD addNumberAttribute: E_PointerFactoryStatus;
+VAR_INPUT
+	key: T_MaxString;
+	value: ANY_NUM;
+END_VAR
+VAR
+	_pKv: POINTER TO FB_KeyValue;
+	_pNum: POINTER TO FB_Number;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[addNumberAttribute := ValueFactory.createNumber_AnyType(_pNum, value);
+IF addNumberAttribute <> E_PointerFactoryStatus.SUCCESS THEN
+	RETURN;
+END_IF
+
+addNumberAttribute := ValueFactory.createKeyValue(_pKv, ADR(key), _pNum);
+IF addNumberAttribute <> E_PointerFactoryStatus.SUCCESS THEN
+	_pNum^.delete();
+	RETURN;
+END_IF
+_pNum^.delete();  // clean up the _pNum as its cloned in createKeyValue
+
+addNumberAttribute := THIS^.append(pValue:=_pKv);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="addNumberAttribute_AnyType" Id="{a633e97e-967c-40bb-9f1d-14d8e2ed4da3}">
+      <Declaration><![CDATA[METHOD addNumberAttribute_AnyType: E_PointerFactoryStatus;
+VAR_INPUT
+	key: T_MaxString;
+	value: AnyType;
+END_VAR
+VAR
+	_pKv: POINTER TO FB_KeyValue;
+	_pNum: POINTER TO FB_Number;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[addNumberAttribute_AnyType := ValueFactory.createNumber_AnyType(_pNum, value);
+IF addNumberAttribute_AnyType <> E_PointerFactoryStatus.SUCCESS THEN
+	RETURN;
+END_IF
+
+addNumberAttribute_AnyType := ValueFactory.createKeyValue(_pKv, ADR(key), _pNum);
+IF addNumberAttribute_AnyType <> E_PointerFactoryStatus.SUCCESS THEN
+	_pNum^.delete();
+	RETURN;
+END_IF
+_pNum^.delete();  // clean up the _pNum as its cloned in createKeyValue
+
+addNumberAttribute_AnyType := THIS^.append(pValue:=_pKv);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="addStringAttribute" Id="{807c259f-0345-4462-a6a8-1359a14a613b}">
+      <Declaration><![CDATA[METHOD addStringAttribute: E_PointerFactoryStatus;
+VAR_INPUT
+	key: T_MaxString;
+	value: T_MaxString;
+END_VAR
+VAR
+	_pKv: POINTER TO FB_KeyValue;
+	_pStr: POINTER TO FB_String;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[addStringAttribute := ValueFactory.createString(_pStr, ADR(value));
+IF addStringAttribute <> E_PointerFactoryStatus.SUCCESS THEN
+	RETURN;
+END_IF
+
+addStringAttribute := ValueFactory.createKeyValue(_pKv, ADR(key), _pStr);
+IF addStringAttribute <> E_PointerFactoryStatus.SUCCESS THEN
+	_pStr^.delete();
+	RETURN;
+END_IF
+_pStr^.delete();  // clean up the _pStr as its cloned in createKeyValue
+
+addStringAttribute := THIS^.append(pValue:=_pKv);
+]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="append" Id="{29d543f3-3e33-4876-b1bf-4a2f0254ef43}">
-      <Declaration><![CDATA[METHOD append : BOOL
+      <Declaration><![CDATA[METHOD append: E_PointerFactoryStatus
 VAR_IN_OUT
 	pValue: POINTER TO FB_KeyValue;
 END_VAR
@@ -25,14 +106,19 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[append := FALSE;
+        <ST><![CDATA[IF pValue = 0 THEN
+	append := E_PointerFactoryStatus.UNEXPECTED_NULL_POINTER;
+	RETURN;
+END_IF
 
-IF pValue = 0 OR_ELSE THIS^.count >= GVL.MAX_ATTRIBUTES THEN
+IF THIS^.count >= GVL.MAX_ATTRIBUTES THEN
+	append := E_PointerFactoryStatus.OUT_OF_MEMORY;
 	RETURN;
 END_IF
 
 _node := __NEW(ST_LinkedListNode);
 IF _node = 0 THEN
+	append := E_PointerFactoryStatus.OUT_OF_MEMORY;
 	RETURN;
 END_IF
 
@@ -49,8 +135,32 @@ END_IF
 THIS^._tail := _node;
 THIS^.count := THIS^.count + 1;
 // Ownership transfers only after the value has been linked successfully.
-pValue := 0;
-append := TRUE;]]></ST>
+pValue := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="copyFrom" Id="{12dc0284-c0fc-445c-a394-015d07f02ff7}">
+      <Declaration><![CDATA[METHOD copyFrom : E_PointerFactoryStatus
+VAR_IN_OUT
+	src: FB_LinkedList_KeyValue;
+END_VAR
+VAR
+	_idx: UDINT;
+	_pSrc: POINTER TO FB_AnyValue;
+	_pDest: POINTER TO FB_AnyValue;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[src.reset();
+FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
+	_pSrc := src.next();
+	IF _pSrc = 0 THEN
+		RETURN;
+	END_IF
+	copyFrom := ValueFactory.cloneAnyValue(_pDest, _pSrc);
+	copyFrom := THIS^.append(_pDest);
+END_FOR
+
+
+]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Exit" Id="{686344bf-91ee-4a2a-b059-004362cdb29b}">

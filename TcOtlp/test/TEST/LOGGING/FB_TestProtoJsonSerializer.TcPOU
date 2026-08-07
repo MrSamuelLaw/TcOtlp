@@ -184,22 +184,26 @@ END_VAR
 	pRecordA1First := __NEW(FB_LogRecord(
 		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
 		timestamp:=ULINT#101,
-		logger:=loggerA1
+		logger:=loggerA1,
+		pSource:=0
 	));
 	pRecordB1 := __NEW(FB_LogRecord(
 		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
 		timestamp:=ULINT#102,
-		logger:=loggerB1
+		logger:=loggerB1,
+		pSource:=0
 	));
 	pRecordA2 := __NEW(FB_LogRecord(
 		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
 		timestamp:=ULINT#103,
-		logger:=loggerA2
+		logger:=loggerA2,
+		pSource:=0
 	));
 	pRecordA1Second := __NEW(FB_LogRecord(
 		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
 		timestamp:=ULINT#104,
-		logger:=loggerA1
+		logger:=loggerA1,
+		pSource:=0
 	));
 
 	IF pRecordA1First <> 0 THEN appendedA1First := logRecords.append(pRecordA1First); END_IF

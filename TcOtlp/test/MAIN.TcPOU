@@ -3,10 +3,12 @@
   <POU Name="MAIN" Id="{1fa3e08a-8235-40d5-a330-62ab1eea7a52}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM MAIN
 VAR
-	fbTestLoggerProvider: FB_TestLoggerProvider();
+	fbTestOtlpValue: FB_TestOtlpValue();
+	fbTestLinkedList_KeyValue: FB_TestLinkedList_KeyValue();
+	fbTestContextObjects: FB_TestContextObjects();
 	fbTestLogger: FB_TestLogger();
-// 	fbTestProcessors: FB_TestLogProcessors();
-// 	fbTestOtlpValue: FB_TestOtlpValue();
+	fbTestProcessors: FB_TestLogProcessors();
+	
 // 	fbTestLogging: FB_TestLogging();
 // 	fbTestProtoJsonSerializer: FB_TestProtoJsonSerializer();
 // 	fbTestFileExporter: FB_TestFileExporter();

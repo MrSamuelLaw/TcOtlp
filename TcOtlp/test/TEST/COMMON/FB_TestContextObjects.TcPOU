@@ -1,0 +1,66 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestContextObjects" Id="{95198dfb-2541-410b-9538-04d7ed4517aa}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TestContextObjects EXTENDS FB_TestSuite
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testCanCloneResource();
+THIS^.testCanCloneInstrumentationScope();]]></ST>
+    </Implementation>
+    <Method Name="testCanCloneInstrumentationScope" Id="{68a0ff76-9de3-491f-b2fe-49374553cd74}">
+      <Declaration><![CDATA[METHOD testCanCloneInstrumentationScope : REFERENCE TO FB_Test
+VAR
+	instrumentationScope: FB_InstrumentationScope('foo', '1.0.0', 'bar');
+	copyTarget: FB_InstrumentationScope('', '', '');
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testCanCloneInstrumentationScope');
+	instrumentationScope.attributes.addStringAttribute('key', 'value');
+	THIS^.assertTrue(instrumentationScope.attributes.count = 1, 'Expected one attribute');
+	THIS^.AssertTrue(copyTarget.attributes.count = 0, 'Expected zero attribute');
+	
+	copyTarget.copyFrom(instrumentationScope);
+	THIS^.assertTrue(instrumentationScope.attributes.count = 1, 'Expected one attribute');
+	THIS^.AssertTrue(copyTarget.attributes.count = 1, 'Expected one attribute');
+	
+	instrumentationScope.attributes.free();
+	THIS^.assertTrue(instrumentationScope.attributes.count = 0, 'Expected zero attributes');
+	THIS^.AssertTrue(copyTarget.attributes.count = 1, 'Expected one attribute');
+	
+	copyTarget.free();
+	THIS^.assertTrue(instrumentationScope.attributes.count = 0, 'Expected zero attributes');
+	THIS^.AssertTrue(copyTarget.attributes.count = 0, 'Expected zero attributes');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testCanCloneResource" Id="{7bb31409-237b-4007-9162-1f9f04c41685}">
+      <Declaration><![CDATA[METHOD testCanCloneResource : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('foo');
+	copyTarget: FB_Resource('');
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testCanCloneResource');
+	resource.attributes.addStringAttribute('key', 'value');
+	THIS^.assertTrue(resource.attributes.count = 1, 'Expected one attribute');
+	THIS^.AssertTrue(copyTarget.attributes.count = 0, 'Expected zero attribute');
+	
+	copyTarget.copyFrom(resource);
+	THIS^.assertTrue(resource.attributes.count = 1, 'Expected one attribute');
+	THIS^.AssertTrue(copyTarget.attributes.count = 1, 'Expected one attribute');
+	
+	resource.attributes.free();
+	THIS^.assertTrue(resource.attributes.count = 0, 'Expected zero attributes');
+	THIS^.AssertTrue(copyTarget.attributes.count = 1, 'Expected one attribute');
+	
+	copyTarget.free();
+	THIS^.assertTrue(resource.attributes.count = 0, 'Expected zero attributes');
+	THIS^.AssertTrue(copyTarget.attributes.count = 0, 'Expected zero attributes');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

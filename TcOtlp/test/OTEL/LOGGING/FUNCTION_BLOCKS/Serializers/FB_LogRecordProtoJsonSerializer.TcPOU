@@ -94,7 +94,7 @@ VAR
 	_resources: ARRAY [0..GVL.MAX_LOG_RECORDS - 1] OF POINTER TO FB_Resource;
 	_resourceScopeLogs: ARRAY [0..GVL.MAX_LOG_RECORDS - 1] OF SJsonValue;
 	_scopes: ARRAY [0..GVL.MAX_LOG_RECORDS - 1] OF POINTER TO FB_InstrumentationScope;
-	_scopeResources: ARRAY [0..GVL.MAX_LOG_RECORDS - 1] OF POINTER TO FB_Resource;
+	_scopeResourceIndexes: ARRAY [0..GVL.MAX_LOG_RECORDS - 1] OF UDINT;
 	_scopeLogRecords: ARRAY [0..GVL.MAX_LOG_RECORDS - 1] OF SJsonValue;
 END_VAR]]></Declaration>
       <Implementation>
@@ -123,10 +123,12 @@ FOR _idx := 0 TO GVL.MAX_LOG_RECORDS - 1 DO
 	_pResource := ADR(_recordResource);
 	_pScope := ADR(_recordScope);
 
-	// Reuse one ResourceLogs object for every record from the same resource instance.
+	// Reuse one ResourceLogs object for equal record-owned resource snapshots.
 	_resourceIdx := 0;
 	WHILE _resourceIdx < _resourceCount DO
-		IF _resources[_resourceIdx] = _pResource THEN
+		IF _resources[_resourceIdx]^.droppedAttributesCount = _pResource^.droppedAttributesCount
+			AND_THEN _resources[_resourceIdx]^.schemaUrl = _pResource^.schemaUrl
+			AND_THEN _resources[_resourceIdx]^.attributes.equals(ADR(_pResource^.attributes)) THEN
 			EXIT;
 		END_IF
 		_resourceIdx := _resourceIdx + 1;
@@ -145,10 +147,15 @@ FOR _idx := 0 TO GVL.MAX_LOG_RECORDS - 1 DO
 		_resourceCount := _resourceCount + 1;
 	END_IF
 
-	// Scope identity is the resource/scope pair because ScopeLogs belongs to ResourceLogs.
+	// Scope identity is the resource/scope value pair because ScopeLogs belongs to ResourceLogs.
 	_scopeIdx := 0;
 	WHILE _scopeIdx < _scopeCount DO
-		IF _scopeResources[_scopeIdx] = _pResource AND _scopes[_scopeIdx] = _pScope THEN
+		IF _scopeResourceIndexes[_scopeIdx] = _resourceIdx
+			AND_THEN _scopes[_scopeIdx]^.name = _pScope^.name
+			AND_THEN _scopes[_scopeIdx]^.version = _pScope^.version
+			AND_THEN _scopes[_scopeIdx]^.droppedAttributesCount = _pScope^.droppedAttributesCount
+			AND_THEN _scopes[_scopeIdx]^.schemaUrl = _pScope^.schemaUrl
+			AND_THEN _scopes[_scopeIdx]^.attributes.equals(ADR(_pScope^.attributes)) THEN
 			EXIT;
 		END_IF
 		_scopeIdx := _scopeIdx + 1;
@@ -163,7 +170,7 @@ FOR _idx := 0 TO GVL.MAX_LOG_RECORDS - 1 DO
 		END_IF
 		_scopeLogRecords[_scopeIdx] := THIS^.parser.AddArrayMember(_scopeObj, 'logRecords', 0);
 		IF _scopeLogRecords[_scopeIdx] = 0 THEN EXIT; END_IF
-		_scopeResources[_scopeIdx] := _pResource;
+		_scopeResourceIndexes[_scopeIdx] := _resourceIdx;
 		_scopes[_scopeIdx] := _pScope;
 		_scopeCount := _scopeCount + 1;
 	END_IF
@@ -215,7 +222,9 @@ FOR _idx := 0 TO GVL.MAX_LOG_RECORDS - 1 DO
 		EXIT;
 	END_IF
 	_recordResource REF= _rec^.resource;
-	IF ADR(_recordResource) <> _pResource THEN
+	IF _recordResource.droppedAttributesCount <> _pResource^.droppedAttributesCount
+		OR_ELSE _recordResource.schemaUrl <> _pResource^.schemaUrl
+		OR_ELSE NOT _recordResource.attributes.equals(ADR(_pResource^.attributes)) THEN
 		CONTINUE;
 	END_IF
 
@@ -223,7 +232,11 @@ FOR _idx := 0 TO GVL.MAX_LOG_RECORDS - 1 DO
 	_pScope := ADR(_recordScope);
 	_scopeIdx := 0;
 	WHILE _scopeIdx < _scopeCount DO
-		IF _scopes[_scopeIdx] = _pScope THEN
+		IF _scopes[_scopeIdx]^.name = _pScope^.name
+			AND_THEN _scopes[_scopeIdx]^.version = _pScope^.version
+			AND_THEN _scopes[_scopeIdx]^.droppedAttributesCount = _pScope^.droppedAttributesCount
+			AND_THEN _scopes[_scopeIdx]^.schemaUrl = _pScope^.schemaUrl
+			AND_THEN _scopes[_scopeIdx]^.attributes.equals(ADR(_pScope^.attributes)) THEN
 			EXIT;
 		END_IF
 		_scopeIdx := _scopeIdx + 1;

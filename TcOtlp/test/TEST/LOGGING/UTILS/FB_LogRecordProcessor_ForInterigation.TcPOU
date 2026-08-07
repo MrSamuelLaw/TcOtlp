@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LogRecordProcessor_ForInterigation" Id="{86e0c01f-365f-4c34-a5f8-f56ecceaf360}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProcessor_ForInterigation EXTENDS FB_LogRecordProcessor_Simple
+VAR_OUTPUT
+	record: POINTER TO FB_LogRecord;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="free" Id="{9d6f0dd6-04e2-43c1-b207-46bd50021591}">
+      <Declaration><![CDATA[{error 'Add method implementation or delete method to use base implementation'}
+METHOD free
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="onEmit" Id="{60b935aa-5fef-4d49-a6b2-6e0283d21352}">
+      <Declaration><![CDATA[METHOD onEmit
+VAR_INPUT
+	logRecord: REFERENCE TO FB_LogRecord;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,70 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestLinkedList_KeyValue" Id="{8a6ff88b-1aeb-4b3c-a961-e4d74b8f1502}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TestLinkedList_KeyValue EXTENDS FB_TestSuite
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testAddAttributes();
+THIS^.testCopyValues();]]></ST>
+    </Implementation>
+    <Method Name="testAddAttributes" Id="{2513ddb1-64d7-42ca-bbb5-6322d7f72b8a}">
+      <Declaration><![CDATA[METHOD testAddAttributes : REFERENCE TO FB_Test
+VAR
+	attributes: FB_LinkedList_KeyValue;
+	strVal: T_MaxString := 'String';
+	numVal: REAL := 42;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testAddAttributes');
+	// test adding attributes
+	attributes.addStringAttribute('strKey', strVal);
+	THIS^.AssertTrue(attributes.count = 1, 'Expected only a single attribute');
+	
+	attributes.addNumberAttribute('numKey', numVal);
+	THIS^.AssertTrue(attributes.count = 2, 'Expected two attributes');
+	
+	// test freeing memory
+	attributes.free();
+	THIS^.AssertTrue(attributes.count = 0, 'Expected zero attributes');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testCopyValues" Id="{23900586-864d-4e56-8db4-89d06b3a65a9}">
+      <Declaration><![CDATA[METHOD testCopyValues : REFERENCE TO FB_Test
+VAR
+	attributes: FB_LinkedList_KeyValue;
+	copyTarget: FB_LinkedList_KeyValue;
+	strVal: T_MaxString := 'String';
+	numVal: REAL := 42;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testCopyValues');
+	// test adding attributes
+	attributes.addStringAttribute('strKey', strVal);
+	THIS^.AssertTrue(attributes.count = 1, 'Expected only a single attribute');
+	THIS^.AssertTrue(copyTarget.count = 0, 'Expected zero attributes');
+	
+	attributes.addNumberAttribute('numKey', numVal);
+	THIS^.AssertTrue(attributes.count = 2, 'Expected two attributes');
+	THIS^.AssertTrue(copyTarget.count = 0, 'Expected zero attributes');
+	
+	// values should get copied
+	copyTarget.copyFrom(attributes);	
+	THIS^.AssertTrue(attributes.count = 2, 'Expected two attributes');
+	THIS^.AssertTrue(copyTarget.count = 2, 'Expected two attributes');
+	
+	// test freeing memory
+	attributes.free();
+	THIS^.AssertTrue(attributes.count = 0, 'Expected zero attributes');
+	THIS^.AssertTrue(copyTarget.count = 2, 'Expected two attributes');
+	
+	copyTarget.free();
+	THIS^.AssertTrue(copyTarget.count = 0, 'Expected zero attributes');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

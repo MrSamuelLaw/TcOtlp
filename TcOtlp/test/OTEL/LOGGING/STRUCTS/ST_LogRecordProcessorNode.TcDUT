@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_LogRecordProcessorNode" Id="{3c4d5e6f-7a8b-4c9d-8e1f-2a3b4c5d6e7f}">
+    <Declaration><![CDATA[(*
+	Linked list node for log record processor registrations on an FB_LoggerProvider.
+	The registered flag is set every time the processor is (re)registered and is
+	cleared by the provider's cyclic call; nodes whose flag was not refreshed are
+	considered stale and are removed from the list.
+*)
+{attribute 'enable_dynamic_creation'}
+TYPE ST_LogRecordProcessorNode :
+STRUCT
+	processor: REFERENCE TO FB_LogRecordProcessor_Base;
+	registered: BOOL;
+	nxt: POINTER TO ST_LogRecordProcessorNode;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

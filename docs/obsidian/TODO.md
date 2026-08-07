@@ -1,7 +1,11 @@
+# Notes For Next Time
+1. Create a FB_TestLogRecord function block to test the log record functionality.
+2. Once the FB_TestLogRecord clone method is working, run a processor that retains a deep copy of the record so I can interrogate if it augments the log record properly.
+
 ## Modeling
-- [ ] Update the domain model
-	- [ ] Check if each member is an aggregate, and invariant, or a value object?
-	- [ ] I think the record itself is the aggregate. The Invariants are with respect to each member, and each member is itself a value object. Check with chat to verify.
+- [x] Update the domain model
+	- [x] Check if each member is an aggregate, and invariant, or a value object?
+	- [x] I think the record itself is the aggregate. The Invariants are with respect to each member, and each member is itself a value object. Check with chat to verify.
 
 ## Infrastructure/Domain Logic
 - [x] Implement the log record processing pipeline

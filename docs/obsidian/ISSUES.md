@@ -1,4 +1,5 @@
-- [ ] When a logger is changed out it can break the system because the log record retains a reference to the old logger, and then during serialization when the reference to the old logger is used, the system craps the bed.
+- [x] When a logger is changed out it can break the system because the log record retains a reference to the old logger, and then during serialization when the reference to the old logger is used, the system craps the bed.
+	- Solved by switching to a simpler SDK where log records get all the data they require to be serialized.
 - [x] Ran into an issue with not having a way to free the memory from a linked list without destroying the references. I'm thinking a way to handle this could maybe to create a push and pop method that could allow ownership transfer.
 - [x] The log record json serializer doesn't sort the log records, making the files much larger than they need to be.
 - [ ] The log record json serializer uses pre-allocated arrays rather than linked lists to sort the log records, hogging up precious memory.

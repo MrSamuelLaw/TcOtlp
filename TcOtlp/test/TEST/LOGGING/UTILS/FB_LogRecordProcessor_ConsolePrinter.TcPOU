@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_LogRecordProcessor_Adsmsg" Id="{fbf4b219-b8fc-4773-8575-46cdfadab41e}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProcessor_Adsmsg EXTENDS FB_LogRecordProcessor_Simple]]></Declaration>
+  <POU Name="FB_LogRecordProcessor_ConsolePrinter" Id="{fbf4b219-b8fc-4773-8575-46cdfadab41e}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProcessor_ConsolePrinter EXTENDS FB_LogRecordProcessor_Simple]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
@@ -12,24 +12,24 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[THIS^.writeToAdsLogStr(logRecord);]]></ST>
+        <ST><![CDATA[THIS^.writeToConsole(logRecord);]]></ST>
       </Implementation>
     </Method>
-    <Method Name="writeToAdsLogStr" Id="{72e1877d-8ae1-4395-b68e-02541697117a}">
-      <Declaration><![CDATA[METHOD writeToAdsLogStr
+    <Method Name="writeToConsole" Id="{72e1877d-8ae1-4395-b68e-02541697117a}">
+      <Declaration><![CDATA[METHOD writeToConsole
 VAR_INPUT
 	logRecord: REFERENCE TO FB_LogRecord;
 END_VAR
 VAR
-	body: REFERENCE TO FB_String;
+	body: POINTER TO FB_String;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF logRecord.body <> 0 AND_THEN logRecord.body^.eType = E_ValueType.E_String THEN
-	body REF= logRecord.body^;
+	body := logRecord.body;
 	ADSLOGSTR(
-		ADSLOG_MSGTYPE_MSGBOX,
-		body.pString^,
+		ADSLOG_MSGTYPE_ERROR,
+		body^.pString^,
 		''
 	);
 END_IF

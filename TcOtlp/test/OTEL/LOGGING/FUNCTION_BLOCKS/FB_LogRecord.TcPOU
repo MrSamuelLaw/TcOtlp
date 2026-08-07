@@ -16,11 +16,10 @@ VAR_INPUT
 	body: 		POINTER TO FB_AnyValue;
 	droppedAttributesCount: UDINT;
 END_VAR
-VAR_OUTPUT CONSTANT
+VAR_OUTPUT
+	resource: FB_Resource('');
+	scope: FB_InstrumentationScope('', '', '');
 	attributes: FB_LinkedList_KeyValue;
-END_VAR
-VAR
-	_logger: REFERENCE TO FB_Logger;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -64,14 +63,18 @@ VAR_INPUT
 	// required values
 	severityNumber: E_SeverityNumber;
 	timestamp: 		ULINT;
-	logger: REFERENCE TO FB_Logger;
+	resource: REFERENCE TO FB_Resource;
+	scope: REFERENCE TO FB_InstrumentationScope;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[// required values
 THIS^.severityNumber := severityNumber;
 THIS^.timestamp := timestamp;
-THIS^._logger REF= logger;]]></ST>
+THIS^.resource := resource;
+THIS^.scope := scope;
+
+]]></ST>
       </Implementation>
     </Method>
     <Method Name="free" Id="{541f418c-aa49-48c2-ae9d-c6d4738509a3}">
@@ -89,7 +92,9 @@ IF THIS^.flags <> 0 THEN
 END_IF
 IF THIS^.spanId <> 0 THEN THIS^.spanId := THIS^.spanId^.delete(); END_IF
 IF THIS^.body <> 0 THEN THIS^.body := THIS^.body^.delete(); END_IF
-THIS^.attributes.free();]]></ST>
+THIS^.attributes.free();
+THIS^.scope.free();
+THIS^.resource.free();]]></ST>
       </Implementation>
     </Method>
     <Property Name="severityText" Id="{05c0c7ed-4dd1-46f2-b733-b4a1bc94ddcb}">

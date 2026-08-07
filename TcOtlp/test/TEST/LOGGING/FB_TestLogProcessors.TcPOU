@@ -4,25 +4,30 @@
     <Declaration><![CDATA[FUNCTION_BLOCK FB_TestLogProcessors EXTENDS FB_TestSuite
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[]]></ST>
+      <ST><![CDATA[TestSimpleProcessors();]]></ST>
     </Implementation>
-    <Method Name="TestSimpleProcessors" Id="{4aa68aa9-8a85-4975-8601-420ccbbed827}">
-      <Declaration><![CDATA[METHOD TestSimpleProcessors : REFERENCE TO FB_Test
+    <Method Name="testSimpleProcessors" Id="{4aa68aa9-8a85-4975-8601-420ccbbed827}">
+      <Declaration><![CDATA[METHOD testSimpleProcessors : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	provider: FB_LoggerProvider(resource);
-	processor1: FB_LogRecordProcessor_Adsmsg(0);
-	processor2: FB_LogRecordProcessor_AdsMsg(0);
+	scope: FB_InstrumentationScope('name', 'version', 'schemaUrl');
+	logger: FB_Logger(scope, provider);
+// 	processor: FB_LogRecordProcessor_ConsolePrinter(0);
+	processor: FB_LogRecordProcessor_Simple(0);
+	processors: ARRAY [0..0] OF I_LogRecordProcessor := [
+		processor
+	];
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test SimpleLogProcessors');
-	resource.addStringAttribute('plc.name', 'sim.plc');
-	provider.createLogger('test', '0', '');
-	provider.getLogger('test')
-		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_ERROR)
-		.setBody(ADR('this is a test'))
-		.emit();
+	resource.attributes.addStringAttribute('plc.name', 'sim.plc');
+	logger.startLogRecord(
+			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_ERROR
+		)
+		.setBody('this is a test')
+		.emit(processors);
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

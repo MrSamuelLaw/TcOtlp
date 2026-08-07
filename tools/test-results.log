@@ -1,23 +1,34 @@
-﻿MSG | 8/2/2026 4:17:16 PM 322 ms | 'TwinCAT System' (10000): TwinCAT System Restart initiated from AmsNetId: 192.168.97.90.1.1 port 32871.
-MSG | 8/2/2026 4:17:17 PM 711 ms | 'TwinCAT System' (10000): TcIo Server started: TcIo.
-MSG | 8/2/2026 4:17:17 PM 726 ms | 'TwinCAT System' (10000): TcPlc30 Server started: TcPlc30.
-MSG | 8/2/2026 4:17:17 PM 736 ms | 'TwinCAT System' (10000): TcRTime Server started: TcRTime.
-MSG | 8/2/2026 4:17:17 PM 747 ms | 'TwinCAT System' (10000): TcRtsObjects Server started: TcRtsObjects.
-MSG | 8/2/2026 4:17:17 PM 753 ms | 'License Server' (30): license validation status is Valid(3)
-MSG | 8/2/2026 4:17:17 PM 853 ms | 'TwinCAT System' (10000): TwinCAT USB support could not be initialized. System start continued.
+﻿MSG | 8/5/2026 8:34:58 PM 200 ms | 'TwinCAT System' (10000): TwinCAT System Restart initiated from AmsNetId: 192.168.97.90.1.1 port 33279.
+MSG | 8/5/2026 8:34:59 PM 983 ms | 'TwinCAT System' (10000): TcIo Server started: TcIo.
+MSG | 8/5/2026 8:34:59 PM 993 ms | 'TwinCAT System' (10000): TcPlc30 Server started: TcPlc30.
+MSG | 8/5/2026 8:35:00 PM 001 ms | 'TwinCAT System' (10000): TcRTime Server started: TcRTime.
+MSG | 8/5/2026 8:35:00 PM 015 ms | 'TwinCAT System' (10000): TcRtsObjects Server started: TcRtsObjects.
+MSG | 8/5/2026 8:35:00 PM 021 ms | 'License Server' (30): license validation status is Valid(3)
+MSG | 8/5/2026 8:35:00 PM 122 ms | 'TwinCAT System' (10000): TwinCAT USB support could not be initialized. System start continued.
 
-MSG | 8/2/2026 4:17:17 PM 859 ms | 'License Server' (30): license validation status is Valid(3)
-MSG | 8/2/2026 4:17:18 PM 019 ms | 'TCRTIME' (200): a task dump created on 2026-08-01T11:12:16 is available on the target
-MSG | 8/2/2026 4:17:18 PM 206 ms | 'PlcTask1' (351): | Test suite ID=0 'MAIN.fbTestLoggerProvider'
-MSG | 8/2/2026 4:17:18 PM 226 ms | 'PlcTask1' (351): | ID=0 number of tests=1, number of failed tests=0, duration=4.6e-5
-MSG | 8/2/2026 4:17:18 PM 246 ms | 'PlcTask1' (351): | Test name=Test LoggerProvider Logger Management
-MSG | 8/2/2026 4:17:18 PM 266 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLoggerProvider
-MSG | 8/2/2026 4:17:18 PM 286 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=4, duration=3.61e-5
-ERR | 8/2/2026 4:17:18 PM 306 ms | 'PlcTask1' (351): | ==========TESTS FINISHED RUNNING==========
-ERR | 8/2/2026 4:17:18 PM 326 ms | 'PlcTask1' (351): | Test suites: 1
-ERR | 8/2/2026 4:17:18 PM 346 ms | 'PlcTask1' (351): | Tests: 1
-ERR | 8/2/2026 4:17:18 PM 366 ms | 'PlcTask1' (351): | Successful tests: 1
-ERR | 8/2/2026 4:17:18 PM 386 ms | 'PlcTask1' (351): | Failed tests: 0
-ERR | 8/2/2026 4:17:18 PM 406 ms | 'PlcTask1' (351): | Duration: 5.22e-5
-ERR | 8/2/2026 4:17:18 PM 426 ms | 'PlcTask1' (351): | ======================================
+MSG | 8/5/2026 8:35:00 PM 126 ms | 'License Server' (30): license validation status is Valid(3)
+MSG | 8/5/2026 8:35:00 PM 286 ms | 'TCRTIME' (200): a task dump created on 2026-08-01T11:12:16 is available on the target
+ERR | 8/5/2026 8:35:00 PM 495 ms | 'PlcTask1' (351): FAILED TEST 'MAIN.fbTestLogger@testFluentAPI', EXP: TRUE, ACT: FALSE, MSG: Unexpected emit failure
+MSG | 8/5/2026 8:35:00 PM 515 ms | 'PlcTask1' (351): | Test suite ID=0 'MAIN.fbTestLoggerProvider'
+MSG | 8/5/2026 8:35:00 PM 535 ms | 'PlcTask1' (351): | ID=0 number of tests=1, number of failed tests=0, duration=2.181e-4
+MSG | 8/5/2026 8:35:00 PM 555 ms | 'PlcTask1' (351): | Test name=testLoggerLifecycle
+MSG | 8/5/2026 8:35:00 PM 575 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLoggerProvider
+MSG | 8/5/2026 8:35:00 PM 595 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=20, duration=2.054e-4
+MSG | 8/5/2026 8:35:00 PM 615 ms | 'PlcTask1' (351): | Test suite ID=1 'MAIN.fbTestLogger'
+MSG | 8/5/2026 8:35:00 PM 635 ms | 'PlcTask1' (351): | ID=1 number of tests=2, number of failed tests=1, duration=2.484e-4
+MSG | 8/5/2026 8:35:00 PM 655 ms | 'PlcTask1' (351): | Test name=testFluentAPI
+MSG | 8/5/2026 8:35:00 PM 675 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogger
+MSG | 8/5/2026 8:35:00 PM 695 ms | 'PlcTask1' (351): | Test status=FAIL, number of asserts=1, duration=4.89e-5
+MSG | 8/5/2026 8:35:00 PM 715 ms | 'PlcTask1' (351): | Test assert message=Unexpected emit failure
+MSG | 8/5/2026 8:35:00 PM 735 ms | 'PlcTask1' (351): | Test assert type=BOOL
+MSG | 8/5/2026 8:35:00 PM 755 ms | 'PlcTask1' (351): | Test name=testLogRecordCopiesTelemetryContext
+MSG | 8/5/2026 8:35:00 PM 775 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogger
+MSG | 8/5/2026 8:35:00 PM 795 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=20, duration=1.864e-4
+ERR | 8/5/2026 8:35:00 PM 815 ms | 'PlcTask1' (351): | ==========TESTS FINISHED RUNNING==========
+ERR | 8/5/2026 8:35:00 PM 835 ms | 'PlcTask1' (351): | Test suites: 2
+ERR | 8/5/2026 8:35:00 PM 855 ms | 'PlcTask1' (351): | Tests: 3
+ERR | 8/5/2026 8:35:00 PM 875 ms | 'PlcTask1' (351): | Successful tests: 2
+ERR | 8/5/2026 8:35:00 PM 895 ms | 'PlcTask1' (351): | Failed tests: 1
+ERR | 8/5/2026 8:35:00 PM 915 ms | 'PlcTask1' (351): | Duration: 1.0018e-2
+ERR | 8/5/2026 8:35:00 PM 935 ms | 'PlcTask1' (351): | ======================================
 

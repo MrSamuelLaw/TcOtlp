@@ -40,7 +40,8 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[// TODO: implement the clone and transfer to the exporter if it exists.
+]]></ST>
       </Implementation>
     </Method>
   </POU>

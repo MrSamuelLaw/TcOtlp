@@ -15,8 +15,8 @@ END_VAR
     <Implementation>
       <ST><![CDATA[THIS^.TestExportBatchedLogRecords(cleanup:=FALSE);]]></ST>
     </Implementation>
-    <Method Name="TestExportBatchedLogRecords" Id="{62c42b19-8451-4cb9-878c-1813787327e9}">
-      <Declaration><![CDATA[METHOD TestExportBatchedLogRecords : REFERENCE TO FB_Test
+    <Method Name="testExportBatchedLogRecords" Id="{62c42b19-8451-4cb9-878c-1813787327e9}">
+      <Declaration><![CDATA[METHOD testExportBatchedLogRecords : REFERENCE TO FB_Test
 
 VAR_INPUT
 	cleanup: BOOL := TRUE;
