@@ -160,7 +160,7 @@
     <Compile Include="TEST\LOGGING\UTILS\FB_LogRecordProcessor_ConsolePrinter.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="TEST\LOGGING\UTILS\FB_LogRecordProcessor_ForInterigation.TcPOU">
+    <Compile Include="TEST\LOGGING\UTILS\FB_LogRecordProcessor_ForRecordInspection.TcPOU">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>

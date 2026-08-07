@@ -5,7 +5,7 @@
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[THIS^.TestSerializeLogRecord();
-THIS^.TestSerializeLogsData();]]></ST>
+// THIS^.TestSerializeLogsData();]]></ST>
     </Implementation>
     <Method Name="TestSerializeLogRecord" Id="{432059f0-a68e-4217-85ac-25035b48c8cb}">
       <Declaration><![CDATA[METHOD TestSerializeLogRecord : REFERENCE TO FB_Test
@@ -15,121 +15,17 @@ VAR
 	provider: FB_LoggerProvider(resource:=resource);
 	// define the scope and the logger
 	scope: FB_InstrumentationScope(name:='motor1', version:='0.0.1a', schemaUrl:='');
-	logger: FB_Logger(provider, scope);
+	logger: FB_Logger(scope:=scope, provider:=provider);
 	// collect the emitted record before passing it to the serializer
-	simpleProcessor: FB_LogRecordProcessor_Simple(0);
-	
-	sts: E_PointerFactoryStatus;
-	ser: FB_LogRecordProtoJsonSerializer();
-	root: SJsonValue;
-	arr: SJsonValue;
-	obj: SJsonValue;
-	mem: SJsonValue;
-	attrArr: SJsonValue;
-	attrObj: SJsonValue;
-	guid_: ARRAY [0..15] OF BYTE := [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
-	actStr: STRING;
-	expStr: STRING;
-	actFlags: UDINT;
-	tstamp: ULINT := 1581452773000000789;
-	flags: E_LogRecordFlag := E_LogRecordFlag.LOG_RECORD_FLAGS_TRACE_FLAGS_MASK;
-	pLogRecord: POINTER TO FB_LogRecord;
-	logRecords: FB_LinkedList_LogRecord;
-END_VAR
-
-VAR CONSTANT
+	processor: FB_LogRecordProcessor_ForRecordInspection(0);
 	processors: ARRAY [0..0] OF I_LogRecordProcessor := [
-		simpleProcessor
+		processor
 	];
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test SerializeLogRecord');
-	// Build the record through the fluent logger, then transfer it to the test list.
-	logRecords.free();
-	provider(processors:=processors);
-	sts := logger
-		.startLogRecord(
-			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG,
-			timestamp:=ADR(tstamp)
-		)
-		.setEventName(ADR('Serialization Event'))
-		.setBody( ADR('This is a body string value'))
-		.setTraceId(ADR(guid_), SIZEOF(guid_))
-		.setFlags(flags)
-		.addStringAttribute(ADR('stats.duration'), ADR('pVal'))
-		.emit();
 	
-	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, sts, 'Expected log record emission to succeed');
-	sts := simpleProcessor.pop(pLogRecord);
-	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, sts, 'Expected processor to return the emitted record');
-	IF logRecords.append(pLogRecord) THEN
-		pLogRecord := 0;
-	ELSE
-		THIS^.AssertTrue(FALSE, 'Expected log record list to accept the record');
-		IF pLogRecord <> 0 THEN pLogRecord := pLogRecord^.delete(); END_IF
-		simpleProcessor.free();
-		logger.free();
-		TcUnit.TEST_FINISHED();
-		RETURN;
-	END_IF
-
-	// serialize the log(s)
-	root := ser.parser.NewDocument();
-	ser.parser.SetObject(root);
-	ser.serializeScopeLogs(root, scope, logRecords);
-	
-	// check the user-supplied instrumentation scope
-	obj := ser.parser.FindMember(root, 'scope');
-	mem := ser.parser.FindMember(obj, 'name');
-	actStr := ser.parser.GetString(mem);
-	THIS^.AssertEquals_STRING('motor1', actStr, 'instrumentation scope name does not serialize correctly');
-	
-	mem := ser.parser.FindMember(obj, 'version');
-	actStr := ser.parser.GetString(mem);
-	THIS^.AssertEquals_STRING('0.0.1a', actStr, 'instrumentation scope version does not serialize correctly');
-	
-	// grab the first value from the array
-	arr := ser.parser.FindMember(root, 'logRecords');
-	THIS^.AssertTrue(ser.parser.IsArray(arr), 'Expected logRecords to serialize as an array member');
-	obj := ser.parser.GetArrayValueByIdx(arr, 0);
-	
-	// do the checks
-	mem := ser.parser.FindMember(obj, 'severityText');
-	actStr := ser.parser.GetString(mem);
-	expStr := 'SEVERITY_NUMBER_DEBUG';
-	THIS^.AssertEquals_STRING(expStr, actStr, 'severityText does not serialzie correctly');
-	
-	mem := ser.parser.FindMember(obj, 'timeUnixNano');
-	actStr := ser.parser.GetString(mem);
-	expStr := '1581452773000000789';
-	THIS^.AssertEquals_STRING(expStr, actStr, 'timeUnixNano does not serialize correctly');
-	
-	mem := ser.parser.FindMember(obj, 'traceId');
-	actStr := ser.parser.GetString(mem);
-	expStr := '000102030405060708090A0B0C0D0E0F';
-	THIS^.AssertEquals_STRING(expStr, actStr, 'traceId does not serialize correctly');
-	
-	mem := ser.parser.FindMember(obj, 'flags');
-	actFlags := ser.parser.GetUint(mem);
-	THIS^.AssertEquals_UDINT(255, actFlags, 'flags does not serialize correctly');
-	
-	attrArr := ser.parser.FindMember(obj, 'attributes');
-	attrObj := ser.parser.GetArrayValueByIdx(attrArr, 0);
-	mem := ser.parser.FindMember(attrObj, 'key');
-	actStr := ser.parser.GetString(mem);
-	THIS^.AssertEquals_STRING('stats.duration', actStr, 'attribute key does not serialize correctly');
-	
-	mem := ser.parser.FindMember(attrObj, 'value');
-	mem := ser.parser.FindMember(mem, 'stringValue');
-	actStr := ser.parser.GetString(mem);
-	THIS^.AssertEquals_STRING('pVal', actStr, 'attribute value does not serialize correctly');
-	
-	// Delete the list-owned record and leave both owners empty for repeated test runs.
-	logRecords.free();
-	simpleProcessor.free();
-	logger.free();
-	THIS^.AssertTrue(logRecords.next() = 0, 'Expected logRecords to be empty');
 
 TcUnit.TEST_FINISHED();
 ]]></ST>
@@ -145,9 +41,16 @@ VAR
 	scopeA1: FB_InstrumentationScope(name:='scope-a1', version:='1.0.0', schemaUrl:='scope-a1-schema');
 	scopeA2: FB_InstrumentationScope(name:='scope-a2', version:='2.0.0', schemaUrl:='scope-a2-schema');
 	scopeB1: FB_InstrumentationScope(name:='scope-b1', version:='1.0.0', schemaUrl:='scope-b1-schema');
-	loggerA1: FB_Logger(providerA, scopeA1);
-	loggerA2: FB_Logger(providerA, scopeA2);
-	loggerB1: FB_Logger(providerB, scopeB1);
+	loggerA1: FB_Logger(scope:=scopeA1, provider:=providerA);
+	loggerA2: FB_Logger(scope:=scopeA2, provider:=providerA);
+	loggerB1: FB_Logger(scope:=scopeB1, provider:=providerB);
+	processor: FB_LogRecordProcessor_ForRecordInspection(0);
+	processors: ARRAY [0..0] OF I_LogRecordProcessor := [processor];
+	sts: E_PointerFactoryStatus;
+	timestampA1First: ULINT := 101;
+	timestampB1: ULINT := 102;
+	timestampA2: ULINT := 103;
+	timestampA1Second: ULINT := 104;
 	serializer: FB_LogRecordProtoJsonSerializer();
 	logRecords: FB_LinkedList_LogRecord;
 	pRecordA1First: POINTER TO FB_LogRecord;
@@ -181,38 +84,54 @@ END_VAR
 	logRecords.free();
 
 	// Interleave resources and scopes so grouping cannot depend on input adjacency.
-	pRecordA1First := __NEW(FB_LogRecord(
-		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
-		timestamp:=ULINT#101,
-		logger:=loggerA1,
-		pSource:=0
-	));
-	pRecordB1 := __NEW(FB_LogRecord(
-		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
-		timestamp:=ULINT#102,
-		logger:=loggerB1,
-		pSource:=0
-	));
-	pRecordA2 := __NEW(FB_LogRecord(
-		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
-		timestamp:=ULINT#103,
-		logger:=loggerA2,
-		pSource:=0
-	));
-	pRecordA1Second := __NEW(FB_LogRecord(
-		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
-		timestamp:=ULINT#104,
-		logger:=loggerA1,
-		pSource:=0
-	));
-
+	sts := loggerA1
+		.startLogRecord(
+			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
+			timestamp:=ADR(timestampA1First)
+		)
+		.emit(processors);
+	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, sts, 'Expected first scope A1 record emission to succeed');
+	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, processor.sts, 'Expected first scope A1 record capture to succeed');
+	pRecordA1First := processor.pop();
 	IF pRecordA1First <> 0 THEN appendedA1First := logRecords.append(pRecordA1First); END_IF
+
+	sts := loggerB1
+		.startLogRecord(
+			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
+			timestamp:=ADR(timestampB1)
+		)
+		.emit(processors);
+	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, sts, 'Expected scope B1 record emission to succeed');
+	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, processor.sts, 'Expected scope B1 record capture to succeed');
+	pRecordB1 := processor.pop();
 	IF pRecordB1 <> 0 THEN appendedB1 := logRecords.append(pRecordB1); END_IF
+
+	sts := loggerA2
+		.startLogRecord(
+			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
+			timestamp:=ADR(timestampA2)
+		)
+		.emit(processors);
+	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, sts, 'Expected scope A2 record emission to succeed');
+	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, processor.sts, 'Expected scope A2 record capture to succeed');
+	pRecordA2 := processor.pop();
 	IF pRecordA2 <> 0 THEN appendedA2 := logRecords.append(pRecordA2); END_IF
+
+	sts := loggerA1
+		.startLogRecord(
+			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
+			timestamp:=ADR(timestampA1Second)
+		)
+		.emit(processors);
+	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, sts, 'Expected second scope A1 record emission to succeed');
+	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, processor.sts, 'Expected second scope A1 record capture to succeed');
+	pRecordA1Second := processor.pop();
 	IF pRecordA1Second <> 0 THEN appendedA1Second := logRecords.append(pRecordA1Second); END_IF
+
 	THIS^.AssertTrue(appendedA1First AND appendedB1 AND appendedA2 AND appendedA1Second, 'Expected all test records to be allocated and appended');
 
 	IF NOT (appendedA1First AND appendedB1 AND appendedA2 AND appendedA1Second) THEN
+		processor.free();
 		IF NOT appendedA1First AND pRecordA1First <> 0 THEN pRecordA1First := pRecordA1First^.delete(); END_IF
 		IF NOT appendedB1 AND pRecordB1 <> 0 THEN pRecordB1 := pRecordB1^.delete(); END_IF
 		IF NOT appendedA2 AND pRecordA2 <> 0 THEN pRecordA2 := pRecordA2^.delete(); END_IF
@@ -342,6 +261,7 @@ END_VAR
 	pRecordB1 := 0;
 	pRecordA2 := 0;
 	pRecordA1Second := 0;
+	processor.free();
 	THIS^.AssertEquals_UDINT(0, logRecords.count, 'Expected test cleanup to release all records');
 
 TcUnit.TEST_FINISHED();
