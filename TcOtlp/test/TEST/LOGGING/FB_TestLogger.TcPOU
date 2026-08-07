@@ -29,7 +29,7 @@ END_VAR]]></Declaration>
 			E_SeverityNumber.SEVERITY_NUMBER_DEBUG
 		)
 		.setBody('logger1 body')
-		.setEventName(ADR('logger1.event1'));
+		.setEventName('logger1.event1');
 	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Unexpected null record');
 	
 	sts := logger.emit(processors);

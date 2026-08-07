@@ -8,9 +8,8 @@ VAR
 	fbTestContextObjects: FB_TestContextObjects();
 	fbTestLogger: FB_TestLogger();
 	fbTestProcessors: FB_TestLogProcessors();
-	
-// 	fbTestLogging: FB_TestLogging();
-// 	fbTestProtoJsonSerializer: FB_TestProtoJsonSerializer();
+	fbTestLogRecord: FB_TestLogRecord();
+	fbTestProtoJsonSerializer: FB_TestProtoJsonSerializer();
 // 	fbTestFileExporter: FB_TestFileExporter();
 END_VAR
 ]]></Declaration>

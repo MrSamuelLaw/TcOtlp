@@ -6,6 +6,32 @@
     <Implementation>
       <ST><![CDATA[TestSimpleProcessors();]]></ST>
     </Implementation>
+    <Method Name="testBatchProcessors" Id="{7cba4cd6-baeb-4652-979f-3089242ac7bc}">
+      <Declaration><![CDATA[METHOD testBatchProcessors : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	provider: FB_LoggerProvider(resource);
+	scope: FB_InstrumentationScope('name', 'version', 'schemaUrl');
+	logger: FB_Logger(scope, provider);
+// 	processor: FB_LogRecordProcessor_ConsolePrinter(0);
+	processor: FB_LogRecordProcessor_Batch(0);
+	processors: ARRAY [0..0] OF I_LogRecordProcessor := [
+		processor
+	];
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test SimpleLogProcessors');
+	resource.attributes.addStringAttribute('plc.name', 'sim.plc');
+	logger.startLogRecord(
+			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_ERROR
+		)
+		.setBody('this is a test')
+		.emit(processors);
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="testSimpleProcessors" Id="{4aa68aa9-8a85-4975-8601-420ccbbed827}">
       <Declaration><![CDATA[METHOD testSimpleProcessors : REFERENCE TO FB_Test
 VAR

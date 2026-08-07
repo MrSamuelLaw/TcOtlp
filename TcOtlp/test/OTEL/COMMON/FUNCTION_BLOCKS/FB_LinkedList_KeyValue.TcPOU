@@ -145,18 +145,26 @@ VAR_IN_OUT
 END_VAR
 VAR
 	_idx: UDINT;
-	_pSrc: POINTER TO FB_AnyValue;
-	_pDest: POINTER TO FB_AnyValue;
+	_pSrc: POINTER TO FB_KeyValue;
+	_pDest: POINTER TO FB_KeyValue;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[src.reset();
+        <ST><![CDATA[copyFrom := E_PointerFactoryStatus.SUCCESS;
+src.reset();
 FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
 	_pSrc := src.next();
 	IF _pSrc = 0 THEN
 		RETURN;
 	END_IF
-	copyFrom := ValueFactory.cloneAnyValue(_pDest, _pSrc);
+	copyFrom := ValueFactory.cloneKeyValue(_pDest, _pSrc);
+	IF copyFrom <> E_PointerFactoryStatus.SUCCESS THEN
+		RETURN;
+	END_IF
 	copyFrom := THIS^.append(_pDest);
+	IF copyFrom <> E_PointerFactoryStatus.SUCCESS THEN
+		_pDest := _pDest^.delete();
+		RETURN;
+	END_IF
 END_FOR
 
 

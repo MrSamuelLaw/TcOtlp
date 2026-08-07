@@ -25,6 +25,96 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="cloneTo" Id="{4a867786-45e0-429a-8696-63d77c0ab19f}">
+      <Declaration><![CDATA[METHOD cloneTo : E_PointerFactoryStatus
+VAR_IN_OUT
+	pDest: POINTER TO FB_LogRecord;
+END_VAR
+VAR
+	_pClone: POINTER TO FB_LogRecord;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pDest <> 0 THEN
+	cloneTo := E_PointerFactoryStatus.POINTER_ALREADY_ALLOCATED;
+	RETURN;
+END_IF
+
+_pClone := __NEW(FB_LogRecord(
+	severityNumber:=THIS^.severityNumber,
+	timestamp:=THIS^.timestamp
+));
+IF _pClone = 0 THEN
+	cloneTo := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	RETURN;
+END_IF
+
+_pClone^.droppedAttributesCount := THIS^.droppedAttributesCount;
+
+IF THIS^.eventName <> 0 THEN
+	cloneTo := ValueFactory.cloneString(_pClone^.eventName, THIS^.eventName);
+	IF cloneTo <> E_PointerFactoryStatus.SUCCESS THEN
+		_pClone := _pClone^.delete();
+		RETURN;
+	END_IF
+END_IF
+
+IF THIS^.traceId <> 0 THEN
+	cloneTo := ValueFactory.createTraceId(_pClone^.traceId, ADR(THIS^.traceId^.bytes), SIZEOF(THIS^.traceId^.bytes));
+	IF cloneTo <> E_PointerFactoryStatus.SUCCESS THEN
+		_pClone := _pClone^.delete();
+		RETURN;
+	END_IF
+END_IF
+
+IF THIS^.flags <> 0 THEN
+	_pClone^.flags := __NEW(E_LogRecordFlag);
+	IF _pClone^.flags = 0 THEN
+		cloneTo := E_PointerFactoryStatus.OUT_OF_MEMORY;
+		_pClone := _pClone^.delete();
+		RETURN;
+	END_IF
+	_pClone^.flags^ := THIS^.flags^;
+END_IF
+
+IF THIS^.spanId <> 0 THEN
+	cloneTo := ValueFactory.createSpanId(_pClone^.spanId, ADR(THIS^.spanId^.bytes), SIZEOF(THIS^.spanId^.bytes));
+	IF cloneTo <> E_PointerFactoryStatus.SUCCESS THEN
+		_pClone := _pClone^.delete();
+		RETURN;
+	END_IF
+END_IF
+
+IF THIS^.body <> 0 THEN
+	cloneTo := ValueFactory.cloneAnyValue(_pClone^.body, THIS^.body);
+	IF cloneTo <> E_PointerFactoryStatus.SUCCESS THEN
+		_pClone := _pClone^.delete();
+		RETURN;
+	END_IF
+END_IF
+
+cloneTo := _pClone^.resource.copyFrom(THIS^.resource);
+IF cloneTo <> E_PointerFactoryStatus.SUCCESS THEN
+	_pClone := _pClone^.delete();
+	RETURN;
+END_IF
+
+cloneTo := _pClone^.scope.copyFrom(THIS^.scope);
+IF cloneTo <> E_PointerFactoryStatus.SUCCESS THEN
+	_pClone := _pClone^.delete();
+	RETURN;
+END_IF
+
+cloneTo := _pClone^.attributes.copyFrom(THIS^.attributes);
+IF cloneTo <> E_PointerFactoryStatus.SUCCESS THEN
+	_pClone := _pClone^.delete();
+	RETURN;
+END_IF
+
+pDest := _pClone;
+cloneTo := E_PointerFactoryStatus.SUCCESS;]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="delete" Id="{3cb201ad-0be2-4ce4-945f-e69f0fb01637}">
       <Declaration><![CDATA[METHOD delete: ULINT
 VAR
@@ -63,17 +153,12 @@ VAR_INPUT
 	// required values
 	severityNumber: E_SeverityNumber;
 	timestamp: 		ULINT;
-	resource: REFERENCE TO FB_Resource;
-	scope: REFERENCE TO FB_InstrumentationScope;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[// required values
 THIS^.severityNumber := severityNumber;
 THIS^.timestamp := timestamp;
-THIS^.resource := resource;
-THIS^.scope := scope;
-
 ]]></ST>
       </Implementation>
     </Method>

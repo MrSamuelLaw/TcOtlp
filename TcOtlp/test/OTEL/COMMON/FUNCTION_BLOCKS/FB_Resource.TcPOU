@@ -21,6 +21,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[THIS^.schemaUrl := src.schemaUrl;
+THIS^.droppedAttributesCount := src.droppedAttributesCount;
 THIS^.attributes.free();
 copyFrom := THIS^.attributes.copyFrom(src.attributes);
 ]]></ST>

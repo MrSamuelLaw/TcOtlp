@@ -151,6 +151,9 @@
     <Compile Include="TEST\LOGGING\FB_TestLogProcessors.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TEST\LOGGING\FB_TestLogRecord.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="TEST\LOGGING\FB_TestProtoJsonSerializer.TcPOU">
       <SubType>Code</SubType>
     </Compile>
