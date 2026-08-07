@@ -29,5 +29,13 @@ END_VAR
 THIS^.sts := logRecord.cloneTo(THIS^.record);]]></ST>
       </Implementation>
     </Method>
+    <Method Name="pop" Id="{3930a8d2-bfba-4caf-bbd7-c6b54b336880}">
+      <Declaration><![CDATA[METHOD pop : POINTER TO FB_LogRecord
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[pop := THIS^.record;
+THIS^.record := 0;]]></ST>
+      </Implementation>
+    </Method>
   </POU>
 </TcPlcObject>

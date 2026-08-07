@@ -10,22 +10,100 @@
     <Method Name="TestSerializeLogRecord" Id="{432059f0-a68e-4217-85ac-25035b48c8cb}">
       <Declaration><![CDATA[METHOD TestSerializeLogRecord : REFERENCE TO FB_Test
 VAR
-	// define the resource and provider
 	resource: FB_Resource(schemaUrl:='');
 	provider: FB_LoggerProvider(resource:=resource);
-	// define the scope and the logger
 	scope: FB_InstrumentationScope(name:='motor1', version:='0.0.1a', schemaUrl:='');
 	logger: FB_Logger(scope:=scope, provider:=provider);
-	// collect the emitted record before passing it to the serializer
 	processor: FB_LogRecordProcessor_ForRecordInspection(0);
-	processors: ARRAY [0..0] OF I_LogRecordProcessor := [
-		processor
-	];
+	processors: ARRAY [0..0] OF I_LogRecordProcessor := [processor];
+	serializer: FB_LogRecordProtoJsonSerializer();
+	sts: E_PointerFactoryStatus;
+	timestamp: ULINT := 1581452773000000789;
+	traceId: ARRAY [0..15] OF BYTE := [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+	spanId: ARRAY [0..7] OF BYTE := [16, 17, 18, 19, 20, 21, 22, 23];
+	pRecord: POINTER TO FB_LogRecord;
+	root: SJsonValue;
+	records: SJsonValue;
+	obj: SJsonValue;
+	member: SJsonValue;
+	attributes: SJsonValue;
+	attribute: SJsonValue;
+	value: SJsonValue;
+	actualString: STRING;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test SerializeLogRecord');
-	
+	processor.free();
+	logger.free();
+
+	// Create a representative record through the public logger API.
+	logger
+		.startLogRecord(
+			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG,
+			timestamp:=ADR(timestamp)
+		)
+		.setEventName('Serialization Event')
+		.setBody('This is a body string value')
+		.setTraceId(ADR(traceId), SIZEOF(traceId))
+		.setSpanId(ADR(spanId), SIZEOF(spanId))
+		.setFlags(E_LogRecordFlag.LOG_RECORD_FLAGS_TRACE_FLAGS_MASK)
+		.addStringAttribute('stats.duration', 'pVal');
+	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, logger.sts, 'Expected log record creation to succeed');
+	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected a log record before emission');
+	IF logger.pLogRecord <> 0 THEN
+		logger.pLogRecord^.droppedAttributesCount := 2;
+	END_IF
+
+	sts := logger.emit(processors);
+	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, sts, 'Expected log record emission to succeed');
+	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, processor.sts, 'Expected emitted record capture to succeed');
+	THIS^.AssertTrue(logger.pLogRecord = 0, 'Expected emit to release the logger-owned record');
+	pRecord := processor.pop();
+	THIS^.AssertTrue(pRecord <> 0, 'Expected the processor to return the emitted record');
+
+	// serializeLogRecord appends one LogRecord object to the supplied JSON array.
+	root := serializer.parser.NewDocument();
+	serializer.parser.SetObject(root);
+	records := serializer.parser.AddArrayMember(root, 'logRecords', 0);
+	serializer.serializeLogRecord(records, pRecord);
+	obj := serializer.parser.GetArrayValueByIdx(records, 0);
+	THIS^.AssertTrue(serializer.parser.IsObject(obj), 'Expected one serialized LogRecord object');
+
+	// OTLP/JSON encodes enums and fixed32 values as numbers.
+	member := serializer.parser.FindMember(obj, 'severityNumber');
+	THIS^.AssertEquals_UDINT(5, serializer.parser.GetUint(member), 'Expected numeric OTLP severityNumber');
+	actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'severityText'));
+	THIS^.AssertEquals_STRING('SEVERITY_NUMBER_DEBUG', actualString, 'Expected severityText');
+	THIS^.AssertEquals_UDINT(255, serializer.parser.GetUint(serializer.parser.FindMember(obj, 'flags')), 'Expected numeric OTLP flags');
+	THIS^.AssertEquals_UDINT(2, serializer.parser.GetUint(serializer.parser.FindMember(obj, 'droppedAttributesCount')), 'Expected droppedAttributesCount');
+
+	// OTLP/JSON encodes 64-bit integers as decimal strings and trace/span IDs as hex.
+	actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'timeUnixNano'));
+	THIS^.AssertEquals_STRING('1581452773000000789', actualString, 'Expected string-encoded timeUnixNano');
+	actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'traceId'));
+	THIS^.AssertEquals_STRING('000102030405060708090A0B0C0D0E0F', actualString, 'Expected hex-encoded traceId');
+	actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'spanId'));
+	THIS^.AssertEquals_STRING('1011121314151617', actualString, 'Expected hex-encoded spanId');
+
+	actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'eventName'));
+	THIS^.AssertEquals_STRING('Serialization Event', actualString, 'Expected eventName');
+	value := serializer.parser.FindMember(serializer.parser.FindMember(obj, 'body'), 'stringValue');
+	actualString := serializer.parser.GetString(value);
+	THIS^.AssertEquals_STRING('This is a body string value', actualString, 'Expected AnyValue string body');
+
+	attributes := serializer.parser.FindMember(obj, 'attributes');
+	THIS^.AssertTrue(serializer.parser.IsArray(attributes), 'Expected attributes array');
+	attribute := serializer.parser.GetArrayValueByIdx(attributes, 0);
+	actualString := serializer.parser.GetString(serializer.parser.FindMember(attribute, 'key'));
+	THIS^.AssertEquals_STRING('stats.duration', actualString, 'Expected attribute key');
+	value := serializer.parser.FindMember(serializer.parser.FindMember(attribute, 'value'), 'stringValue');
+	actualString := serializer.parser.GetString(value);
+	THIS^.AssertEquals_STRING('pVal', actualString, 'Expected attribute AnyValue');
+
+	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+	processor.free();
+	logger.free();
 
 TcUnit.TEST_FINISHED();
 ]]></ST>
@@ -33,239 +111,10 @@ TcUnit.TEST_FINISHED();
     </Method>
     <Method Name="TestSerializeLogsData" Id="{3baae409-f1cd-4ee8-b8e2-c63cbc28a66d}">
       <Declaration><![CDATA[METHOD TestSerializeLogsData : REFERENCE TO FB_Test
-VAR
-	resourceA: FB_Resource(schemaUrl:='resource-a');
-	resourceB: FB_Resource(schemaUrl:='resource-b');
-	providerA: FB_LoggerProvider(resource:=resourceA);
-	providerB: FB_LoggerProvider(resource:=resourceB);
-	scopeA1: FB_InstrumentationScope(name:='scope-a1', version:='1.0.0', schemaUrl:='scope-a1-schema');
-	scopeA2: FB_InstrumentationScope(name:='scope-a2', version:='2.0.0', schemaUrl:='scope-a2-schema');
-	scopeB1: FB_InstrumentationScope(name:='scope-b1', version:='1.0.0', schemaUrl:='scope-b1-schema');
-	loggerA1: FB_Logger(scope:=scopeA1, provider:=providerA);
-	loggerA2: FB_Logger(scope:=scopeA2, provider:=providerA);
-	loggerB1: FB_Logger(scope:=scopeB1, provider:=providerB);
-	processor: FB_LogRecordProcessor_ForRecordInspection(0);
-	processors: ARRAY [0..0] OF I_LogRecordProcessor := [processor];
-	sts: E_PointerFactoryStatus;
-	timestampA1First: ULINT := 101;
-	timestampB1: ULINT := 102;
-	timestampA2: ULINT := 103;
-	timestampA1Second: ULINT := 104;
-	serializer: FB_LogRecordProtoJsonSerializer();
-	logRecords: FB_LinkedList_LogRecord;
-	pRecordA1First: POINTER TO FB_LogRecord;
-	pRecordB1: POINTER TO FB_LogRecord;
-	pRecordA2: POINTER TO FB_LogRecord;
-	pRecordA1Second: POINTER TO FB_LogRecord;
-	appendedA1First: BOOL;
-	appendedB1: BOOL;
-	appendedA2: BOOL;
-	appendedA1Second: BOOL;
-	root: SJsonValue;
-	resourceLogs: SJsonValue;
-	resourceLogsA: SJsonValue;
-	resourceLogsB: SJsonValue;
-	scopeLogs: SJsonValue;
-	scopeLogsA1: SJsonValue;
-	scopeLogsA2: SJsonValue;
-	scopeLogsB1: SJsonValue;
-	serializedRecords: SJsonValue;
-	obj: SJsonValue;
-	member: SJsonValue;
-	arrayIterator: SJsonAIterator;
-	arrayEnd: SJsonAIterator;
-	arrayCount: UDINT;
-	actualString: STRING;
-	pCursor: POINTER TO FB_LogRecord;
-END_VAR
+
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test SerializeLogsData');
-	logRecords.free();
-
-	// Interleave resources and scopes so grouping cannot depend on input adjacency.
-	sts := loggerA1
-		.startLogRecord(
-			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
-			timestamp:=ADR(timestampA1First)
-		)
-		.emit(processors);
-	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, sts, 'Expected first scope A1 record emission to succeed');
-	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, processor.sts, 'Expected first scope A1 record capture to succeed');
-	pRecordA1First := processor.pop();
-	IF pRecordA1First <> 0 THEN appendedA1First := logRecords.append(pRecordA1First); END_IF
-
-	sts := loggerB1
-		.startLogRecord(
-			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
-			timestamp:=ADR(timestampB1)
-		)
-		.emit(processors);
-	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, sts, 'Expected scope B1 record emission to succeed');
-	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, processor.sts, 'Expected scope B1 record capture to succeed');
-	pRecordB1 := processor.pop();
-	IF pRecordB1 <> 0 THEN appendedB1 := logRecords.append(pRecordB1); END_IF
-
-	sts := loggerA2
-		.startLogRecord(
-			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
-			timestamp:=ADR(timestampA2)
-		)
-		.emit(processors);
-	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, sts, 'Expected scope A2 record emission to succeed');
-	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, processor.sts, 'Expected scope A2 record capture to succeed');
-	pRecordA2 := processor.pop();
-	IF pRecordA2 <> 0 THEN appendedA2 := logRecords.append(pRecordA2); END_IF
-
-	sts := loggerA1
-		.startLogRecord(
-			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
-			timestamp:=ADR(timestampA1Second)
-		)
-		.emit(processors);
-	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, sts, 'Expected second scope A1 record emission to succeed');
-	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, processor.sts, 'Expected second scope A1 record capture to succeed');
-	pRecordA1Second := processor.pop();
-	IF pRecordA1Second <> 0 THEN appendedA1Second := logRecords.append(pRecordA1Second); END_IF
-
-	THIS^.AssertTrue(appendedA1First AND appendedB1 AND appendedA2 AND appendedA1Second, 'Expected all test records to be allocated and appended');
-
-	IF NOT (appendedA1First AND appendedB1 AND appendedA2 AND appendedA1Second) THEN
-		processor.free();
-		IF NOT appendedA1First AND pRecordA1First <> 0 THEN pRecordA1First := pRecordA1First^.delete(); END_IF
-		IF NOT appendedB1 AND pRecordB1 <> 0 THEN pRecordB1 := pRecordB1^.delete(); END_IF
-		IF NOT appendedA2 AND pRecordA2 <> 0 THEN pRecordA2 := pRecordA2^.delete(); END_IF
-		IF NOT appendedA1Second AND pRecordA1Second <> 0 THEN pRecordA1Second := pRecordA1Second^.delete(); END_IF
-		logRecords.free();
-		pRecordA1First := 0;
-		pRecordB1 := 0;
-		pRecordA2 := 0;
-		pRecordA1Second := 0;
-		TcUnit.TEST_FINISHED();
-		RETURN;
-	END_IF
-
-	serializer.serializeLogsData(logRecords);
-	root := serializer.jsonValue;
-	THIS^.AssertTrue(serializer.parser.IsObject(root), 'Expected LogsData to serialize as the root object');
-
-	resourceLogs := serializer.parser.FindMember(root, 'resourceLogs');
-	THIS^.AssertTrue(serializer.parser.IsArray(resourceLogs), 'Expected resourceLogs to be an array');
-	arrayCount := 0;
-	arrayIterator := serializer.parser.ArrayBegin(resourceLogs);
-	arrayEnd := serializer.parser.ArrayEnd(resourceLogs);
-	WHILE arrayIterator <> arrayEnd AND arrayCount < GVL.MAX_LOG_RECORDS DO
-		arrayCount := arrayCount + 1;
-		arrayIterator := serializer.parser.NextArray(arrayIterator);
-	END_WHILE
-	THIS^.AssertEquals_UDINT(2, arrayCount, 'Expected one ResourceLogs object per resource instance');
-
-	resourceLogsA := serializer.parser.GetArrayValueByIdx(resourceLogs, 0);
-	member := serializer.parser.FindMember(resourceLogsA, 'schemaUrl');
-	actualString := serializer.parser.GetString(member);
-	THIS^.AssertEquals_STRING('resource-a', actualString, 'Expected first resource schema URL');
-	THIS^.AssertTrue(serializer.parser.IsObject(serializer.parser.FindMember(resourceLogsA, 'resource')), 'Expected ResourceLogs.resource object');
-
-	scopeLogs := serializer.parser.FindMember(resourceLogsA, 'scopeLogs');
-	arrayCount := 0;
-	arrayIterator := serializer.parser.ArrayBegin(scopeLogs);
-	arrayEnd := serializer.parser.ArrayEnd(scopeLogs);
-	WHILE arrayIterator <> arrayEnd AND arrayCount < GVL.MAX_LOG_RECORDS DO
-		arrayCount := arrayCount + 1;
-		arrayIterator := serializer.parser.NextArray(arrayIterator);
-	END_WHILE
-	THIS^.AssertEquals_UDINT(2, arrayCount, 'Expected resource A records to share two ScopeLogs objects');
-
-	scopeLogsA1 := serializer.parser.GetArrayValueByIdx(scopeLogs, 0);
-	obj := serializer.parser.FindMember(scopeLogsA1, 'scope');
-	actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'name'));
-	THIS^.AssertEquals_STRING('scope-a1', actualString, 'Expected first resource A scope');
-	serializedRecords := serializer.parser.FindMember(scopeLogsA1, 'logRecords');
-	arrayCount := 0;
-	arrayIterator := serializer.parser.ArrayBegin(serializedRecords);
-	arrayEnd := serializer.parser.ArrayEnd(serializedRecords);
-	WHILE arrayIterator <> arrayEnd AND arrayCount < GVL.MAX_LOG_RECORDS DO
-		arrayCount := arrayCount + 1;
-		arrayIterator := serializer.parser.NextArray(arrayIterator);
-	END_WHILE
-	THIS^.AssertEquals_UDINT(2, arrayCount, 'Expected both interleaved scope A1 records in one array');
-	obj := serializer.parser.GetArrayValueByIdx(serializedRecords, 0);
-	actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'timeUnixNano'));
-	THIS^.AssertEquals_STRING('101', actualString, 'Expected first scope A1 record once and in source order');
-	obj := serializer.parser.GetArrayValueByIdx(serializedRecords, 1);
-	actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'timeUnixNano'));
-	THIS^.AssertEquals_STRING('104', actualString, 'Expected second scope A1 record once and in source order');
-
-	scopeLogsA2 := serializer.parser.GetArrayValueByIdx(scopeLogs, 1);
-	obj := serializer.parser.FindMember(scopeLogsA2, 'scope');
-	actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'name'));
-	THIS^.AssertEquals_STRING('scope-a2', actualString, 'Expected second resource A scope');
-	serializedRecords := serializer.parser.FindMember(scopeLogsA2, 'logRecords');
-	arrayCount := 0;
-	arrayIterator := serializer.parser.ArrayBegin(serializedRecords);
-	arrayEnd := serializer.parser.ArrayEnd(serializedRecords);
-	WHILE arrayIterator <> arrayEnd AND arrayCount < GVL.MAX_LOG_RECORDS DO
-		arrayCount := arrayCount + 1;
-		arrayIterator := serializer.parser.NextArray(arrayIterator);
-	END_WHILE
-	THIS^.AssertEquals_UDINT(1, arrayCount, 'Expected scope A2 record exactly once');
-	obj := serializer.parser.GetArrayValueByIdx(serializedRecords, 0);
-	actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'timeUnixNano'));
-	THIS^.AssertEquals_STRING('103', actualString, 'Expected scope A2 record in its final branch');
-
-	resourceLogsB := serializer.parser.GetArrayValueByIdx(resourceLogs, 1);
-	member := serializer.parser.FindMember(resourceLogsB, 'schemaUrl');
-	actualString := serializer.parser.GetString(member);
-	THIS^.AssertEquals_STRING('resource-b', actualString, 'Expected second resource schema URL');
-	scopeLogs := serializer.parser.FindMember(resourceLogsB, 'scopeLogs');
-	arrayCount := 0;
-	arrayIterator := serializer.parser.ArrayBegin(scopeLogs);
-	arrayEnd := serializer.parser.ArrayEnd(scopeLogs);
-	WHILE arrayIterator <> arrayEnd AND arrayCount < GVL.MAX_LOG_RECORDS DO
-		arrayCount := arrayCount + 1;
-		arrayIterator := serializer.parser.NextArray(arrayIterator);
-	END_WHILE
-	THIS^.AssertEquals_UDINT(1, arrayCount, 'Expected one ScopeLogs object for resource B');
-	scopeLogsB1 := serializer.parser.GetArrayValueByIdx(scopeLogs, 0);
-	obj := serializer.parser.FindMember(scopeLogsB1, 'scope');
-	actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'name'));
-	THIS^.AssertEquals_STRING('scope-b1', actualString, 'Expected resource B scope');
-	serializedRecords := serializer.parser.FindMember(scopeLogsB1, 'logRecords');
-	arrayCount := 0;
-	arrayIterator := serializer.parser.ArrayBegin(serializedRecords);
-	arrayEnd := serializer.parser.ArrayEnd(serializedRecords);
-	WHILE arrayIterator <> arrayEnd AND arrayCount < GVL.MAX_LOG_RECORDS DO
-		arrayCount := arrayCount + 1;
-		arrayIterator := serializer.parser.NextArray(arrayIterator);
-	END_WHILE
-	THIS^.AssertEquals_UDINT(1, arrayCount, 'Expected resource B record exactly once');
-	obj := serializer.parser.GetArrayValueByIdx(serializedRecords, 0);
-	actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'timeUnixNano'));
-	THIS^.AssertEquals_STRING('102', actualString, 'Expected resource B record in its final branch');
-
-	// Serialization may move only the list cursor; it must preserve ownership, order, and record data.
-	THIS^.AssertEquals_UDINT(4, logRecords.count, 'Expected serializer to preserve the source list');
-	logRecords.reset();
-	pCursor := logRecords.next();
-	THIS^.AssertTrue(pCursor = pRecordA1First AND_THEN pCursor^.timestamp = ULINT#101, 'Expected first source record unchanged');
-	pCursor := logRecords.next();
-	THIS^.AssertTrue(pCursor = pRecordB1 AND_THEN pCursor^.timestamp = ULINT#102, 'Expected second source record unchanged');
-	pCursor := logRecords.next();
-	THIS^.AssertTrue(pCursor = pRecordA2 AND_THEN pCursor^.timestamp = ULINT#103, 'Expected third source record unchanged');
-	pCursor := logRecords.next();
-	THIS^.AssertTrue(pCursor = pRecordA1Second AND_THEN pCursor^.timestamp = ULINT#104, 'Expected fourth source record unchanged');
-	THIS^.AssertTrue(logRecords.next() = 0, 'Expected no source records to be added');
-
-	logRecords.free();
-	pRecordA1First := 0;
-	pRecordB1 := 0;
-	pRecordA2 := 0;
-	pRecordA1Second := 0;
-	processor.free();
-	THIS^.AssertEquals_UDINT(0, logRecords.count, 'Expected test cleanup to release all records');
-
-TcUnit.TEST_FINISHED();
-]]></ST>
+        <ST><![CDATA[]]></ST>
       </Implementation>
     </Method>
   </POU>

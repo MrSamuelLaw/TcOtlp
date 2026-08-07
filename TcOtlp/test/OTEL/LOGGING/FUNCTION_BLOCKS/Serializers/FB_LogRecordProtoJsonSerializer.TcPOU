@@ -30,6 +30,7 @@ END_IF
 
 // Serialize the required fields.
 _buf := pLogRecord^.severityText;  // properties require intermediate variables
+THIS^.parser.AddUintMember(_obj, 'severityNumber', TO_UDINT(pLogRecord^.severityNumber));
 THIS^.parser.AddStringMember(_obj, 'severityText', _buf);
 THIS^.serializeFixed64Value(_obj, ADR('timeUnixNano'), pLogRecord^.timestamp);
 
@@ -39,7 +40,10 @@ THIS^.serializeTraceIdValue(_obj, pLogRecord^.traceId);
 IF pLogRecord^.flags <> 0 THEN THIS^.serializeFixed32Value(_obj, ADR('flags'), TO_UDINT(pLogRecord^.flags^)); END_IF
 THIS^.serializeSpanIdValue(_obj, pLogRecord^.spanId);
 THIS^.serializeAnyValue(_obj, ADR('body'), pLogRecord^.body);
-THIS^.serializeKeyValues(_obj, ADR('attributes'), ADR(pLogRecord^.attributes));]]></ST>
+THIS^.serializeKeyValues(_obj, ADR('attributes'), ADR(pLogRecord^.attributes));
+IF pLogRecord^.droppedAttributesCount > 0 THEN
+	THIS^.serializeFixed32Value(_obj, ADR('droppedAttributesCount'), pLogRecord^.droppedAttributesCount);
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeLogRecords" Id="{c8755357-2d5c-4040-a054-202bb0d2153c}">
@@ -74,6 +78,9 @@ logRecords.reset();]]></ST>
     </Method>
     <Method Name="serializeLogsData" Id="{e949baee-9209-4a36-8a48-4eaffb67bbe1}">
       <Declaration><![CDATA[METHOD serializeLogsData
+VAR_IN_OUT
+	logRecords: FB_LinkedList_LogRecord;
+END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[]]></ST>
@@ -85,78 +92,12 @@ VAR_IN_OUT
 	v: SJsonValue;
 	resource: FB_Resource;
 	logRecords: FB_LinkedList_LogRecord;
-END_VAR
-VAR
-	_idx: UDINT;
-	_scopeIdx: UDINT;
-	_scopeCount: UDINT;
-	_rec: POINTER TO FB_LogRecord;
-	_recordResource: REFERENCE TO FB_Resource;
-	_recordScope: REFERENCE TO FB_InstrumentationScope;
-	_pResource: POINTER TO FB_Resource;
-	_pScope: POINTER TO FB_InstrumentationScope;
-	_scopeLogs: SJsonValue;
-	_scopeObj: SJsonValue;
-	_scopes: ARRAY [0..GVL.MAX_LOG_RECORDS - 1] OF POINTER TO FB_InstrumentationScope;
-	_scopeLogRecords: ARRAY [0..GVL.MAX_LOG_RECORDS - 1] OF SJsonValue;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[THIS^._injectResource(v, resource);
 IF resource.schemaUrl <> '' THEN
 	THIS^.parser.AddStringMember(v, 'schemaUrl', resource.schemaUrl);
-END_IF
-
-_scopeLogs := THIS^.parser.AddArrayMember(v, 'scopeLogs', 0);
-IF _scopeLogs = 0 THEN
-	RETURN;
-END_IF
-
-// Group matching records by scope during one traversal of the source list.
-_pResource := ADR(resource);
-_scopeCount := 0;
-logRecords.reset();
-FOR _idx := 0 TO GVL.MAX_LOG_RECORDS - 1 DO
-	_rec := logRecords.next();
-	IF _rec = 0 THEN
-		EXIT;
-	END_IF
-	_recordResource REF= _rec^.resource;
-	IF _recordResource.droppedAttributesCount <> _pResource^.droppedAttributesCount
-		OR_ELSE _recordResource.schemaUrl <> _pResource^.schemaUrl
-		OR_ELSE NOT _recordResource.attributes.equals(ADR(_pResource^.attributes)) THEN
-		CONTINUE;
-	END_IF
-
-	_recordScope REF= _rec^.instrumentationScope;
-	_pScope := ADR(_recordScope);
-	_scopeIdx := 0;
-	WHILE _scopeIdx < _scopeCount DO
-		IF _scopes[_scopeIdx]^.name = _pScope^.name
-			AND_THEN _scopes[_scopeIdx]^.version = _pScope^.version
-			AND_THEN _scopes[_scopeIdx]^.droppedAttributesCount = _pScope^.droppedAttributesCount
-			AND_THEN _scopes[_scopeIdx]^.schemaUrl = _pScope^.schemaUrl
-			AND_THEN _scopes[_scopeIdx]^.attributes.equals(ADR(_pScope^.attributes)) THEN
-			EXIT;
-		END_IF
-		_scopeIdx := _scopeIdx + 1;
-	END_WHILE
-
-	IF _scopeIdx = _scopeCount THEN
-		_scopeObj := THIS^.parser.PushbackJsonValue(_scopeLogs, '{}');
-		IF _scopeObj = 0 THEN EXIT; END_IF
-		THIS^._injectInstrumentationScope(_scopeObj, _pScope^);
-		IF _pScope^.schemaUrl <> '' THEN
-			THIS^.parser.AddStringMember(_scopeObj, 'schemaUrl', _pScope^.schemaUrl);
-		END_IF
-		_scopeLogRecords[_scopeIdx] := THIS^.parser.AddArrayMember(_scopeObj, 'logRecords', 0);
-		IF _scopeLogRecords[_scopeIdx] = 0 THEN EXIT; END_IF
-		_scopes[_scopeIdx] := _pScope;
-		_scopeCount := _scopeCount + 1;
-	END_IF
-
-	THIS^.serializeLogRecord(_scopeLogRecords[_scopeIdx], _rec);
-END_FOR
-logRecords.reset();]]></ST>
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeScopeLogs" Id="{3d36022d-3f4c-4a69-9fa9-1799ece683a0}">

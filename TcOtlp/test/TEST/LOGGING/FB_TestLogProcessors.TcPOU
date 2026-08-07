@@ -14,7 +14,7 @@ VAR
 	scope: FB_InstrumentationScope('name', 'version', 'schemaUrl');
 	logger: FB_Logger(scope, provider);
 // 	processor: FB_LogRecordProcessor_ConsolePrinter(0);
-	processor: FB_LogRecordProcessor_Batch(0);
+	processor: FB_LogRecordProcessor_ForRecordsInspection(0);
 	processors: ARRAY [0..0] OF I_LogRecordProcessor := [
 		processor
 	];

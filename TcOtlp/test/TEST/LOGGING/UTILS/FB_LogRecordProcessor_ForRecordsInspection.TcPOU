@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LogRecordProcessor_ForRecordsInspection" Id="{165df84d-fe08-4138-bc80-62512eeb91af}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProcessor_ForRecordsInspection EXTENDS FB_LogRecordProcessor_Batch
+VAR_OUTPUT
+	sts: E_PointerFactoryStatus;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="onEmit" Id="{cb8ed68d-eae4-46cd-ac01-fd87889551db}">
+      <Declaration><![CDATA[METHOD onEmit
+VAR_INPUT
+	logRecord: REFERENCE TO FB_LogRecord;
+END_VAR
+VAR
+	record: POINTER TO FB_LogRecord;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._records.count >= THIS^.maxQueueSize THEN
+	THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	RETURN;
+END_IF
+
+record := 0;
+THIS^.sts := logRecord.cloneTo(record);
+IF THIS^.sts <> E_PointerFactoryStatus.SUCCESS THEN
+	RETURN;
+END_IF
+
+IF NOT THIS^._records.append(record) THEN
+	record := record^.delete();
+	THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+ELSE
+	record := 0;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="records" Id="{e6573eb1-0ce2-4c29-b81f-faf070bed2e3}">
+      <Declaration><![CDATA[PROPERTY records : REFERENCE TO FB_LinkedList_LogRecord]]></Declaration>
+      <Get Name="Get" Id="{94707f0e-43af-40f1-b736-6188bca9d8d0}">
+        <Declaration><![CDATA[
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[records REF= THIS^._records;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+  </POU>
+</TcPlcObject>

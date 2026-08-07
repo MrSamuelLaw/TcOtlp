@@ -163,6 +163,9 @@
     <Compile Include="TEST\LOGGING\UTILS\FB_LogRecordProcessor_ForRecordInspection.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TEST\LOGGING\UTILS\FB_LogRecordProcessor_ForRecordsInspection.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="SIM" />

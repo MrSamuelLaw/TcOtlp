@@ -10,7 +10,7 @@ VAR
 	fbTestProcessors: FB_TestLogProcessors();
 	fbTestLogRecord: FB_TestLogRecord();
 	fbTestProtoJsonSerializer: FB_TestProtoJsonSerializer();
-// 	fbTestFileExporter: FB_TestFileExporter();
+	fbTestFileExporter: FB_TestFileExporter();
 END_VAR
 ]]></Declaration>
     <Implementation>
