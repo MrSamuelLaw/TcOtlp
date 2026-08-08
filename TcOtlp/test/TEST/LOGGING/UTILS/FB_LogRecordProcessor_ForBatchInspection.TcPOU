@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LogRecordProcessor_ForBatchInspection" Id="{77cf6308-3d1f-410d-950d-b1dca7c648b7}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Exposes the batch processor's record queue for test assertions.
+	Unlike FB_LogRecordProcessor_ForRecordsInspection it does NOT override
+	onEmit, so tests exercise the real batch grouping behavior.
+*)
+FUNCTION_BLOCK FB_LogRecordProcessor_ForBatchInspection EXTENDS FB_LogRecordProcessor_Batch]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Property Name="records" Id="{f123a485-0b0c-4d1a-a6b7-26aed6beabce}">
+      <Declaration><![CDATA[PROPERTY records : REFERENCE TO FB_LinkedList_LogRecord]]></Declaration>
+      <Get Name="Get" Id="{f907df37-cc42-4b7f-92c6-7c91c79a1e96}">
+        <Declaration><![CDATA[
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[records REF= THIS^._records;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+  </POU>
+</TcPlcObject>

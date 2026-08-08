@@ -182,7 +182,7 @@ IF NOT pVal^.initialized THEN
 END_IF
 
 // clone all owned data before allocating the value itself
-_len := MIN(LEN2(pKey), GVL.MAX_STRING_LEN) + 1;
+_len := LEN2(pKey) + 1;
 _pKey := __NEW(BYTE, _len);
 IF _pKey = 0 THEN
 	createKeyValue := E_PointerFactoryStatus.OUT_OF_MEMORY;
@@ -342,7 +342,7 @@ END_IF
 
 // clone the string into a new pointer so as to not use mutable data
 // an extra character is needed for the terminating character, which is a literal 0 just like "cstrings"
-_len := MIN(LEN2(pString), GVL.MAX_STRING_LEN) + 1;
+_len := LEN2(pString) + 1;
 _pString := __NEW(BYTE, _len);
 IF _pString = 0 THEN
 	createString := E_PointerFactoryStatus.OUT_OF_MEMORY;

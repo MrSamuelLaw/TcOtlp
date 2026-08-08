@@ -47,8 +47,10 @@ END_VAR
 	resource.attributes.addStringAttribute('key', 'value');
 	THIS^.assertTrue(resource.attributes.count = 1, 'Expected one attribute');
 	THIS^.AssertTrue(copyTarget.attributes.count = 0, 'Expected zero attribute');
+	THIS^.AssertTrue(resource.id <> copyTarget.id, 'Expected distinct identities before the copy');
 	
 	copyTarget.copyFrom(resource);
+	THIS^.AssertEquals_UDINT(resource.id, copyTarget.id, 'Expected the snapshot to share the source identity');
 	THIS^.assertTrue(resource.attributes.count = 1, 'Expected one attribute');
 	THIS^.AssertTrue(copyTarget.attributes.count = 1, 'Expected one attribute');
 	

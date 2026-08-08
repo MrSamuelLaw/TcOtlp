@@ -42,6 +42,9 @@
     <Compile Include="OTEL\COMMON\ENUMS\E_ValueType.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\FB_BaseProtoJsonSerializer.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\FB_InstrumentationScope.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -81,6 +84,9 @@
     <Compile Include="OTEL\COMMON\STRUCTS\ST_LinkedListNode.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\IdFactory.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\GVL.TcGVL">
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
@@ -118,10 +124,10 @@
     <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\Processors\FB_LogRecordProcessor_Batch.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\Serializers\FB_BaseProtoJsonSerializer.TcPOU">
+    <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\Serializers\FB_LogRecordProtoJsonSerializer.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\Serializers\FB_LogRecordProtoJsonSerializer.TcPOU">
+    <Compile Include="OTEL\LOGGING\STRUCTS\ST_LogRecordGroup.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\LOGGING\INTERFACES\I_LogRecordProcessor.TcIO">
@@ -145,6 +151,9 @@
     <Compile Include="TEST\LOGGING\FB_TestFileExporter.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TEST\LOGGING\FB_TestLinkedList_LogRecord.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="TEST\LOGGING\FB_TestLogger.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -158,6 +167,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TEST\LOGGING\UTILS\FB_LogRecordProcessor_ConsolePrinter.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="TEST\LOGGING\UTILS\FB_LogRecordProcessor_ForBatchInspection.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TEST\LOGGING\UTILS\FB_LogRecordProcessor_ForRecordInspection.TcPOU">
@@ -183,6 +195,7 @@
     <Folder Include="OTEL\LOGGING\FUNCTION_BLOCKS\Processors" />
     <Folder Include="OTEL\LOGGING\FUNCTION_BLOCKS\Serializers" />
     <Folder Include="OTEL\LOGGING\INTERFACES" />
+    <Folder Include="OTEL\LOGGING\STRUCTS" />
     <Folder Include="TEST" />
     <Folder Include="TEST\LOGGING" />
     <Folder Include="TEST\COMMON" />
@@ -227,8 +240,8 @@
   <ProjectExtensions>
     <PlcProjectOptions>
       <XmlArchive>
-  <Data>
-    <o xml:space="preserve" t="OptionKey">
+        <Data>
+          <o xml:space="preserve" t="OptionKey">
       <v n="Name">"&lt;ProjectRoot&gt;"</v>
       <d n="SubKeys" t="Hashtable" ckt="String" cvt="OptionKey">
         <v>{192FAD59-8248-4824-A8DE-9177C94C195A}</v>
@@ -304,14 +317,14 @@
       </d>
       <d n="Values" t="Hashtable" />
     </o>
-  </Data>
-  <TypeList>
-    <Type n="Boolean">System.Boolean</Type>
-    <Type n="Hashtable">System.Collections.Hashtable</Type>
-    <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
-    <Type n="String">System.String</Type>
-  </TypeList>
-</XmlArchive>
+        </Data>
+        <TypeList>
+          <Type n="Boolean">System.Boolean</Type>
+          <Type n="Hashtable">System.Collections.Hashtable</Type>
+          <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
+          <Type n="String">System.String</Type>
+        </TypeList>
+      </XmlArchive>
     </PlcProjectOptions>
   </ProjectExtensions>
 </Project>

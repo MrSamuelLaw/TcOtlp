@@ -1,6 +1,6 @@
 # Notes For Next Time
-1. Create a FB_TestLogRecord function block to test the log record functionality.
-2. Once the FB_TestLogRecord clone method is working, run a processor that retains a deep copy of the record so I can interrogate if it augments the log record properly.
+1. Migrate all linked list append operations to use pointer factory status
+2. Analyze semantics around pointer factory status.
 
 ## Modeling
 - [x] Update the domain model

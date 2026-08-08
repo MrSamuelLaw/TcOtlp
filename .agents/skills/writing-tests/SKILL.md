@@ -9,10 +9,9 @@ Creates TcUnit test suites as TwinCAT Structured Text `.TcPOU` files for the TcO
 
 ## Key Architecture Rules
 
-### 1. MAIN Must Call `TcUnit.RUN_IN_SEQUENCE()`
+### 1. MAIN Must Call `TcUnit.RUN()`
 
-The test MAIN program (`TcOtlp/test/MAIN.TcPOU`) **must** contain `TcUnit.RUN_IN_SEQUENCE();` in its Implementation body. This ensures tests execute one at a time rather than concurrently, which is required because tests share PLC scan cycles.
-
+The test MAIN program (`TcOtlp/test/MAIN.TcPOU`) **must** contain `TcUnit.RUN();` in its Implementation body.
 ```xml
 <Implementation>
   <ST><![CDATA[TcUnit.RUN_IN_SEQUENCE();]]></ST>
@@ -39,9 +38,9 @@ VAR
 END_VAR
 ```
 
-### 4. Every Test Method Uses the `TEST_ORDERED` Guard Pattern
+### 4. Every Test Method Uses the `TEST` Guard Pattern
 
-Each test method **must** wrap its body in the `IF TcUnit.TEST_ORDERED('...') THEN ... TcUnit.TEST_FINISHED(); END_IF` guard. This is required by `RUN_IN_SEQUENCE()` mode:
+Each test method **must** wrap its body in the `TcUnit.TEST('uniqueTestName') ... TcUnit.TEST_FINISHED();` guard. This is required by `RUN()` mode:
 
 ```iec
 METHOD TestSomething
@@ -54,10 +53,8 @@ IF TcUnit.TEST_ORDERED('Descriptive Test Name') THEN
 // ... test logic and assertions ...
 
 TcUnit.TEST_FINISHED();
-END_IF
 ```
 
-**Do NOT** use `TcUnit.TEST('...')` when `RUN_IN_SEQUENCE()` is active — use `TEST_ORDERED` exclusively.
 
 ## Test File Structure (`.TcPOU` XML)
 

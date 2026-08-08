@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_LogRecordProcessor_ForRecordsInspection" Id="{165df84d-fe08-4138-bc80-62512eeb91af}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProcessor_ForRecordsInspection EXTENDS FB_LogRecordProcessor_Batch
-VAR_OUTPUT
-	sts: E_PointerFactoryStatus;
-END_VAR]]></Declaration>
+    <Declaration><![CDATA[// NOTE: sts is inherited from FB_LogRecordProcessor_Batch
+FUNCTION_BLOCK FB_LogRecordProcessor_ForRecordsInspection EXTENDS FB_LogRecordProcessor_Batch]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>

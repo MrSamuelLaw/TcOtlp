@@ -4,31 +4,71 @@
     <Declaration><![CDATA[FUNCTION_BLOCK FB_TestLogProcessors EXTENDS FB_TestSuite
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[TestSimpleProcessors();]]></ST>
+      <ST><![CDATA[TestSimpleProcessors();
+TestBatchProcessors();]]></ST>
     </Implementation>
     <Method Name="testBatchProcessors" Id="{7cba4cd6-baeb-4652-979f-3089242ac7bc}">
-      <Declaration><![CDATA[METHOD testBatchProcessors : REFERENCE TO FB_Test
+      <Declaration><![CDATA[(*
+	The batch processor must keep its queue grouped and sorted by
+	(resource id, scope name) no matter the emit order. Resource identity
+	comes from FB_Resource.id, which is assigned at declaration, so
+	resourceA sorts before resourceB.
+*)
+METHOD testBatchProcessors : REFERENCE TO FB_Test
 VAR
-	resource: FB_Resource('');
-	provider: FB_LoggerProvider(resource);
-	scope: FB_InstrumentationScope('name', 'version', 'schemaUrl');
-	logger: FB_Logger(scope, provider);
-// 	processor: FB_LogRecordProcessor_ConsolePrinter(0);
-	processor: FB_LogRecordProcessor_ForRecordsInspection(0);
+	resourceA: FB_Resource('resource.a');
+	resourceB: FB_Resource('resource.b');
+	providerA: FB_LoggerProvider(resourceA);
+	providerB: FB_LoggerProvider(resourceB);
+	scopeA: FB_InstrumentationScope('scope.a', '1.0.0', '');
+	scopeB: FB_InstrumentationScope('scope.b', '1.0.0', '');
+	loggerAA: FB_Logger(scopeA, providerA);
+	loggerAB: FB_Logger(scopeB, providerA);
+	loggerBA: FB_Logger(scopeA, providerB);
+	processor: FB_LogRecordProcessor_ForBatchInspection(0);
 	processors: ARRAY [0..0] OF I_LogRecordProcessor := [
 		processor
 	];
+	ts1: ULINT := 1;
+	ts2: ULINT := 2;
+	ts3: ULINT := 3;
+	ts4: ULINT := 4;
+	ts5: ULINT := 5;
+	pRec: POINTER TO FB_LogRecord;
 END_VAR
 
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test SimpleLogProcessors');
-	resource.attributes.addStringAttribute('plc.name', 'sim.plc');
-	logger.startLogRecord(
-			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_ERROR
-		)
-		.setBody('this is a test')
-		.emit(processors);
+        <ST><![CDATA[TcUnit.TEST('Test BatchLogProcessors');
+	// ids are handed out in declaration order, so A groups before B
+	THIS^.AssertTrue(resourceA.id < resourceB.id, 'Expected resourceA to have the lower identity');
+
+	// emit interleaved across (resource, scope) pairs
+	loggerBA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(ts1)).emit(processors);
+	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(ts2)).emit(processors);
+	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(ts3)).emit(processors);
+	loggerBA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(ts4)).emit(processors);
+	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(ts5)).emit(processors);
+	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, processor.sts, 'Expected the last emit to succeed');
+	THIS^.AssertTrue(processor.records.count = 5, 'Expected five queued records');
+
+	// expected compound sorted order: (a,a)=3,5  (a,b)=2  (b,a)=1,4
+	processor.records.reset();
+	pRec := processor.records.next();
+	THIS^.AssertTrue(pRec <> 0 AND_THEN (pRec^.timestamp = 3 AND pRec^.resource.id = resourceA.id AND pRec^.scope.name = 'scope.a'), 'Expected record 0 to be ts3 (resourceA, scope.a)');
+	pRec := processor.records.next();
+	THIS^.AssertTrue(pRec <> 0 AND_THEN (pRec^.timestamp = 5 AND pRec^.resource.id = resourceA.id AND pRec^.scope.name = 'scope.a'), 'Expected record 1 to be ts5 (resourceA, scope.a)');
+	pRec := processor.records.next();
+	THIS^.AssertTrue(pRec <> 0 AND_THEN (pRec^.timestamp = 2 AND pRec^.resource.id = resourceA.id AND pRec^.scope.name = 'scope.b'), 'Expected record 2 to be ts2 (resourceA, scope.b)');
+	pRec := processor.records.next();
+	THIS^.AssertTrue(pRec <> 0 AND_THEN (pRec^.timestamp = 1 AND pRec^.resource.id = resourceB.id AND pRec^.scope.name = 'scope.a'), 'Expected record 3 to be ts1 (resourceB, scope.a)');
+	pRec := processor.records.next();
+	THIS^.AssertTrue(pRec <> 0 AND_THEN (pRec^.timestamp = 4 AND pRec^.resource.id = resourceB.id AND pRec^.scope.name = 'scope.a'), 'Expected record 4 to be ts4 (resourceB, scope.a)');
+	THIS^.AssertTrue(processor.records.next() = 0, 'Expected iteration to be exhausted');
+
+	// free releases the queue and the group markers
+	processor.free();
+	THIS^.AssertTrue(processor.records.count = 0, 'Expected zero records after free');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

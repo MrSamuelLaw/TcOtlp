@@ -5,6 +5,7 @@
 VAR
 	fbTestOtlpValue: FB_TestOtlpValue();
 	fbTestLinkedList_KeyValue: FB_TestLinkedList_KeyValue();
+	fbTestLinkedList_LogRecord: FB_TestLinkedList_LogRecord();
 	fbTestContextObjects: FB_TestContextObjects();
 	fbTestLogger: FB_TestLogger();
 	fbTestProcessors: FB_TestLogProcessors();

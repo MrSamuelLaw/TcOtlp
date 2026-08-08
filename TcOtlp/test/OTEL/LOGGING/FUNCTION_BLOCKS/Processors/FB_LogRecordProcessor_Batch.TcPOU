@@ -8,8 +8,12 @@ VAR_INPUT
 	exportTimeoutMillis: UDINT := 30000;				// how long the export can run before it is cancelled. The default value is 30000.
 	maxExportBatchSize: UDINT := 512;					// the maximum batch size of every export. It must be smaller or equal to maxQueueSize. The default value is 512.
 END_VAR
+VAR_OUTPUT
+	sts: E_PointerFactoryStatus;
+END_VAR
 VAR
 	_records: FB_LinkedList_LogRecord;
+	_groups: POINTER TO ST_LogRecordGroup;
 	_exporter: REFERENCE TO FB_LogRecordExporter_Base;
 	_isDone: BOOL;
 END_VAR
@@ -17,6 +21,16 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="FB_Exit" Id="{ee6e60b0-3b81-40b7-905a-5fd33600daae}">
+      <Declaration><![CDATA[METHOD FB_Exit : BOOL
+VAR_INPUT
+	bInCopyCode: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.free();]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="FB_Init" Id="{1b6c3aba-d3d8-44a7-8d93-ac13d7ad0810}">
       <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
 //The return value is not evaluated. For a specific influence, you can also declare the
@@ -35,19 +49,132 @@ END_VAR
     </Method>
     <Method Name="free" Id="{f13c14df-6aac-4e5f-ae77-f40c30ac792c}">
       <Declaration><![CDATA[METHOD free
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[THIS^._records.free();]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="onEmit" Id="{601f420a-eb68-4a65-8062-d11e0d96dc3c}">
-      <Declaration><![CDATA[METHOD onEmit
-VAR_INPUT
-	logRecord: REFERENCE TO FB_LogRecord;
+VAR
+	_idx: UDINT;
+	_grp: POINTER TO ST_LogRecordGroup;
+	_nxt: POINTER TO ST_LogRecordGroup;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[THIS^._records.free();
+
+// release the group markers
+_grp := THIS^._groups;
+FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
+	IF _grp = 0 THEN
+		EXIT;
+	END_IF
+	_nxt := _grp^.nxt;
+	__DELETE(_grp);
+	_grp := _nxt;
+END_FOR
+THIS^._groups := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="onEmit" Id="{601f420a-eb68-4a65-8062-d11e0d96dc3c}">
+      <Declaration><![CDATA[(*
+	Queues a clone of the log record, keeping the queue grouped and sorted by
+	(resource id, scope name). Group markers form a sorted linked list
+	whose insertIndex lets a record jump straight to the end of its group.
+*)
+METHOD onEmit
+VAR_INPUT
+	logRecord: REFERENCE TO FB_LogRecord;
+END_VAR
+VAR
+	_record: POINTER TO FB_LogRecord;
+	_grp: POINTER TO ST_LogRecordGroup;
+	_prev: POINTER TO ST_LogRecordGroup;
+	_new: POINTER TO ST_LogRecordGroup;
+	_idx: UDINT;
+	_insertAt: UDINT;
+	_found: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._records.count >= THIS^.maxQueueSize THEN
+	THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	RETURN;
+END_IF
+
+_record := 0;
+THIS^.sts := logRecord.cloneTo(_record);
+IF THIS^.sts <> E_PointerFactoryStatus.SUCCESS THEN
+	RETURN;
+END_IF
+
+// find the record's group, or the sorted position for a new one
+_found := FALSE;
+_prev := 0;
+_grp := THIS^._groups;
+FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
+	IF _grp = 0 THEN
+		EXIT;
+	END_IF
+	IF _grp^.resourceId = logRecord.resource.id AND _grp^.scopeName = logRecord.scope.name THEN
+		_found := TRUE;
+		EXIT;
+	END_IF
+	IF (_grp^.resourceId > logRecord.resource.id)
+		OR_ELSE (_grp^.resourceId = logRecord.resource.id AND _grp^.scopeName > logRecord.scope.name) THEN
+		EXIT; // the new group belongs before _grp
+	END_IF
+	_prev := _grp;
+	_grp := _grp^.nxt;
+END_FOR
+
+IF _found THEN
+	// jump to the end of the existing group
+	IF NOT THIS^._records.insert(_grp^.insertIndex, _record) THEN
+		_record := _record^.delete();
+		THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+		RETURN;
+	END_IF
+	_grp^.insertIndex := _grp^.insertIndex + 1;
+	_grp := _grp^.nxt;
+ELSE
+	// start a new group between _prev and _grp
+	_new := __NEW(ST_LogRecordGroup);
+	IF _new = 0 THEN
+		_record := _record^.delete();
+		THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+		RETURN;
+	END_IF
+
+	IF _prev = 0 THEN
+		_insertAt := 0;
+	ELSE
+		_insertAt := _prev^.insertIndex;
+	END_IF
+
+	IF NOT THIS^._records.insert(_insertAt, _record) THEN
+		__DELETE(_new);
+		_record := _record^.delete();
+		THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+		RETURN;
+	END_IF
+
+	_new^.resourceId := logRecord.resource.id;
+	_new^.scopeName := logRecord.scope.name;
+	_new^.insertIndex := _insertAt + 1;
+	_new^.nxt := _grp;
+	IF _prev = 0 THEN
+		THIS^._groups := _new;
+	ELSE
+		_prev^.nxt := _new;
+	END_IF
+END_IF
+
+// every group after the insertion point shifts one position right
+FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
+	IF _grp = 0 THEN
+		EXIT;
+	END_IF
+	_grp^.insertIndex := _grp^.insertIndex + 1;
+	_grp := _grp^.nxt;
+END_FOR
+
+THIS^.sts := E_PointerFactoryStatus.SUCCESS;]]></ST>
       </Implementation>
     </Method>
   </POU>

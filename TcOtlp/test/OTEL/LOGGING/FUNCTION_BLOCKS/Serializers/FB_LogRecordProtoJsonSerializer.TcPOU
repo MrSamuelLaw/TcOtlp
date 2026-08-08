@@ -32,17 +32,17 @@ END_IF
 _buf := pLogRecord^.severityText;  // properties require intermediate variables
 THIS^.parser.AddUintMember(_obj, 'severityNumber', TO_UDINT(pLogRecord^.severityNumber));
 THIS^.parser.AddStringMember(_obj, 'severityText', _buf);
-THIS^.serializeFixed64Value(_obj, ADR('timeUnixNano'), pLogRecord^.timestamp);
+THIS^.serializeUint64Value(_obj, ADR('timeUnixNano'), pLogRecord^.timestamp);
 
 // Serialize the optional fields.
 THIS^.serializeStringValue(_obj, ADR('eventName'), pLogRecord^.eventName);
 THIS^.serializeTraceIdValue(_obj, pLogRecord^.traceId);
-IF pLogRecord^.flags <> 0 THEN THIS^.serializeFixed32Value(_obj, ADR('flags'), TO_UDINT(pLogRecord^.flags^)); END_IF
+IF pLogRecord^.flags <> 0 THEN THIS^.serializeUint32Value(_obj, ADR('flags'), TO_UDINT(pLogRecord^.flags^)); END_IF
 THIS^.serializeSpanIdValue(_obj, pLogRecord^.spanId);
 THIS^.serializeAnyValue(_obj, ADR('body'), pLogRecord^.body);
 THIS^.serializeKeyValues(_obj, ADR('attributes'), ADR(pLogRecord^.attributes));
 IF pLogRecord^.droppedAttributesCount > 0 THEN
-	THIS^.serializeFixed32Value(_obj, ADR('droppedAttributesCount'), pLogRecord^.droppedAttributesCount);
+	THIS^.serializeUint32Value(_obj, ADR('droppedAttributesCount'), pLogRecord^.droppedAttributesCount);
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -66,7 +66,7 @@ END_IF
 
 // Serialize every record once without removing it from the source list.
 logRecords.reset();
-FOR _idx := 0 TO GVL.MAX_LOG_RECORDS - 1 DO
+FOR _idx := 0 TO GVL.MAX_LOOP_COUNT - 1 DO
 	_rec := logRecords.next();
 	IF _rec = 0 THEN
 		EXIT;
@@ -81,9 +81,70 @@ logRecords.reset();]]></ST>
 VAR_IN_OUT
 	logRecords: FB_LinkedList_LogRecord;
 END_VAR
+VAR
+	_idx: UDINT;
+	_rec: POINTER TO FB_LogRecord;
+	_resourceId: UDINT;
+	_scopeName: T_MaxString;
+	_newResource: BOOL;
+	_newScope: BOOL;
+	_resourceLogs: SJsonValue;
+	_resourceObj: SJsonValue;
+	_scopeLogs: SJsonValue;
+	_scopeObj: SJsonValue;
+	_serializedRecords: SJsonValue;
+END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[THIS^.jsonValue := THIS^.parser.NewDocument();
+THIS^.jsonValue := THIS^.parser.SetObject(THIS^.jsonValue);
+
+_resourceLogs := THIS^.parser.AddArrayMember(THIS^.jsonValue, 'resourceLogs', 0);
+IF _resourceLogs = 0 THEN
+	RETURN;
+END_IF
+
+// The batch processor orders records by (resource id, scope name), so group adjacent
+// records in one pass without sorting or modifying the source list.
+logRecords.reset();
+FOR _idx := 0 TO GVL.MAX_LOOP_COUNT - 1 DO
+	_rec := logRecords.next();
+	IF _rec = 0 THEN
+		EXIT;
+	END_IF
+
+	_newResource := (_resourceObj = 0) OR_ELSE (_resourceId <> _rec^.resource.id);
+	IF _newResource THEN
+		_resourceObj := THIS^.parser.PushbackJsonValue(_resourceLogs, '{}');
+		IF _resourceObj = 0 THEN EXIT; END_IF
+		THIS^._injectResource(_resourceObj, _rec^.resource);
+		IF _rec^.resource.schemaUrl <> '' THEN
+			THIS^.parser.AddStringMember(_resourceObj, 'schemaUrl', _rec^.resource.schemaUrl);
+		END_IF
+
+		_resourceId := _rec^.resource.id;
+		_scopeLogs := THIS^.parser.AddArrayMember(_resourceObj, 'scopeLogs', 0);
+		IF _scopeLogs = 0 THEN EXIT; END_IF
+		_scopeObj := 0;
+	END_IF
+
+	_newScope := _newResource OR_ELSE (_scopeObj = 0) OR_ELSE (_scopeName <> _rec^.scope.name);
+	IF _newScope THEN
+		_scopeObj := THIS^.parser.PushbackJsonValue(_scopeLogs, '{}');
+		IF _scopeObj = 0 THEN EXIT; END_IF
+		THIS^._injectInstrumentationScope(_scopeObj, _rec^.scope);
+		IF _rec^.scope.schemaUrl <> '' THEN
+			THIS^.parser.AddStringMember(_scopeObj, 'schemaUrl', _rec^.scope.schemaUrl);
+		END_IF
+
+		_scopeName := _rec^.scope.name;
+		_serializedRecords := THIS^.parser.AddArrayMember(_scopeObj, 'logRecords', 0);
+		IF _serializedRecords = 0 THEN EXIT; END_IF
+	END_IF
+
+	THIS^.serializeLogRecord(_serializedRecords, _rec);
+END_FOR
+logRecords.reset();]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeResourceLogs" Id="{6b43c2c7-047f-4862-9b90-b2d2c588a9af}">

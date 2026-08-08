@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestLinkedList_LogRecord" Id="{eae354c2-9892-456a-97c2-fbf651a21392}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TestLinkedList_LogRecord EXTENDS FB_TestSuite
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testAppendAndIterate();
+THIS^.testInsertOrdering();
+THIS^.testInsertRejectsInvalidInputs();]]></ST>
+    </Implementation>
+    <Method Name="testAppendAndIterate" Id="{3d15347b-a733-498c-969f-bd92e68843e9}">
+      <Declaration><![CDATA[METHOD testAppendAndIterate : REFERENCE TO FB_Test
+VAR
+	list: FB_LinkedList_LogRecord;
+	pA: POINTER TO FB_LogRecord;
+	pB: POINTER TO FB_LogRecord;
+	ok: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testAppendAndIterate');
+	pA := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=1));
+	pB := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=2));
+	THIS^.AssertTrue(pA <> 0 AND pB <> 0, 'Expected log record allocations to succeed');
+
+	// append preserves FIFO order
+	ok := list.append(pA);
+	THIS^.AssertTrue(ok, 'Expected first append to succeed');
+	ok := list.append(pB);
+	THIS^.AssertTrue(ok, 'Expected second append to succeed');
+	THIS^.AssertTrue(list.count = 2, 'Expected two records');
+
+	list.reset();
+	THIS^.AssertTrue(list.next() = pA, 'Expected first record to be pA');
+	THIS^.AssertTrue(list.next() = pB, 'Expected second record to be pB');
+	THIS^.AssertTrue(list.next() = 0, 'Expected iteration to be exhausted');
+
+	// reset rewinds the cursor
+	list.reset();
+	THIS^.AssertTrue(list.next() = pA, 'Expected reset to rewind to pA');
+
+	// free deletes the owned records
+	list.free();
+	THIS^.AssertTrue(list.count = 0, 'Expected zero records after free');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testInsertOrdering" Id="{a62a9c43-350f-4e05-b17a-4a95998386c2}">
+      <Declaration><![CDATA[METHOD testInsertOrdering : REFERENCE TO FB_Test
+VAR
+	list: FB_LinkedList_LogRecord;
+	pA: POINTER TO FB_LogRecord;
+	pB: POINTER TO FB_LogRecord;
+	pC: POINTER TO FB_LogRecord;
+	pD: POINTER TO FB_LogRecord;
+	ok: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testInsertOrdering');
+	pA := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=1));
+	pB := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=2));
+	pC := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=3));
+	pD := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=4));
+	THIS^.AssertTrue(pA <> 0 AND pB <> 0 AND pC <> 0 AND pD <> 0, 'Expected log record allocations to succeed');
+
+	// insert into an empty list -> [B]
+	ok := list.insert(0, pB);
+	THIS^.AssertTrue(ok, 'Expected insert into empty list to succeed');
+	THIS^.AssertTrue(list.count = 1, 'Expected one record');
+
+	// insert at the head -> [A, B]
+	ok := list.insert(0, pA);
+	THIS^.AssertTrue(ok, 'Expected head insert to succeed');
+
+	// insert at the tail (index = count) -> [A, B, D]
+	ok := list.insert(2, pD);
+	THIS^.AssertTrue(ok, 'Expected tail insert to succeed');
+
+	// insert in the middle -> [A, B, C, D]
+	ok := list.insert(2, pC);
+	THIS^.AssertTrue(ok, 'Expected middle insert to succeed');
+	THIS^.AssertTrue(list.count = 4, 'Expected four records');
+
+	// verify the final order
+	list.reset();
+	THIS^.AssertTrue(list.next() = pA, 'Expected record 0 to be pA');
+	THIS^.AssertTrue(list.next() = pB, 'Expected record 1 to be pB');
+	THIS^.AssertTrue(list.next() = pC, 'Expected record 2 to be pC');
+	THIS^.AssertTrue(list.next() = pD, 'Expected record 3 to be pD');
+	THIS^.AssertTrue(list.next() = 0, 'Expected iteration to be exhausted');
+
+	list.free();
+	THIS^.AssertTrue(list.count = 0, 'Expected zero records after free');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testInsertRejectsInvalidInputs" Id="{09515266-8060-41de-97d3-7b1f99aac163}">
+      <Declaration><![CDATA[METHOD testInsertRejectsInvalidInputs : REFERENCE TO FB_Test
+VAR
+	list: FB_LinkedList_LogRecord;
+	pA: POINTER TO FB_LogRecord;
+	pPopped: POINTER TO FB_LogRecord;
+	ok: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testInsertRejectsInvalidInputs');
+	pA := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=1));
+	THIS^.AssertTrue(pA <> 0, 'Expected log record allocation to succeed');
+
+	// index beyond count is rejected
+	ok := list.insert(1, pA);
+	THIS^.AssertFalse(ok, 'Expected out of range insert to fail');
+	THIS^.AssertTrue(list.count = 0, 'Expected zero records after failed insert');
+
+	// null values are rejected
+	ok := list.insert(0, 0);
+	THIS^.AssertFalse(ok, 'Expected null value insert to fail');
+	THIS^.AssertTrue(list.count = 0, 'Expected zero records after failed insert');
+
+	// pop transfers ownership back to the caller
+	ok := list.insert(0, pA);
+	THIS^.AssertTrue(ok, 'Expected valid insert to succeed');
+	pPopped := list.pop();
+	THIS^.AssertTrue(pPopped = pA, 'Expected pop to return pA');
+	THIS^.AssertTrue(list.count = 0, 'Expected zero records after pop');
+	pPopped := pPopped^.delete();
+	THIS^.AssertTrue(pPopped = 0, 'Expected popped record to be deleted');
+
+	list.free();
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

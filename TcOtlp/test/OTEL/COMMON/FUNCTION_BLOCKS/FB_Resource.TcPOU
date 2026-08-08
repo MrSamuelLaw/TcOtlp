@@ -4,6 +4,7 @@
     <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
 FUNCTION_BLOCK FB_Resource
 VAR_OUTPUT
+	id: UDINT;	// process-local identity, assigned automatically and never exported. Snapshots share the id of their source.
 	droppedAttributesCount: UDINT;
 	schemaUrl: T_MaxString;
 END_VAR
@@ -20,7 +21,8 @@ VAR_IN_OUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[THIS^.schemaUrl := src.schemaUrl;
+        <ST><![CDATA[THIS^.id := src.id;
+THIS^.schemaUrl := src.schemaUrl;
 THIS^.droppedAttributesCount := src.droppedAttributesCount;
 THIS^.attributes.free();
 copyFrom := THIS^.attributes.copyFrom(src.attributes);
@@ -49,7 +51,12 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[THIS^.schemaUrl := schemaUrl;]]></ST>
+        <ST><![CDATA[THIS^.schemaUrl := schemaUrl;
+
+// claim a process-local identity; keep the existing one during an online change copy
+IF NOT bInCopyCode THEN
+	THIS^.id := IdFactory.nextResourceId;
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="free" Id="{0c03ad99-95ec-4068-942a-0ffaa7f065d2}">

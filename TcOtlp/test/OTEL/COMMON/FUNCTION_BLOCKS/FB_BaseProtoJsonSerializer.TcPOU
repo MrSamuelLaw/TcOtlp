@@ -10,27 +10,6 @@ END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="_injectResource" Id="{56a836bc-6996-46a9-b0a3-bbca046e4c06}">
-      <Declaration><![CDATA[METHOD _injectResource
-VAR_IN_OUT
-	v: SJsonValue;
-	resource: FB_Resource;
-END_VAR
-VAR
-	_obj: SJsonValue;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[_obj := THIS^.parser.AddObjectMember(v, 'resource');
-IF resource.attributes.count > 0 THEN
-	THIS^.serializeKeyValues(_obj, ADR('attributes'), ADR(resource.attributes));
-END_IF
-IF resource.droppedAttributesCount > 0 THEN
-	THIS^.serializeFixed32Value(_obj, ADR('droppedAttributesCount'), resource.droppedAttributesCount);
-END_IF
-]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="_injectInstrumentationScope" Id="{9c8cb455-2273-4f58-affd-d3fcbf54d800}">
       <Declaration><![CDATA[METHOD _injectInstrumentationScope
 VAR_IN_OUT
@@ -49,7 +28,28 @@ IF instrumentationScope.attributes.count > 0 THEN
 	THIS^.serializeKeyValues(_obj, ADR('attributes'), ADR(instrumentationScope.attributes));
 END_IF
 IF instrumentationScope.attributes.count > 0 OR instrumentationScope.droppedAttributesCount > 0 THEN
-	THIS^.serializeFixed32Value(_obj, ADR('droppedAttributesCount'), instrumentationScope.droppedAttributesCount);
+	THIS^.serializeUint32Value(_obj, ADR('droppedAttributesCount'), instrumentationScope.droppedAttributesCount);
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_injectResource" Id="{56a836bc-6996-46a9-b0a3-bbca046e4c06}">
+      <Declaration><![CDATA[METHOD _injectResource
+VAR_IN_OUT
+	v: SJsonValue;
+	resource: FB_Resource;
+END_VAR
+VAR
+	_obj: SJsonValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_obj := THIS^.parser.AddObjectMember(v, 'resource');
+IF resource.attributes.count > 0 THEN
+	THIS^.serializeKeyValues(_obj, ADR('attributes'), ADR(resource.attributes));
+END_IF
+IF resource.droppedAttributesCount > 0 THEN
+	THIS^.serializeUint32Value(_obj, ADR('droppedAttributesCount'), resource.droppedAttributesCount);
 END_IF
 ]]></ST>
       </Implementation>
@@ -127,42 +127,102 @@ END_VAR]]></Declaration>
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="serializeFixed32Value" Id="{5c9cb533-514e-40ea-9775-5d28e3bc73f5}">
-      <Declaration><![CDATA[METHOD serializeFixed32Value
+    <Method Name="serializeDoubleValue" Id="{8e1716f5-ca18-4545-9ac3-fe0242797154}">
+      <Declaration><![CDATA[METHOD serializeDoubleValue
 VAR_IN_OUT
 	v: SJsonValue;
 END_VAR
 VAR_INPUT
 	pKey: POINTER TO STRING;  // allows for any length of key
-	val: UDINT;
+	val: LREAL;
 END_VAR
-
+VAR
+	_bits: LWORD;
+END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF pKey <> 0 THEN
-	// ProtoJSON encodes fixed32 values as JSON numbers.
-	THIS^.parser.AddUintMember(v, pKey^, val);
+	// ProtoJSON represents non-finite floating-point values as strings.
+	MEMCPY(ADR(_bits), ADR(val), SIZEOF(_bits));
+	IF (_bits AND LWORD#16#7FF0000000000000) = LWORD#16#7FF0000000000000 THEN
+		IF (_bits AND LWORD#16#000FFFFFFFFFFFFF) <> 0 THEN
+			THIS^.parser.AddStringMember(v, pKey^, 'NaN');
+		ELSIF (_bits AND LWORD#16#8000000000000000) <> 0 THEN
+			THIS^.parser.AddStringMember(v, pKey^, '-Infinity');
+		ELSE
+			THIS^.parser.AddStringMember(v, pKey^, 'Infinity');
+		END_IF
+	ELSE
+		THIS^.parser.AddDoubleMember(v, pKey^, val);
+	END_IF
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="serializeFixed64Value" Id="{c146981b-e283-4f71-ad5b-00a98b72548a}">
-      <Declaration><![CDATA[METHOD serializeFixed64Value
+    <Method Name="serializeFloatValue" Id="{61151231-f7cd-44d1-8261-d6a5a8b398f7}">
+      <Declaration><![CDATA[METHOD serializeFloatValue
 VAR_IN_OUT
 	v: SJsonValue;
 END_VAR
 VAR_INPUT
 	pKey: POINTER TO STRING;  // allows for any length of key
-	val: ULINT;
+	val: REAL;
 END_VAR
 VAR
-	_buf: STRING(20);  // 2^64 is max value of fixed64 which is 20 chars max
+	_bits: DWORD;
 END_VAR
-
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF pKey <> 0 THEN
-	// ProtoJSON encodes fixed64 values as decimal strings.
-	_buf := ULINT_TO_STRING(val);
+	// ProtoJSON represents non-finite floating-point values as strings.
+	MEMCPY(ADR(_bits), ADR(val), SIZEOF(_bits));
+	IF (_bits AND DWORD#16#7F800000) = DWORD#16#7F800000 THEN
+		IF (_bits AND DWORD#16#007FFFFF) <> 0 THEN
+			THIS^.parser.AddStringMember(v, pKey^, 'NaN');
+		ELSIF (_bits AND DWORD#16#80000000) <> 0 THEN
+			THIS^.parser.AddStringMember(v, pKey^, '-Infinity');
+		ELSE
+			THIS^.parser.AddStringMember(v, pKey^, 'Infinity');
+		END_IF
+	ELSE
+		THIS^.parser.AddDoubleMember(v, pKey^, REAL_TO_LREAL(val));
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="serializeInt32Value" Id="{e79efe08-4ca7-4425-9145-6831c737d25f}">
+      <Declaration><![CDATA[METHOD serializeInt32Value
+VAR_IN_OUT
+	v: SJsonValue;
+END_VAR
+VAR_INPUT
+	pKey: POINTER TO STRING;  // allows for any length of key
+	val: DINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pKey <> 0 THEN
+	// int32, sint32, and sfixed32 are JSON numbers in ProtoJSON.
+	THIS^.parser.AddIntMember(v, pKey^, val);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="serializeInt64Value" Id="{b0f53b48-39e6-4d60-9c1c-71cbf01d4ae4}">
+      <Declaration><![CDATA[METHOD serializeInt64Value
+VAR_IN_OUT
+	v: SJsonValue;
+END_VAR
+VAR_INPUT
+	pKey: POINTER TO STRING;  // allows for any length of key
+	val: LINT;
+END_VAR
+VAR
+	_buf: STRING(20);
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pKey <> 0 THEN
+	// int64, sint64, and sfixed64 are decimal strings in ProtoJSON.
+	_buf := LINT_TO_STRING(val);
 	THIS^.parser.AddStringMember(v, pKey^, _buf);
 END_IF]]></ST>
       </Implementation>
@@ -214,6 +274,72 @@ END_VAR
 	END_FOR
 	pValues^.reset();
 END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="serializeNumberValue" Id="{aeb900f5-c3ec-444b-ae50-1d2bab03506c}">
+      <Declaration><![CDATA[METHOD serializeNumberValue : BOOL
+VAR_IN_OUT
+	v: SJsonValue;
+END_VAR
+VAR_INPUT
+	pKey: POINTER TO STRING;
+	val: ANY_NUM;
+END_VAR
+VAR
+	_pSInt: POINTER TO SINT;
+	_pInt: POINTER TO INT;
+	_pDInt: POINTER TO DINT;
+	_pLInt: POINTER TO LINT;
+	_pUSInt: POINTER TO USINT;
+	_pUInt: POINTER TO UINT;
+	_pUDInt: POINTER TO UDINT;
+	_pULInt: POINTER TO ULINT;
+	_pReal: POINTER TO REAL;
+	_pLReal: POINTER TO LREAL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[serializeNumberValue := FALSE;
+IF pKey = 0 OR val.pValue = 0 THEN
+	RETURN;
+END_IF
+
+CASE val.TypeClass OF
+	__SYSTEM.TYPE_CLASS.TYPE_SINT:
+		_pSInt := val.pValue;
+		THIS^.serializeInt32Value(v, pKey, SINT_TO_DINT(_pSInt^));
+	__SYSTEM.TYPE_CLASS.TYPE_INT:
+		_pInt := val.pValue;
+		THIS^.serializeInt32Value(v, pKey, INT_TO_DINT(_pInt^));
+	__SYSTEM.TYPE_CLASS.TYPE_DINT:
+		_pDInt := val.pValue;
+		THIS^.serializeInt32Value(v, pKey, _pDInt^);
+	__SYSTEM.TYPE_CLASS.TYPE_LINT:
+		_pLInt := val.pValue;
+		THIS^.serializeInt64Value(v, pKey, _pLInt^);
+	__SYSTEM.TYPE_CLASS.TYPE_USINT:
+		_pUSInt := val.pValue;
+		THIS^.serializeUint32Value(v, pKey, USINT_TO_UDINT(_pUSInt^));
+	__SYSTEM.TYPE_CLASS.TYPE_UINT:
+		_pUInt := val.pValue;
+		THIS^.serializeUint32Value(v, pKey, UINT_TO_UDINT(_pUInt^));
+	__SYSTEM.TYPE_CLASS.TYPE_UDINT:
+		_pUDInt := val.pValue;
+		THIS^.serializeUint32Value(v, pKey, _pUDInt^);
+	__SYSTEM.TYPE_CLASS.TYPE_ULINT:
+		_pULInt := val.pValue;
+		THIS^.serializeUint64Value(v, pKey, _pULInt^);
+	__SYSTEM.TYPE_CLASS.TYPE_REAL:
+		_pReal := val.pValue;
+		THIS^.serializeFloatValue(v, pKey, _pReal^);
+	__SYSTEM.TYPE_CLASS.TYPE_LREAL:
+		_pLReal := val.pValue;
+		THIS^.serializeDoubleValue(v, pKey, _pLReal^);
+	ELSE
+		RETURN;
+END_CASE
+
+serializeNumberValue := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeSpanIdValue" Id="{9afc261b-39d5-4d44-b105-baf2b6a972f5}">
@@ -280,6 +406,44 @@ END_VAR
 		E_BytesEncoding.hex	
 	);
 	THIS^.parser.AddStringMember(v, 'traceId' ,_encodedStr);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="serializeUint32Value" Id="{1dd3acf5-55a1-4a1e-b2ab-a0a8924ebe6b}">
+      <Declaration><![CDATA[METHOD serializeUint32Value
+VAR_IN_OUT
+	v: SJsonValue;
+END_VAR
+VAR_INPUT
+	pKey: POINTER TO STRING;  // allows for any length of key
+	val: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pKey <> 0 THEN
+	// uint32 and fixed32 are JSON numbers in ProtoJSON.
+	THIS^.parser.AddUintMember(v, pKey^, val);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="serializeUint64Value" Id="{03b3c74c-f10f-4570-99ed-23668fd8ddf1}">
+      <Declaration><![CDATA[METHOD serializeUint64Value
+VAR_IN_OUT
+	v: SJsonValue;
+END_VAR
+VAR_INPUT
+	pKey: POINTER TO STRING;  // allows for any length of key
+	val: ULINT;
+END_VAR
+VAR
+	_buf: STRING(20);
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pKey <> 0 THEN
+	// uint64 and fixed64 are decimal strings in ProtoJSON.
+	_buf := ULINT_TO_STRING(val);
+	THIS^.parser.AddStringMember(v, pKey^, _buf);
 END_IF]]></ST>
       </Implementation>
     </Method>
