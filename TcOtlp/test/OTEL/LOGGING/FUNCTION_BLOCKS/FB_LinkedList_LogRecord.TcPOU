@@ -19,12 +19,12 @@ END_VAR
     </Implementation>
     <Method Name="append" Id="{160c78e0-3b3f-49cd-8c42-eefe5336e9d8}">
       <Declaration><![CDATA[METHOD append : BOOL
-VAR_INPUT
+VAR_IN_OUT
 	pValue: POINTER TO FB_LogRecord;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[append := THIS^.insert(THIS^.count, pValue);]]></ST>
+        <ST><![CDATA[append := THIS^.insert(index:=THIS^.count, pValue:=pValue);]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Exit" Id="{6d9d65b6-2d68-47f0-b7cb-88e631d7acef}">
@@ -76,6 +76,8 @@ THIS^.count := 0;]]></ST>
 METHOD insert : BOOL
 VAR_INPUT
 	index: UDINT;
+END_VAR
+VAR_IN_OUT
 	pValue: POINTER TO FB_LogRecord;
 END_VAR
 VAR
@@ -122,7 +124,9 @@ ELSE
 END_IF
 
 THIS^.count := THIS^.count + 1;
-insert := TRUE;]]></ST>
+insert := TRUE;
+// Ownership transfers only after the value has been linked successfully.
+pValue := 0;]]></ST>
       </Implementation>
     </Method>
     <Method Name="next" Id="{720ec83f-b785-4449-92d1-d6ec1cfa78ab}">

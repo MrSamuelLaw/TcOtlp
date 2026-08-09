@@ -1,56 +1,33 @@
-# FB_LogRecordProcessor
+A log record processor takes a log, enriches it, and then clones it, saves it, and pushes it to an exporter if the exporter isn't busy. Processors MUST implement an onEmit method that can be extended to customize the behavior of the processor.
 
-`FB_LogRecordProcessor` models the OpenTelemetry SDK `LogRecordProcessor` hook. It is not part of OTLP itself: OTLP defines the wire protocol, while the OpenTelemetry Logs SDK defines processors, exporters, and their lifecycle.
+## FB_LogRecordProcessor_Simple
 
-## Reference implementation
+The FB_LogRecordProcessor_Simple class does not have an internal buffer to export logs. Instead it will silently drop the log records if the exporter is busy.
+### Methods:
 
-There is no official OpenTelemetry SDK for IEC 61131-3 Structured Text.
+`onEmit(logRecord:FB_LogRecord) -> void`
+This method is used by FB_Logger to pass the log record to the processor, if and only if the processor contains an exporter, it MUST clone the record and attempt to export it. If the exporter is busy it MUST drop the log record and SHOULD log to the console that the record was dropped.
 
-- **C++ is the closest mechanical reference** because Structured Text and C++ both permit explicit pointers, deterministic object lifetimes, interfaces/inheritance, and operation without garbage collection.
-- **Java is the better reference for this processor API**. Its `LogRecordProcessor` has only one abstract operation, `onEmit`. `forceFlush`, `shutdown`, and `close` have default implementations. This is the model to reproduce with an abstract `FB_LogRecordProcessor`: derivatives only need to implement `onEmit`, while the base function block supplies common lifecycle behavior.
+enrich(logRecord: FB_LogRecord) -> void
+This method is no-op on FB_LogRecordProcessor_Simple, but can be overridden by classes that extend FB_LogRecordProcessor_Simple to augment the log record prior to cloning it and passing it to the exporter if and only if the exporter exists.
 
-Do not copy the C++ `MakeRecordable`/`unique_ptr` API literally. It solves C++-specific ownership requirements and would make the Structured Text processor contract unnecessarily large.
+call() -> void
+alias for () used to call the processor body cyclically while maintaining compatibility with twincat interfaces.
 
-## Processor topology
+## FB_LogRecordProcessor_Batch
 
-Registered processors are **ordered hooks with independent output pipelines**, not queues connected end to end.
+The FB_LogRecordProcessor_Simple class has an internal buffer that is utilized to push records to the exporter in batches if and only if it contains an exporter. If the exporter is null the log records are silently dropped to reduce memory consumption.
+### Methods:
 
-```text
-FB_Logger.emit (owns the source record)
-    |
-    +--> processor 0.onEmit(source)       -- borrow, optionally mutate
-    |
-    +--> processor 1.onEmit(source)       -- clone --> queue 1 --> exporter 1
-    |
-    +--> processor 2.onEmit(source)       -- clone --> queue 2 --> exporter 2
-    |
-    `--> source record is deleted by its owner
-```
+`onEmit(logRecord:FB_LogRecord) -> void`
+This method is used by FB_Logger to pass the log record to the processor, if and only if the processor contains an exporter, it MUST clone the record and attempt to export it. If the instance does not have a an exporter associated with it it MUST NOT clone and save the record to it's internal buffer. 
+If the exporter is busy AND the internal buffer it not full it MUST wait and attempt to push log records to the exporter the next time the processor is called cyclically.
 
-The provider invokes `onEmit` synchronously in registration order. A mutation made by processor 0 MUST therefore be visible to processors 1 and 2. A processor which needs to retain a record after `onEmit` returns, such as a simple or batch exporting processor, MUST place a deep copy in its own queue.
+enrich(logRecord: FB_LogRecord) -> void
+This method is no-op on FB_LogRecordProcessor_Simple, but can be overridden by classes that extend FB_LogRecordProcessor_Simple to augment the log record prior to cloning it and passing it to the exporter if and only if the exporter exists.
 
-The following model is incorrect:
+call() -> void
+alias for () used to call the processor body cyclically while maintaining compatibility with twincat interfaces.
 
-```text
-queue 0 --> queue 1 --> queue 2 --> exporter
-```
 
-Passing ownership from one processor to the next prevents independent exporters, makes a full queue block later processors, and makes ordered record mutation difficult to define.
-
-## Required derivative method
-
-### onEmit
-
-`onEmit` is the **only method that an `FB_LogRecordProcessor` derivative is required to override**.
-
-Proposed Structured Text shape:
-
-```iecst
-METHOD PUBLIC ABSTRACT onEmit
-VAR_INPUT
-    pLogRecord : POINTER TO FB_LogRecord;
-END_VAR
-```
-
-`pLogRecord` is a mutable, borrowed pointer. Passing the pointer as `VAR_INPUT`, rather than `VAR_IN_OUT`, helps communicate that `onEmit` does not receive ownership and must not set the caller's pointer to `0`.
 

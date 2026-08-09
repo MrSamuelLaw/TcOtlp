@@ -167,5 +167,12 @@ END_VAR
         <ST><![CDATA[THIS^._filepath := filepath;]]></ST>
       </Implementation>
     </Method>
+    <Method Name="isBusy" Id="{5ac8aa40-2e76-415b-909c-913a1475f3a9}">
+      <Declaration><![CDATA[METHOD isBusy : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[isBusy := THIS^.currentState > E_FileExporterState.idle;]]></ST>
+      </Implementation>
+    </Method>
   </POU>
 </TcPlcObject>

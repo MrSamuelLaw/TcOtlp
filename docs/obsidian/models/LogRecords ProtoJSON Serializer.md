@@ -1,4 +1,2 @@
-## Constraints
-- MUST NOT mutate the LogRecords it is serializing.
-- MUST process each LogRecord only once.
-- SHOULD group log records by resource and scope to minimize payload size.
+A log record serializer groups logs by resource and scope, breaking to a new set of logs when either of those components change identity.
+

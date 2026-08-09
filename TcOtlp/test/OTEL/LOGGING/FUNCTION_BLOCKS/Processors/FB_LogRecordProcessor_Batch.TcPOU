@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_LogRecordProcessor_Batch" Id="{3c63b4ac-33ba-4480-a899-f0c3be47a7cf}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProcessor_Batch IMPLEMENTS I_LogRecordProcessor;
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProcessor_Batch EXTENDS FB_LogRecordProcessor_Mixin IMPLEMENTS I_LogRecordProcessor;
 VAR_INPUT
 	maxQueueSize: UDINT := 2048;						// the maximum queue size. After the size is reached logs are dropped. The default value is 2048.
 	scheduledDelayMillis: UDINT := 1000;				// the delay interval in milliseconds between two consecutive exports. The default value is 1000.
@@ -12,15 +12,27 @@ VAR_OUTPUT
 	sts: E_PointerFactoryStatus;
 END_VAR
 VAR
+	_scheduleDelayTimer: TON;
+	_scheduleTimeoutTimer: TON;
 	_records: FB_LinkedList_LogRecord;
 	_groups: POINTER TO ST_LogRecordGroup;
 	_exporter: REFERENCE TO FB_LogRecordExporter_Base;
-	_isDone: BOOL;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="enrich" Id="{cd91d31c-cfa3-4b93-ac03-7d361155ee3a}">
+      <Declaration><![CDATA[// no-op; override to change log mutation/enrichment functionality
+METHOD enrich
+VAR_IN_OUT
+	logRecord: FB_LogRecord;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="FB_Exit" Id="{ee6e60b0-3b81-40b7-905a-5fd33600daae}">
       <Declaration><![CDATA[METHOD FB_Exit : BOOL
 VAR_INPUT
@@ -44,7 +56,11 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[THIS^._exporter REF= exporter;]]></ST>
+        <ST><![CDATA[IF __ISVALIDREF(exporter) AND_THEN exporter.register(THIS^) THEN
+	THIS^._exporter REF= exporter;
+ELSE
+	THIS^._exporter REF= 0;
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="free" Id="{f13c14df-6aac-4e5f-ae77-f40c30ac792c}">
@@ -97,9 +113,10 @@ END_VAR
 	RETURN;
 END_IF
 
-_record := 0;
+IF _record <> 0 THEN _record := _record^.delete(); END_IF
 THIS^.sts := logRecord.cloneTo(_record);
 IF THIS^.sts <> E_PointerFactoryStatus.SUCCESS THEN
+	IF _record <> 0 THEN _record := _record^.delete(); END_IF
 	RETURN;
 END_IF
 
@@ -174,7 +191,12 @@ FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
 	_grp := _grp^.nxt;
 END_FOR
 
-THIS^.sts := E_PointerFactoryStatus.SUCCESS;]]></ST>
+THIS^.sts := E_PointerFactoryStatus.SUCCESS;
+
+// call the exporter based on various criteria
+// TODO: 
+// - add in "slicing" so a chunk of log records can be sent
+// - implement the export operation]]></ST>
       </Implementation>
     </Method>
   </POU>

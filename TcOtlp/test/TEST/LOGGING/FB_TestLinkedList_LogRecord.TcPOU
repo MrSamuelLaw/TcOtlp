@@ -15,6 +15,7 @@ VAR
 	list: FB_LinkedList_LogRecord;
 	pA: POINTER TO FB_LogRecord;
 	pB: POINTER TO FB_LogRecord;
+	pRecord: POINTER TO FB_LogRecord;
 	ok: BOOL;
 END_VAR
 ]]></Declaration>
@@ -27,18 +28,23 @@ END_VAR
 	// append preserves FIFO order
 	ok := list.append(pA);
 	THIS^.AssertTrue(ok, 'Expected first append to succeed');
+	THIS^.AssertTrue(pA = 0, 'Expected first append to transfer ownership');
 	ok := list.append(pB);
 	THIS^.AssertTrue(ok, 'Expected second append to succeed');
+	THIS^.AssertTrue(pB = 0, 'Expected second append to transfer ownership');
 	THIS^.AssertTrue(list.count = 2, 'Expected two records');
 
 	list.reset();
-	THIS^.AssertTrue(list.next() = pA, 'Expected first record to be pA');
-	THIS^.AssertTrue(list.next() = pB, 'Expected second record to be pB');
+	pRecord := list.next();
+	THIS^.AssertTrue(pRecord <> 0 AND_THEN pRecord^.timestamp = 1, 'Expected first record to have timestamp 1');
+	pRecord := list.next();
+	THIS^.AssertTrue(pRecord <> 0 AND_THEN pRecord^.timestamp = 2, 'Expected second record to have timestamp 2');
 	THIS^.AssertTrue(list.next() = 0, 'Expected iteration to be exhausted');
 
 	// reset rewinds the cursor
 	list.reset();
-	THIS^.AssertTrue(list.next() = pA, 'Expected reset to rewind to pA');
+	pRecord := list.next();
+	THIS^.AssertTrue(pRecord <> 0 AND_THEN pRecord^.timestamp = 1, 'Expected reset to rewind to the first record');
 
 	// free deletes the owned records
 	list.free();
@@ -54,6 +60,7 @@ VAR
 	pB: POINTER TO FB_LogRecord;
 	pC: POINTER TO FB_LogRecord;
 	pD: POINTER TO FB_LogRecord;
+	pRecord: POINTER TO FB_LogRecord;
 	ok: BOOL;
 END_VAR
 ]]></Declaration>
@@ -68,27 +75,35 @@ END_VAR
 	// insert into an empty list -> [B]
 	ok := list.insert(0, pB);
 	THIS^.AssertTrue(ok, 'Expected insert into empty list to succeed');
+	THIS^.AssertTrue(pB = 0, 'Expected empty-list insert to transfer ownership');
 	THIS^.AssertTrue(list.count = 1, 'Expected one record');
 
 	// insert at the head -> [A, B]
 	ok := list.insert(0, pA);
 	THIS^.AssertTrue(ok, 'Expected head insert to succeed');
+	THIS^.AssertTrue(pA = 0, 'Expected head insert to transfer ownership');
 
 	// insert at the tail (index = count) -> [A, B, D]
 	ok := list.insert(2, pD);
 	THIS^.AssertTrue(ok, 'Expected tail insert to succeed');
+	THIS^.AssertTrue(pD = 0, 'Expected tail insert to transfer ownership');
 
 	// insert in the middle -> [A, B, C, D]
 	ok := list.insert(2, pC);
 	THIS^.AssertTrue(ok, 'Expected middle insert to succeed');
+	THIS^.AssertTrue(pC = 0, 'Expected middle insert to transfer ownership');
 	THIS^.AssertTrue(list.count = 4, 'Expected four records');
 
 	// verify the final order
 	list.reset();
-	THIS^.AssertTrue(list.next() = pA, 'Expected record 0 to be pA');
-	THIS^.AssertTrue(list.next() = pB, 'Expected record 1 to be pB');
-	THIS^.AssertTrue(list.next() = pC, 'Expected record 2 to be pC');
-	THIS^.AssertTrue(list.next() = pD, 'Expected record 3 to be pD');
+	pRecord := list.next();
+	THIS^.AssertTrue(pRecord <> 0 AND_THEN pRecord^.timestamp = 1, 'Expected record 0 to have timestamp 1');
+	pRecord := list.next();
+	THIS^.AssertTrue(pRecord <> 0 AND_THEN pRecord^.timestamp = 2, 'Expected record 1 to have timestamp 2');
+	pRecord := list.next();
+	THIS^.AssertTrue(pRecord <> 0 AND_THEN pRecord^.timestamp = 3, 'Expected record 2 to have timestamp 3');
+	pRecord := list.next();
+	THIS^.AssertTrue(pRecord <> 0 AND_THEN pRecord^.timestamp = 4, 'Expected record 3 to have timestamp 4');
 	THIS^.AssertTrue(list.next() = 0, 'Expected iteration to be exhausted');
 
 	list.free();
@@ -101,6 +116,7 @@ TcUnit.TEST_FINISHED();]]></ST>
 VAR
 	list: FB_LinkedList_LogRecord;
 	pA: POINTER TO FB_LogRecord;
+	pNull: POINTER TO FB_LogRecord;
 	pPopped: POINTER TO FB_LogRecord;
 	ok: BOOL;
 END_VAR
@@ -113,18 +129,20 @@ END_VAR
 	// index beyond count is rejected
 	ok := list.insert(1, pA);
 	THIS^.AssertFalse(ok, 'Expected out of range insert to fail');
+	THIS^.AssertTrue(pA <> 0, 'Expected failed insert to retain ownership');
 	THIS^.AssertTrue(list.count = 0, 'Expected zero records after failed insert');
 
 	// null values are rejected
-	ok := list.insert(0, 0);
+	ok := list.insert(0, pNull);
 	THIS^.AssertFalse(ok, 'Expected null value insert to fail');
 	THIS^.AssertTrue(list.count = 0, 'Expected zero records after failed insert');
 
 	// pop transfers ownership back to the caller
 	ok := list.insert(0, pA);
 	THIS^.AssertTrue(ok, 'Expected valid insert to succeed');
+	THIS^.AssertTrue(pA = 0, 'Expected valid insert to transfer ownership');
 	pPopped := list.pop();
-	THIS^.AssertTrue(pPopped = pA, 'Expected pop to return pA');
+	THIS^.AssertTrue(pPopped <> 0 AND_THEN pPopped^.timestamp = 1, 'Expected pop to return the inserted record');
 	THIS^.AssertTrue(list.count = 0, 'Expected zero records after pop');
 	pPopped := pPopped^.delete();
 	THIS^.AssertTrue(pPopped = 0, 'Expected popped record to be deleted');

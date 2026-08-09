@@ -3,6 +3,13 @@
   <Itf Name="I_LogRecordProcessor" Id="{a23da1f1-b1db-492f-b299-6b18bbfbda71}">
     <Declaration><![CDATA[INTERFACE I_LogRecordProcessor
 ]]></Declaration>
+    <Method Name="enrich" Id="{deddbb07-3e9e-4685-ab24-35286b49685c}">
+      <Declaration><![CDATA[METHOD enrich
+VAR_IN_OUT
+	logRecord: FB_LogRecord;
+END_VAR
+]]></Declaration>
+    </Method>
     <Method Name="free" Id="{909496f4-b058-4633-b2d9-c5e71919d7bc}">
       <Declaration><![CDATA[METHOD free
 
@@ -15,5 +22,11 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
     </Method>
+    <Property Name="pSelf" Id="{6d3def51-99b3-4185-9b46-8e6ab7903180}">
+      <Declaration><![CDATA[PROPERTY pSelf : PVOID]]></Declaration>
+      <Get Name="Get" Id="{c324d232-7a31-46b3-9236-f7c9f75b1a3e}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
   </Itf>
 </TcPlcObject>
