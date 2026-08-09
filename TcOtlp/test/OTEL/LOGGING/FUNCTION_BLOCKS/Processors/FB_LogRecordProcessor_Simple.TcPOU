@@ -3,13 +3,22 @@
   <POU Name="FB_LogRecordProcessor_Simple" Id="{90ded010-1262-4ab5-9db9-0fd13f25279d}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProcessor_Simple EXTENDS FB_LogRecordProcessor_Mixin IMPLEMENTS I_LogRecordProcessor;
 VAR
-	_records: FB_LinkedList_LogRecord;
+	_records: POINTER TO FB_LinkedList_LogRecord;
 	_exporter: REFERENCE TO FB_LogRecordExporter_Base;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="call" Id="{cbc94a96-e048-4b21-9864-888b5113f033}">
+      <Declaration><![CDATA[METHOD call
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF __ISVALIDREF(THIS^._exporter) THEN
+	THIS^._exporter();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="enrich" Id="{6f0ee9bd-9f0f-4ae9-bc9c-41fc9bcbd76c}">
       <Declaration><![CDATA[// no-op, overwride to change log mutation/enrichment functionality
 METHOD enrich
@@ -31,7 +40,9 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[THIS^.free();]]></ST>
+        <ST><![CDATA[IF NOT bInCopyCode THEN
+	THIS^.free();
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Init" Id="{589fb0dd-a53b-43f6-9d67-5928802d20cd}">
@@ -58,7 +69,9 @@ END_IF]]></ST>
       <Declaration><![CDATA[METHOD free
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[THIS^._records.free();]]></ST>
+        <ST><![CDATA[IF THIS^._records <> 0 THEN
+	THIS^._records := THIS^._records^.delete();
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="onEmit" Id="{1a689aff-c482-4d8e-b59e-78bd1c66f367}">
@@ -75,18 +88,22 @@ END_VAR
         <ST><![CDATA[THIS^.enrich(logRecord);
 
 IF __ISVALIDREF(THIS^._exporter) THEN
-	 IF (NOT THIS^._exporter.isBusy()) THEN
+	IF (NOT THIS^._exporter.isBusy()) THEN
 		_sts := logRecord.cloneTo(_pLogRecord);
 		IF _sts = E_PointerFactoryStatus.SUCCESS THEN
-			THIS^._records.append(_pLogRecord);
-			THIS^._exporter.export(THIS^._records);
+			THIS^._records := __NEW(FB_LinkedList_LogRecord);
+			IF THIS^._records <> 0 AND_THEN THIS^._records^.append(_pLogRecord) THEN
+				// A successful exporter accepts the pointer and clears _records.
+				THIS^._exporter.export(THIS^._records);
+			END_IF
 		END_IF
-		IF _pLogRecord <> 0 THEN _pLogRecord^.delete(); END_IF
-	 END_IF
-ELSE
-	// skip cloning if the ref is not avlid
+		IF THIS^._records <> 0 THEN THIS^._records := THIS^._records^.delete(); END_IF
+	END_IF
 END_IF
-THIS^._records.free();
+
+// If the exporter did not accept the buffer, the simple processor drops it.
+THIS^.free();
+IF _pLogRecord <> 0 THEN _pLogRecord := _pLogRecord^.delete(); END_IF
 ]]></ST>
       </Implementation>
     </Method>

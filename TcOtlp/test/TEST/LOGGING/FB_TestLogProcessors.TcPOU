@@ -9,10 +9,12 @@ TestBatchProcessors();]]></ST>
     </Implementation>
     <Method Name="testBatchProcessors" Id="{7cba4cd6-baeb-4652-979f-3089242ac7bc}">
       <Declaration><![CDATA[(*
-	The batch processor must keep its queue grouped and sorted by
-	(resource id, scope name) no matter the emit order. Resource identity
-	comes from FB_Resource.id, which is assigned at declaration, so
-	resourceA sorts before resourceB.
+	The batch processor queues emitted records in arrival order (oldest at
+	the head), dropping the oldest when the queue is full. Flushing moves
+	the oldest maxExportBatchSize records into a buffer sorted by
+	(resource id, scope name) and transfers ownership to the exporter.
+	Resource identity comes from FB_Resource.id, which is assigned at
+	declaration, so resourceA sorts before resourceB.
 *)
 METHOD testBatchProcessors : REFERENCE TO FB_Test
 VAR
@@ -25,7 +27,8 @@ VAR
 	loggerAA: FB_Logger(scopeA, providerA);
 	loggerAB: FB_Logger(scopeB, providerA);
 	loggerBA: FB_Logger(scopeA, providerB);
-	processor: FB_LogRecordProcessor_ForBatchInspection(0);
+	exporter: FB_LogRecordExporter_ForInspection;
+	processor: FB_LogRecordProcessor_ForBatchInspection(exporter);
 	processors: ARRAY [0..0] OF I_LogRecordProcessor := [
 		processor
 	];
@@ -34,6 +37,10 @@ VAR
 	ts3: ULINT := 3;
 	ts4: ULINT := 4;
 	ts5: ULINT := 5;
+	ts6: ULINT := 6;
+	ts7: ULINT := 7;
+	ts8: ULINT := 8;
+	ts9: ULINT := 9;
 	pRec: POINTER TO FB_LogRecord;
 END_VAR
 
@@ -42,6 +49,9 @@ END_VAR
         <ST><![CDATA[TcUnit.TEST('Test BatchLogProcessors');
 	// ids are handed out in declaration order, so A groups before B
 	THIS^.AssertTrue(resourceA.id < resourceB.id, 'Expected resourceA to have the lower identity');
+
+	// small batches so the count-based flush trigger fires without waiting on the timer
+	processor.maxExportBatchSize := 3;
 
 	// emit interleaved across (resource, scope) pairs
 	loggerBA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(ts1)).emit(processors);
@@ -52,21 +62,67 @@ END_VAR
 	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, processor.sts, 'Expected the last emit to succeed');
 	THIS^.AssertTrue(processor.records.count = 5, 'Expected five queued records');
 
-	// expected compound sorted order: (a,a)=3,5  (a,b)=2  (b,a)=1,4
+	// the queue keeps arrival order, oldest at the head
 	processor.records.reset();
 	pRec := processor.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN (pRec^.timestamp = 3 AND pRec^.resource.id = resourceA.id AND pRec^.scope.name = 'scope.a'), 'Expected record 0 to be ts3 (resourceA, scope.a)');
+	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 1, 'Expected queued record 0 to be ts1');
 	pRec := processor.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN (pRec^.timestamp = 5 AND pRec^.resource.id = resourceA.id AND pRec^.scope.name = 'scope.a'), 'Expected record 1 to be ts5 (resourceA, scope.a)');
+	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 2, 'Expected queued record 1 to be ts2');
 	pRec := processor.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN (pRec^.timestamp = 2 AND pRec^.resource.id = resourceA.id AND pRec^.scope.name = 'scope.b'), 'Expected record 2 to be ts2 (resourceA, scope.b)');
+	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 3, 'Expected queued record 2 to be ts3');
 	pRec := processor.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN (pRec^.timestamp = 1 AND pRec^.resource.id = resourceB.id AND pRec^.scope.name = 'scope.a'), 'Expected record 3 to be ts1 (resourceB, scope.a)');
+	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 4, 'Expected queued record 3 to be ts4');
 	pRec := processor.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN (pRec^.timestamp = 4 AND pRec^.resource.id = resourceB.id AND pRec^.scope.name = 'scope.a'), 'Expected record 4 to be ts4 (resourceB, scope.a)');
-	THIS^.AssertTrue(processor.records.next() = 0, 'Expected iteration to be exhausted');
+	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 5, 'Expected queued record 4 to be ts5');
+	THIS^.AssertTrue(processor.records.next() = 0, 'Expected queue iteration to be exhausted');
 
-	// free releases the queue and the group markers
+	// the body flushes the three OLDEST records (ts1..ts3) since count >= maxExportBatchSize
+	processor();
+	THIS^.AssertTrue(processor.records.count = 2, 'Expected two records left in the queue after the flush');
+	THIS^.AssertTrue(exporter.records.count = 3, 'Expected three records in the exported batch');
+
+	// exported batch is grouped and sorted: (a,a)=3  (a,b)=2  (b,a)=1
+	exporter.records.reset();
+	pRec := exporter.records.next();
+	THIS^.AssertTrue(pRec <> 0 AND_THEN (pRec^.timestamp = 3 AND pRec^.resource.id = resourceA.id AND pRec^.scope.name = 'scope.a'), 'Expected batch record 0 to be ts3 (resourceA, scope.a)');
+	pRec := exporter.records.next();
+	THIS^.AssertTrue(pRec <> 0 AND_THEN (pRec^.timestamp = 2 AND pRec^.resource.id = resourceA.id AND pRec^.scope.name = 'scope.b'), 'Expected batch record 1 to be ts2 (resourceA, scope.b)');
+	pRec := exporter.records.next();
+	THIS^.AssertTrue(pRec <> 0 AND_THEN (pRec^.timestamp = 1 AND pRec^.resource.id = resourceB.id AND pRec^.scope.name = 'scope.a'), 'Expected batch record 2 to be ts1 (resourceB, scope.a)');
+	THIS^.AssertTrue(exporter.records.next() = 0, 'Expected batch iteration to be exhausted');
+
+	// a busy exporter leaves the queue untouched
+	exporter.busy := TRUE;
+	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(ts6)).emit(processors);
+	processor();
+	THIS^.AssertTrue(processor.records.count = 3, 'Expected three queued records while the exporter is busy');
+
+	// once free again, the next flush exports the remaining records sorted: (a,a)=5  (a,b)=6  (b,a)=4
+	exporter.busy := FALSE;
+	processor();
+	THIS^.AssertTrue(processor.records.count = 0, 'Expected an empty queue after the second flush');
+	THIS^.AssertTrue(exporter.records.count = 3, 'Expected three records in the second exported batch');
+	exporter.records.reset();
+	pRec := exporter.records.next();
+	THIS^.AssertTrue(pRec <> 0 AND_THEN (pRec^.timestamp = 5 AND pRec^.resource.id = resourceA.id AND pRec^.scope.name = 'scope.a'), 'Expected batch record 0 to be ts5 (resourceA, scope.a)');
+	pRec := exporter.records.next();
+	THIS^.AssertTrue(pRec <> 0 AND_THEN (pRec^.timestamp = 6 AND pRec^.resource.id = resourceA.id AND pRec^.scope.name = 'scope.b'), 'Expected batch record 1 to be ts6 (resourceA, scope.b)');
+	pRec := exporter.records.next();
+	THIS^.AssertTrue(pRec <> 0 AND_THEN (pRec^.timestamp = 4 AND pRec^.resource.id = resourceB.id AND pRec^.scope.name = 'scope.a'), 'Expected batch record 2 to be ts4 (resourceB, scope.a)');
+
+	// a full queue drops the oldest record to make room for the newest
+	processor.maxQueueSize := 2;
+	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(ts7)).emit(processors);
+	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(ts8)).emit(processors);
+	loggerBA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(ts9)).emit(processors);
+	THIS^.AssertTrue(processor.records.count = 2, 'Expected the queue to stay at maxQueueSize');
+	processor.records.reset();
+	pRec := processor.records.next();
+	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 8, 'Expected ts7 to be dropped and ts8 at the head');
+	pRec := processor.records.next();
+	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 9, 'Expected ts9 at the tail');
+
+	// free releases the queue
 	processor.free();
 	THIS^.AssertTrue(processor.records.count = 0, 'Expected zero records after free');
 TcUnit.TEST_FINISHED();]]></ST>

@@ -39,6 +39,10 @@ END_IF
 _pNum^.delete();  // clean up the _pNum as its cloned in createKeyValue
 
 addNumberAttribute := THIS^.append(pValue:=_pKv);
+// append only takes ownership on success; release a rejected value
+IF _pKv <> 0 THEN
+	_pKv := _pKv^.delete();
+END_IF
 ]]></ST>
       </Implementation>
     </Method>
@@ -66,6 +70,10 @@ END_IF
 _pNum^.delete();  // clean up the _pNum as its cloned in createKeyValue
 
 addNumberAttribute_AnyType := THIS^.append(pValue:=_pKv);
+// append only takes ownership on success; release a rejected value
+IF _pKv <> 0 THEN
+	_pKv := _pKv^.delete();
+END_IF
 ]]></ST>
       </Implementation>
     </Method>
@@ -93,6 +101,10 @@ END_IF
 _pStr^.delete();  // clean up the _pStr as its cloned in createKeyValue
 
 addStringAttribute := THIS^.append(pValue:=_pKv);
+// append only takes ownership on success; release a rejected value
+IF _pKv <> 0 THEN
+	_pKv := _pKv^.delete();
+END_IF
 ]]></ST>
       </Implementation>
     </Method>

@@ -1,8 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_LinkedList_LogRecord" Id="{9e1ecc03-058c-4b23-92d3-3bd422ae83cb}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_LinkedList_LogRecord
-VAR
+    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_LinkedList_LogRecord
+VAR_INPUT
 	maxRecordCount: UDINT := 2000;
 END_VAR
 VAR
@@ -27,6 +28,19 @@ END_VAR
         <ST><![CDATA[append := THIS^.insert(index:=THIS^.count, pValue:=pValue);]]></ST>
       </Implementation>
     </Method>
+    <Method Name="delete" Id="{ac32f20b-8128-4c42-b4f2-4183bf82ac23}">
+      <Declaration><![CDATA[METHOD delete : ULINT
+VAR
+	pSelf: POINTER TO FB_LinkedList_LogRecord;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[delete := 0;
+THIS^.free();
+pSelf := THIS;
+__DELETE(pSelf);]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="FB_Exit" Id="{6d9d65b6-2d68-47f0-b7cb-88e631d7acef}">
       <Declaration><![CDATA[METHOD FB_Exit : BOOL
 VAR_INPUT
@@ -34,7 +48,9 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[THIS^.free();]]></ST>
+        <ST><![CDATA[IF NOT bInCopyCode THEN
+	THIS^.free();
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="free" Id="{fbd1c94b-c09e-4d95-a598-0cd5bb8a61f6}">

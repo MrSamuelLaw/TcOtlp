@@ -3,6 +3,12 @@
   <Itf Name="I_LogRecordProcessor" Id="{a23da1f1-b1db-492f-b299-6b18bbfbda71}">
     <Declaration><![CDATA[INTERFACE I_LogRecordProcessor
 ]]></Declaration>
+    <Method Name="call" Id="{31ece694-3e57-4d55-a131-92b5239a2f3a}">
+      <Declaration><![CDATA[METHOD call
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
     <Method Name="enrich" Id="{deddbb07-3e9e-4685-ab24-35286b49685c}">
       <Declaration><![CDATA[METHOD enrich
 VAR_IN_OUT

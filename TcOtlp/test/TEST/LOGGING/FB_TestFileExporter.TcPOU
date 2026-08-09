@@ -35,8 +35,9 @@ VAR_INST
 END_VAR
 
 VAR
+	_num: UINT;
 	_fileSize: ULINT;
-	_exportStatus: E_LogRecordExporterState;
+	_exportStatus: E_PointerFactoryStatus;
 	_firstSts: E_PointerFactoryStatus;
 	_secondSts: E_PointerFactoryStatus;
 	_thirdSts: E_PointerFactoryStatus;
@@ -52,7 +53,11 @@ END_VAR]]></Declaration>
 			_processor.free();
 			_logger.free();
 			_processors[0] := _processor;
-			_resource.attributes.addStringAttribute('host.id', 'PLC1');
+			// _resource persists across test re-runs; only add the attribute once
+			IF _resource.attributes.count = 0 THEN
+				_resource.attributes.addStringAttribute('host.id', 'PLC1');
+			END_IF
+			_num := 1;
 			_firstSts := _logger
 				.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG, timestamp:=ADR(_timestamp))
 				.setBody('First batched log record')
@@ -61,18 +66,23 @@ END_VAR]]></Declaration>
 				.setSpanId(ADR(_spanId), SIZEOF(_spanId))
 				.setFlags(E_LogRecordFlag.LOG_RECORD_FLAGS_TRACE_FLAGS_MASK)
 				.addStringAttribute('batch.position', 'first')
+				.addNumberAttribute('batch.positionNum', _num)
 				.emit(_processors);
+			_num := 2;
 			_secondSts := _logger
 				.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(_timestamp))
 				.setBody('Second batched log record')
 				.setEventName('BatchRecord2')
 				.addStringAttribute('batch.position', 'second')
+				.addNumberAttribute('batch.positionNum', _num)
 				.emit(_processors);
+			_num := 3;
 			_thirdSts := _logger
 				.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_WARN, timestamp:=ADR(_timestamp))
 				.setBody('Third batched log record')
 				.setEventName('BatchRecord3')
 				.addStringAttribute('batch.position', 'third')
+				.addNumberAttribute('batch.positionNum', _num)
 				.emit(_processors);
 			THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, _firstSts, 'First emit status was unsuccessful');
 			THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, _secondSts, 'Second emit status was unsuccessful');
@@ -90,9 +100,17 @@ END_VAR]]></Declaration>
 			END_IF
 			
 		10: // export
-			_exportStatus := _exporter.export(_processor.records);
+			IF _processor.pRecords <> 0 THEN
+				_exportStatus := _processor.exportRecords(_exporter);
+				IF _exportStatus <> E_PointerFactoryStatus.SUCCESS OR_ELSE _processor.pRecords <> 0 THEN
+					THIS^.AssertTrue(FALSE, 'Exporter failed to take ownership of the processor buffer');
+					_state := 30;
+					RETURN;
+				END_IF
+			END_IF
+			_exporter();
 			_cycles := _cycles + 1;
-			IF _exportStatus = E_LogRecordExporterState.FAILURE THEN
+			IF _exporter.currentState = E_FileExporterState.error THEN
 				THIS^.AssertTrue(FALSE, 'OTLP pipeline failed to export logs to file');
 				_state := 30;
 				RETURN;
@@ -100,8 +118,8 @@ END_VAR]]></Declaration>
 				THIS^.AssertTrue(FALSE, 'Timed out waiting for the OTLP pipeline to finish');
 				_state := 30;
 				RETURN;
-			ELSIF _exportStatus = E_LogRecordExporterState.SUCCESS THEN
-				THIS^.AssertTrue(_exporter.currentState = E_FileExporterState.done, 'Expected file exporter to finish successfully');
+			ELSIF _exporter.currentState = E_FileExporterState.done THEN
+				THIS^.AssertFalse(_exporter.isBusy(), 'Expected exporter to delete its completed buffer');
 				// assert no errors occurred
 				THIS^.AssertEquals_UDINT(0, _exporter.fileOpenerErrId, 'Unexpected file opener error');
 				THIS^.AssertEquals_UDINT(0, _exporter.fileWriterErrId, 'Unexpected file writer error');
@@ -138,7 +156,7 @@ END_VAR]]></Declaration>
 			// clean up the record owned by the processor
 			_processor.free();
 			_logger.free();
-			THIS^.AssertEquals_UDINT(0, _processor.records.count, 'Expected processor to be empty after cleanup');
+			THIS^.AssertTrue(_processor.pRecords = 0, 'Expected processor to be empty after cleanup');
 
 			_state := 0;
 			TcUnit.TEST_FINISHED();

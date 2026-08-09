@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LogRecordExporter_ForInspection" Id="{d4b9a2e7-6f31-48c5-9b0a-1e8c72d5f4a3}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Test double that captures the linked list a processor transfers via
+	export, so tests can assert on the exported batch. Set busy to
+	simulate an exporter that cannot accept a batch.
+*)
+FUNCTION_BLOCK FB_LogRecordExporter_ForInspection EXTENDS FB_LogRecordExporter_Base
+VAR_INPUT
+	busy: BOOL;		// TRUE simulates a busy exporter that refuses batches
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="export" Id="{5e7c1f92-3a48-4d06-8b5d-9f24c6a1e7b8}">
+      <Declaration><![CDATA[METHOD export : E_PointerFactoryStatus
+VAR_IN_OUT
+	pLogRecords: POINTER TO FB_LinkedList_LogRecord;  // ownership transfers when set to 0
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^.busy THEN
+	export := E_PointerFactoryStatus.POINTER_OWNERSHIP_TRANSFER_FAILURE;
+	RETURN;
+END_IF
+
+IF pLogRecords <> 0 THEN
+	// release any previously captured batch, then take ownership
+	IF THIS^._pLogRecords <> 0 AND THIS^._pLogRecords <> pLogRecords THEN
+		THIS^.free();
+	END_IF
+	THIS^._pLogRecords := pLogRecords;
+	pLogRecords := 0;
+END_IF
+
+export := E_PointerFactoryStatus.SUCCESS;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="isBusy" Id="{a1f83d64-92b7-4e5a-8c39-7d15b0e6c2f9}">
+      <Declaration><![CDATA[METHOD isBusy : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[isBusy := THIS^.busy;]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="records" Id="{3c6e94b1-58d2-4f7a-a0e4-2b91c8d5a7f6}">
+      <Declaration><![CDATA[// the captured batch, for test assertions
+PROPERTY records : REFERENCE TO FB_LinkedList_LogRecord]]></Declaration>
+      <Get Name="Get" Id="{6b28d5f3-1c97-4e40-b8a2-5f04e9c3d1a8}">
+        <Declaration><![CDATA[
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF THIS^._pLogRecords = 0 THEN
+	THIS^._pLogRecords := __NEW(FB_LinkedList_LogRecord);
+END_IF
+records REF= THIS^._pLogRecords^;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+  </POU>
+</TcPlcObject>

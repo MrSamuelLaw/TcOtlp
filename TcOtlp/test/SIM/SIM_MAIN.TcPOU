@@ -6,45 +6,61 @@ VAR
 	// logging config
 	resource: FB_Resource(schemaUrl:='');
 	provider: FB_LoggerProvider(resource:=resource);
-	scope: FB_InstrumentationScope(name:='motor1', version:='0.0.0a', schemaUrl:='');
-	logger1: FB_Logger(provider:=provider, scope:=scope);
-	logger2: FB_Logger(provider:=provider, scope:=scope);
+	motorScope: FB_InstrumentationScope(name:='motor', version:='0.0.0a', schemaUrl:='');
+	motorLogger: FB_Logger(provider:=provider, scope:=motorScope);
+	valveScope: FB_InstrumentationScope(name:='valve', version:='0.0.0a', schemaUrl:='');
+	valveLogger: FB_Logger(provider:=provider, scope:=valveScope);
 	exporter: FB_LogRecordExporter_File(filepath:='C:\Users\samue\Desktop\programming projects\TcOtlp\logs.jsonl');
-	batchProcessor1: FB_LogRecordProcessor_Batch(exporter:=exporter);
-	batchProcessor2: FB_LogRecordProcessor_Batch(exporter:=exporter);
+	processor: FB_LogRecordProcessor_Batch(exporter:=exporter);
 	processors: ARRAY [0..0] OF I_LogRecordProcessor := [
-		batchProcessor1
+		processor
 	];
 	
 	// initialization setup
 	firstScan: BOOL := TRUE;
 	
 	// program variables
-	alarmFlag: BOOL;
+	_idx: DINT;
+	motorAlarmFlag: BOOL;
+	valveAlarmFlag: BOOL;
+	valvePosFeedback: 	REAL := 70.0;
+ 	valvePosCommand: 	REAL := 0.0;
 	motorTemp: REAL;
 	motorTempLimit: REAL := 135.00;  // °F
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[IF firstScan THEN
-	resource.addStringAttribute('name', 'PLC1');
+	resource.attributes.addStringAttribute('name', 'PLC1');
+
 END_IF
+	
+FOR _idx := LOWER_BOUND(processors, 1) TO UPPER_BOUND(processors, 1) DO
+	processors[_idx].call();
+END_FOR
 
-// run the loop
-provider(processors:=processors);
-
-IF motorTemp > motorTempLimit THEN // AND NOT alarmFlag THEN
-	logger1
+IF motorTemp > motorTempLimit AND NOT motorAlarmFlag THEN
+	motorLogger
 		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_FATAL)
-		.setEventName(ADR('motor1.over_temp_fault'))
-		.setBody(ADR('Motor 1 experienced an over temp fault... initiating auto shutdown sequence!'))
-		.addNumberAttribute(ADR('temp.limit'), motorTempLimit)
-		.addNumberAttribute(ADR('temp.actual'), motorTemp)
-		.emit();
+		.setEventName('motor.over_temp_fault')
+		.setBody('Motor experienced an over temp fault... initiating auto shutdown sequence!')
+		.addNumberAttribute('temp.limit', motorTempLimit)
+		.addNumberAttribute('temp.actual', motorTemp)
+		.emit(processors);
 END_IF
-alarmFlag := motorTemp > motorTempLimit;
+motorAlarmFlag := motorTemp > motorTempLimit;
+firstScan := FALSE;
 
-firstScan := FALSE;]]></ST>
+IF motorAlarmFlag AND NOT valveAlarmFlag THEN
+	valveLogger
+		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_FATAL)
+		.setEventName('valve.emergency_close')
+		.setBody('Motor has stopped running, closing valve to prevent flooding!')
+		.addNumberAttribute('valve.position_feedback', valvePosFeedback)
+		.addNumberAttribute('valve.position_command', valvePosCommand)
+		.emit(processors);
+END_IF
+valveAlarmFlag := motorAlarmFlag;]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

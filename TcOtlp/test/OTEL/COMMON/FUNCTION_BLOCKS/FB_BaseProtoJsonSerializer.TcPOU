@@ -111,20 +111,76 @@ END_VAR
 VAR
 	_v: SJsonValue;
 	_type: E_ValueType;
+	_pNumber: POINTER TO FB_Number;
+	_pSInt: POINTER TO SINT;
+	_pInt: POINTER TO INT;
+	_pDInt: POINTER TO DINT;
+	_pLInt: POINTER TO LINT;
+	_pUSInt: POINTER TO USINT;
+	_pUInt: POINTER TO UINT;
+	_pUDInt: POINTER TO UDINT;
+	_pULInt: POINTER TO ULINT;
+	_pReal: POINTER TO REAL;
+	_pLReal: POINTER TO LREAL;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pVal <> 0 THEN
-	_type := pVal^.eType;
-	CASE _type OF
-		E_ValueType.E_String:
-		// add a field with key = pKey
+        <ST><![CDATA[serializeAnyValue := FALSE;
+IF pKey = 0 OR pVal = 0 OR_ELSE (NOT pVal^.initialized) THEN
+	RETURN;
+END_IF
+
+_type := pVal^.eType;
+CASE _type OF
+	E_ValueType.E_String:
+		// AnyValue wraps its concrete value in a type-specific field.
 		_v := THIS^.parser.AddObjectMember(v, pKey^);
-		// but the value needs to be 'dType: val' for example "body": {"stringValue": "my string value"}
 		THIS^.serializeStringValue(_v, ADR('stringValue'), pVal);
-	ELSE
-		//pass
-	END_CASE
-END_IF]]></ST>
+		serializeAnyValue := TRUE;
+
+	E_ValueType.E_Number:
+		_pNumber := pVal;
+		IF _pNumber^.value.pValue = 0 THEN
+			RETURN;
+		END_IF
+
+		_v := THIS^.parser.AddObjectMember(v, pKey^);
+		// AnyValue has one int64 field and one double field, regardless of the IEC source width.
+		CASE _pNumber^.value.TypeClass OF
+			__SYSTEM.TYPE_CLASS.TYPE_SINT:
+				_pSInt := _pNumber^.value.pValue;
+				THIS^.serializeInt64Value(_v, ADR('intValue'), SINT_TO_LINT(_pSInt^));
+			__SYSTEM.TYPE_CLASS.TYPE_INT:
+				_pInt := _pNumber^.value.pValue;
+				THIS^.serializeInt64Value(_v, ADR('intValue'), INT_TO_LINT(_pInt^));
+			__SYSTEM.TYPE_CLASS.TYPE_DINT:
+				_pDInt := _pNumber^.value.pValue;
+				THIS^.serializeInt64Value(_v, ADR('intValue'), DINT_TO_LINT(_pDInt^));
+			__SYSTEM.TYPE_CLASS.TYPE_LINT:
+				_pLInt := _pNumber^.value.pValue;
+				THIS^.serializeInt64Value(_v, ADR('intValue'), _pLInt^);
+			__SYSTEM.TYPE_CLASS.TYPE_USINT:
+				_pUSInt := _pNumber^.value.pValue;
+				THIS^.serializeUint64Value(_v, ADR('intValue'), USINT_TO_ULINT(_pUSInt^));
+			__SYSTEM.TYPE_CLASS.TYPE_UINT:
+				_pUInt := _pNumber^.value.pValue;
+				THIS^.serializeUint64Value(_v, ADR('intValue'), UINT_TO_ULINT(_pUInt^));
+			__SYSTEM.TYPE_CLASS.TYPE_UDINT:
+				_pUDInt := _pNumber^.value.pValue;
+				THIS^.serializeUint64Value(_v, ADR('intValue'), UDINT_TO_ULINT(_pUDInt^));
+			__SYSTEM.TYPE_CLASS.TYPE_ULINT:
+				_pULInt := _pNumber^.value.pValue;
+				THIS^.serializeUint64Value(_v, ADR('intValue'), _pULInt^);
+			__SYSTEM.TYPE_CLASS.TYPE_REAL:
+				_pReal := _pNumber^.value.pValue;
+				THIS^.serializeDoubleValue(_v, ADR('doubleValue'), REAL_TO_LREAL(_pReal^));
+			__SYSTEM.TYPE_CLASS.TYPE_LREAL:
+				_pLReal := _pNumber^.value.pValue;
+				THIS^.serializeDoubleValue(_v, ADR('doubleValue'), _pLReal^);
+			ELSE
+				RETURN;
+		END_CASE
+		serializeAnyValue := TRUE;
+END_CASE]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeDoubleValue" Id="{8e1716f5-ca18-4545-9ac3-fe0242797154}">

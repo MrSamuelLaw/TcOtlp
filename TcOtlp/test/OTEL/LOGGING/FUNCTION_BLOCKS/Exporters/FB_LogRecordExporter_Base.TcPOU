@@ -4,19 +4,43 @@
     <Declaration><![CDATA[FUNCTION_BLOCK ABSTRACT FB_LogRecordExporter_Base
 VAR
 	_processor: PVOID;
+	_pLogRecords: POINTER TO FB_LinkedList_LogRecord;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="export" Id="{ae492816-f399-4168-9ef3-5fffa135683d}">
-      <Declaration><![CDATA[METHOD ABSTRACT export: E_LogRecordExporterState
+      <Declaration><![CDATA[METHOD ABSTRACT export: E_PointerFactoryStatus
 VAR_IN_OUT
-	logRecords: FB_LinkedList_LogRecord;  // records to serialize
+	pLogRecords: POINTER TO FB_LinkedList_LogRecord;  // ownership transfers when set to 0
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Exit" Id="{4cf96576-30d7-4e33-b93a-49a133c9a4da}">
+      <Declaration><![CDATA[METHOD FB_Exit: BOOL
+VAR_INPUT
+	bInCopyCode: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bInCopyCode THEN
+	THIS^.free();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{8a5352f2-a0d5-47c9-aa71-bf818ab953fc}">
+      <Declaration><![CDATA[METHOD free
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._pLogRecords <> 0 THEN
+	// FB_LinkedList_LogRecord.FB_Exit deletes every owned record.
+	__DELETE(THIS^._pLogRecords);
+	THIS^._pLogRecords := 0;
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="isBusy" Id="{c736d8fc-db46-4f7d-87a5-2570da83287a}">

@@ -1,11 +1,21 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_LogRecordProcessor_Batch" Id="{3c63b4ac-33ba-4480-a899-f0c3be47a7cf}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProcessor_Batch EXTENDS FB_LogRecordProcessor_Mixin IMPLEMENTS I_LogRecordProcessor;
+    <Declaration><![CDATA[(*
+	Batch processor. Call the FB body cyclically.
+
+	onEmit clones each record into an arrival-order queue (oldest at the head)
+	capped at maxQueueSize; when full, the oldest record is dropped to make
+	room for the newest. The body flushes every scheduledDelayMillis, or as
+	soon as a full batch is queued: the oldest maxExportBatchSize records are
+	moved into a buffer sorted by (resource id, scope name) and ownership of
+	the buffer is transferred to the exporter.
+*)
+FUNCTION_BLOCK FB_LogRecordProcessor_Batch EXTENDS FB_LogRecordProcessor_Mixin IMPLEMENTS I_LogRecordProcessor;
 VAR_INPUT
-	maxQueueSize: UDINT := 2048;						// the maximum queue size. After the size is reached logs are dropped. The default value is 2048.
+	maxQueueSize: UDINT := 2048;						// the maximum queue size. After the size is reached the oldest logs are dropped. The default value is 2048.
 	scheduledDelayMillis: UDINT := 1000;				// the delay interval in milliseconds between two consecutive exports. The default value is 1000.
-	exportTimeoutMillis: UDINT := 30000;				// how long the export can run before it is cancelled. The default value is 30000.
+	exportTimeoutMillis: UDINT := 30000;				// how long the export can run before it is cancelled. The default value is 30000. (not yet implemented)
 	maxExportBatchSize: UDINT := 512;					// the maximum batch size of every export. It must be smaller or equal to maxQueueSize. The default value is 512.
 END_VAR
 VAR_OUTPUT
@@ -13,15 +23,24 @@ VAR_OUTPUT
 END_VAR
 VAR
 	_scheduleDelayTimer: TON;
-	_scheduleTimeoutTimer: TON;
-	_records: FB_LinkedList_LogRecord;
-	_groups: POINTER TO ST_LogRecordGroup;
+	_records: POINTER TO FB_LinkedList_LogRecord;		// arrival-order queue (oldest at the head), capped at maxQueueSize
+	_buffer: POINTER TO FB_LinkedList_LogRecord;		// sorted batch awaiting transfer to the exporter, capped at maxExportBatchSize
 	_exporter: REFERENCE TO FB_LogRecordExporter_Base;
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[]]></ST>
+      <ST><![CDATA[THIS^.call();]]></ST>
     </Implementation>
+    <Method Name="call" Id="{52431084-38a6-4b97-9c40-41396451732f}">
+      <Declaration><![CDATA[METHOD call
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.flushIfNeeded();
+IF __ISVALIDREF(THIS^._exporter) THEN
+	THIS^._exporter();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="enrich" Id="{cd91d31c-cfa3-4b93-ac03-7d361155ee3a}">
       <Declaration><![CDATA[// no-op; override to change log mutation/enrichment functionality
 METHOD enrich
@@ -40,7 +59,9 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[THIS^.free();]]></ST>
+        <ST><![CDATA[IF NOT bInCopyCode THEN
+	THIS^.free();
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Init" Id="{1b6c3aba-d3d8-44a7-8d93-ac13d7ad0810}">
@@ -60,143 +81,232 @@ END_VAR
 	THIS^._exporter REF= exporter;
 ELSE
 	THIS^._exporter REF= 0;
+END_IF
+
+IF NOT bInCopyCode THEN
+	THIS^._records := __NEW(FB_LinkedList_LogRecord);
+	IF THIS^._records = 0 THEN
+		THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	END_IF
 END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="free" Id="{f13c14df-6aac-4e5f-ae77-f40c30ac792c}">
       <Declaration><![CDATA[METHOD free
-VAR
-	_idx: UDINT;
-	_grp: POINTER TO ST_LogRecordGroup;
-	_nxt: POINTER TO ST_LogRecordGroup;
-END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[THIS^._records.free();
+        <ST><![CDATA[IF THIS^._records <> 0 THEN
+	// FB_LinkedList_LogRecord.free deletes every owned record.
+	THIS^._records := THIS^._records^.delete();
+END_IF
 
-// release the group markers
-_grp := THIS^._groups;
-FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
-	IF _grp = 0 THEN
-		EXIT;
-	END_IF
-	_nxt := _grp^.nxt;
-	__DELETE(_grp);
-	_grp := _nxt;
-END_FOR
-THIS^._groups := 0;]]></ST>
+IF THIS^._buffer <> 0 THEN
+	THIS^._buffer := THIS^._buffer^.delete();
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="onEmit" Id="{601f420a-eb68-4a65-8062-d11e0d96dc3c}">
       <Declaration><![CDATA[(*
-	Queues a clone of the log record, keeping the queue grouped and sorted by
-	(resource id, scope name). Group markers form a sorted linked list
-	whose insertIndex lets a record jump straight to the end of its group.
+	Clones the log record onto the tail of the arrival-order queue.
+	When the queue holds maxQueueSize records, the oldest record is
+	dropped from the head to make room for the newest.
 *)
 METHOD onEmit
 VAR_INPUT
 	logRecord: REFERENCE TO FB_LogRecord;
 END_VAR
 VAR
-	_record: POINTER TO FB_LogRecord;
-	_grp: POINTER TO ST_LogRecordGroup;
-	_prev: POINTER TO ST_LogRecordGroup;
-	_new: POINTER TO ST_LogRecordGroup;
-	_idx: UDINT;
-	_insertAt: UDINT;
-	_found: BOOL;
+	_pRecord: POINTER TO FB_LogRecord;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF THIS^._records.count >= THIS^.maxQueueSize THEN
+        <ST><![CDATA[THIS^.enrich(logRecord);
+
+IF NOT THIS^.ensureQueue() THEN RETURN; END_IF
+_pRecord := 0;
+THIS^.sts := logRecord.cloneTo(_pRecord);
+IF THIS^.sts <> E_PointerFactoryStatus.SUCCESS THEN
+	IF _pRecord <> 0 THEN _pRecord := _pRecord^.delete(); END_IF
+	RETURN;
+END_IF
+
+IF NOT THIS^.makeQueueRoom() OR_ELSE NOT THIS^._records^.append(_pRecord) THEN
+	_pRecord := _pRecord^.delete();
 	THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
 	RETURN;
 END_IF
 
-IF _record <> 0 THEN _record := _record^.delete(); END_IF
-THIS^.sts := logRecord.cloneTo(_record);
-IF THIS^.sts <> E_PointerFactoryStatus.SUCCESS THEN
-	IF _record <> 0 THEN _record := _record^.delete(); END_IF
+THIS^.sts := E_PointerFactoryStatus.SUCCESS;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="ensureQueue" Id="{ea1eecb5-ef37-433e-a442-c6100f2bf2c0}">
+      <Declaration><![CDATA[METHOD ensureQueue : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._records = 0 THEN
+	THIS^._records := __NEW(FB_LinkedList_LogRecord);
+END_IF
+
+ensureQueue := THIS^._records <> 0;
+IF ensureQueue THEN
+	THIS^._records^.maxRecordCount := THIS^.maxQueueSize;
+ELSE
+	THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="makeQueueRoom" Id="{cdf40125-a5ac-478f-9071-bd2a80e4d997}">
+      <Declaration><![CDATA[METHOD makeQueueRoom : BOOL
+VAR
+	_idx: UDINT;
+	_pOldest: POINTER TO FB_LogRecord;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[makeQueueRoom := FALSE;
+IF THIS^._records = 0 OR_ELSE THIS^.maxQueueSize = 0 THEN RETURN; END_IF
+
+FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
+	IF THIS^._records^.count < THIS^.maxQueueSize THEN
+		makeQueueRoom := TRUE;
+		RETURN;
+	END_IF
+
+	_pOldest := THIS^._records^.pop();
+	IF _pOldest = 0 THEN RETURN; END_IF
+	_pOldest := _pOldest^.delete();
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="flushIfNeeded" Id="{ef8261bd-5790-44ed-9787-8d1e3e6279af}">
+      <Declaration><![CDATA[METHOD flushIfNeeded
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._scheduleDelayTimer(
+	IN := NOT THIS^._scheduleDelayTimer.Q,
+	PT := UDINT_TO_TIME(THIS^.scheduledDelayMillis)
+);
+
+IF THIS^._scheduleDelayTimer.Q
+	OR_ELSE THIS^._buffer <> 0
+	OR_ELSE (THIS^.maxExportBatchSize > 0
+		AND_THEN THIS^._records <> 0
+		AND_THEN THIS^._records^.count >= THIS^.maxExportBatchSize) THEN
+	THIS^.pushToExporter();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="buildBuffer" Id="{12d3e85a-6355-4c3e-8fcb-622a0ed4c3c0}">
+      <Declaration><![CDATA[METHOD buildBuffer : BOOL
+VAR
+	_idx: UDINT;
+	_pRecord: POINTER TO FB_LogRecord;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[buildBuffer := FALSE;
+IF THIS^.maxExportBatchSize = 0
+	OR_ELSE THIS^._records = 0
+	OR_ELSE THIS^._records^.count = 0 THEN
 	RETURN;
 END_IF
 
-// find the record's group, or the sorted position for a new one
-_found := FALSE;
-_prev := 0;
-_grp := THIS^._groups;
-FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
-	IF _grp = 0 THEN
-		EXIT;
+THIS^._buffer := __NEW(FB_LinkedList_LogRecord);
+IF THIS^._buffer = 0 THEN
+	THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	RETURN;
+END_IF
+THIS^._buffer^.maxRecordCount := THIS^.maxExportBatchSize;
+
+FOR _idx := 1 TO THIS^.maxExportBatchSize DO
+	_pRecord := THIS^._records^.pop();
+	IF _pRecord = 0 THEN EXIT; END_IF
+
+	IF NOT THIS^.insertIntoBuffer(_pRecord) THEN
+		_pRecord := _pRecord^.delete();
+		THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+		RETURN;
 	END_IF
-	IF _grp^.resourceId = logRecord.resource.id AND _grp^.scopeName = logRecord.scope.name THEN
-		_found := TRUE;
-		EXIT;
-	END_IF
-	IF (_grp^.resourceId > logRecord.resource.id)
-		OR_ELSE (_grp^.resourceId = logRecord.resource.id AND _grp^.scopeName > logRecord.scope.name) THEN
-		EXIT; // the new group belongs before _grp
-	END_IF
-	_prev := _grp;
-	_grp := _grp^.nxt;
+
+	IF THIS^._records^.count = 0 THEN EXIT; END_IF
 END_FOR
 
-IF _found THEN
-	// jump to the end of the existing group
-	IF NOT THIS^._records.insert(_grp^.insertIndex, _record) THEN
-		_record := _record^.delete();
-		THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+buildBuffer := THIS^._buffer^.count > 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="getBufferInsertIndex" Id="{363b1148-f4b7-4742-954f-3867628c52d4}">
+      <Declaration><![CDATA[METHOD getBufferInsertIndex : UDINT
+VAR_INPUT
+	pRecord: POINTER TO FB_LogRecord;
+END_VAR
+VAR
+	_idx: UDINT;
+	_pBufferedRecord: POINTER TO FB_LogRecord;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getBufferInsertIndex := 0;
+IF THIS^._buffer = 0 OR_ELSE pRecord = 0 THEN RETURN; END_IF
+
+getBufferInsertIndex := THIS^._buffer^.count;
+THIS^._buffer^.reset();
+FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
+	_pBufferedRecord := THIS^._buffer^.next();
+	IF _pBufferedRecord = 0 THEN RETURN; END_IF
+
+	IF (_pBufferedRecord^.resource.id > pRecord^.resource.id)
+		OR_ELSE (_pBufferedRecord^.resource.id = pRecord^.resource.id
+			AND_THEN _pBufferedRecord^.scope.name > pRecord^.scope.name) THEN
+		getBufferInsertIndex := _idx;
 		RETURN;
 	END_IF
-	_grp^.insertIndex := _grp^.insertIndex + 1;
-	_grp := _grp^.nxt;
-ELSE
-	// start a new group between _prev and _grp
-	_new := __NEW(ST_LogRecordGroup);
-	IF _new = 0 THEN
-		_record := _record^.delete();
-		THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
-		RETURN;
-	END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="insertIntoBuffer" Id="{88aa333c-5ff5-4fc3-8af8-70af33f394a1}">
+      <Declaration><![CDATA[METHOD insertIntoBuffer : BOOL
+VAR_IN_OUT
+	pRecord: POINTER TO FB_LogRecord;
+END_VAR
+VAR
+	_insertIndex: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[insertIntoBuffer := FALSE;
+IF THIS^._buffer = 0 OR_ELSE pRecord = 0 THEN RETURN; END_IF
 
-	IF _prev = 0 THEN
-		_insertAt := 0;
-	ELSE
-		_insertAt := _prev^.insertIndex;
-	END_IF
+_insertIndex := THIS^.getBufferInsertIndex(pRecord);
+insertIntoBuffer := THIS^._buffer^.insert(_insertIndex, pRecord);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="pushToExporter" Id="{8f42a6d1-5b7e-4c93-a2d0-6c1e9b57f3a4}">
+      <Declaration><![CDATA[(*
+	Builds a sorted buffer when needed, then offers it to the exporter.
+	Returns TRUE only when the exporter accepts ownership of that buffer.
+*)
+METHOD pushToExporter : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[pushToExporter := FALSE;
 
-	IF NOT THIS^._records.insert(_insertAt, _record) THEN
-		__DELETE(_new);
-		_record := _record^.delete();
-		THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
-		RETURN;
-	END_IF
-
-	_new^.resourceId := logRecord.resource.id;
-	_new^.scopeName := logRecord.scope.name;
-	_new^.insertIndex := _insertAt + 1;
-	_new^.nxt := _grp;
-	IF _prev = 0 THEN
-		THIS^._groups := _new;
-	ELSE
-		_prev^.nxt := _new;
-	END_IF
+IF THIS^.maxExportBatchSize = 0
+	OR_ELSE NOT __ISVALIDREF(THIS^._exporter)
+	OR_ELSE THIS^._exporter.isBusy() THEN
+	RETURN;
 END_IF
 
-// every group after the insertion point shifts one position right
-FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
-	IF _grp = 0 THEN
-		EXIT;
-	END_IF
-	_grp^.insertIndex := _grp^.insertIndex + 1;
-	_grp := _grp^.nxt;
-END_FOR
+IF THIS^._buffer = 0 AND_THEN NOT THIS^.buildBuffer() THEN RETURN; END_IF
+IF THIS^._buffer = 0 THEN RETURN; END_IF
 
-THIS^.sts := E_PointerFactoryStatus.SUCCESS;
+// transfer ownership; a successful exporter accepts the pointer and clears _buffer
+IF THIS^._buffer^.count = 0 THEN
+	THIS^._buffer := THIS^._buffer^.delete();
+	RETURN;
+END_IF
 
-// call the exporter based on various criteria
-// TODO: 
-// - add in "slicing" so a chunk of log records can be sent
-// - implement the export operation]]></ST>
+THIS^._exporter.export(THIS^._buffer);
+pushToExporter := THIS^._buffer = 0;]]></ST>
       </Implementation>
     </Method>
   </POU>
