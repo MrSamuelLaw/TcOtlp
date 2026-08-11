@@ -263,7 +263,7 @@ IF THIS^._shouldReturnEarly() THEN
 END_IF
 
 // check that the value is valid
-IF pVal = 0 OR_ELSE (NOT pVal^.initialized) THEN
+IF pVal = 0 THEN
 	THIS^.sts := E_PointerFactoryStatus.INVALID_PARAMETERS;
 	RETURN;
 END_IF

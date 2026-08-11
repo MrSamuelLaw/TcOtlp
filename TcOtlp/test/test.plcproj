@@ -24,67 +24,22 @@
     <Compile Include="OTEL\COMMON\ENUMS\E_BytesEncoding.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\COMMON\ENUMS\E_FileExporterErrorCode.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\COMMON\ENUMS\E_FileExporterState.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\COMMON\ENUMS\E_HttpExporterState.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="OTEL\COMMON\ENUMS\E_PointerFactoryStatus.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\COMMON\ENUMS\E_SeverityNumber.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\COMMON\ENUMS\E_ValueType.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\FB_BaseProtoJsonSerializer.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\FB_InstrumentationScope.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\FB_LinkedList_KeyValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\FB_Resource.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\Values\FB_AnyValue.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\Values\FB_KeyValue.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\Values\FB_Number.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\Values\FB_OtlpValueMixin.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\Values\FB_SpanId.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\Values\FB_String.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\Values\FB_TraceId.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\Values\ValueFactory.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\COMMON\INTERFACES\I_OtlpValue.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="OTEL\COMMON\STRUCTS\ST_LinkedListNode.TcDUT">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\IdFactory.TcPOU">
+    <Compile Include="OTEL\EXPORTING\ENUMS\E_FileExporterErrorCode.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\EXPORTING\ENUMS\E_FileExporterState.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\EXPORTING\ENUMS\E_HttpExporterState.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\GVL.TcGVL">
@@ -98,6 +53,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\LOGGING\ENUMS\E_LogRecordFlag.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\LOGGING\ENUMS\E_SeverityNumber.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\LOGGING\FUNCTION_BLOCKS\Exporters\FB_LogRecordExporter_Base.TcPOU">
@@ -137,6 +95,42 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\LOGGING\INTERFACES\I_LogRecordProcessor.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\VALUES\ENUMS\E_ValueType.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\VALUES\FUNCTION_BLOCKS\FB_AnyValue.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\VALUES\FUNCTION_BLOCKS\FB_KeyValue.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\VALUES\FUNCTION_BLOCKS\FB_Number.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\VALUES\FUNCTION_BLOCKS\FB_SpanId.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\VALUES\FUNCTION_BLOCKS\FB_String.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\VALUES\FUNCTION_BLOCKS\FB_TraceId.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\VALUES\INTERFACES\I_OtlpValue.TcIO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\VALUES\ValueFactory.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\RESOURCE\FB_Resource.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\SCOPE\FB_InstrumentationScope.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\SERIALIZATION\FUNCTION_BLOCKS\FB_BaseProtoJsonSerializer.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="PlcTask.TcTTO">
@@ -192,12 +186,20 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="OTEL\EXPORTING" />
+    <Folder Include="OTEL\EXPORTING\ENUMS" />
+    <Folder Include="OTEL\VALUES" />
+    <Folder Include="OTEL\VALUES\ENUMS" />
+    <Folder Include="OTEL\VALUES\FUNCTION_BLOCKS" />
+    <Folder Include="OTEL\VALUES\INTERFACES" />
+    <Folder Include="OTEL\RESOURCE" />
+    <Folder Include="OTEL\SCOPE" />
+    <Folder Include="OTEL\SERIALIZATION" />
+    <Folder Include="OTEL\SERIALIZATION\FUNCTION_BLOCKS" />
     <Folder Include="SIM" />
     <Folder Include="OTEL" />
     <Folder Include="OTEL\COMMON\ENUMS" />
     <Folder Include="OTEL\COMMON\FUNCTION_BLOCKS" />
-    <Folder Include="OTEL\COMMON\FUNCTION_BLOCKS\Values" />
-    <Folder Include="OTEL\COMMON\INTERFACES" />
     <Folder Include="OTEL\COMMON\STRUCTS" />
     <Folder Include="OTEL\COMMON" />
     <Folder Include="OTEL\LOGGING" />
@@ -252,8 +254,8 @@
   <ProjectExtensions>
     <PlcProjectOptions>
       <XmlArchive>
-  <Data>
-    <o xml:space="preserve" t="OptionKey">
+        <Data>
+          <o xml:space="preserve" t="OptionKey">
       <v n="Name">"&lt;ProjectRoot&gt;"</v>
       <d n="SubKeys" t="Hashtable" ckt="String" cvt="OptionKey">
         <v>{192FAD59-8248-4824-A8DE-9177C94C195A}</v>
@@ -329,14 +331,14 @@
       </d>
       <d n="Values" t="Hashtable" />
     </o>
-  </Data>
-  <TypeList>
-    <Type n="Boolean">System.Boolean</Type>
-    <Type n="Hashtable">System.Collections.Hashtable</Type>
-    <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
-    <Type n="String">System.String</Type>
-  </TypeList>
-</XmlArchive>
+        </Data>
+        <TypeList>
+          <Type n="Boolean">System.Boolean</Type>
+          <Type n="Hashtable">System.Collections.Hashtable</Type>
+          <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
+          <Type n="String">System.String</Type>
+        </TypeList>
+      </XmlArchive>
     </PlcProjectOptions>
   </ProjectExtensions>
 </Project>

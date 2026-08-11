@@ -3,7 +3,7 @@
   <POU Name="MAIN" Id="{1fa3e08a-8235-40d5-a330-62ab1eea7a52}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM MAIN
 VAR
-// 	fbTestOtlpValue: FB_TestOtlpValue();
+	fbTestOtlpValue: FB_TestOtlpValue();
 // 	fbTestLinkedList_KeyValue: FB_TestLinkedList_KeyValue();
 // 	fbTestLinkedList_LogRecord: FB_TestLinkedList_LogRecord();
 // 	fbTestContextObjects: FB_TestContextObjects();
@@ -16,8 +16,8 @@ VAR
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[// TcUnit.RUN();
-SIM_MAIN();]]></ST>
+      <ST><![CDATA[TcUnit.RUN();
+// SIM_MAIN();]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

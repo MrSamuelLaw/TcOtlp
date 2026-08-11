@@ -2,7 +2,7 @@
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_SpanId" Id="{5bf3062c-d603-43ca-8490-cc9822c82385}" SpecialFunc="None">
     <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
-FUNCTION_BLOCK FB_SpanId EXTENDS FB_OtlpValueMixin IMPLEMENTS I_OtlpValue
+FUNCTION_BLOCK FB_SpanId IMPLEMENTS I_OtlpValue
 VAR_OUTPUT
 	bytes: ARRAY [0..7] OF BYTE;
 END_VAR]]></Declaration>
@@ -42,30 +42,12 @@ END_VAR
         <ST><![CDATA[THIS^.free();]]></ST>
       </Implementation>
     </Method>
-    <Method Name="FB_Init" Id="{03be4543-75ee-425a-9793-0096ce2c3a1e}">
-      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
-//The return value is not evaluated. For a specific influence, you can also declare the
-//methods explicitly and provide additional code there with the standard initialization
-//code. You can evaluate the return value.
-METHOD FB_Init: BOOL
-VAR_INPUT
-    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
-    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)   
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[(* Validation and byte copying are handled by ValueFactory.createSpanId so an
-invalid value is never allocated. *)
-THIS^._initialized := TRUE;]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="free" Id="{9d4a26f9-0175-4cf4-a756-1effe28ccc8b}">
       <Declaration><![CDATA[(* deallocates all data owned by the value without deleting the object itself.*)
 METHOD free
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[MEMSET(ADR(THIS^.bytes), 0, SIZEOF(THIS^.bytes));
-THIS^._initialized := FALSE;]]></ST>
+        <ST><![CDATA[MEMSET(ADR(THIS^.bytes), 0, SIZEOF(THIS^.bytes));]]></ST>
       </Implementation>
     </Method>
   </POU>

@@ -59,8 +59,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[(* ValueFactory owns validation and allocation. FB_Number takes ownership of
 the copied value and its type metadata only after every allocation succeeds. *)
-THIS^.value := value;
-THIS^._initialized := THIS^.value.pValue <> 0 AND THIS^.value.diSize > 0;]]></ST>
+THIS^.value := value;]]></ST>
       </Implementation>
     </Method>
     <Method Name="free" Id="{befe6018-20a6-42af-8f70-d8bf62cbbf12}">
@@ -71,8 +70,7 @@ METHOD free
         <ST><![CDATA[IF THIS^.value.pValue <> 0 THEN
 	__DELETE(THIS^.value.pValue);
 END_IF
-MEMSET(ADR(THIS^.value), 0, SIZEOF(THIS^.value));
-THIS^._initialized := FALSE;]]></ST>
+MEMSET(ADR(THIS^.value), 0, SIZEOF(THIS^.value));]]></ST>
       </Implementation>
     </Method>
   </POU>

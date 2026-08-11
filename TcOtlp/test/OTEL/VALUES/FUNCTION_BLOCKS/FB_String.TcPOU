@@ -61,7 +61,6 @@ ValueFactory and not the value iteself, that way a new value
 never gets allocated if the initialization fails.
 *)
 THIS^.pString := pString;
-THIS^._initialized := TRUE;
 
 
 
@@ -75,8 +74,7 @@ THIS^._initialized := TRUE;
         <ST><![CDATA[IF THIS^.pString <> 0 THEN
 	__DELETE(THIS^.pString);
 	THIS^.pString := 0;
-END_IF
-THIS^._initialized := FALSE;]]></ST>
+END_IF]]></ST>
       </Implementation>
     </Method>
   </POU>

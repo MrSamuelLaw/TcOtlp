@@ -27,7 +27,7 @@ END_VAR]]></Declaration>
 	RETURN;
 END_IF
 
-IF pSrc = 0 OR_ELSE (NOT pSrc^.initialized) THEN
+IF pSrc = 0 THEN
 	cloneAnyValue := E_PointerFactoryStatus.INVALID_PARAMETERS;
 	RETURN;
 END_IF
@@ -60,7 +60,7 @@ END_VAR]]></Declaration>
 	RETURN;
 END_IF
 
-IF pSrc = 0 OR_ELSE (NOT pSrc^.initialized) THEN
+IF pSrc = 0 THEN
 	cloneKeyValue := E_PointerFactoryStatus.INVALID_PARAMETERS;
 	RETURN;
 END_IF
@@ -91,7 +91,7 @@ END_VAR]]></Declaration>
 	RETURN;
 END_IF
 
-IF pSrc = 0 OR_ELSE (NOT pSrc^.initialized) OR_ELSE pSrc^.value.pValue = 0 THEN
+IF pSrc = 0 OR_ELSE pSrc^.value.pValue = 0 THEN
 	cloneNumber := E_PointerFactoryStatus.INVALID_PARAMETERS;
 	RETURN;
 END_IF
@@ -139,7 +139,7 @@ END_VAR
 	RETURN;
 END_IF
 
-IF pSrc = 0 OR_ELSE (NOT pSrc^.initialized) THEN
+IF pSrc = 0 THEN
 	cloneString := E_PointerFactoryStatus.INVALID_PARAMETERS;
 	RETURN;
 END_IF
@@ -173,11 +173,6 @@ END_IF
 
 IF pDest <> 0 THEN
 	createKeyValue := E_PointerFactoryStatus.POINTER_ALREADY_ALLOCATED;
-	RETURN;
-END_IF
-
-IF NOT pVal^.initialized THEN
-	createKeyValue := E_PointerFactoryStatus.INVALID_PARAMETERS;
 	RETURN;
 END_IF
 

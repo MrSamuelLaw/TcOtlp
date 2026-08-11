@@ -18,11 +18,5 @@ METHOD delete: ULINT
 METHOD free
 ]]></Declaration>
     </Method>
-    <Property Name="initialized" Id="{3e48eded-59f0-48ef-a8a3-61bdc2b31bcf}">
-      <Declaration><![CDATA[PROPERTY initialized : BOOL]]></Declaration>
-      <Get Name="Get" Id="{e05413a8-f893-458a-ba3f-daf70d044397}">
-        <Declaration><![CDATA[]]></Declaration>
-      </Get>
-    </Property>
   </Itf>
 </TcPlcObject>

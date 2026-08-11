@@ -125,7 +125,7 @@ VAR
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[serializeAnyValue := FALSE;
-IF pKey = 0 OR pVal = 0 OR_ELSE (NOT pVal^.initialized) THEN
+IF pKey = 0 OR pVal = 0 THEN
 	RETURN;
 END_IF
 

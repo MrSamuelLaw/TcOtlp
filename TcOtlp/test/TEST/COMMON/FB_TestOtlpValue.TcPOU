@@ -179,9 +179,8 @@ IF pValue <> 0 THEN
 	THIS^.AssertTrue(pValue^.value.diSize=SIZEOF(fLReal) AND_THEN MEMCMP(pValue^.value.pValue, ADR(fLReal), SIZEOF(fLReal))=0, 'FB_Number did not copy the LREAL value');
 	// Number values are valid AnyValue instances and participate in the common lifecycle.
 	anyValue := pValue;
-	THIS^.AssertTrue(anyValue^.eType=E_ValueType.E_Number AND_THEN anyValue^.initialized, 'FB_Number is not an initialized AnyValue');
+	THIS^.AssertTrue(anyValue^.eType=E_ValueType.E_Number, 'FB_Number is not a Number AnyValue');
 	anyValue^.free();
-	THIS^.AssertFalse(pValue^.initialized, 'Expected freed number value to be uninitialized');
 	THIS^.AssertTrue(pValue^.value.pValue=0 AND pValue^.value.diSize=0, 'Expected free to clear the owned number data');
 	pValue := pValue^.delete();
 END_IF
@@ -285,7 +284,7 @@ END_VAR
 	THIS^.AssertTrue(sts=E_PointerFactoryStatus.POINTER_ALREADY_ALLOCATED, 'Expected string creation to fail due to non-zero pointer');
 	
 	// verify the data from the string
-	THIS^.AssertTrue(pValue <> 0 AND_THEN pValue^.initialized, 'Unexpected null pointer when attempting to create a string');
+	THIS^.AssertTrue(pValue <> 0, 'Unexpected null pointer when attempting to create a string');
 	IF pValue <> 0 THEN
 		// ssert that the value can be cast to an AnyValue
 		anyValue := pValue;
@@ -300,7 +299,6 @@ END_VAR
 		);
 		// test the tear down behavior
 		value.free();
-		THIS^.AssertFalse(pValue^.initialized, 'Expected freed string value to be uninitialized');
 		THIS^.AssertTrue(pValue^.pString = 0, 'Expected free to clear the string pointer');
 		pValue^.delete();
  END_IF
@@ -372,7 +370,6 @@ END_VAR
 			'trace ids match when they shoudldn$'t'
 		);
 		pValue^.free();
-		THIS^.AssertFalse(pValue^.initialized, 'Expected freed traceId value to be uninitialized');
 		pValue^.delete();
  END_IF
 

@@ -2,7 +2,7 @@
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_KeyValue" Id="{8780a23e-cbf3-48bf-8fff-1d17430936ad}" SpecialFunc="None">
     <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
-FUNCTION_BLOCK FB_KeyValue EXTENDS FB_OtlpValueMixin IMPLEMENTS I_OtlpValue
+FUNCTION_BLOCK FB_KeyValue IMPLEMENTS I_OtlpValue
 VAR_OUTPUT
 	pKey: POINTER TO STRING;
 	pVal: POINTER TO FB_AnyValue;
@@ -63,8 +63,7 @@ END_VAR
         <ST><![CDATA[(* Validation and allocation are handled by ValueFactory.createKeyValue. The
 factory transfers ownership of both pointers only after every step succeeds. *)
 THIS^.pKey := pKey;
-THIS^.pVal := pVal;
-THIS^._initialized := TRUE;]]></ST>
+THIS^.pVal := pVal;]]></ST>
       </Implementation>
     </Method>
     <Method Name="free" Id="{f43303d8-cb9a-4788-90b7-d0e19760a4b9}">
@@ -78,8 +77,7 @@ METHOD free
 END_IF
 IF THIS^.pVal <> 0 THEN
 	THIS^.pVal := THIS^.pVal^.delete();
-END_IF
-THIS^._initialized := FALSE;]]></ST>
+END_IF]]></ST>
       </Implementation>
     </Method>
   </POU>

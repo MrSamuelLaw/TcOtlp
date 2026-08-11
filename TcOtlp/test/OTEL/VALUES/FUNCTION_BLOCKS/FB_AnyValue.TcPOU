@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_AnyValue" Id="{ded18306-68d2-4405-b771-761d4aa3f677}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK ABSTRACT FB_AnyValue EXTENDS FB_OtlpValueMixin IMPLEMENTS I_OtlpValue]]></Declaration>
+    <Declaration><![CDATA[FUNCTION_BLOCK ABSTRACT FB_AnyValue IMPLEMENTS I_OtlpValue]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
