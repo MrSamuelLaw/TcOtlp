@@ -9,7 +9,7 @@ VAR_OUTPUT
 	schemaUrl: T_MaxString;
 END_VAR
 VAR_OUTPUT
-	attributes: FB_LinkedList_KeyValue;
+	attributes: FB_Attributes;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
@@ -19,13 +19,24 @@ END_VAR]]></Declaration>
 VAR_IN_OUT
 	src: FB_Resource;
 END_VAR
+VAR
+	_attributesResult: E_AttributesResultCode;
+END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[THIS^.id := src.id;
 THIS^.schemaUrl := src.schemaUrl;
 THIS^.droppedAttributesCount := src.droppedAttributesCount;
 THIS^.attributes.free();
-copyFrom := THIS^.attributes.copyFrom(src.attributes);
+_attributesResult := THIS^.attributes.copyFrom(src.attributes);
+IF _attributesResult = E_AttributesResultCode.SUCCESS THEN
+	copyFrom := E_PointerFactoryStatus.SUCCESS;
+ELSIF _attributesResult = E_AttributesResultCode.MEMORY_ALLOCATION_FAILURE
+	OR_ELSE _attributesResult = E_AttributesResultCode.ATTRIBUTE_COUNT_LIMIT_REACHED THEN
+	copyFrom := E_PointerFactoryStatus.OUT_OF_MEMORY;
+ELSE
+	copyFrom := E_PointerFactoryStatus.INVALID_PARAMETERS;
+END_IF
 ]]></ST>
       </Implementation>
     </Method>

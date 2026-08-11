@@ -1,6 +1,6 @@
 # Notes For Next Time
-1. Migrate all linked list append operations to use pointer factory status
-2. Analyze semantics around pointer factory status.
+1. Refactor Log Record linked list to be a queue.
+2. Refactor Log Record operation status to be a unique enum
 
 ## Modeling
 - [x] Update the domain model

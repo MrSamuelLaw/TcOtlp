@@ -31,7 +31,7 @@ END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[IF firstScan THEN
-	resource.attributes.addStringAttribute('name', 'PLC1');
+	resource.attributes.setStringAttribute('name', 'PLC1');
 
 END_IF
 	

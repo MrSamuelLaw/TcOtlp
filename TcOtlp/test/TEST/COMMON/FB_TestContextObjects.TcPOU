@@ -17,7 +17,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testCanCloneInstrumentationScope');
-	instrumentationScope.attributes.addStringAttribute('key', 'value');
+	instrumentationScope.attributes.setStringAttribute('key', 'value');
 	THIS^.assertTrue(instrumentationScope.attributes.count = 1, 'Expected one attribute');
 	THIS^.AssertTrue(copyTarget.attributes.count = 0, 'Expected zero attribute');
 	
@@ -44,7 +44,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testCanCloneResource');
-	resource.attributes.addStringAttribute('key', 'value');
+	resource.attributes.setStringAttribute('key', 'value');
 	THIS^.assertTrue(resource.attributes.count = 1, 'Expected one attribute');
 	THIS^.AssertTrue(copyTarget.attributes.count = 0, 'Expected zero attribute');
 	THIS^.AssertTrue(resource.id <> copyTarget.id, 'Expected distinct identities before the copy');

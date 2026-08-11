@@ -55,7 +55,7 @@ END_VAR]]></Declaration>
 			_processors[0] := _processor;
 			// _resource persists across test re-runs; only add the attribute once
 			IF _resource.attributes.count = 0 THEN
-				_resource.attributes.addStringAttribute('host.id', 'PLC1');
+				_resource.attributes.setStringAttribute('host.id', 'PLC1');
 			END_IF
 			_num := 1;
 			_firstSts := _logger

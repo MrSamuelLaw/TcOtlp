@@ -1,0 +1,342 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Attributes" Id="{cf073bde-f48d-4029-b947-e958e98bbb16}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+Mapping for key-value pairs that is used to define attributes across various domains 
+*)
+{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_Attributes
+VAR
+	_head: POINTER TO ST_LinkedListNode;
+	_tail: POINTER TO ST_LinkedListNode;
+	_cursor: POINTER TO ST_LinkedListNode;
+END_VAR
+VAR_OUTPUT
+	count: UDINT;
+	maxCount: UDINT;
+	droppedCount: UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="_mapValueFactoryResult" Id="{b07c94f0-2f89-4b83-a86c-5297aea8b765}">
+      <Declaration><![CDATA[METHOD _mapValueFactoryResult : E_AttributesResultCode
+VAR_INPUT
+	result: E_ValueFactoryResultCode;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE result OF
+	E_ValueFactoryResultCode.SUCCESS:
+		_mapValueFactoryResult := E_AttributesResultCode.SUCCESS;
+	E_ValueFactoryResultCode.SOURCE_POINTER_NULL:
+		_mapValueFactoryResult := E_AttributesResultCode.KV_VALUE_POINTER_NULL;
+	E_ValueFactoryResultCode.KEY_POINTER_NULL:
+		_mapValueFactoryResult := E_AttributesResultCode.KV_KEY_POINTER_NULL;
+	E_ValueFactoryResultCode.VALUE_POINTER_NULL:
+		_mapValueFactoryResult := E_AttributesResultCode.KV_VALUE_POINTER_NULL;
+	E_ValueFactoryResultCode.UNSUPPORTED_VALUE_TYPE:
+		_mapValueFactoryResult := E_AttributesResultCode.KV_VALUE_TYPE_UNSUPPORTED;
+	E_ValueFactoryResultCode.MEMORY_ALLOCATION_FAILURE:
+		_mapValueFactoryResult := E_AttributesResultCode.MEMORY_ALLOCATION_FAILURE;
+	ELSE
+		_mapValueFactoryResult := E_AttributesResultCode.KV_VALUE_INVALID;
+END_CASE
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="copyFrom" Id="{12dc0284-c0fc-445c-a394-015d07f02ff7}">
+      <Declaration><![CDATA[METHOD copyFrom : E_AttributesResultCode
+VAR_IN_OUT
+	src: FB_Attributes;
+END_VAR
+VAR
+	_idx: UDINT;
+	_pSrc: POINTER TO FB_KeyValue;
+	_pDest: POINTER TO FB_KeyValue;
+	_factoryResult: E_ValueFactoryResultCode;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[copyFrom := E_AttributesResultCode.SUCCESS;
+src.reset();
+FOR _idx := 0 TO THIS^.maxCount DO
+	_pSrc := src.next();
+	IF _pSrc = 0 THEN
+		RETURN;
+	END_IF
+	_factoryResult := ValueFactory.cloneKeyValue(_pDest, _pSrc);
+	IF _factoryResult <> E_ValueFactoryResultCode.SUCCESS THEN
+		copyFrom := THIS^._mapValueFactoryResult(_factoryResult);
+		RETURN;
+	END_IF
+	copyFrom := THIS^.setAttribute(_pDest);
+	IF copyFrom <> E_AttributesResultCode.SUCCESS THEN
+		IF _pDest <> 0 THEN
+			_pDest := _pDest^.delete();
+		END_IF
+		RETURN;
+	END_IF
+END_FOR
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Exit" Id="{686344bf-91ee-4a2a-b059-004362cdb29b}">
+      <Declaration><![CDATA[METHOD FB_Exit : BOOL
+VAR_INPUT
+	bInCopyCode: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bInCopyCode THEN
+	THIS^.free();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{37f12a41-417f-40ad-87ed-c4eb97312d76}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change) 
+	maxCount: UDINT := 20;  
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.maxCount := maxCount;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{cac7191c-0f7c-4339-b12b-895becc570f8}">
+      <Declaration><![CDATA[METHOD free
+VAR
+	_idx: UDINT;
+	_node: POINTER TO ST_LinkedListNode;
+	_kv: POINTER TO FB_KeyValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR _idx := 0 TO THIS^.maxCount DO
+	IF THIS^._head = 0 THEN
+		EXIT;
+	END_IF
+
+	_node := THIS^._head;
+	THIS^._head := _node^.nxt;
+	IF _node^.val <> 0 THEN
+		_kv := _node^.val;
+		_node^.val := 0;
+		_kv := _kv^.delete();
+	END_IF
+	__DELETE(_node);
+END_FOR
+
+THIS^._head := 0;
+THIS^._tail := 0;
+THIS^._cursor := 0;
+THIS^.count := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="next" Id="{a8ca5105-d23e-40b3-adba-9bbe23230589}">
+      <Declaration><![CDATA[METHOD next : POINTER TO FB_KeyValue
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[next := 0;
+
+IF THIS^._cursor <> 0 THEN
+	next := THIS^._cursor^.val;
+	THIS^._cursor := THIS^._cursor^.nxt;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="reset" Id="{8ff040db-0c4f-4ccd-95b1-134233b77487}">
+      <Declaration><![CDATA[METHOD reset
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._cursor := THIS^._head;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setAttribute" Id="{29d543f3-3e33-4876-b1bf-4a2f0254ef43}">
+      <Declaration><![CDATA[METHOD setAttribute: E_AttributesResultCode
+VAR_IN_OUT
+	pValue: POINTER TO FB_KeyValue;
+END_VAR
+VAR
+	_node: POINTER TO ST_LinkedListNode;
+	_pVal: POINTER TO FB_KeyValue;
+	_idx: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pValue = 0 THEN
+	setAttribute := E_AttributesResultCode.KV_POINTER_NULL;
+	RETURN;
+END_IF
+
+IF pValue^.pKey = 0 THEN
+	setAttribute := E_AttributesResultCode.KV_KEY_POINTER_NULL;
+	RETURN;
+END_IF
+
+IF pValue^.pVal = 0 THEN
+	setAttribute := E_AttributesResultCode.KV_VALUE_POINTER_NULL;
+	RETURN;
+END_IF
+
+// set the value if it already exists
+_node := THIS^._head;
+FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
+	IF _node = 0 THEN
+		EXIT;
+	END_IF
+	_pVal := _node^.val;
+	IF _pVal^.pKey^ = pValue^.pKey^ THEN
+		// replace the value currently at the index
+		_pVal := _pVal^.delete();
+		_node^.val := pValue;
+		setAttribute := E_AttributesResultCode.SUCCESS;
+		pValue := 0;
+		RETURN;
+	END_IF
+	_node := _node^.nxt;
+END_FOR
+
+IF THIS^.count >= THIS^.maxCount THEN
+	setAttribute := E_AttributesResultCode.ATTRIBUTE_COUNT_LIMIT_REACHED;
+	THIS^.droppedCount := THIS^.droppedCount + 1;
+	RETURN;
+END_IF
+
+// if it doesn't exist append the key-value pair
+_node := __NEW(ST_LinkedListNode);
+IF _node = 0 THEN
+	setAttribute := E_AttributesResultCode.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+
+_node^.val := pValue;
+_node^.nxt := 0;
+
+IF THIS^._tail = 0 THEN
+	THIS^._head := _node;
+	THIS^._cursor := _node;
+ELSE
+	THIS^._tail^.nxt := _node;
+END_IF
+
+THIS^._tail := _node;
+THIS^.count := THIS^.count + 1;
+
+// Ownership transfers only after the value has been linked successfully.
+pValue := 0;
+setAttribute := E_AttributesResultCode.SUCCESS;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setNumberAttribute" Id="{5ce7a6f9-75cf-4bf9-8ec2-655b0a7ea8b4}">
+      <Declaration><![CDATA[METHOD setNumberAttribute: E_AttributesResultCode;
+VAR_INPUT
+	key: T_MaxString;
+	value: ANY_NUM;
+END_VAR
+VAR
+	_pKv: POINTER TO FB_KeyValue;
+	_pNum: POINTER TO FB_Number;
+	_factoryResult: E_ValueFactoryResultCode;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_factoryResult := ValueFactory.createNumber_AnyType(_pNum, value);
+IF _factoryResult <> E_ValueFactoryResultCode.SUCCESS THEN
+	setNumberAttribute := THIS^._mapValueFactoryResult(_factoryResult);
+	RETURN;
+END_IF
+
+_factoryResult := ValueFactory.createKeyValue(_pKv, ADR(key), _pNum);
+IF _factoryResult <> E_ValueFactoryResultCode.SUCCESS THEN
+	setNumberAttribute := THIS^._mapValueFactoryResult(_factoryResult);
+	_pNum^.delete();
+	RETURN;
+END_IF
+_pNum^.delete();  // clean up the _pNum as its cloned in createKeyValue
+
+setNumberAttribute := THIS^.setAttribute(pValue:=_pKv);
+// append only takes ownership on success; release a rejected value
+IF _pKv <> 0 THEN
+	_pKv := _pKv^.delete();
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setNumberAttribute_AnyType" Id="{a633e97e-967c-40bb-9f1d-14d8e2ed4da3}">
+      <Declaration><![CDATA[METHOD setNumberAttribute_AnyType: E_AttributesResultCode;
+VAR_INPUT
+	key: T_MaxString;
+	value: AnyType;
+END_VAR
+VAR
+	_pKv: POINTER TO FB_KeyValue;
+	_pNum: POINTER TO FB_Number;
+	_factoryResult: E_ValueFactoryResultCode;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_factoryResult := ValueFactory.createNumber_AnyType(_pNum, value);
+IF _factoryResult <> E_ValueFactoryResultCode.SUCCESS THEN
+	setNumberAttribute_AnyType := THIS^._mapValueFactoryResult(_factoryResult);
+	RETURN;
+END_IF
+
+_factoryResult := ValueFactory.createKeyValue(_pKv, ADR(key), _pNum);
+IF _factoryResult <> E_ValueFactoryResultCode.SUCCESS THEN
+	setNumberAttribute_AnyType := THIS^._mapValueFactoryResult(_factoryResult);
+	_pNum^.delete();
+	RETURN;
+END_IF
+_pNum^.delete();  // clean up the _pNum as its cloned in createKeyValue
+
+setNumberAttribute_AnyType := THIS^.setAttribute(pValue:=_pKv);
+// append only takes ownership on success; release a rejected value
+IF _pKv <> 0 THEN
+	_pKv := _pKv^.delete();
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setStringAttribute" Id="{807c259f-0345-4462-a6a8-1359a14a613b}">
+      <Declaration><![CDATA[METHOD setStringAttribute: E_AttributesResultCode;
+VAR_INPUT
+	key: T_MaxString;
+	value: T_MaxString;
+END_VAR
+VAR
+	_pKv: POINTER TO FB_KeyValue;
+	_pStr: POINTER TO FB_String;
+	_factoryResult: E_ValueFactoryResultCode;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_factoryResult := ValueFactory.createString(_pStr, ADR(value));
+IF _factoryResult <> E_ValueFactoryResultCode.SUCCESS THEN
+	setStringAttribute := THIS^._mapValueFactoryResult(_factoryResult);
+	RETURN;
+END_IF
+
+_factoryResult := ValueFactory.createKeyValue(_pKv, ADR(key), _pStr);
+IF _factoryResult <> E_ValueFactoryResultCode.SUCCESS THEN
+	setStringAttribute := THIS^._mapValueFactoryResult(_factoryResult);
+	_pStr^.delete();
+	RETURN;
+END_IF
+_pStr^.delete();  // clean up the _pStr as its cloned in createKeyValue
+
+setStringAttribute := THIS^.setAttribute(pValue:=_pKv);
+// append only takes ownership on success; release a rejected value
+IF _pKv <> 0 THEN
+	_pKv := _pKv^.delete();
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

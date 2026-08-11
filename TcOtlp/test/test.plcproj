@@ -21,13 +21,22 @@
     <Compile Include="MAIN.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\COMMON\ENUMS\E_AttributesResultCode.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\COMMON\ENUMS\E_BytesEncoding.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\COMMON\ENUMS\E_PointerFactoryStatus.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\FB_LinkedList_KeyValue.TcPOU">
+    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\FB_InstrumentationScope.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\FB_Attributes.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\FB_Resource.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\COMMON\STRUCTS\ST_LinkedListNode.TcDUT">
@@ -97,6 +106,9 @@
     <Compile Include="OTEL\LOGGING\INTERFACES\I_LogRecordProcessor.TcIO">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\VALUES\ENUMS\E_ValueFactoryResultCode.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\VALUES\ENUMS\E_ValueType.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
@@ -124,12 +136,6 @@
     <Compile Include="OTEL\VALUES\ValueFactory.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\RESOURCE\FB_Resource.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\SCOPE\FB_InstrumentationScope.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="OTEL\SERIALIZATION\FUNCTION_BLOCKS\FB_BaseProtoJsonSerializer.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -139,13 +145,10 @@
     <Compile Include="SIM\SIM_MAIN.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TEST\COMMON\FB_TestAttributes.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="TEST\COMMON\FB_TestContextObjects.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="TEST\COMMON\FB_TestLinkedList_KeyValue.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="TEST\COMMON\FB_TestOtlpValue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TEST\LOGGING\FB_TestFileExporter.TcPOU">
@@ -184,6 +187,9 @@
     <Compile Include="TEST\LOGGING\UTILS\FB_LogRecordProcessor_ForRecordsInspection.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TEST\VALUES\FB_TestOtlpValue.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="OTEL\EXPORTING" />
@@ -192,8 +198,6 @@
     <Folder Include="OTEL\VALUES\ENUMS" />
     <Folder Include="OTEL\VALUES\FUNCTION_BLOCKS" />
     <Folder Include="OTEL\VALUES\INTERFACES" />
-    <Folder Include="OTEL\RESOURCE" />
-    <Folder Include="OTEL\SCOPE" />
     <Folder Include="OTEL\SERIALIZATION" />
     <Folder Include="OTEL\SERIALIZATION\FUNCTION_BLOCKS" />
     <Folder Include="SIM" />
@@ -214,6 +218,7 @@
     <Folder Include="TEST\LOGGING" />
     <Folder Include="TEST\COMMON" />
     <Folder Include="TEST\LOGGING\UTILS" />
+    <Folder Include="TEST\VALUES" />
   </ItemGroup>
   <ItemGroup>
     <PlaceholderReference Include="Tc2_Standard">
@@ -254,8 +259,8 @@
   <ProjectExtensions>
     <PlcProjectOptions>
       <XmlArchive>
-        <Data>
-          <o xml:space="preserve" t="OptionKey">
+  <Data>
+    <o xml:space="preserve" t="OptionKey">
       <v n="Name">"&lt;ProjectRoot&gt;"</v>
       <d n="SubKeys" t="Hashtable" ckt="String" cvt="OptionKey">
         <v>{192FAD59-8248-4824-A8DE-9177C94C195A}</v>
@@ -331,14 +336,14 @@
       </d>
       <d n="Values" t="Hashtable" />
     </o>
-        </Data>
-        <TypeList>
-          <Type n="Boolean">System.Boolean</Type>
-          <Type n="Hashtable">System.Collections.Hashtable</Type>
-          <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
-          <Type n="String">System.String</Type>
-        </TypeList>
-      </XmlArchive>
+  </Data>
+  <TypeList>
+    <Type n="Boolean">System.Boolean</Type>
+    <Type n="Hashtable">System.Collections.Hashtable</Type>
+    <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
+    <Type n="String">System.String</Type>
+  </TypeList>
+</XmlArchive>
     </PlcProjectOptions>
   </ProjectExtensions>
 </Project>

@@ -87,6 +87,9 @@ VAR_INPUT
 	key: T_MaxString;
 	value: ANY_NUM;
 END_VAR
+VAR
+	_attributesResult: E_AttributesResultCode;
+END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[addNumberAttribute REF= THIS^;
@@ -95,14 +98,25 @@ IF THIS^._shouldReturnEarly() THEN
 	RETURN;
 END_IF
 
-THIS^.sts := THIS^.pLogRecord^.attributes.addNumberAttribute_AnyType(key, value);]]></ST>
+_attributesResult := THIS^.pLogRecord^.attributes.setNumberAttribute_AnyType(key, value);
+IF _attributesResult = E_AttributesResultCode.SUCCESS THEN
+	THIS^.sts := E_PointerFactoryStatus.SUCCESS;
+ELSIF _attributesResult = E_AttributesResultCode.MEMORY_ALLOCATION_FAILURE
+	OR_ELSE _attributesResult = E_AttributesResultCode.ATTRIBUTE_COUNT_LIMIT_REACHED THEN
+	THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+ELSE
+	THIS^.sts := E_PointerFactoryStatus.INVALID_PARAMETERS;
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="addStringAttribute" Id="{ca1a9b5c-3e71-4efc-b089-bac82579b23c}">
-      <Declaration><![CDATA[METHOD addStringAttribute: REFERENCE TO FB_Logger
+      <Declaration><![CDATA[METHOD setStringAttribute: REFERENCE TO FB_Logger
 VAR_INPUT
 	key: T_MaxString;
 	value: T_MaxString;
+END_VAR
+VAR
+	_attributesResult: E_AttributesResultCode;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[addStringAttribute REF= THIS^;
@@ -111,7 +125,15 @@ IF THIS^._shouldReturnEarly() THEN
 	RETURN;
 END_IF
 
-THIS^.sts := THIS^.pLogRecord^.attributes.addStringAttribute(key, value);
+_attributesResult := THIS^.pLogRecord^.attributes.setStringAttribute(key, value);
+IF _attributesResult = E_AttributesResultCode.SUCCESS THEN
+	THIS^.sts := E_PointerFactoryStatus.SUCCESS;
+ELSIF _attributesResult = E_AttributesResultCode.MEMORY_ALLOCATION_FAILURE
+	OR_ELSE _attributesResult = E_AttributesResultCode.ATTRIBUTE_COUNT_LIMIT_REACHED THEN
+	THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+ELSE
+	THIS^.sts := E_PointerFactoryStatus.INVALID_PARAMETERS;
+END_IF
 ]]></ST>
       </Implementation>
     </Method>
@@ -224,6 +246,7 @@ VAR_INPUT
 END_VAR
 VAR
 	_pDest: POINTER TO FB_String;
+	_factoryResult: E_ValueFactoryResultCode;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[setBody REF= THIS^;
@@ -233,7 +256,14 @@ IF THIS^._shouldReturnEarly() THEN
 END_IF
 
 // Create an owned string body.
-THIS^.sts := ValueFactory.createString(_pDest, ADR(str));
+_factoryResult := ValueFactory.createString(_pDest, ADR(str));
+IF _factoryResult = E_ValueFactoryResultCode.SUCCESS THEN
+	THIS^.sts := E_PointerFactoryStatus.SUCCESS;
+ELSIF _factoryResult = E_ValueFactoryResultCode.MEMORY_ALLOCATION_FAILURE THEN
+	THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+ELSE
+	THIS^.sts := E_PointerFactoryStatus.INVALID_PARAMETERS;
+END_IF
 
 // Replace the body only after the new value has been created successfully.
 IF THIS^.sts = E_PointerFactoryStatus.SUCCESS THEN
@@ -254,6 +284,7 @@ VAR_INPUT
 END_VAR
 VAR
 	_pDest: POINTER TO FB_AnyValue;
+	_factoryResult: E_ValueFactoryResultCode;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[setBody_AnyValue REF= THIS^;
@@ -269,7 +300,17 @@ IF pVal = 0 THEN
 END_IF
 
 // try to create a clone
-THIS^.sts := ValueFactory.cloneAnyValue(_pDest, pVal);
+_factoryResult := ValueFactory.cloneAnyValue(_pDest, pVal);
+CASE _factoryResult OF
+	E_ValueFactoryResultCode.SUCCESS:
+		THIS^.sts := E_PointerFactoryStatus.SUCCESS;
+	E_ValueFactoryResultCode.MEMORY_ALLOCATION_FAILURE:
+		THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	E_ValueFactoryResultCode.UNSUPPORTED_VALUE_TYPE:
+		THIS^.sts := E_PointerFactoryStatus.UNSPECIFIED_ERROR;
+ELSE
+	THIS^.sts := E_PointerFactoryStatus.INVALID_PARAMETERS;
+END_CASE
 IF THIS^.sts = E_PointerFactoryStatus.SUCCESS THEN
 	// clean up the prior record if it existed
 	IF THIS^.pLogRecord^.body <> 0 THEN
@@ -291,6 +332,7 @@ VAR_INPUT
 END_VAR
 VAR
 	_pDest: POINTER TO FB_String;
+	_factoryResult: E_ValueFactoryResultCode;
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -301,7 +343,14 @@ IF THIS^._shouldReturnEarly() THEN
 END_IF
 
 // create FB_String
-THIS^.sts := ValueFactory.createString(_pDest, ADR(str));
+_factoryResult := ValueFactory.createString(_pDest, ADR(str));
+IF _factoryResult = E_ValueFactoryResultCode.SUCCESS THEN
+	THIS^.sts := E_PointerFactoryStatus.SUCCESS;
+ELSIF _factoryResult = E_ValueFactoryResultCode.MEMORY_ALLOCATION_FAILURE THEN
+	THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+ELSE
+	THIS^.sts := E_PointerFactoryStatus.INVALID_PARAMETERS;
+END_IF
 
 // assign to record event name
 IF THIS^.sts = E_PointerFactoryStatus.SUCCESS THEN
@@ -355,6 +404,7 @@ VAR_INPUT
 END_VAR
 VAR
 	_pDest: POINTER TO FB_SpanId;
+	_factoryResult: E_ValueFactoryResultCode;
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -365,7 +415,14 @@ IF THIS^._shouldReturnEarly() THEN
 END_IF
 
 // create an instance of FB_SpanId
-THIS^.sts := ValueFactory.createSpanId(_pDest, pBytes, nSize);
+_factoryResult := ValueFactory.createSpanId(_pDest, pBytes, nSize);
+IF _factoryResult = E_ValueFactoryResultCode.SUCCESS THEN
+	THIS^.sts := E_PointerFactoryStatus.SUCCESS;
+ELSIF _factoryResult = E_ValueFactoryResultCode.MEMORY_ALLOCATION_FAILURE THEN
+	THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+ELSE
+	THIS^.sts := E_PointerFactoryStatus.INVALID_PARAMETERS;
+END_IF
 
 // assign to the record
 IF THIS^.sts = E_PointerFactoryStatus.SUCCESS THEN
@@ -390,6 +447,7 @@ VAR_INPUT
 END_VAR
 VAR
 	_pDest: POINTER TO FB_TraceId;
+	_factoryResult: E_ValueFactoryResultCode;
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -400,7 +458,14 @@ IF THIS^._shouldReturnEarly() THEN
 END_IF
 
 // create an instance of FB_TraceId
-THIS^.sts := ValueFactory.createTraceId(_pDest, pBytes, nSize);
+_factoryResult := ValueFactory.createTraceId(_pDest, pBytes, nSize);
+IF _factoryResult = E_ValueFactoryResultCode.SUCCESS THEN
+	THIS^.sts := E_PointerFactoryStatus.SUCCESS;
+ELSIF _factoryResult = E_ValueFactoryResultCode.MEMORY_ALLOCATION_FAILURE THEN
+	THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+ELSE
+	THIS^.sts := E_PointerFactoryStatus.INVALID_PARAMETERS;
+END_IF
 
 // assign to the log record
 IF THIS^.sts = E_PointerFactoryStatus.SUCCESS THEN

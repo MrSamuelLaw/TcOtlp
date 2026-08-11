@@ -19,7 +19,7 @@ END_VAR
 VAR_OUTPUT
 	resource: FB_Resource('');
 	scope: FB_InstrumentationScope('', '', '');
-	attributes: FB_LinkedList_KeyValue;
+	attributes: FB_Attributes;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -32,6 +32,8 @@ VAR_IN_OUT
 END_VAR
 VAR
 	_pClone: POINTER TO FB_LogRecord;
+	_factoryResult: E_ValueFactoryResultCode;
+	_attributesResult: E_AttributesResultCode;
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -52,16 +54,31 @@ END_IF
 _pClone^.droppedAttributesCount := THIS^.droppedAttributesCount;
 
 IF THIS^.eventName <> 0 THEN
-	cloneTo := ValueFactory.cloneString(_pClone^.eventName, THIS^.eventName);
-	IF cloneTo <> E_PointerFactoryStatus.SUCCESS THEN
+	_factoryResult := ValueFactory.cloneString(_pClone^.eventName, THIS^.eventName);
+	IF _factoryResult <> E_ValueFactoryResultCode.SUCCESS THEN
+		CASE _factoryResult OF
+			E_ValueFactoryResultCode.DESTINATION_ALREADY_ASSIGNED:
+				cloneTo := E_PointerFactoryStatus.POINTER_ALREADY_ALLOCATED;
+			E_ValueFactoryResultCode.MEMORY_ALLOCATION_FAILURE:
+				cloneTo := E_PointerFactoryStatus.OUT_OF_MEMORY;
+			E_ValueFactoryResultCode.UNSUPPORTED_VALUE_TYPE:
+				cloneTo := E_PointerFactoryStatus.UNSPECIFIED_ERROR;
+		ELSE
+			cloneTo := E_PointerFactoryStatus.INVALID_PARAMETERS;
+		END_CASE
 		_pClone := _pClone^.delete();
 		RETURN;
 	END_IF
 END_IF
 
 IF THIS^.traceId <> 0 THEN
-	cloneTo := ValueFactory.createTraceId(_pClone^.traceId, ADR(THIS^.traceId^.bytes), SIZEOF(THIS^.traceId^.bytes));
-	IF cloneTo <> E_PointerFactoryStatus.SUCCESS THEN
+	_factoryResult := ValueFactory.createTraceId(_pClone^.traceId, ADR(THIS^.traceId^.bytes), SIZEOF(THIS^.traceId^.bytes));
+	IF _factoryResult <> E_ValueFactoryResultCode.SUCCESS THEN
+		IF _factoryResult = E_ValueFactoryResultCode.MEMORY_ALLOCATION_FAILURE THEN
+			cloneTo := E_PointerFactoryStatus.OUT_OF_MEMORY;
+		ELSE
+			cloneTo := E_PointerFactoryStatus.INVALID_PARAMETERS;
+		END_IF
 		_pClone := _pClone^.delete();
 		RETURN;
 	END_IF
@@ -78,16 +95,31 @@ IF THIS^.flags <> 0 THEN
 END_IF
 
 IF THIS^.spanId <> 0 THEN
-	cloneTo := ValueFactory.createSpanId(_pClone^.spanId, ADR(THIS^.spanId^.bytes), SIZEOF(THIS^.spanId^.bytes));
-	IF cloneTo <> E_PointerFactoryStatus.SUCCESS THEN
+	_factoryResult := ValueFactory.createSpanId(_pClone^.spanId, ADR(THIS^.spanId^.bytes), SIZEOF(THIS^.spanId^.bytes));
+	IF _factoryResult <> E_ValueFactoryResultCode.SUCCESS THEN
+		IF _factoryResult = E_ValueFactoryResultCode.MEMORY_ALLOCATION_FAILURE THEN
+			cloneTo := E_PointerFactoryStatus.OUT_OF_MEMORY;
+		ELSE
+			cloneTo := E_PointerFactoryStatus.INVALID_PARAMETERS;
+		END_IF
 		_pClone := _pClone^.delete();
 		RETURN;
 	END_IF
 END_IF
 
 IF THIS^.body <> 0 THEN
-	cloneTo := ValueFactory.cloneAnyValue(_pClone^.body, THIS^.body);
-	IF cloneTo <> E_PointerFactoryStatus.SUCCESS THEN
+	_factoryResult := ValueFactory.cloneAnyValue(_pClone^.body, THIS^.body);
+	IF _factoryResult <> E_ValueFactoryResultCode.SUCCESS THEN
+		CASE _factoryResult OF
+			E_ValueFactoryResultCode.DESTINATION_ALREADY_ASSIGNED:
+				cloneTo := E_PointerFactoryStatus.POINTER_ALREADY_ALLOCATED;
+			E_ValueFactoryResultCode.MEMORY_ALLOCATION_FAILURE:
+				cloneTo := E_PointerFactoryStatus.OUT_OF_MEMORY;
+			E_ValueFactoryResultCode.UNSUPPORTED_VALUE_TYPE:
+				cloneTo := E_PointerFactoryStatus.UNSPECIFIED_ERROR;
+		ELSE
+			cloneTo := E_PointerFactoryStatus.INVALID_PARAMETERS;
+		END_CASE
 		_pClone := _pClone^.delete();
 		RETURN;
 	END_IF
@@ -105,8 +137,14 @@ IF cloneTo <> E_PointerFactoryStatus.SUCCESS THEN
 	RETURN;
 END_IF
 
-cloneTo := _pClone^.attributes.copyFrom(THIS^.attributes);
-IF cloneTo <> E_PointerFactoryStatus.SUCCESS THEN
+_attributesResult := _pClone^.attributes.copyFrom(THIS^.attributes);
+IF _attributesResult <> E_AttributesResultCode.SUCCESS THEN
+	IF _attributesResult = E_AttributesResultCode.MEMORY_ALLOCATION_FAILURE
+		OR_ELSE _attributesResult = E_AttributesResultCode.ATTRIBUTE_COUNT_LIMIT_REACHED THEN
+		cloneTo := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	ELSE
+		cloneTo := E_PointerFactoryStatus.INVALID_PARAMETERS;
+	END_IF
 	_pClone := _pClone^.delete();
 	RETURN;
 END_IF

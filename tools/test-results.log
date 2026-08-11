@@ -1,18 +1,46 @@
-﻿MSG | 8/10/2026 7:36:18 PM 654 ms | 'TwinCAT System' (10000): TwinCAT System Restart initiated from AmsNetId: 192.168.97.90.1.1 port 33060.
-MSG | 8/10/2026 7:36:20 PM 939 ms | 'TwinCAT System' (10000): TcIo Server started: TcIo.
-MSG | 8/10/2026 7:36:20 PM 947 ms | 'TwinCAT System' (10000): TcPlc30 Server started: TcPlc30.
-MSG | 8/10/2026 7:36:20 PM 954 ms | 'TwinCAT System' (10000): TcRTime Server started: TcRTime.
-MSG | 8/10/2026 7:36:20 PM 962 ms | 'TwinCAT System' (10000): TcRtsObjects Server started: TcRtsObjects.
-MSG | 8/10/2026 7:36:20 PM 968 ms | 'License Server' (30): license validation status is Valid(3)
-MSG | 8/10/2026 7:36:21 PM 067 ms | 'TwinCAT System' (10000): TwinCAT USB support could not be initialized. System start continued.
+﻿MSG | 8/10/2026 9:19:32 PM 441 ms | 'TwinCAT System' (10000): TwinCAT System Restart initiated from AmsNetId: 192.168.97.90.1.1 port 33184.
+MSG | 8/10/2026 9:19:34 PM 351 ms | 'TwinCAT System' (10000): TcIo Server started: TcIo.
+MSG | 8/10/2026 9:19:34 PM 364 ms | 'TwinCAT System' (10000): TcPlc30 Server started: TcPlc30.
+MSG | 8/10/2026 9:19:34 PM 374 ms | 'TwinCAT System' (10000): TcRTime Server started: TcRTime.
+MSG | 8/10/2026 9:19:34 PM 386 ms | 'TwinCAT System' (10000): TcRtsObjects Server started: TcRtsObjects.
+MSG | 8/10/2026 9:19:34 PM 392 ms | 'License Server' (30): license validation status is Valid(3)
+MSG | 8/10/2026 9:19:34 PM 494 ms | 'TwinCAT System' (10000): TwinCAT USB support could not be initialized. System start continued.
 
-MSG | 8/10/2026 7:36:21 PM 073 ms | 'License Server' (30): license validation status is Valid(3)
-MSG | 8/10/2026 7:36:21 PM 236 ms | 'TCRTIME' (200): a task dump created on 2026-08-09T21:58:48 is available on the target
-ERR | 8/10/2026 7:36:21 PM 411 ms | 'PlcTask1' (351): | ==========TESTS FINISHED RUNNING==========
-ERR | 8/10/2026 7:36:21 PM 431 ms | 'PlcTask1' (351): | Test suites: 0
-ERR | 8/10/2026 7:36:21 PM 451 ms | 'PlcTask1' (351): | Tests: 0
-ERR | 8/10/2026 7:36:21 PM 471 ms | 'PlcTask1' (351): | Successful tests: 0
-ERR | 8/10/2026 7:36:21 PM 491 ms | 'PlcTask1' (351): | Failed tests: 0
-ERR | 8/10/2026 7:36:21 PM 511 ms | 'PlcTask1' (351): | Duration: 0.0
-ERR | 8/10/2026 7:36:21 PM 531 ms | 'PlcTask1' (351): | ======================================
+MSG | 8/10/2026 9:19:34 PM 499 ms | 'License Server' (30): license validation status is Valid(3)
+MSG | 8/10/2026 9:19:34 PM 655 ms | 'TCRTIME' (200): a task dump created on 2026-08-09T21:58:48 is available on the target
+MSG | 8/10/2026 9:19:34 PM 864 ms | 'PlcTask1' (351): | Test suite ID=0 'MAIN.fbTestOtlpValue'
+MSG | 8/10/2026 9:19:34 PM 884 ms | 'PlcTask1' (351): | ID=0 number of tests=5, number of failed tests=0, duration=1.5588e-3
+MSG | 8/10/2026 9:19:34 PM 904 ms | 'PlcTask1' (351): | Test name=Test StringValue
+MSG | 8/10/2026 9:19:34 PM 924 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestOtlpValue
+MSG | 8/10/2026 9:19:34 PM 944 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=6, duration=1.102e-4
+MSG | 8/10/2026 9:19:34 PM 964 ms | 'PlcTask1' (351): | Test name=Test TraceIdValue
+MSG | 8/10/2026 9:19:34 PM 984 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestOtlpValue
+MSG | 8/10/2026 9:19:35 PM 004 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=7, duration=7.47e-5
+MSG | 8/10/2026 9:19:35 PM 024 ms | 'PlcTask1' (351): | Test name=Test SpanIdValue
+MSG | 8/10/2026 9:19:35 PM 044 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestOtlpValue
+MSG | 8/10/2026 9:19:35 PM 064 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=7, duration=1.154e-4
+MSG | 8/10/2026 9:19:35 PM 084 ms | 'PlcTask1' (351): | Test name=Test KeyValue
+MSG | 8/10/2026 9:19:35 PM 104 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestOtlpValue
+MSG | 8/10/2026 9:19:35 PM 124 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=7, duration=1.692e-4
+MSG | 8/10/2026 9:19:35 PM 144 ms | 'PlcTask1' (351): | Test name=Test NumberValue
+MSG | 8/10/2026 9:19:35 PM 164 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestOtlpValue
+MSG | 8/10/2026 9:19:35 PM 184 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=34, duration=1.0449e-3
+MSG | 8/10/2026 9:19:35 PM 204 ms | 'PlcTask1' (351): | Test suite ID=1 'MAIN.fbTestAttributes'
+MSG | 8/10/2026 9:19:35 PM 224 ms | 'PlcTask1' (351): | ID=1 number of tests=3, number of failed tests=0, duration=5.312e-4
+MSG | 8/10/2026 9:19:35 PM 244 ms | 'PlcTask1' (351): | Test name=testSetBehavior
+MSG | 8/10/2026 9:19:35 PM 264 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestAttributes
+MSG | 8/10/2026 9:19:35 PM 284 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=5, duration=5.63e-5
+MSG | 8/10/2026 9:19:35 PM 304 ms | 'PlcTask1' (351): | Test name=testCopyValues
+MSG | 8/10/2026 9:19:35 PM 324 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestAttributes
+MSG | 8/10/2026 9:19:35 PM 344 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=12, duration=6.75e-5
+MSG | 8/10/2026 9:19:35 PM 364 ms | 'PlcTask1' (351): | Test name=testResultCodes
+MSG | 8/10/2026 9:19:35 PM 384 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestAttributes
+MSG | 8/10/2026 9:19:35 PM 404 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=11, duration=3.883e-4
+ERR | 8/10/2026 9:19:35 PM 424 ms | 'PlcTask1' (351): | ==========TESTS FINISHED RUNNING==========
+ERR | 8/10/2026 9:19:35 PM 444 ms | 'PlcTask1' (351): | Test suites: 2
+ERR | 8/10/2026 9:19:35 PM 464 ms | 'PlcTask1' (351): | Tests: 8
+ERR | 8/10/2026 9:19:35 PM 484 ms | 'PlcTask1' (351): | Successful tests: 8
+ERR | 8/10/2026 9:19:35 PM 504 ms | 'PlcTask1' (351): | Failed tests: 0
+ERR | 8/10/2026 9:19:35 PM 524 ms | 'PlcTask1' (351): | Duration: 1.00255e-2
+ERR | 8/10/2026 9:19:35 PM 544 ms | 'PlcTask1' (351): | ======================================
 

@@ -4,7 +4,7 @@
     <Declaration><![CDATA[PROGRAM MAIN
 VAR
 	fbTestOtlpValue: FB_TestOtlpValue();
-// 	fbTestLinkedList_KeyValue: FB_TestLinkedList_KeyValue();
+	fbTestAttributes: FB_TestAttributes();
 // 	fbTestLinkedList_LogRecord: FB_TestLinkedList_LogRecord();
 // 	fbTestContextObjects: FB_TestContextObjects();
 // 	fbTestLogger: FB_TestLogger();
