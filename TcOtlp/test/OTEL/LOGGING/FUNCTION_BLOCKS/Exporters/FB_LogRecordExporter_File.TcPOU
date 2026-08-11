@@ -144,7 +144,7 @@ fileCloserErrId := _fileCloser.nErrId;
     <Method Name="export" Id="{b40925c8-02a7-4045-bcc3-ff164425210b}">
       <Declaration><![CDATA[METHOD export: E_PointerFactoryStatus
 VAR_IN_OUT
-	pLogRecords: POINTER TO FB_LinkedList_LogRecord;  // ownership transfers when set to 0
+	pLogRecords: POINTER TO FB_LogRecordQueue;  // ownership transfers when set to 0
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[// Only take ownership when the exporter has no active buffer.

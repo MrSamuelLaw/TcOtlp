@@ -12,13 +12,13 @@ FUNCTION_BLOCK FB_LogRecordProcessor_ForBatchInspection EXTENDS FB_LogRecordProc
 SUPER^();]]></ST>
     </Implementation>
     <Property Name="records" Id="{f123a485-0b0c-4d1a-a6b7-26aed6beabce}">
-      <Declaration><![CDATA[PROPERTY records : REFERENCE TO FB_LinkedList_LogRecord]]></Declaration>
+      <Declaration><![CDATA[PROPERTY records : REFERENCE TO FB_LogRecordQueue]]></Declaration>
       <Get Name="Get" Id="{f907df37-cc42-4b7f-92c6-7c91c79a1e96}">
         <Declaration><![CDATA[
 ]]></Declaration>
         <Implementation>
           <ST><![CDATA[IF THIS^._records = 0 THEN
-	THIS^._records := __NEW(FB_LinkedList_LogRecord);
+	THIS^._records := __NEW(FB_LogRecordQueue(maxSize:=THIS^.maxQueueSize));
 END_IF
 records REF= THIS^._records^;]]></ST>
         </Implementation>

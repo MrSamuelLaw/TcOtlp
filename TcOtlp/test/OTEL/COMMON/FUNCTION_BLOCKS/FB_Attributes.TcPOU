@@ -20,58 +20,60 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="_mapValueFactoryResult" Id="{b07c94f0-2f89-4b83-a86c-5297aea8b765}">
-      <Declaration><![CDATA[METHOD _mapValueFactoryResult : E_AttributesResultCode
+    <Method Name="_mapValueFactoryFailure" Id="{b07c94f0-2f89-4b83-a86c-5297aea8b765}">
+      <Declaration><![CDATA[METHOD _mapValueFactoryFailure : E_AttributesFailureReason
 VAR_INPUT
-	result: E_ValueFactoryResultCode;
+	failureReason: E_ValueFactoryFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[CASE result OF
-	E_ValueFactoryResultCode.SUCCESS:
-		_mapValueFactoryResult := E_AttributesResultCode.SUCCESS;
-	E_ValueFactoryResultCode.SOURCE_POINTER_NULL:
-		_mapValueFactoryResult := E_AttributesResultCode.KV_VALUE_POINTER_NULL;
-	E_ValueFactoryResultCode.KEY_POINTER_NULL:
-		_mapValueFactoryResult := E_AttributesResultCode.KV_KEY_POINTER_NULL;
-	E_ValueFactoryResultCode.VALUE_POINTER_NULL:
-		_mapValueFactoryResult := E_AttributesResultCode.KV_VALUE_POINTER_NULL;
-	E_ValueFactoryResultCode.UNSUPPORTED_VALUE_TYPE:
-		_mapValueFactoryResult := E_AttributesResultCode.KV_VALUE_TYPE_UNSUPPORTED;
-	E_ValueFactoryResultCode.MEMORY_ALLOCATION_FAILURE:
-		_mapValueFactoryResult := E_AttributesResultCode.MEMORY_ALLOCATION_FAILURE;
+        <ST><![CDATA[CASE failureReason OF
+	E_ValueFactoryFailureReason.SOURCE_POINTER_NULL:
+		_mapValueFactoryFailure := E_AttributesFailureReason.KV_VALUE_POINTER_NULL;
+	E_ValueFactoryFailureReason.KEY_POINTER_NULL:
+		_mapValueFactoryFailure := E_AttributesFailureReason.KV_KEY_POINTER_NULL;
+	E_ValueFactoryFailureReason.VALUE_POINTER_NULL:
+		_mapValueFactoryFailure := E_AttributesFailureReason.KV_VALUE_POINTER_NULL;
+	E_ValueFactoryFailureReason.UNSUPPORTED_VALUE_TYPE:
+		_mapValueFactoryFailure := E_AttributesFailureReason.KV_VALUE_TYPE_UNSUPPORTED;
+	E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE:
+		_mapValueFactoryFailure := E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE;
 	ELSE
-		_mapValueFactoryResult := E_AttributesResultCode.KV_VALUE_INVALID;
+		_mapValueFactoryFailure := E_AttributesFailureReason.KV_VALUE_INVALID;
 END_CASE
 ]]></ST>
       </Implementation>
     </Method>
     <Method Name="copyFrom" Id="{12dc0284-c0fc-445c-a394-015d07f02ff7}">
-      <Declaration><![CDATA[METHOD copyFrom : E_AttributesResultCode
+      <Declaration><![CDATA[METHOD copyFrom : BOOL
 VAR_IN_OUT
 	src: FB_Attributes;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_AttributesFailureReason;
 END_VAR
 VAR
 	_idx: UDINT;
 	_pSrc: POINTER TO FB_KeyValue;
 	_pDest: POINTER TO FB_KeyValue;
-	_factoryResult: E_ValueFactoryResultCode;
+	_factoryFailureReason: E_ValueFactoryFailureReason;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[copyFrom := E_AttributesResultCode.SUCCESS;
+        <ST><![CDATA[copyFrom := FALSE;
+MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+
 src.reset();
 FOR _idx := 0 TO THIS^.maxCount DO
 	_pSrc := src.next();
 	IF _pSrc = 0 THEN
+		copyFrom := TRUE;
 		RETURN;
 	END_IF
-	_factoryResult := ValueFactory.cloneKeyValue(_pDest, _pSrc);
-	IF _factoryResult <> E_ValueFactoryResultCode.SUCCESS THEN
-		copyFrom := THIS^._mapValueFactoryResult(_factoryResult);
+	IF NOT ValueFactory.cloneKeyValue(pDest:=_pDest, pSrc:=_pSrc, failureReason=>_factoryFailureReason) THEN
+		failureReason := THIS^._mapValueFactoryFailure(_factoryFailureReason);
 		RETURN;
 	END_IF
-	copyFrom := THIS^.setAttribute(_pDest);
-	IF copyFrom <> E_AttributesResultCode.SUCCESS THEN
+	IF NOT THIS^.setAttribute(pValue:=_pDest, failureReason=>failureReason) THEN
 		IF _pDest <> 0 THEN
 			_pDest := _pDest^.delete();
 		END_IF
@@ -79,7 +81,7 @@ FOR _idx := 0 TO THIS^.maxCount DO
 	END_IF
 END_FOR
 
-
+copyFrom := TRUE;
 ]]></ST>
       </Implementation>
     </Method>
@@ -161,9 +163,12 @@ END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="setAttribute" Id="{29d543f3-3e33-4876-b1bf-4a2f0254ef43}">
-      <Declaration><![CDATA[METHOD setAttribute: E_AttributesResultCode
+      <Declaration><![CDATA[METHOD setAttribute : BOOL
 VAR_IN_OUT
 	pValue: POINTER TO FB_KeyValue;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_AttributesFailureReason;
 END_VAR
 VAR
 	_node: POINTER TO ST_LinkedListNode;
@@ -172,18 +177,21 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pValue = 0 THEN
-	setAttribute := E_AttributesResultCode.KV_POINTER_NULL;
+        <ST><![CDATA[setAttribute := FALSE;
+MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+
+IF pValue = 0 THEN
+	failureReason := E_AttributesFailureReason.KV_POINTER_NULL;
 	RETURN;
 END_IF
 
 IF pValue^.pKey = 0 THEN
-	setAttribute := E_AttributesResultCode.KV_KEY_POINTER_NULL;
+	failureReason := E_AttributesFailureReason.KV_KEY_POINTER_NULL;
 	RETURN;
 END_IF
 
 IF pValue^.pVal = 0 THEN
-	setAttribute := E_AttributesResultCode.KV_VALUE_POINTER_NULL;
+	failureReason := E_AttributesFailureReason.KV_VALUE_POINTER_NULL;
 	RETURN;
 END_IF
 
@@ -198,7 +206,7 @@ FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
 		// replace the value currently at the index
 		_pVal := _pVal^.delete();
 		_node^.val := pValue;
-		setAttribute := E_AttributesResultCode.SUCCESS;
+		setAttribute := TRUE;
 		pValue := 0;
 		RETURN;
 	END_IF
@@ -206,7 +214,7 @@ FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
 END_FOR
 
 IF THIS^.count >= THIS^.maxCount THEN
-	setAttribute := E_AttributesResultCode.ATTRIBUTE_COUNT_LIMIT_REACHED;
+	failureReason := E_AttributesFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED;
 	THIS^.droppedCount := THIS^.droppedCount + 1;
 	RETURN;
 END_IF
@@ -214,7 +222,7 @@ END_IF
 // if it doesn't exist append the key-value pair
 _node := __NEW(ST_LinkedListNode);
 IF _node = 0 THEN
-	setAttribute := E_AttributesResultCode.MEMORY_ALLOCATION_FAILURE;
+	failureReason := E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE;
 	RETURN;
 END_IF
 
@@ -233,36 +241,49 @@ THIS^.count := THIS^.count + 1;
 
 // Ownership transfers only after the value has been linked successfully.
 pValue := 0;
-setAttribute := E_AttributesResultCode.SUCCESS;]]></ST>
+setAttribute := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="setNumberAttribute" Id="{5ce7a6f9-75cf-4bf9-8ec2-655b0a7ea8b4}">
-      <Declaration><![CDATA[METHOD setNumberAttribute: E_AttributesResultCode;
+      <Declaration><![CDATA[METHOD setNumberAttribute : BOOL
 VAR_INPUT
 	key: T_MaxString;
 	value: ANY_NUM;
 END_VAR
+VAR_OUTPUT
+	failureReason: E_AttributesFailureReason;
+END_VAR
 VAR
 	_pKv: POINTER TO FB_KeyValue;
 	_pNum: POINTER TO FB_Number;
-	_factoryResult: E_ValueFactoryResultCode;
+	_factoryFailureReason: E_ValueFactoryFailureReason;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[_factoryResult := ValueFactory.createNumber_AnyType(_pNum, value);
-IF _factoryResult <> E_ValueFactoryResultCode.SUCCESS THEN
-	setNumberAttribute := THIS^._mapValueFactoryResult(_factoryResult);
+        <ST><![CDATA[setNumberAttribute := FALSE;
+MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+
+IF NOT ValueFactory.createNumber_AnyType(
+	pDest:=_pNum,
+	value:=value,
+	failureReason=>_factoryFailureReason
+) THEN
+	failureReason := THIS^._mapValueFactoryFailure(_factoryFailureReason);
 	RETURN;
 END_IF
 
-_factoryResult := ValueFactory.createKeyValue(_pKv, ADR(key), _pNum);
-IF _factoryResult <> E_ValueFactoryResultCode.SUCCESS THEN
-	setNumberAttribute := THIS^._mapValueFactoryResult(_factoryResult);
+IF NOT ValueFactory.createKeyValue(
+	pDest:=_pKv,
+	pKey:=ADR(key),
+	pVal:=_pNum,
+	failureReason=>_factoryFailureReason
+) THEN
+	failureReason := THIS^._mapValueFactoryFailure(_factoryFailureReason);
 	_pNum^.delete();
 	RETURN;
 END_IF
 _pNum^.delete();  // clean up the _pNum as its cloned in createKeyValue
 
-setNumberAttribute := THIS^.setAttribute(pValue:=_pKv);
+setNumberAttribute := THIS^.setAttribute(pValue:=_pKv, failureReason=>failureReason);
 // append only takes ownership on success; release a rejected value
 IF _pKv <> 0 THEN
 	_pKv := _pKv^.delete();
@@ -271,32 +292,45 @@ END_IF
       </Implementation>
     </Method>
     <Method Name="setNumberAttribute_AnyType" Id="{a633e97e-967c-40bb-9f1d-14d8e2ed4da3}">
-      <Declaration><![CDATA[METHOD setNumberAttribute_AnyType: E_AttributesResultCode;
+      <Declaration><![CDATA[METHOD setNumberAttribute_AnyType : BOOL
 VAR_INPUT
 	key: T_MaxString;
 	value: AnyType;
 END_VAR
+VAR_OUTPUT
+	failureReason: E_AttributesFailureReason;
+END_VAR
 VAR
 	_pKv: POINTER TO FB_KeyValue;
 	_pNum: POINTER TO FB_Number;
-	_factoryResult: E_ValueFactoryResultCode;
+	_factoryFailureReason: E_ValueFactoryFailureReason;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[_factoryResult := ValueFactory.createNumber_AnyType(_pNum, value);
-IF _factoryResult <> E_ValueFactoryResultCode.SUCCESS THEN
-	setNumberAttribute_AnyType := THIS^._mapValueFactoryResult(_factoryResult);
+        <ST><![CDATA[setNumberAttribute_AnyType := FALSE;
+MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+
+IF NOT ValueFactory.createNumber_AnyType(
+	pDest:=_pNum,
+	value:=value,
+	failureReason=>_factoryFailureReason
+) THEN
+	failureReason := THIS^._mapValueFactoryFailure(_factoryFailureReason);
 	RETURN;
 END_IF
 
-_factoryResult := ValueFactory.createKeyValue(_pKv, ADR(key), _pNum);
-IF _factoryResult <> E_ValueFactoryResultCode.SUCCESS THEN
-	setNumberAttribute_AnyType := THIS^._mapValueFactoryResult(_factoryResult);
+IF NOT ValueFactory.createKeyValue(
+	pDest:=_pKv,
+	pKey:=ADR(key),
+	pVal:=_pNum,
+	failureReason=>_factoryFailureReason
+) THEN
+	failureReason := THIS^._mapValueFactoryFailure(_factoryFailureReason);
 	_pNum^.delete();
 	RETURN;
 END_IF
 _pNum^.delete();  // clean up the _pNum as its cloned in createKeyValue
 
-setNumberAttribute_AnyType := THIS^.setAttribute(pValue:=_pKv);
+setNumberAttribute_AnyType := THIS^.setAttribute(pValue:=_pKv, failureReason=>failureReason);
 // append only takes ownership on success; release a rejected value
 IF _pKv <> 0 THEN
 	_pKv := _pKv^.delete();
@@ -305,32 +339,45 @@ END_IF
       </Implementation>
     </Method>
     <Method Name="setStringAttribute" Id="{807c259f-0345-4462-a6a8-1359a14a613b}">
-      <Declaration><![CDATA[METHOD setStringAttribute: E_AttributesResultCode;
+      <Declaration><![CDATA[METHOD setStringAttribute : BOOL
 VAR_INPUT
 	key: T_MaxString;
 	value: T_MaxString;
 END_VAR
+VAR_OUTPUT
+	failureReason: E_AttributesFailureReason;
+END_VAR
 VAR
 	_pKv: POINTER TO FB_KeyValue;
 	_pStr: POINTER TO FB_String;
-	_factoryResult: E_ValueFactoryResultCode;
+	_factoryFailureReason: E_ValueFactoryFailureReason;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[_factoryResult := ValueFactory.createString(_pStr, ADR(value));
-IF _factoryResult <> E_ValueFactoryResultCode.SUCCESS THEN
-	setStringAttribute := THIS^._mapValueFactoryResult(_factoryResult);
+        <ST><![CDATA[setStringAttribute := FALSE;
+MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+
+IF NOT ValueFactory.createString(
+	pDest:=_pStr,
+	pString:=ADR(value),
+	failureReason=>_factoryFailureReason
+) THEN
+	failureReason := THIS^._mapValueFactoryFailure(_factoryFailureReason);
 	RETURN;
 END_IF
 
-_factoryResult := ValueFactory.createKeyValue(_pKv, ADR(key), _pStr);
-IF _factoryResult <> E_ValueFactoryResultCode.SUCCESS THEN
-	setStringAttribute := THIS^._mapValueFactoryResult(_factoryResult);
+IF NOT ValueFactory.createKeyValue(
+	pDest:=_pKv,
+	pKey:=ADR(key),
+	pVal:=_pStr,
+	failureReason=>_factoryFailureReason
+) THEN
+	failureReason := THIS^._mapValueFactoryFailure(_factoryFailureReason);
 	_pStr^.delete();
 	RETURN;
 END_IF
 _pStr^.delete();  // clean up the _pStr as its cloned in createKeyValue
 
-setStringAttribute := THIS^.setAttribute(pValue:=_pKv);
+setStringAttribute := THIS^.setAttribute(pValue:=_pKv, failureReason=>failureReason);
 // append only takes ownership on success; release a rejected value
 IF _pKv <> 0 THEN
 	_pKv := _pKv^.delete();

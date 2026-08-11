@@ -13,21 +13,19 @@ VAR_INPUT
 END_VAR
 VAR
 	record: POINTER TO FB_LogRecord;
+	queueFailureReason: E_LogRecordQueueFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF THIS^._records = 0 THEN
-	THIS^._records := __NEW(FB_LinkedList_LogRecord);
+	THIS^._records := __NEW(FB_LogRecordQueue(maxSize:=THIS^.maxQueueSize));
 	IF THIS^._records = 0 THEN
 		THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
 		RETURN;
 	END_IF
 END_IF
 
-IF THIS^._records^.count >= THIS^.maxQueueSize THEN
-	THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
-	RETURN;
-END_IF
+THIS^._records^.maxSize := THIS^.maxQueueSize;
 
 record := 0;
 THIS^.sts := logRecord.cloneTo(record);
@@ -35,7 +33,7 @@ IF THIS^.sts <> E_PointerFactoryStatus.SUCCESS THEN
 	RETURN;
 END_IF
 
-IF NOT THIS^._records^.append(record) THEN
+IF NOT THIS^._records^.push(pValue:=record, failureReason=>queueFailureReason) THEN
 	record := record^.delete();
 	THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
 ELSE
@@ -58,7 +56,7 @@ END_IF]]></ST>
       </Implementation>
     </Method>
     <Property Name="pRecords" Id="{a29489ad-5899-47ae-80c4-e92271551fde}">
-      <Declaration><![CDATA[PROPERTY pRecords : POINTER TO FB_LinkedList_LogRecord]]></Declaration>
+      <Declaration><![CDATA[PROPERTY pRecords : POINTER TO FB_LogRecordQueue]]></Declaration>
       <Get Name="Get" Id="{911cc358-d9b2-441b-8c96-121513b5ba98}">
         <Declaration><![CDATA[
 ]]></Declaration>
@@ -68,13 +66,13 @@ END_IF]]></ST>
       </Get>
     </Property>
     <Property Name="records" Id="{e6573eb1-0ce2-4c29-b81f-faf070bed2e3}">
-      <Declaration><![CDATA[PROPERTY records : REFERENCE TO FB_LinkedList_LogRecord]]></Declaration>
+      <Declaration><![CDATA[PROPERTY records : REFERENCE TO FB_LogRecordQueue]]></Declaration>
       <Get Name="Get" Id="{94707f0e-43af-40f1-b736-6188bca9d8d0}">
         <Declaration><![CDATA[
 ]]></Declaration>
         <Implementation>
           <ST><![CDATA[IF THIS^._records = 0 THEN
-	THIS^._records := __NEW(FB_LinkedList_LogRecord);
+	THIS^._records := __NEW(FB_LogRecordQueue(maxSize:=THIS^.maxQueueSize));
 END_IF
 records REF= THIS^._records^;]]></ST>
         </Implementation>

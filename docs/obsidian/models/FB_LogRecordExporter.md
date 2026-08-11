@@ -2,7 +2,7 @@ An exporter MUST have a way to indicate its current state/status to a processor.
 
 ## Methods:
 
-`export(records: FB_LinkedList_LogRecord, count: int = 0`) -> void
+`export(records: FB_LogRecordQueue, count: int = 0`) -> void
 transfers log records to the exporter for export. If the exporter is busy no logs will be transferred.
 
 `register(processor: I_LogRecordProcessor) -> bool`

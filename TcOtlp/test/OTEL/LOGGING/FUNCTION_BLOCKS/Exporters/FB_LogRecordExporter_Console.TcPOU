@@ -16,7 +16,7 @@ END_VAR
       <Declaration><![CDATA[METHOD export : E_PointerFactoryStatus
 VAR_IN_OUT
 	(* ownership transfers when set to 0*)
-	pLogRecords	: POINTER TO FB_LinkedList_LogRecord;
+	pLogRecords	: POINTER TO FB_LogRecordQueue;
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -38,7 +38,7 @@ export := E_PointerFactoryStatus.SUCCESS;]]></ST>
     <Method Name="writeToConsole" Id="{3aea6abb-ab87-43d2-85a8-96216ee4ee7a}">
       <Declaration><![CDATA[METHOD writeToConsole
 VAR_INPUT
-	pLogRecords: REFERENCE TO FB_LinkedList_LogRecord;
+	pLogRecords: REFERENCE TO FB_LogRecordQueue;
 END_VAR
 VAR
 	idx: DINT;

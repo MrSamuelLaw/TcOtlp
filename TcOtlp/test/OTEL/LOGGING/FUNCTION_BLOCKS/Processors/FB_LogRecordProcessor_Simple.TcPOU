@@ -3,7 +3,7 @@
   <POU Name="FB_LogRecordProcessor_Simple" Id="{90ded010-1262-4ab5-9db9-0fd13f25279d}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProcessor_Simple EXTENDS FB_LogRecordProcessor_Mixin IMPLEMENTS I_LogRecordProcessor;
 VAR
-	_records: POINTER TO FB_LinkedList_LogRecord;
+	_records: POINTER TO FB_LogRecordQueue;
 	_exporter: REFERENCE TO FB_LogRecordExporter_Base;
 END_VAR
 ]]></Declaration>
@@ -82,6 +82,7 @@ END_VAR
 VAR
 	_sts: E_PointerFactoryStatus;
 	_pLogRecord: POINTER TO FB_LogRecord;
+	_queueFailureReason: E_LogRecordQueueFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -91,8 +92,8 @@ IF __ISVALIDREF(THIS^._exporter) THEN
 	IF (NOT THIS^._exporter.isBusy()) THEN
 		_sts := logRecord.cloneTo(_pLogRecord);
 		IF _sts = E_PointerFactoryStatus.SUCCESS THEN
-			THIS^._records := __NEW(FB_LinkedList_LogRecord);
-			IF THIS^._records <> 0 AND_THEN THIS^._records^.append(_pLogRecord) THEN
+			THIS^._records := __NEW(FB_LogRecordQueue(maxSize:=1));
+			IF THIS^._records <> 0 AND_THEN THIS^._records^.push(pValue:=_pLogRecord, failureReason=>_queueFailureReason) THEN
 				// A successful exporter accepts the pointer and clears _records.
 				THIS^._exporter.export(THIS^._records);
 			END_IF

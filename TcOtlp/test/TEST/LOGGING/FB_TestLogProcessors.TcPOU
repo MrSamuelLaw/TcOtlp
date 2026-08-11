@@ -11,10 +11,8 @@ TestBatchProcessors();]]></ST>
       <Declaration><![CDATA[(*
 	The batch processor queues emitted records in arrival order (oldest at
 	the head), dropping the oldest when the queue is full. Flushing moves
-	the oldest maxExportBatchSize records into a buffer sorted by
-	(resource id, scope name) and transfers ownership to the exporter.
-	Resource identity comes from FB_Resource.id, which is assigned at
-	declaration, so resourceA sorts before resourceB.
+	the oldest maxExportBatchSize records into an arrival-order buffer and
+	transfers ownership to the exporter.
 *)
 METHOD testBatchProcessors : REFERENCE TO FB_Test
 VAR
@@ -47,9 +45,6 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test BatchLogProcessors');
-	// ids are handed out in declaration order, so A groups before B
-	THIS^.AssertTrue(resourceA.id < resourceB.id, 'Expected resourceA to have the lower identity');
-
 	// small batches so the count-based flush trigger fires without waiting on the timer
 	processor.maxExportBatchSize := 3;
 
@@ -81,14 +76,14 @@ END_VAR
 	THIS^.AssertTrue(processor.records.count = 2, 'Expected two records left in the queue after the flush');
 	THIS^.AssertTrue(exporter.records.count = 3, 'Expected three records in the exported batch');
 
-	// exported batch is grouped and sorted: (a,a)=3  (a,b)=2  (b,a)=1
+	// exported batch preserves arrival order: ts1, ts2, ts3
 	exporter.records.reset();
 	pRec := exporter.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN (pRec^.timestamp = 3 AND pRec^.resource.id = resourceA.id AND pRec^.scope.name = 'scope.a'), 'Expected batch record 0 to be ts3 (resourceA, scope.a)');
+	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 1, 'Expected batch record 0 to be ts1');
 	pRec := exporter.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN (pRec^.timestamp = 2 AND pRec^.resource.id = resourceA.id AND pRec^.scope.name = 'scope.b'), 'Expected batch record 1 to be ts2 (resourceA, scope.b)');
+	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 2, 'Expected batch record 1 to be ts2');
 	pRec := exporter.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN (pRec^.timestamp = 1 AND pRec^.resource.id = resourceB.id AND pRec^.scope.name = 'scope.a'), 'Expected batch record 2 to be ts1 (resourceB, scope.a)');
+	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 3, 'Expected batch record 2 to be ts3');
 	THIS^.AssertTrue(exporter.records.next() = 0, 'Expected batch iteration to be exhausted');
 
 	// a busy exporter leaves the queue untouched
@@ -97,18 +92,18 @@ END_VAR
 	processor();
 	THIS^.AssertTrue(processor.records.count = 3, 'Expected three queued records while the exporter is busy');
 
-	// once free again, the next flush exports the remaining records sorted: (a,a)=5  (a,b)=6  (b,a)=4
+	// once free again, the next flush exports the remaining records in arrival order
 	exporter.busy := FALSE;
 	processor();
 	THIS^.AssertTrue(processor.records.count = 0, 'Expected an empty queue after the second flush');
 	THIS^.AssertTrue(exporter.records.count = 3, 'Expected three records in the second exported batch');
 	exporter.records.reset();
 	pRec := exporter.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN (pRec^.timestamp = 5 AND pRec^.resource.id = resourceA.id AND pRec^.scope.name = 'scope.a'), 'Expected batch record 0 to be ts5 (resourceA, scope.a)');
+	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 4, 'Expected batch record 0 to be ts4');
 	pRec := exporter.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN (pRec^.timestamp = 6 AND pRec^.resource.id = resourceA.id AND pRec^.scope.name = 'scope.b'), 'Expected batch record 1 to be ts6 (resourceA, scope.b)');
+	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 5, 'Expected batch record 1 to be ts5');
 	pRec := exporter.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN (pRec^.timestamp = 4 AND pRec^.resource.id = resourceB.id AND pRec^.scope.name = 'scope.a'), 'Expected batch record 2 to be ts4 (resourceB, scope.a)');
+	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 6, 'Expected batch record 2 to be ts6');
 
 	// a full queue drops the oldest record to make room for the newest
 	processor.maxQueueSize := 2;

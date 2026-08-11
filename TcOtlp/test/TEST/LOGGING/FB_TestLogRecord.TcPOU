@@ -26,7 +26,8 @@ VAR
 	spanIdBytes: ARRAY [0..7] OF BYTE := [16, 17, 18, 19, 20, 21, 22, 23];
 	flags: E_LogRecordFlag := E_LogRecordFlag.LOG_RECORD_FLAGS_TRACE_FLAGS_MASK;
 	sts: E_PointerFactoryStatus;
-	attributesResult: E_AttributesResultCode;
+	attributesSuccess: BOOL;
+	attributesFailureReason: E_AttributesFailureReason;
 	pClone: POINTER TO FB_LogRecord;
 	pSourceResourceAttribute: POINTER TO FB_KeyValue;
 	pClonedResourceAttribute: POINTER TO FB_KeyValue;
@@ -40,10 +41,18 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('canDeepCopyCloneRecord');
-	attributesResult := resource.attributes.setStringAttribute('resource.key', 'resource.value');
-	THIS^.AssertTrue(attributesResult = E_AttributesResultCode.SUCCESS, 'Expected resource attribute creation to succeed');
-	attributesResult := scope.attributes.setStringAttribute('scope.key', 'scope.value');
-	THIS^.AssertTrue(attributesResult = E_AttributesResultCode.SUCCESS, 'Expected scope attribute creation to succeed');
+	attributesSuccess := resource.attributes.setStringAttribute(
+		key:='resource.key',
+		value:='resource.value',
+		failureReason=>attributesFailureReason
+	);
+	THIS^.AssertTrue(attributesSuccess, 'Expected resource attribute creation to succeed');
+	attributesSuccess := scope.attributes.setStringAttribute(
+		key:='scope.key',
+		value:='scope.value',
+		failureReason=>attributesFailureReason
+	);
+	THIS^.AssertTrue(attributesSuccess, 'Expected scope attribute creation to succeed');
 
 	logger
 		.startLogRecord(

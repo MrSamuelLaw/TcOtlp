@@ -1,17 +1,16 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <EnumerationTextList Name="E_ValueFactoryResultCode" Id="{deb68734-7fbd-4fc9-8316-6333e87f3d63}">
+  <EnumerationTextList Name="E_ValueFactoryFailureReason" Id="{deb68734-7fbd-4fc9-8316-6333e87f3d63}">
     <Declaration><![CDATA[{attribute 'qualified_only'}
 {attribute 'strict'}
 {attribute 'to_string'}
-TYPE E_ValueFactoryResultCode :
+TYPE E_ValueFactoryFailureReason :
 (
 	
-	SUCCESS := 0,  // The factory operation completed successfully.
-	DESTINATION_ALREADY_ASSIGNED,  // The destination pointer was already assigned when the operation began.
+	DESTINATION_ALREADY_ASSIGNED := 1,  // The destination pointer was already assigned when the operation began.
 	SOURCE_POINTER_NULL,  // The source pointer is null.
-	SOURCE_PAYLOAD_POINTER_NULL,  // The source value's payload pointer is null.
-	SOURCE_PAYLOAD_SIZE_INVALID,  // The source value's payload size is zero or negative.
+	NUMBER_VALUE_POINTER_NULL,  // The numeric value pointer is null.
+	NUMBER_VALUE_SIZE_INVALID,  // The numeric value size is zero or negative.
 	KEY_POINTER_NULL,  // The key pointer is null.
 	VALUE_POINTER_NULL,  // The value pointer is null.
 	STRING_POINTER_NULL,  // The string pointer is null.
@@ -29,11 +28,6 @@ END_TYPE
         <o xml:space="preserve" t="TextListEnumerationTextListObject">
           <l n="TextList" t="ArrayList" cet="TextListRow">
             <o>
-              <v n="TextID">"SUCCESS"</v>
-              <v n="TextDefault">"0"</v>
-              <l n="LanguageTexts" t="ArrayList" />
-            </o>
-            <o>
               <v n="TextID">"DESTINATION_ALREADY_ASSIGNED"</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
@@ -44,12 +38,12 @@ END_TYPE
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
-              <v n="TextID">"SOURCE_PAYLOAD_POINTER_NULL"</v>
+              <v n="TextID">"NUMBER_VALUE_POINTER_NULL"</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
-              <v n="TextID">"SOURCE_PAYLOAD_SIZE_INVALID"</v>
+              <v n="TextID">"NUMBER_VALUE_SIZE_INVALID"</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>

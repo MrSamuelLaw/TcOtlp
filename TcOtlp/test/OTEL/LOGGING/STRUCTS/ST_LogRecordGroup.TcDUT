@@ -2,7 +2,7 @@
 <TcPlcObject Version="1.1.0.1">
   <DUT Name="ST_LogRecordGroup" Id="{2317d6b0-00b6-4eff-9467-a4cab11cb7a3}">
     <Declaration><![CDATA[(*
-	Marker for one (resource, scope) group inside an FB_LinkedList_LogRecord.
+	Marker for one (resource, scope) group inside an FB_LogRecordQueue.
 	Groups form a singly linked list sorted by (resourceId, scopeName).
 	insertIndex is the list position just after the group's last record,
 	i.e. where the group's next record gets inserted.

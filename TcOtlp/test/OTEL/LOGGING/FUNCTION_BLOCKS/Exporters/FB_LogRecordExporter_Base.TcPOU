@@ -4,7 +4,7 @@
     <Declaration><![CDATA[FUNCTION_BLOCK ABSTRACT FB_LogRecordExporter_Base
 VAR
 	_processor: PVOID;
-	_pLogRecords: POINTER TO FB_LinkedList_LogRecord;
+	_pLogRecords: POINTER TO FB_LogRecordQueue;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -13,7 +13,7 @@ END_VAR
     <Method Name="export" Id="{ae492816-f399-4168-9ef3-5fffa135683d}">
       <Declaration><![CDATA[METHOD ABSTRACT export: E_PointerFactoryStatus
 VAR_IN_OUT
-	pLogRecords: POINTER TO FB_LinkedList_LogRecord;  // ownership transfers when set to 0
+	pLogRecords: POINTER TO FB_LogRecordQueue;  // ownership transfers when set to 0
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -37,7 +37,7 @@ END_IF]]></ST>
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF THIS^._pLogRecords <> 0 THEN
-	// FB_LinkedList_LogRecord.FB_Exit deletes every owned record.
+	// FB_LogRecordQueue.FB_Exit deletes every owned record.
 	__DELETE(THIS^._pLogRecords);
 	THIS^._pLogRecords := 0;
 END_IF]]></ST>

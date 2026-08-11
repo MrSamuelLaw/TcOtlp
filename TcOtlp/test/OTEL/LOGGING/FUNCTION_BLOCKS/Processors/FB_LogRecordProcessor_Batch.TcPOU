@@ -8,7 +8,7 @@
 	capped at maxQueueSize; when full, the oldest record is dropped to make
 	room for the newest. The body flushes every scheduledDelayMillis, or as
 	soon as a full batch is queued: the oldest maxExportBatchSize records are
-	moved into a buffer sorted by (resource id, scope name) and ownership of
+	moved into an arrival-order buffer and ownership of
 	the buffer is transferred to the exporter.
 *)
 FUNCTION_BLOCK FB_LogRecordProcessor_Batch EXTENDS FB_LogRecordProcessor_Mixin IMPLEMENTS I_LogRecordProcessor;
@@ -23,8 +23,8 @@ VAR_OUTPUT
 END_VAR
 VAR
 	_scheduleDelayTimer: TON;
-	_records: POINTER TO FB_LinkedList_LogRecord;		// arrival-order queue (oldest at the head), capped at maxQueueSize
-	_buffer: POINTER TO FB_LinkedList_LogRecord;		// sorted batch awaiting transfer to the exporter, capped at maxExportBatchSize
+	_records: POINTER TO FB_LogRecordQueue;		// arrival-order queue (oldest at the head), capped at maxQueueSize
+	_buffer: POINTER TO FB_LogRecordQueue;		// arrival-order batch awaiting transfer to the exporter, capped at maxExportBatchSize
 	_exporter: REFERENCE TO FB_LogRecordExporter_Base;
 END_VAR
 ]]></Declaration>
@@ -84,7 +84,7 @@ ELSE
 END_IF
 
 IF NOT bInCopyCode THEN
-	THIS^._records := __NEW(FB_LinkedList_LogRecord);
+	THIS^._records := __NEW(FB_LogRecordQueue(maxSize:=THIS^.maxQueueSize));
 	IF THIS^._records = 0 THEN
 		THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
 	END_IF
@@ -96,7 +96,7 @@ END_IF]]></ST>
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF THIS^._records <> 0 THEN
-	// FB_LinkedList_LogRecord.free deletes every owned record.
+	// FB_LogRecordQueue.free deletes every owned record.
 	THIS^._records := THIS^._records^.delete();
 END_IF
 
@@ -117,6 +117,7 @@ VAR_INPUT
 END_VAR
 VAR
 	_pRecord: POINTER TO FB_LogRecord;
+	_queueFailureReason: E_LogRecordQueueFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -130,7 +131,7 @@ IF THIS^.sts <> E_PointerFactoryStatus.SUCCESS THEN
 	RETURN;
 END_IF
 
-IF NOT THIS^.makeQueueRoom() OR_ELSE NOT THIS^._records^.append(_pRecord) THEN
+IF NOT THIS^._records^.push(pValue:=_pRecord, failureReason=>_queueFailureReason) THEN
 	_pRecord := _pRecord^.delete();
 	THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
 	RETURN;
@@ -144,38 +145,15 @@ THIS^.sts := E_PointerFactoryStatus.SUCCESS;]]></ST>
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF THIS^._records = 0 THEN
-	THIS^._records := __NEW(FB_LinkedList_LogRecord);
+	THIS^._records := __NEW(FB_LogRecordQueue(maxSize:=THIS^.maxQueueSize));
 END_IF
 
 ensureQueue := THIS^._records <> 0;
 IF ensureQueue THEN
-	THIS^._records^.maxRecordCount := THIS^.maxQueueSize;
+	THIS^._records^.maxSize := THIS^.maxQueueSize;
 ELSE
 	THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
 END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="makeQueueRoom" Id="{cdf40125-a5ac-478f-9071-bd2a80e4d997}">
-      <Declaration><![CDATA[METHOD makeQueueRoom : BOOL
-VAR
-	_idx: UDINT;
-	_pOldest: POINTER TO FB_LogRecord;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[makeQueueRoom := FALSE;
-IF THIS^._records = 0 OR_ELSE THIS^.maxQueueSize = 0 THEN RETURN; END_IF
-
-FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
-	IF THIS^._records^.count < THIS^.maxQueueSize THEN
-		makeQueueRoom := TRUE;
-		RETURN;
-	END_IF
-
-	_pOldest := THIS^._records^.pop();
-	IF _pOldest = 0 THEN RETURN; END_IF
-	_pOldest := _pOldest^.delete();
-END_FOR]]></ST>
       </Implementation>
     </Method>
     <Method Name="flushIfNeeded" Id="{ef8261bd-5790-44ed-9787-8d1e3e6279af}">
@@ -201,6 +179,7 @@ END_IF]]></ST>
 VAR
 	_idx: UDINT;
 	_pRecord: POINTER TO FB_LogRecord;
+	_queueFailureReason: E_LogRecordQueueFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -211,18 +190,17 @@ IF THIS^.maxExportBatchSize = 0
 	RETURN;
 END_IF
 
-THIS^._buffer := __NEW(FB_LinkedList_LogRecord);
+THIS^._buffer := __NEW(FB_LogRecordQueue(maxSize:=THIS^.maxExportBatchSize));
 IF THIS^._buffer = 0 THEN
 	THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
 	RETURN;
 END_IF
-THIS^._buffer^.maxRecordCount := THIS^.maxExportBatchSize;
+THIS^._buffer^.maxSize := THIS^.maxExportBatchSize;
 
 FOR _idx := 1 TO THIS^.maxExportBatchSize DO
-	_pRecord := THIS^._records^.pop();
-	IF _pRecord = 0 THEN EXIT; END_IF
+	IF NOT THIS^._records^.pop(pValue:=_pRecord, failureReason=>_queueFailureReason) THEN EXIT; END_IF
 
-	IF NOT THIS^.insertIntoBuffer(_pRecord) THEN
+	IF NOT THIS^._buffer^.push(pValue:=_pRecord, failureReason=>_queueFailureReason) THEN
 		_pRecord := _pRecord^.delete();
 		THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
 		RETURN;
@@ -234,55 +212,9 @@ END_FOR
 buildBuffer := THIS^._buffer^.count > 0;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="getBufferInsertIndex" Id="{363b1148-f4b7-4742-954f-3867628c52d4}">
-      <Declaration><![CDATA[METHOD getBufferInsertIndex : UDINT
-VAR_INPUT
-	pRecord: POINTER TO FB_LogRecord;
-END_VAR
-VAR
-	_idx: UDINT;
-	_pBufferedRecord: POINTER TO FB_LogRecord;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[getBufferInsertIndex := 0;
-IF THIS^._buffer = 0 OR_ELSE pRecord = 0 THEN RETURN; END_IF
-
-getBufferInsertIndex := THIS^._buffer^.count;
-THIS^._buffer^.reset();
-FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
-	_pBufferedRecord := THIS^._buffer^.next();
-	IF _pBufferedRecord = 0 THEN RETURN; END_IF
-
-	IF (_pBufferedRecord^.resource.id > pRecord^.resource.id)
-		OR_ELSE (_pBufferedRecord^.resource.id = pRecord^.resource.id
-			AND_THEN _pBufferedRecord^.scope.name > pRecord^.scope.name) THEN
-		getBufferInsertIndex := _idx;
-		RETURN;
-	END_IF
-END_FOR]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="insertIntoBuffer" Id="{88aa333c-5ff5-4fc3-8af8-70af33f394a1}">
-      <Declaration><![CDATA[METHOD insertIntoBuffer : BOOL
-VAR_IN_OUT
-	pRecord: POINTER TO FB_LogRecord;
-END_VAR
-VAR
-	_insertIndex: UDINT;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[insertIntoBuffer := FALSE;
-IF THIS^._buffer = 0 OR_ELSE pRecord = 0 THEN RETURN; END_IF
-
-_insertIndex := THIS^.getBufferInsertIndex(pRecord);
-insertIntoBuffer := THIS^._buffer^.insert(_insertIndex, pRecord);]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="pushToExporter" Id="{8f42a6d1-5b7e-4c93-a2d0-6c1e9b57f3a4}">
       <Declaration><![CDATA[(*
-	Builds a sorted buffer when needed, then offers it to the exporter.
+	Builds an arrival-order buffer when needed, then offers it to the exporter.
 	Returns TRUE only when the exporter accepts ownership of that buffer.
 *)
 METHOD pushToExporter : BOOL

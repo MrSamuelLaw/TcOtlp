@@ -20,7 +20,8 @@ VAR_IN_OUT
 	src: FB_Resource;
 END_VAR
 VAR
-	_attributesResult: E_AttributesResultCode;
+	_attributesSuccess: BOOL;
+	_attributesFailureReason: E_AttributesFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -28,11 +29,11 @@ END_VAR
 THIS^.schemaUrl := src.schemaUrl;
 THIS^.droppedAttributesCount := src.droppedAttributesCount;
 THIS^.attributes.free();
-_attributesResult := THIS^.attributes.copyFrom(src.attributes);
-IF _attributesResult = E_AttributesResultCode.SUCCESS THEN
+_attributesSuccess := THIS^.attributes.copyFrom(src:=src.attributes, failureReason=>_attributesFailureReason);
+IF _attributesSuccess THEN
 	copyFrom := E_PointerFactoryStatus.SUCCESS;
-ELSIF _attributesResult = E_AttributesResultCode.MEMORY_ALLOCATION_FAILURE
-	OR_ELSE _attributesResult = E_AttributesResultCode.ATTRIBUTE_COUNT_LIMIT_REACHED THEN
+ELSIF _attributesFailureReason = E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE
+	OR_ELSE _attributesFailureReason = E_AttributesFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED THEN
 	copyFrom := E_PointerFactoryStatus.OUT_OF_MEMORY;
 ELSE
 	copyFrom := E_PointerFactoryStatus.INVALID_PARAMETERS;

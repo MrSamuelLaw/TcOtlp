@@ -50,7 +50,7 @@ END_IF]]></ST>
       <Declaration><![CDATA[METHOD serializeLogRecords
 VAR_IN_OUT
 	v: SJsonValue;
-	logRecords: FB_LinkedList_LogRecord;
+	logRecords: FB_LogRecordQueue;
 END_VAR
 
 VAR
@@ -79,7 +79,7 @@ logRecords.reset();]]></ST>
     <Method Name="serializeLogsData" Id="{e949baee-9209-4a36-8a48-4eaffb67bbe1}">
       <Declaration><![CDATA[METHOD serializeLogsData
 VAR_IN_OUT
-	logRecords: FB_LinkedList_LogRecord;
+	logRecords: FB_LogRecordQueue;
 END_VAR
 VAR
 	_idx: UDINT;
@@ -104,8 +104,7 @@ IF _resourceLogs = 0 THEN
 	RETURN;
 END_IF
 
-// The batch processor orders records by (resource id, scope name), so group adjacent
-// records in one pass without sorting or modifying the source list.
+// Group adjacent records in one pass without sorting or modifying the source queue.
 logRecords.reset();
 FOR _idx := 0 TO GVL.MAX_LOOP_COUNT - 1 DO
 	_rec := logRecords.next();
@@ -152,7 +151,7 @@ logRecords.reset();]]></ST>
 VAR_IN_OUT
 	v: SJsonValue;
 	resource: FB_Resource;
-	logRecords: FB_LinkedList_LogRecord;
+	logRecords: FB_LogRecordQueue;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[THIS^._injectResource(v, resource);
@@ -166,7 +165,7 @@ END_IF]]></ST>
 VAR_IN_OUT
 	v: SJsonValue;
 	instrumentationScope: FB_InstrumentationScope;
-	logRecords: FB_LinkedList_LogRecord;
+	logRecords: FB_LogRecordQueue;
 END_VAR
 ]]></Declaration>
       <Implementation>
