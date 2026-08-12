@@ -1,0 +1,188 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestLogRecordQueue" Id="{eae354c2-9892-456a-97c2-fbf651a21392}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Tests log record queue behavior and ownership transfer. *)
+FUNCTION_BLOCK FB_TestLogRecordQueue EXTENDS FB_TestSuite
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testEnforcesMaximumSize();
+THIS^.testDropsOldestRecordFirst();
+THIS^.testPushAndPopTransferRecordOwnership();
+THIS^.testTransfersQueueOwnership();
+THIS^.testReportsFailureReasons();]]></ST>
+    </Implementation>
+    <Method Name="testDropsOldestRecordFirst" Id="{cf630375-dba4-48d5-9684-440330c5de11}">
+      <Declaration><![CDATA[METHOD testDropsOldestRecordFirst : REFERENCE TO FB_Test
+VAR
+	queue: FB_LogRecordQueue(maxSize:=2);
+	pRecord: POINTER TO FB_LogRecord;
+	failureReason: E_LogRecordQueueFailureReason;
+	success: BOOL;
+	_idx: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testDropsOldestRecordFirst');
+	FOR _idx := 1 TO 3 DO
+		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=_idx));
+		success := queue.push(pValue:=pRecord, failureReason=>failureReason);
+		THIS^.AssertTrue(success, 'Expected push to succeed');
+	END_FOR
+
+	success := queue.pop(pValue:=pRecord, failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN pRecord <> 0 AND_THEN pRecord^.timestamp = 2, 'Expected timestamp 1 to be dropped first');
+	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+	success := queue.pop(pValue:=pRecord, failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN pRecord <> 0 AND_THEN pRecord^.timestamp = 3, 'Expected the newest record to remain at the tail');
+	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testEnforcesMaximumSize" Id="{3d15347b-a733-498c-969f-bd92e68843e9}">
+      <Declaration><![CDATA[METHOD testEnforcesMaximumSize : REFERENCE TO FB_Test
+VAR
+	queue: FB_LogRecordQueue(maxSize:=2);
+	pRecord: POINTER TO FB_LogRecord;
+	failureReason: E_LogRecordQueueFailureReason;
+	success: BOOL;
+	_idx: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testEnforcesMaximumSize');
+	FOR _idx := 1 TO 3 DO
+		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=_idx));
+		success := queue.push(pValue:=pRecord, failureReason=>failureReason);
+		THIS^.AssertTrue(success AND_THEN pRecord = 0, 'Expected push to take ownership');
+		THIS^.AssertTrue(queue.count <= queue.maxSize, 'Expected count not to exceed maxSize');
+	END_FOR
+	THIS^.AssertTrue(queue.count = 2, 'Expected the queue to remain at its maximum size');
+	THIS^.AssertTrue(queue.droppedCount = 1, 'Expected one record to be dropped');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testPushAndPopTransferRecordOwnership" Id="{a62a9c43-350f-4e05-b17a-4a95998386c2}">
+      <Declaration><![CDATA[METHOD testPushAndPopTransferRecordOwnership : REFERENCE TO FB_Test
+VAR
+	queue: FB_LogRecordQueue(maxSize:=2);
+	pRecord: POINTER TO FB_LogRecord;
+	pOriginal: POINTER TO FB_LogRecord;
+	failureReason: E_LogRecordQueueFailureReason;
+	noFailure: E_LogRecordQueueFailureReason;
+	success: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testPushAndPopTransferRecordOwnership');
+	noFailure := E_LogRecordQueueFailureReason.NA;
+	pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=42));
+	pOriginal := pRecord;
+	success := queue.push(pValue:=pRecord, failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN failureReason = noFailure, 'Expected push to succeed without a failure reason');
+	THIS^.AssertTrue(pRecord = 0 AND_THEN queue.count = 1, 'Expected push to transfer ownership into the queue');
+
+	success := queue.pop(pValue:=pRecord, failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN failureReason = noFailure, 'Expected pop to succeed without a failure reason');
+	THIS^.AssertTrue(pRecord = pOriginal AND_THEN queue.count = 0, 'Expected pop to transfer the same record back to the caller');
+	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testReportsFailureReasons" Id="{09515266-8060-41de-97d3-7b1f99aac163}">
+      <Declaration><![CDATA[METHOD testReportsFailureReasons : REFERENCE TO FB_Test
+VAR
+	queue: FB_LogRecordQueue(maxSize:=1);
+	zeroCapacityQueue: FB_LogRecordQueue(maxSize:=0);
+	transferSource: FB_LogRecordQueue(maxSize:=2);
+	transferDestination: FB_LogRecordQueue(maxSize:=1);
+	pRecord: POINTER TO FB_LogRecord;
+	pAssigned: POINTER TO FB_LogRecord;
+	failureReason: E_LogRecordQueueFailureReason;
+	noFailure: E_LogRecordQueueFailureReason;
+	success: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testReportsFailureReasons');
+	noFailure := E_LogRecordQueueFailureReason.NA;
+	success := queue.push(pValue:=pRecord, failureReason=>failureReason);
+	THIS^.AssertFalse(success, 'Expected a null record push to fail');
+	THIS^.AssertTrue(failureReason = E_LogRecordQueueFailureReason.RECORD_POINTER_NULL, 'Expected the null record failure reason');
+
+	pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=1));
+	success := zeroCapacityQueue.push(pValue:=pRecord, failureReason=>failureReason);
+	THIS^.AssertFalse(success, 'Expected a zero-capacity push to fail');
+	THIS^.AssertTrue(failureReason = E_LogRecordQueueFailureReason.MAX_SIZE_ZERO, 'Expected the zero maximum-size failure reason');
+	THIS^.AssertTrue(pRecord <> 0, 'Expected a failed push to preserve caller ownership');
+	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+
+	success := queue.pop(pValue:=pRecord, failureReason=>failureReason);
+	THIS^.AssertFalse(success, 'Expected an empty pop to fail');
+	THIS^.AssertTrue(failureReason = E_LogRecordQueueFailureReason.QUEUE_EMPTY, 'Expected the empty queue failure reason');
+
+	pAssigned := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=2));
+	success := queue.pop(pValue:=pAssigned, failureReason=>failureReason);
+	THIS^.AssertFalse(success, 'Expected pop into an assigned pointer to fail');
+	THIS^.AssertTrue(failureReason = E_LogRecordQueueFailureReason.DESTINATION_ALREADY_ASSIGNED, 'Expected the assigned destination failure reason');
+	IF pAssigned <> 0 THEN pAssigned := pAssigned^.delete(); END_IF
+
+	pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=3));
+	success := transferSource.push(pValue:=pRecord, failureReason=>failureReason);
+	THIS^.AssertTrue(success, 'Expected the first transfer source push to succeed');
+	pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=4));
+	success := transferSource.push(pValue:=pRecord, failureReason=>failureReason);
+	THIS^.AssertTrue(success, 'Expected the second transfer source push to succeed');
+	success := transferSource.transferTo(destination:=transferDestination, failureReason=>failureReason);
+	THIS^.AssertFalse(success, 'Expected transfer to an undersized destination to fail');
+	THIS^.AssertTrue(failureReason = E_LogRecordQueueFailureReason.DESTINATION_CAPACITY_TOO_SMALL, 'Expected the destination capacity failure reason');
+	THIS^.AssertTrue(transferSource.count = 2 AND_THEN transferDestination.count = 0, 'Expected a failed transfer to preserve queue ownership');
+
+	pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=5));
+	success := queue.push(pValue:=pRecord, failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN failureReason = noFailure, 'Expected success to clear the previous failure reason');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testTransfersQueueOwnership" Id="{fb6226eb-9608-4e3d-8cfa-65afca222a12}">
+      <Declaration><![CDATA[METHOD testTransfersQueueOwnership : REFERENCE TO FB_Test
+VAR
+	source: FB_LogRecordQueue(maxSize:=2);
+	destination: FB_LogRecordQueue(maxSize:=2);
+	pRecord: POINTER TO FB_LogRecord;
+	pFirstOriginal: POINTER TO FB_LogRecord;
+	pSecondOriginal: POINTER TO FB_LogRecord;
+	failureReason: E_LogRecordQueueFailureReason;
+	noFailure: E_LogRecordQueueFailureReason;
+	success: BOOL;
+	_idx: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testTransfersQueueOwnership');
+	noFailure := E_LogRecordQueueFailureReason.NA;
+	FOR _idx := 1 TO 2 DO
+		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=_idx));
+		IF _idx = 1 THEN
+			pFirstOriginal := pRecord;
+		ELSE
+			pSecondOriginal := pRecord;
+		END_IF
+		success := source.push(pValue:=pRecord, failureReason=>failureReason);
+		THIS^.AssertTrue(success, 'Expected source push to succeed');
+	END_FOR
+
+	success := source.transferTo(destination:=destination, failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN failureReason = noFailure, 'Expected queue ownership transfer to succeed');
+	THIS^.AssertTrue(source.count = 0 AND_THEN destination.count = 2, 'Expected only the destination to own the records');
+
+	success := destination.pop(pValue:=pRecord, failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN pRecord = pFirstOriginal AND_THEN pRecord^.timestamp = 1, 'Expected transfer to preserve the first allocation and FIFO order');
+	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+	success := destination.pop(pValue:=pRecord, failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN pRecord = pSecondOriginal AND_THEN pRecord^.timestamp = 2, 'Expected destination to own the same tail allocation');
+	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

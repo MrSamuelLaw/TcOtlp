@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <EnumerationTextList Name="E_AttributesFailureReason" Id="{46c706e7-c1b2-401b-ba9a-eff8813268da}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_AttributesFailureReason :
+(
+	NA := 0,  // No attribute failure occurred.
+	KV_POINTER_NULL := 1,  // The supplied key-value pair pointer is null.
+	KV_KEY_POINTER_NULL,  // The key-value pair has no key.
+	KV_VALUE_POINTER_NULL,  // The key-value pair has no value.
+	KV_VALUE_INVALID,  // The key-value pair contains an invalid value.
+	KV_VALUE_TYPE_UNSUPPORTED,  // The key-value pair contains an unsupported value type.
+	ATTRIBUTE_COUNT_LIMIT_REACHED,  // Adding a new key would exceed the configured attribute count limit.
+	MEMORY_ALLOCATION_FAILURE  // Dynamic memory allocation failed.
+) UDINT;
+END_TYPE
+]]></Declaration>
+    <XmlArchive>
+      <Data>
+        <o xml:space="preserve" t="TextListEnumerationTextListObject">
+          <l n="TextList" t="ArrayList" cet="TextListRow">
+            <o>
+              <v n="TextID">"NA"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"KV_POINTER_NULL"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"KV_KEY_POINTER_NULL"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"KV_VALUE_POINTER_NULL"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"KV_VALUE_INVALID"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"KV_VALUE_TYPE_UNSUPPORTED"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"ATTRIBUTE_COUNT_LIMIT_REACHED"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"MEMORY_ALLOCATION_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">""</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+          </l>
+          <l n="Languages" t="ArrayList" />
+          <v n="GuidInit">{0a15e0d4-061a-44f9-a061-4f66dda29b7e}</v>
+          <v n="GuidReInit">{2a2a7081-c575-4fa5-8ce5-596159194756}</v>
+          <v n="GuidExitX">{a05fc59b-c4ed-4c1a-9c2c-6a47c865a9cb}</v>
+        </o>
+      </Data>
+      <TypeList>
+        <Type n="ArrayList">System.Collections.ArrayList</Type>
+        <Type n="Guid">System.Guid</Type>
+        <Type n="String">System.String</Type>
+        <Type n="TextListEnumerationTextListObject">{4b60233c-f940-4beb-b331-82133b520151}</Type>
+        <Type n="TextListRow">{53da1be7-ad25-47c3-b0e8-e26286dad2e0}</Type>
+      </TypeList>
+    </XmlArchive>
+  </EnumerationTextList>
+</TcPlcObject>

@@ -1,0 +1,41 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LogRecordProcessor_ConsolePrinter" Id="{fbf4b219-b8fc-4773-8575-46cdfadab41e}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Processor test double that writes emitted records to the console. *)
+FUNCTION_BLOCK FB_LogRecordProcessor_ConsolePrinter EXTENDS FB_LogRecordProcessor_Simple]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="onEmit" Id="{9f76947b-2126-437d-8b6c-01496aeeff5f}">
+      <Declaration><![CDATA[METHOD onEmit
+VAR_INPUT
+	logRecord: REFERENCE TO FB_LogRecord;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.writeToConsole(logRecord);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="writeToConsole" Id="{72e1877d-8ae1-4395-b68e-02541697117a}">
+      <Declaration><![CDATA[METHOD writeToConsole
+VAR_INPUT
+	logRecord: REFERENCE TO FB_LogRecord;
+END_VAR
+VAR
+	body: POINTER TO FB_String;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF logRecord.body <> 0 AND_THEN logRecord.body^.eType = E_ValueType.E_String THEN
+	body := logRecord.body;
+	ADSLOGSTR(
+		ADSLOG_MSGTYPE_ERROR,
+		body^.pString^,
+		''
+	);
+END_IF
+	]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

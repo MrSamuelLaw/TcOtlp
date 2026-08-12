@@ -1,0 +1,130 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestLogger" Id="{d436feee-e107-4e32-97d3-4eab460c001a}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Tests the public logger API. *)
+FUNCTION_BLOCK FB_TestLogger EXTENDS FB_TestSuite
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testCanBuildLogRecord();
+THIS^.testEmitWithoutRecordReturnsFailure();
+THIS^.testEmitReturnsFirstFluentFailure();
+THIS^.testStartingSecondRecordReturnsFailure();
+]]></ST>
+    </Implementation>
+    <Method Name="testCanBuildLogRecord" Id="{2f018c08-67ca-4f4b-8614-26172af7e600}">
+      <Declaration><![CDATA[METHOD testCanBuildLogRecord : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	provider: FB_LoggerProvider(resource);
+	scope: FB_InstrumentationScope('name', 'version', '');
+	logger: FB_Logger(scope, provider);
+	record: POINTER TO FB_LogRecord;
+	success: BOOL;
+	failureResult: E_LoggerFailureReason;
+	simpleProcessor: FB_LogRecordProcessor_Simple(0);
+	processors: ARRAY [0..0] OF I_LogRecordProcessor := [
+		simpleProcessor
+	];
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testFluentAPI');
+	logger
+		.startLogRecord(
+			E_SeverityNumber.SEVERITY_NUMBER_DEBUG
+		)
+		.setBody('logger1 body')
+		.setEventName('logger1.event1');
+	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Unexpected null record');
+	
+	success := logger.emit(processors:=processors, failureResult=>failureResult);
+	THIS^.AssertTrue(success, 'Unexpected emit failure');
+	THIS^.AssertTrue(logger.pLogRecord = 0, 'Unexpected not-null record');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testEmitWithoutRecordReturnsFailure" Id="{266078e4-fb0f-4c33-8b21-a844ac7e4540}">
+      <Declaration><![CDATA[METHOD testEmitWithoutRecordReturnsFailure : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	provider: FB_LoggerProvider(resource);
+	scope: FB_InstrumentationScope('name', 'version', '');
+	logger: FB_Logger(scope, provider);
+	simpleProcessor: FB_LogRecordProcessor_Simple(0);
+	processors: ARRAY [0..0] OF I_LogRecordProcessor := [simpleProcessor];
+	success: BOOL;
+	failureResult: E_LoggerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testEmitWithoutRecordReturnsFailure');
+	logger.reset();
+	success := logger.emit(processors:=processors, failureResult=>failureResult);
+	THIS^.AssertFalse(success, 'Expected emit without a started record to fail');
+	THIS^.AssertTrue(
+		failureResult = E_LoggerFailureReason.LOG_RECORD_NOT_STARTED,
+		'Expected LOG_RECORD_NOT_STARTED'
+	);
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testEmitReturnsFirstFluentFailure" Id="{22b29b23-959e-4f62-a5d9-51b7a540587f}">
+      <Declaration><![CDATA[METHOD testEmitReturnsFirstFluentFailure : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	provider: FB_LoggerProvider(resource);
+	scope: FB_InstrumentationScope('name', 'version', '');
+	logger: FB_Logger(scope, provider);
+	simpleProcessor: FB_LogRecordProcessor_Simple(0);
+	processors: ARRAY [0..0] OF I_LogRecordProcessor := [simpleProcessor];
+	success: BOOL;
+	failureResult: E_LoggerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testEmitReturnsFirstFluentFailure');
+	logger
+		.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_ERROR)
+		.setSpanId(pBytes:=0, nSize:=0)
+		.setTraceId(pBytes:=0, nSize:=0);
+
+	success := logger.emit(processors:=processors, failureResult=>failureResult);
+	THIS^.AssertFalse(success, 'Expected the invalid Span ID to fail emission');
+	THIS^.AssertTrue(
+		failureResult = E_LoggerFailureReason.SPAN_ID_BYTES_POINTER_NULL,
+		'Expected emit to preserve the first fluent failure'
+	);
+	THIS^.AssertTrue(logger.pLogRecord = 0, 'Expected failed emit to release the incomplete record');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testStartingSecondRecordReturnsFailure" Id="{12abcb47-297d-44c0-b695-aa665d9ece2d}">
+      <Declaration><![CDATA[METHOD testStartingSecondRecordReturnsFailure : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	provider: FB_LoggerProvider(resource);
+	scope: FB_InstrumentationScope('name', 'version', '');
+	logger: FB_Logger(scope, provider);
+	simpleProcessor: FB_LogRecordProcessor_Simple(0);
+	processors: ARRAY [0..0] OF I_LogRecordProcessor := [simpleProcessor];
+	success: BOOL;
+	failureResult: E_LoggerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testStartingSecondRecordReturnsFailure');
+	logger.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_INFO);
+	logger.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_WARN);
+
+	success := logger.emit(processors:=processors, failureResult=>failureResult);
+	THIS^.AssertFalse(success, 'Expected starting a second record to fail emission');
+	THIS^.AssertTrue(
+		failureResult = E_LoggerFailureReason.LOG_RECORD_ALREADY_STARTED,
+		'Expected LOG_RECORD_ALREADY_STARTED'
+	);
+	THIS^.AssertTrue(logger.pLogRecord = 0, 'Expected failed emit to release the incomplete record');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

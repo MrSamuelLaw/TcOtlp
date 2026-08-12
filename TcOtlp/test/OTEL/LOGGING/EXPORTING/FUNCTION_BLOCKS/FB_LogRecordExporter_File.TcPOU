@@ -1,0 +1,228 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LogRecordExporter_File" Id="{5851db96-6302-4f2a-9f8c-695c558b4c7f}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordExporter_File EXTENDS FB_LogRecordExporter_Base
+VAR_INPUT
+	// maxFileSize: 	UDINT;  // size at which to auto rotate the file
+	// maxFiles: 		UDINT;  // max number of files to keep in the rotation
+END_VAR
+
+VAR_OUTPUT
+	currentState: 	E_FileExporterState;
+	errorCode:		E_FileExporterErrorCode;
+	fileOpenerErrId: 	UDINT;
+	fileWriterErrId: 	UDINT;
+	fileCloserErrId: 	UDINT;		
+END_VAR
+
+VAR
+	_execute: BOOL;
+	_filepath: 		T_MaxString;
+	_hFile: 		UINT;
+	_len:			UDINT;
+	_execRTrig:		R_TRIG;
+	_pString:		POINTER TO STRING;
+	_jsonVal:		SJsonValue;
+	_resourceLogsArray: SJsonValue;
+	_fileOpener: 	FB_FileOpen;
+	_fileWriter:	FB_FileWrite;
+	_fileCloser:	FB_FileClose;
+	_computedState: E_FileExporterState;
+	_serializer: 	FB_LogRecordProtoJsonSerializer;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[_execute := THIS^._pLogRecords <> 0;
+_execRTrig(CLK := _execute AND_THEN THIS^._pLogRecords^.count > 0);
+
+CASE currentState OF
+	E_FileExporterState.idle, E_FileExporterState.error:
+		IF _execRTrig.Q THEN
+			errorCode := E_FileExporterErrorCode.UNSET;
+			_computedState := E_FileExporterState.serializing;
+		END_IF
+		
+	E_FileExporterState.serializing:
+		_serializer.serializeLogsData(THIS^._pLogRecords^);
+		_jsonVal := _serializer.jsonValue;
+		IF _jsonVal = 0 OR_ELSE NOT _serializer.parser.IsObject(_jsonVal) THEN
+
+			errorCode := E_FileExporterErrorCode.SERIALIZATION_ERROR;
+			_computedState := E_FileExporterState.error;
+		ELSE
+			_resourceLogsArray := _serializer.parser.FindMember(_jsonVal, 'resourceLogs');
+
+			IF _resourceLogsArray = 0 OR_ELSE NOT _serializer.parser.IsArray(_resourceLogsArray) THEN
+
+				errorCode := E_FileExporterErrorCode.SERIALIZATION_ERROR;
+
+				_computedState := E_FileExporterState.error;
+
+			ELSE
+
+				_computedState := E_FileExporterState.opening;
+
+			END_IF
+
+		END_IF
+	
+	E_FileExporterState.opening:
+		IF _fileOpener.bError THEN
+			errorCode := E_FileExporterErrorCode.FILE_OPEN_ERROR;
+			_computedState := E_FileExporterState.error;
+		ELSIF NOT _fileOpener.bBusy THEN
+			_hFile := _fileOpener.hFile;
+			_computedState := E_FileExporterState.buffering;
+		END_IF
+	
+	E_FileExporterState.buffering:
+		// Write one complete LogsData object per JSONL line.
+		_len := _serializer.parser.GetJsonLength(_jsonVal);  // this includes the null terminating character "0"
+		IF _len = 0 THEN
+
+			errorCode := E_FileExporterErrorCode.SERIALIZATION_ERROR;
+
+			_computedState := E_FileExporterState.error;
+
+		ELSE
+
+			_pString := __NEW(BYTE, (_len + 1));  // + 1 for new line
+
+			IF _pString = 0 THEN
+
+				errorCode := E_FileExporterErrorCode.SERIALIZATION_ERROR;
+
+				_computedState := E_FileExporterState.error;
+
+			ELSE
+
+				_serializer.parser.CopyJson(_jsonVal, _pString^, _len);
+
+				CONCAT2(_pString, ADR('$N'), _pString, _len + 1);
+
+				_computedState := E_FileExporterState.writing;
+
+			END_IF
+
+		END_IF
+
+		
+	E_FileExporterState.writing:
+		// TODO: Add error handling
+		IF NOT _fileWriter.bBusy THEN
+			__DELETE(_pString);
+			_computedState := E_FileExporterState.closing;
+		END_IF
+		
+	E_FileExporterState.closing:
+		// TODO: Add error handling
+		IF NOT _fileCloser.bBusy THEN
+			_computedState := E_FileExporterState.done;
+		END_IF
+		
+	E_FileExporterState.done:
+		IF NOT _execute THEN
+			_computedState := E_FileExporterState.idle;
+		END_IF
+		IF THIS^._pLogRecords <> 0 THEN THIS^._pLogRecords := THIS^._pLogRecords^.delete(); END_IF
+	
+END_CASE
+
+currentState := _computedState;
+
+
+IF currentState <= E_FileExporterState.serializing THEN _hFile := 0; END_IF
+IF currentState = E_FileExporterState.done 
+	OR currentState = E_FileExporterState.error THEN
+	IF THIS^._pLogRecords <> 0 THEN THIS^._pLogRecords := THIS^._pLogRecords^.delete(); END_IF
+END_IF
+
+
+_fileOpener(
+	sNetId := '',
+	sPathName := THIS^._filepath,
+	bExecute := currentState = E_FileExporterState.opening,
+	nMode := FOPEN_MODEAPPEND OR FOPEN_MODETEXT,
+	ePath := PATH_GENERIC,
+	tTimeout := DEFAULT_ADS_TIMEOUT
+);
+fileOpenerErrId := _fileOpener.nErrId;
+
+_fileWriter(
+	hFile := _hFile,
+	bExecute := currentState = E_FileExporterState.writing,
+	pWriteBuff := _pString,
+	cbWriteLen := _len
+);
+fileWriterErrId := _fileWriter.nErrId;
+
+_fileCloser(
+	hFile := _hFile,
+	bExecute := currentState = E_FileExporterState.closing
+);
+fileCloserErrId := _fileCloser.nErrId;
+]]></ST>
+    </Implementation>
+    <Method Name="export" Id="{b40925c8-02a7-4045-bcc3-ff164425210b}">
+      <Declaration><![CDATA[METHOD export: BOOL
+VAR_IN_OUT
+	pLogRecords: POINTER TO FB_LogRecordQueue;  // ownership transfers when set to 0
+END_VAR
+VAR_OUTPUT
+	failureResult: E_LogRecordExporterFailureReason;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[export := FALSE;
+failureResult := E_LogRecordExporterFailureReason.NA;
+
+IF pLogRecords = 0 THEN
+	failureResult := E_LogRecordExporterFailureReason.BATCH_POINTER_NULL;
+	RETURN;
+END_IF
+
+// Only take ownership when the exporter has no active buffer.
+IF THIS^._pLogRecords <> 0 THEN
+	failureResult := E_LogRecordExporterFailureReason.ACTIVE_EXPORT_IN_PROGRESS;
+	RETURN;
+END_IF
+
+// Prepare a completed exporter to accept the next batch immediately.
+IF THIS^.currentState = E_FileExporterState.done OR THIS^.currentState = E_FileExporterState.error THEN
+	THIS^.currentState := E_FileExporterState.idle;
+	THIS^._computedState := E_FileExporterState.idle;
+END_IF
+THIS^._pLogRecords := pLogRecords;
+pLogRecords := 0;
+
+IF THIS^._pLogRecords^.count <= 0 THEN
+	THIS^.free();
+END_IF
+
+export := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{749c920a-b4a3-4d4e-b81c-a6a8ffa6d49c}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	filepath: T_MaxString;  // path to the root file
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._filepath := filepath;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="isBusy" Id="{5ac8aa40-2e76-415b-909c-913a1475f3a9}">
+      <Declaration><![CDATA[METHOD isBusy : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[isBusy := THIS^._pLogRecords <> 0;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,52 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <EnumerationTextList Name="E_LogRecordFlag" Id="{f9f2013c-0001-4579-8868-ee61015442e4}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_LogRecordFlag:
+(
+	// The zero value for the enum. Should not be used for comparisons.
+	// Instead use bitwise "and" with the appropriate mask as shown above.
+	LOG_RECORD_FLAGS_DO_NOT_USE := 0,
+	// Bits 0-7 are used for trace flags.
+	LOG_RECORD_FLAGS_TRACE_FLAGS_MASK := 255 //0x000000FF;
+) UDINT;
+END_TYPE
+]]></Declaration>
+    <XmlArchive>
+      <Data>
+        <o xml:space="preserve" t="TextListEnumerationTextListObject">
+          <l n="TextList" t="ArrayList" cet="TextListRow">
+            <o>
+              <v n="TextID">"LOG_RECORD_FLAGS_DO_NOT_USE"</v>
+              <v n="TextDefault">"0"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"LOG_RECORD_FLAGS_TRACE_FLAGS_MASK"</v>
+              <v n="TextDefault">"255 "</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">""</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+          </l>
+          <l n="Languages" t="ArrayList" />
+          <v n="GuidInit">{b7ea8efa-ad51-46ae-8e88-84039d34ff75}</v>
+          <v n="GuidReInit">{e0f56921-6911-4e0f-9673-549ec1dda179}</v>
+          <v n="GuidExitX">{7b3109d9-0b53-41f4-83bc-c591b88a9676}</v>
+        </o>
+      </Data>
+      <TypeList>
+        <Type n="ArrayList">System.Collections.ArrayList</Type>
+        <Type n="Guid">System.Guid</Type>
+        <Type n="String">System.String</Type>
+        <Type n="TextListEnumerationTextListObject">{4b60233c-f940-4beb-b331-82133b520151}</Type>
+        <Type n="TextListRow">{53da1be7-ad25-47c3-b0e8-e26286dad2e0}</Type>
+      </TypeList>
+    </XmlArchive>
+  </EnumerationTextList>
+</TcPlcObject>

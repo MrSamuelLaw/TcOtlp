@@ -1,0 +1,103 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <EnumerationTextList Name="E_LogRecordCloneFailureReason" Id="{0ab31e77-6872-406b-9b51-2384e74d75e5}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_LogRecordCloneFailureReason :
+(
+	NA := 0,  // No failure occurred.
+	DESTINATION_ALREADY_ASSIGNED := 1,  // The clone destination pointer is already assigned.
+	EVENT_NAME_INVALID,  // The source event name could not be cloned.
+	TRACE_ID_INVALID,  // The source Trace ID could not be cloned.
+	SPAN_ID_INVALID,  // The source Span ID could not be cloned.
+	BODY_VALUE_INVALID,  // The source body could not be cloned.
+	BODY_VALUE_TYPE_UNSUPPORTED,  // The source body contains an unsupported value type.
+	RESOURCE_COPY_FAILURE,  // The resource snapshot could not be copied.
+	SCOPE_COPY_FAILURE,  // The instrumentation-scope snapshot could not be copied.
+	ATTRIBUTE_COPY_FAILURE,  // The record attributes could not be copied.
+	MEMORY_ALLOCATION_FAILURE  // Dynamic memory allocation failed.
+) UDINT;
+END_TYPE
+]]></Declaration>
+    <XmlArchive>
+      <Data>
+        <o xml:space="preserve" t="TextListEnumerationTextListObject">
+          <l n="TextList" t="ArrayList" cet="TextListRow">
+            <o>
+              <v n="TextID">"NA"</v>
+              <v n="TextDefault">"0"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"DESTINATION_ALREADY_ASSIGNED"</v>
+              <v n="TextDefault">"1"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"EVENT_NAME_INVALID"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"TRACE_ID_INVALID"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SPAN_ID_INVALID"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"BODY_VALUE_INVALID"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"BODY_VALUE_TYPE_UNSUPPORTED"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"RESOURCE_COPY_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SCOPE_COPY_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"ATTRIBUTE_COPY_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"MEMORY_ALLOCATION_FAILURE  "</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">""</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+          </l>
+          <l n="Languages" t="ArrayList" />
+          <v n="GuidInit">{fec3aca5-4097-4f69-85b4-3d8918fa8be9}</v>
+          <v n="GuidReInit">{a0b1a294-a0e4-47c5-a73d-7c801674aba1}</v>
+          <v n="GuidExitX">{77da222f-6263-4233-aaab-2e221a4803ca}</v>
+        </o>
+      </Data>
+      <TypeList>
+        <Type n="ArrayList">System.Collections.ArrayList</Type>
+        <Type n="Guid">System.Guid</Type>
+        <Type n="String">System.String</Type>
+        <Type n="TextListEnumerationTextListObject">{4b60233c-f940-4beb-b331-82133b520151}</Type>
+        <Type n="TextListRow">{53da1be7-ad25-47c3-b0e8-e26286dad2e0}</Type>
+      </TypeList>
+    </XmlArchive>
+  </EnumerationTextList>
+</TcPlcObject>

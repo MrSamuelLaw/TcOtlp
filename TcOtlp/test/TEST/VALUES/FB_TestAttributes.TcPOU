@@ -1,0 +1,174 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestAttributes" Id="{280ace23-1240-4f33-8a73-c7de699285bb}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Tests attribute value creation, ownership, and copying. *)
+FUNCTION_BLOCK FB_TestAttributes EXTENDS FB_TestSuite
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testSetBehavior();
+THIS^.testCopyValues();
+THIS^.testFailureReasons();]]></ST>
+    </Implementation>
+    <Method Name="testCopyValues" Id="{23900586-864d-4e56-8db4-89d06b3a65a9}">
+      <Declaration><![CDATA[METHOD testCopyValues : REFERENCE TO FB_Test
+VAR
+	attributes: FB_Attributes(maxCount:=GVL.DEFAULT_MAX_ATTRIBUTE_COUNT);
+	copyTarget: FB_Attributes(maxCount:=GVL.DEFAULT_MAX_ATTRIBUTE_COUNT);
+	strVal: T_MaxString := 'String';
+	numVal: REAL := 42;
+	success: BOOL;
+	failureReason: E_AttributesFailureReason;
+	noFailure: E_AttributesFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testCopyValues');
+	noFailure := E_AttributesFailureReason.NA;
+
+	// test adding attributes
+	success := attributes.setStringAttribute(key:='strKey', value:=strVal, failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN failureReason=noFailure, 'Expected string attribute creation to succeed');
+	THIS^.AssertTrue(attributes.count = 1, 'Expected only a single attribute');
+	THIS^.AssertTrue(copyTarget.count = 0, 'Expected zero attributes');
+	
+	success := attributes.setNumberAttribute(key:='numKey', value:=numVal, failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN failureReason=noFailure, 'Expected number attribute creation to succeed');
+	THIS^.AssertTrue(attributes.count = 2, 'Expected two attributes');
+	THIS^.AssertTrue(copyTarget.count = 0, 'Expected zero attributes');
+	
+	// values should get copied
+	success := copyTarget.copyFrom(src:=attributes, failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN failureReason=noFailure, 'Expected attribute copy to succeed');
+	THIS^.AssertTrue(attributes.count = 2, 'Expected two attributes');
+	THIS^.AssertTrue(copyTarget.count = 2, 'Expected two attributes');
+	
+	// test freeing memory
+	attributes.free();
+	THIS^.AssertTrue(attributes.count = 0, 'Expected zero attributes');
+	THIS^.AssertTrue(copyTarget.count = 2, 'Expected two attributes');
+	
+	copyTarget.free();
+	THIS^.AssertTrue(copyTarget.count = 0, 'Expected zero attributes');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testSetBehavior" Id="{ba5afccb-3e5f-42c4-96a6-ce199c7009d2}">
+      <Declaration><![CDATA[METHOD testSetBehavior : REFERENCE TO FB_Test
+VAR
+	attributes: FB_Attributes(maxCount:=GVL.DEFAULT_MAX_ATTRIBUTE_COUNT);
+	strVal: T_MaxString;
+	numVal: REAL;
+	success: BOOL;
+	failureReason: E_AttributesFailureReason;
+	noFailure: E_AttributesFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testSetBehavior');
+	noFailure := E_AttributesFailureReason.NA;
+
+	// test that a string and number can be inserted
+	strVal := 'strValue';
+	success := attributes.setStringAttribute(key:='strKey', value:=strVal, failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN failureReason=noFailure, 'Expected string attribute creation to succeed');
+	THIS^.AssertTrue(attributes.count = 1, 'Expected attribute count to be 1');
+	
+	numVal := 10.0;
+	success := attributes.setNumberAttribute(key:='numKey', value:=numVal, failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN failureReason=noFailure, 'Expected number attribute creation to succeed');
+	THIS^.AssertTrue(attributes.count = 2, 'Expected attribute count to be 2');
+	
+	attributes.free();
+	THIS^.AssertTrue(attributes.count = 0, 'Expected attribute count to be 0');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testFailureReasons" Id="{1ee828af-5982-44fc-8e06-e5dc9eba142d}">
+      <Declaration><![CDATA[METHOD testFailureReasons : REFERENCE TO FB_Test
+VAR
+	attributes: FB_Attributes(maxCount:=1);
+	copySource: FB_Attributes(maxCount:=2);
+	limitedCopyTarget: FB_Attributes(maxCount:=1);
+	invalidKv: FB_KeyValue(pKey:=0, pVal:=0);
+	pKv: POINTER TO FB_KeyValue;
+	pKey: POINTER TO STRING;
+	key: T_MaxString := 'key';
+	keySize: UDINT;
+	invalidValue: AnyType;
+	success: BOOL;
+	failureReason: E_AttributesFailureReason;
+	noFailure: E_AttributesFailureReason;
+	failureCode: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testFailureReasons');
+	noFailure := E_AttributesFailureReason.NA;
+
+	success := attributes.setAttribute(pValue:=pKv, failureReason=>failureReason);
+	THIS^.AssertFalse(success, 'Expected a null key-value pointer to be rejected');
+	THIS^.AssertTrue(failureReason=E_AttributesFailureReason.KV_POINTER_NULL, 'Expected the null key-value failure reason');
+
+	pKv := ADR(invalidKv);
+	success := attributes.setAttribute(pValue:=pKv, failureReason=>failureReason);
+	THIS^.AssertFalse(success, 'Expected a key-value pair without a key to be rejected');
+	THIS^.AssertTrue(failureReason=E_AttributesFailureReason.KV_KEY_POINTER_NULL, 'Expected the missing key failure reason');
+
+	pKv := 0;
+	keySize := LEN2(ADR(key)) + 1;
+	pKey := __NEW(BYTE, keySize);
+	IF pKey <> 0 THEN
+		MEMCPY(pKey, ADR(key), keySize);
+		pKv := __NEW(FB_KeyValue(pKey:=pKey, pVal:=0));
+		IF pKv <> 0 THEN
+			pKey := 0;
+			success := attributes.setAttribute(pValue:=pKv, failureReason=>failureReason);
+			THIS^.AssertFalse(success, 'Expected a key-value pair without a value to be rejected');
+			THIS^.AssertTrue(failureReason=E_AttributesFailureReason.KV_VALUE_POINTER_NULL, 'Expected the missing value failure reason');
+			pKv := pKv^.delete();
+		ELSE
+			THIS^.AssertTrue(FALSE, 'Expected allocation of the invalid key-value test fixture to succeed');
+			__DELETE(pKey);
+		END_IF
+	ELSE
+		THIS^.AssertTrue(FALSE, 'Expected allocation of the invalid key test fixture to succeed');
+	END_IF
+
+	success := attributes.setNumberAttribute_AnyType(key:='invalid', value:=invalidValue, failureReason=>failureReason);
+	THIS^.AssertFalse(success, 'Expected invalid number data to be rejected');
+	THIS^.AssertTrue(failureReason=E_AttributesFailureReason.KV_VALUE_INVALID, 'Expected the invalid value failure reason');
+
+	success := attributes.setStringAttribute(key:='first', value:='one', failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN failureReason=noFailure, 'Expected the first attribute to be added');
+	success := attributes.setStringAttribute(key:='second', value:='two', failureReason=>failureReason);
+	THIS^.AssertFalse(success, 'Expected the attribute count limit to reject a new key');
+	THIS^.AssertTrue(failureReason=E_AttributesFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED, 'Expected the attribute count failure reason');
+	THIS^.AssertEquals_UDINT(1, attributes.count, 'Expected the rejected attribute not to change the count');
+	THIS^.AssertEquals_UDINT(1, attributes.droppedCount, 'Expected the rejected attribute to increment the dropped count');
+
+	success := attributes.setStringAttribute(key:='first', value:='replacement', failureReason=>failureReason);
+	THIS^.AssertTrue(success, 'Expected an existing key to be replaceable at the count limit');
+	THIS^.AssertTrue(failureReason=noFailure, 'Expected success to clear the prior failure reason');
+	THIS^.AssertEquals_UDINT(1, attributes.count, 'Expected replacement not to change the attribute count');
+	THIS^.AssertEquals_UDINT(1, attributes.droppedCount, 'Expected replacement not to increment the dropped count');
+
+	success := copySource.setStringAttribute(key:='first', value:='one', failureReason=>failureReason);
+	THIS^.AssertTrue(success, 'Expected the first source attribute to be added');
+	success := copySource.setStringAttribute(key:='second', value:='two', failureReason=>failureReason);
+	THIS^.AssertTrue(success, 'Expected the second source attribute to be added');
+	success := limitedCopyTarget.copyFrom(src:=copySource, failureReason=>failureReason);
+	THIS^.AssertFalse(success, 'Expected copyFrom to reject attributes beyond the destination limit');
+	THIS^.AssertTrue(failureReason=E_AttributesFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED, 'Expected copyFrom to expose the count limit failure reason');
+	THIS^.AssertEquals_UDINT(1, limitedCopyTarget.count, 'Expected copyFrom to retain only the attribute copied before failure');
+
+	failureCode := E_AttributesFailureReason.KV_POINTER_NULL;
+	THIS^.AssertEquals_UDINT(1, failureCode, 'The first attributes failure code must be 1');
+
+	attributes.free();
+	copySource.free();
+	limitedCopyTarget.free();
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
