@@ -9,7 +9,7 @@ VAR_OUTPUT
 	schemaUrl: T_MaxString;
 END_VAR
 VAR_OUTPUT
-	attributes: FB_Attributes();
+	attributes: FB_Attributes(maxCount := GVL.DEFAULT_MAX_ATTRIBUTE_COUNT);
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>

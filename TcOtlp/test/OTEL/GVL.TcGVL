@@ -6,6 +6,20 @@ VAR_GLOBAL CONSTANT
 	// Program/logic safety limits
 	DEFAULT_MAX_ATTRIBUTE_COUNT: UDINT := 20;
 	MAX_LOOP_COUNT:		UDINT := 20000;  // Maximum iterations a for/while loop can have
+END_VAR
+VAR_GLOBAL
+	_ID: UDINT := 1;
 END_VAR]]></Declaration>
+    <Property Name="NEXT_ID" Id="{66a2dc14-5b7c-4295-87ce-3f72d7397f26}">
+      <Declaration><![CDATA[PROPERTY NEXT_ID : UDINT]]></Declaration>
+      <Get Name="Get" Id="{67ac250b-bd9e-4a04-b15e-fab6928fa6d3}">
+        <Declaration><![CDATA[
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[NEXT_ID := _ID;
+_ID := _ID + 1;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
   </GVL>
 </TcPlcObject>

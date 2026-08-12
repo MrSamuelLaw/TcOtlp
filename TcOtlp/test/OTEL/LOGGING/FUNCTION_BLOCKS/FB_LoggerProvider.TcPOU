@@ -3,22 +3,12 @@
   <POU Name="FB_LoggerProvider" Id="{16983c20-c68e-4842-a5af-294cf7d1f97c}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_LoggerProvider
 VAR
-	_resource: REFERENCE TO FB_Resource;
+	_resource: REFERENCE TO FB_Resource; // borrowed; the declaring scope owns its lifetime
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="FB_Exit" Id="{c0825389-16fb-449f-b72e-42eeae50f823}">
-      <Declaration><![CDATA[METHOD FB_Exit : BOOL
-VAR_INPUT
-	bInCopyCode: BOOL;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[THIS^.free();]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="FB_Init" Id="{4bf253fc-a990-4445-afd2-9dddc5216dd7}">
       <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
 //The return value is not evaluated. For a specific influence, you can also declare the
@@ -33,13 +23,6 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[THIS^._resource REF= resource;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="free" Id="{8f06a7e8-a241-46ab-886c-f6f760c25d68}">
-      <Declaration><![CDATA[METHOD free
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[THIS^._resource.free();]]></ST>
       </Implementation>
     </Method>
     <Property Name="resource" Id="{5c5a395f-26fb-4f37-9459-e8fe5661bff3}">

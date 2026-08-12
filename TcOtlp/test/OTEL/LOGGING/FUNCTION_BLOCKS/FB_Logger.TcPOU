@@ -115,7 +115,7 @@ END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="addStringAttribute" Id="{ca1a9b5c-3e71-4efc-b089-bac82579b23c}">
-      <Declaration><![CDATA[METHOD setStringAttribute: REFERENCE TO FB_Logger
+      <Declaration><![CDATA[METHOD addStringAttribute: REFERENCE TO FB_Logger
 VAR_INPUT
 	key: T_MaxString;
 	value: T_MaxString;
