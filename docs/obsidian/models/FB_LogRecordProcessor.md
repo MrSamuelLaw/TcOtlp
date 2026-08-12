@@ -20,14 +20,13 @@ The FB_LogRecordProcessor_Simple class has an internal buffer that is utilized t
 ### Methods:
 
 `onEmit(logRecord:FB_LogRecord) -> void`
-This method is used by FB_Logger to pass the log record to the processor, if and only if the processor contains an exporter, it MUST clone the record and attempt to export it. If the instance does not have a an exporter associated with it it MUST NOT clone and save the record to it's internal buffer. 
-If the exporter is busy AND the internal buffer it not full it MUST wait and attempt to push log records to the exporter the next time the processor is called cyclically.
+This method is used by FB_Logger to pass the log record to the processor, if and only if the processor contains an exporter, it MUST clone the record. If the instance does not have a an exporter associated with it it MUST NOT clone and save the record to it's internal buffer. 
 
 enrich(logRecord: FB_LogRecord) -> void
 This method is no-op on FB_LogRecordProcessor_Simple, but can be overridden by classes that extend FB_LogRecordProcessor_Simple to augment the log record prior to cloning it and passing it to the exporter if and only if the exporter exists.
 
 call() -> void
-alias for () used to call the processor body cyclically while maintaining compatibility with twincat interfaces.
+alias for () used to call the processor body cyclically while maintaining compatibility with twincat interfaces. If the exporter is busy AND the internal buffer it not full it MUST wait and attempt to push log records to the exporter the next time the processor is called cyclically.
 
 
 

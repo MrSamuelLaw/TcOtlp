@@ -31,6 +31,12 @@ IF pLogRecords = 0 THEN
 	RETURN;
 END_IF
 
+IF pLogRecords^.count > GVL.MAX_EXPORT_BATCH_SIZE THEN
+	failureResult := E_LogRecordExporterFailureReason.BATCH_SIZE_EXCEEDS_MAX;
+	RETURN;
+END_IF
+
+pLogRecords^.maxSize := GVL.MAX_EXPORT_BATCH_SIZE;
 THIS^.writeToConsole(pLogRecords);
 // ownership transferred; release the batch after writing
 pLogRecords := pLogRecords^.delete();
@@ -47,7 +53,7 @@ export := TRUE;]]></ST>
     <Method Name="writeToConsole" Id="{3aea6abb-ab87-43d2-85a8-96216ee4ee7a}">
       <Declaration><![CDATA[METHOD writeToConsole
 VAR_INPUT
-	pLogRecords: REFERENCE TO FB_LogRecordQueue;
+	pLogRecords: POINTER TO FB_LogRecordQueue;
 END_VAR
 VAR
 	idx: DINT;
@@ -60,9 +66,9 @@ END_VAR
 	RETURN;
 END_IF
 
-pLogRecords.reset();
+pLogRecords^.reset();
 FOR idx := 0 TO GVL.MAX_LOOP_COUNT DO
-	logRecord := pLogRecords.next();
+	logRecord := pLogRecords^.next();
 	IF logRecord = 0 THEN
 		RETURN;
 	END_IF

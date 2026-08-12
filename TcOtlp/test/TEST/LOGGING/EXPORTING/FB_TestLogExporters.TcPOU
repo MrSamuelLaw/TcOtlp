@@ -5,8 +5,204 @@
 FUNCTION_BLOCK FB_TestLogExporters EXTENDS FB_TestSuite
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[testOneToOneProcessorRelationship();]]></ST>
+      <ST><![CDATA[testOneToOneProcessorRelationship();
+testExportBatchSizeBound();
+testGroupsRecordsThroughExporter();]]></ST>
     </Implementation>
+    <Method Name="testExportBatchSizeBound" Id="{709f342a-7a2f-4bb6-9af7-910f511a15ec}">
+      <Declaration><![CDATA[METHOD testExportBatchSizeBound : REFERENCE TO FB_Test
+VAR
+	fileExporter: FB_LogRecordExporter_File('C:\Users\samue\Desktop\programming projects\TcOtlp\logs.jsonl');
+	consoleExporter: FB_LogRecordExporter_Console;
+	pBatch: POINTER TO FB_LogRecordQueue;
+	pRecord: POINTER TO FB_LogRecord;
+	queueFailureReason: E_LogRecordQueueFailureReason;
+	exporterFailureReason: E_LogRecordExporterFailureReason;
+	previousMaxExportBatchSize: UDINT;
+	exportSucceeded: BOOL;
+	pushSucceeded: BOOL;
+	_idx: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test Export Batch Size Bound');
+	previousMaxExportBatchSize := GVL.MAX_EXPORT_BATCH_SIZE;
+	GVL.MAX_EXPORT_BATCH_SIZE := 1;
+	pBatch := __NEW(FB_LogRecordQueue(maxSize:=2));
+	THIS^.AssertTrue(pBatch <> 0, 'Expected oversized batch allocation to succeed');
+
+	IF pBatch <> 0 THEN
+		FOR _idx := 1 TO 2 DO
+			pRecord := __NEW(FB_LogRecord(
+				severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
+				timestamp:=_idx
+			));
+			THIS^.AssertTrue(pRecord <> 0, 'Expected record allocation to succeed');
+			IF pRecord = 0 THEN EXIT; END_IF
+			pushSucceeded := pBatch^.push(
+				pValue:=pRecord,
+				failureReason=>queueFailureReason
+			);
+			THIS^.AssertTrue(pushSucceeded, 'Expected oversized batch setup to succeed');
+			IF NOT pushSucceeded AND_THEN pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+		END_FOR
+
+		exportSucceeded := fileExporter.export(
+			pLogRecords:=pBatch,
+			failureResult=>exporterFailureReason
+		);
+		THIS^.AssertFalse(exportSucceeded, 'Expected file exporter to reject an oversized batch');
+		THIS^.AssertTrue(pBatch <> 0, 'Expected rejected file batch ownership to remain with the caller');
+		THIS^.AssertTrue(
+			exporterFailureReason = E_LogRecordExporterFailureReason.BATCH_SIZE_EXCEEDS_MAX,
+			'Expected file exporter batch-size failure reason'
+		);
+
+		exportSucceeded := consoleExporter.export(
+			pLogRecords:=pBatch,
+			failureResult=>exporterFailureReason
+		);
+		THIS^.AssertFalse(exportSucceeded, 'Expected console exporter to reject an oversized batch');
+		THIS^.AssertTrue(pBatch <> 0, 'Expected rejected console batch ownership to remain with the caller');
+		THIS^.AssertTrue(
+			exporterFailureReason = E_LogRecordExporterFailureReason.BATCH_SIZE_EXCEEDS_MAX,
+			'Expected console exporter batch-size failure reason'
+		);
+	END_IF
+
+	IF pBatch <> 0 THEN pBatch := pBatch^.delete(); END_IF
+	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+	fileExporter.free();
+	GVL.MAX_EXPORT_BATCH_SIZE := previousMaxExportBatchSize;
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testGroupsRecordsThroughExporter" Id="{5d5f1575-5e45-48b1-b9ad-2eec80177025}">
+      <Declaration><![CDATA[METHOD testGroupsRecordsThroughExporter : REFERENCE TO FB_Test
+VAR
+	resourceB: FB_Resource('resource.b');
+	resourceA: FB_Resource('resource.a');
+	scopeB: FB_InstrumentationScope('scope.b', '1.0.0', '');
+	scopeA: FB_InstrumentationScope('scope.a', '1.0.0', '');
+	exporter: FB_LogRecordExporter_File_ForSerializationInspection;
+	serialized: REFERENCE TO FB_LogRecordProtoJsonSerializer;
+	pBatch: POINTER TO FB_LogRecordQueue;
+	pRecord: POINTER TO FB_LogRecord;
+	queueFailureReason: E_LogRecordQueueFailureReason;
+	exporterFailureReason: E_LogRecordExporterFailureReason;
+	attributesFailureReason: E_AttributesFailureReason;
+	copySucceeded: BOOL;
+	pushSucceeded: BOOL;
+	exportSucceeded: BOOL;
+	resourceLogs: SJsonValue;
+	resourceObj: SJsonValue;
+	scopeLogs: SJsonValue;
+	scopeObj: SJsonValue;
+	logRecords: SJsonValue;
+	recordObj: SJsonValue;
+	actualString: STRING;
+	_idx: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test Groups Records Through Exporter');
+	pBatch := __NEW(FB_LogRecordQueue(maxSize:=6));
+	THIS^.AssertTrue(pBatch <> 0, 'Expected exporter batch allocation to succeed');
+
+	IF pBatch <> 0 THEN
+		// Interleave resources B/A and scopes B/A. Repeated B scopes are non-adjacent.
+		FOR _idx := 1 TO 6 DO
+			pRecord := __NEW(FB_LogRecord(
+				severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
+				timestamp:=_idx
+			));
+			THIS^.AssertTrue(pRecord <> 0, 'Expected exporter record allocation to succeed');
+			IF pRecord = 0 THEN EXIT; END_IF
+
+			IF (_idx MOD 2) = 1 THEN
+				copySucceeded := pRecord^.resource.copyFrom(
+					src:=resourceB,
+					failureResult=>attributesFailureReason
+				);
+			ELSE
+				copySucceeded := pRecord^.resource.copyFrom(
+					src:=resourceA,
+					failureResult=>attributesFailureReason
+				);
+			END_IF
+			THIS^.AssertTrue(copySucceeded, 'Expected exporter resource snapshot copy to succeed');
+
+			IF _idx = 3 OR_ELSE _idx = 4 THEN
+				copySucceeded := pRecord^.scope.copyFrom(
+					src:=scopeA,
+					failureResult=>attributesFailureReason
+				);
+			ELSE
+				copySucceeded := pRecord^.scope.copyFrom(
+					src:=scopeB,
+					failureResult=>attributesFailureReason
+				);
+			END_IF
+			THIS^.AssertTrue(copySucceeded, 'Expected exporter scope snapshot copy to succeed');
+
+			pushSucceeded := pBatch^.push(
+				pValue:=pRecord,
+				failureReason=>queueFailureReason
+			);
+			THIS^.AssertTrue(pushSucceeded, 'Expected exporter queue setup to succeed');
+			IF NOT pushSucceeded AND_THEN pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+		END_FOR
+
+		exportSucceeded := exporter.export(
+			pLogRecords:=pBatch,
+			failureResult=>exporterFailureReason
+		);
+		THIS^.AssertTrue(exportSucceeded AND_THEN pBatch = 0, 'Expected exporter to take queue ownership');
+		serialized REF= exporter.serializer;
+
+		resourceLogs := serialized.parser.FindMember(serialized.jsonValue, 'resourceLogs');
+		THIS^.AssertTrue(resourceLogs <> 0 AND_THEN serialized.parser.IsArray(resourceLogs), 'Expected grouped resourceLogs');
+		THIS^.AssertTrue(serialized.parser.GetArrayValueByIdx(resourceLogs, 2) = 0, 'Expected exactly two resource groups');
+
+		resourceObj := serialized.parser.GetArrayValueByIdx(resourceLogs, 0);
+		actualString := serialized.parser.GetString(serialized.parser.FindMember(resourceObj, 'schemaUrl'));
+		THIS^.AssertEquals_STRING('resource.b', actualString, 'Expected first-seen resource B group first');
+		scopeLogs := serialized.parser.FindMember(resourceObj, 'scopeLogs');
+		THIS^.AssertTrue(serialized.parser.GetArrayValueByIdx(scopeLogs, 2) = 0, 'Expected exactly two scope groups for resource B');
+
+		scopeObj := serialized.parser.GetArrayValueByIdx(scopeLogs, 0);
+		actualString := serialized.parser.GetString(serialized.parser.FindMember(serialized.parser.FindMember(scopeObj, 'scope'), 'name'));
+		THIS^.AssertEquals_STRING('scope.b', actualString, 'Expected first-seen scope B group first');
+		logRecords := serialized.parser.FindMember(scopeObj, 'logRecords');
+		recordObj := serialized.parser.GetArrayValueByIdx(logRecords, 0);
+		actualString := serialized.parser.GetString(serialized.parser.FindMember(recordObj, 'timeUnixNano'));
+		THIS^.AssertEquals_STRING('1', actualString, 'Expected first grouped resource B scope B record');
+		recordObj := serialized.parser.GetArrayValueByIdx(logRecords, 1);
+		actualString := serialized.parser.GetString(serialized.parser.FindMember(recordObj, 'timeUnixNano'));
+		THIS^.AssertEquals_STRING('5', actualString, 'Expected second grouped resource B scope B record');
+		THIS^.AssertTrue(serialized.parser.GetArrayValueByIdx(logRecords, 2) = 0, 'Expected one resource B scope B group');
+
+		scopeObj := serialized.parser.GetArrayValueByIdx(scopeLogs, 1);
+		actualString := serialized.parser.GetString(serialized.parser.FindMember(serialized.parser.FindMember(scopeObj, 'scope'), 'name'));
+		THIS^.AssertEquals_STRING('scope.a', actualString, 'Expected resource B scope A group second');
+		logRecords := serialized.parser.FindMember(scopeObj, 'logRecords');
+		recordObj := serialized.parser.GetArrayValueByIdx(logRecords, 0);
+		actualString := serialized.parser.GetString(serialized.parser.FindMember(recordObj, 'timeUnixNano'));
+		THIS^.AssertEquals_STRING('3', actualString, 'Expected grouped resource B scope A record');
+
+		resourceObj := serialized.parser.GetArrayValueByIdx(resourceLogs, 1);
+		actualString := serialized.parser.GetString(serialized.parser.FindMember(resourceObj, 'schemaUrl'));
+		THIS^.AssertEquals_STRING('resource.a', actualString, 'Expected first-seen resource A group second');
+		scopeLogs := serialized.parser.FindMember(resourceObj, 'scopeLogs');
+		THIS^.AssertTrue(serialized.parser.GetArrayValueByIdx(scopeLogs, 2) = 0, 'Expected exactly two scope groups for resource A');
+	END_IF
+
+	exporter.free();
+	IF pBatch <> 0 THEN pBatch := pBatch^.delete(); END_IF
+	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="testOneToOneProcessorRelationship" Id="{89abff76-f9b8-4aba-b0cd-1d50ad7339ac}">
       <Declaration><![CDATA[METHOD testOneToOneProcessorRelationship : REFERENCE TO FB_Test
 VAR

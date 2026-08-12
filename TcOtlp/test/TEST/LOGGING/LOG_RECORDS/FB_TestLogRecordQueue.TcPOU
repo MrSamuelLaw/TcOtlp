@@ -9,6 +9,7 @@ FUNCTION_BLOCK FB_TestLogRecordQueue EXTENDS FB_TestSuite
 THIS^.testDropsOldestRecordFirst();
 THIS^.testPushAndPopTransferRecordOwnership();
 THIS^.testTransfersQueueOwnership();
+THIS^.testTransfersUpToDestinationCapacity();
 THIS^.testReportsFailureReasons();]]></ST>
     </Implementation>
     <Method Name="testDropsOldestRecordFirst" Id="{cf630375-dba4-48d5-9684-440330c5de11}">
@@ -93,8 +94,6 @@ TcUnit.TEST_FINISHED();]]></ST>
 VAR
 	queue: FB_LogRecordQueue(maxSize:=1);
 	zeroCapacityQueue: FB_LogRecordQueue(maxSize:=0);
-	transferSource: FB_LogRecordQueue(maxSize:=2);
-	transferDestination: FB_LogRecordQueue(maxSize:=1);
 	pRecord: POINTER TO FB_LogRecord;
 	pAssigned: POINTER TO FB_LogRecord;
 	failureReason: E_LogRecordQueueFailureReason;
@@ -126,20 +125,46 @@ END_VAR
 	THIS^.AssertTrue(failureReason = E_LogRecordQueueFailureReason.DESTINATION_ALREADY_ASSIGNED, 'Expected the assigned destination failure reason');
 	IF pAssigned <> 0 THEN pAssigned := pAssigned^.delete(); END_IF
 
-	pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=3));
-	success := transferSource.push(pValue:=pRecord, failureReason=>failureReason);
-	THIS^.AssertTrue(success, 'Expected the first transfer source push to succeed');
-	pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=4));
-	success := transferSource.push(pValue:=pRecord, failureReason=>failureReason);
-	THIS^.AssertTrue(success, 'Expected the second transfer source push to succeed');
-	success := transferSource.transferTo(destination:=transferDestination, failureReason=>failureReason);
-	THIS^.AssertFalse(success, 'Expected transfer to an undersized destination to fail');
-	THIS^.AssertTrue(failureReason = E_LogRecordQueueFailureReason.DESTINATION_CAPACITY_TOO_SMALL, 'Expected the destination capacity failure reason');
-	THIS^.AssertTrue(transferSource.count = 2 AND_THEN transferDestination.count = 0, 'Expected a failed transfer to preserve queue ownership');
-
 	pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=5));
 	success := queue.push(pValue:=pRecord, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN failureReason = noFailure, 'Expected success to clear the previous failure reason');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testTransfersUpToDestinationCapacity" Id="{f5b79060-62be-451f-b340-4783541a9eaf}">
+      <Declaration><![CDATA[METHOD testTransfersUpToDestinationCapacity : REFERENCE TO FB_Test
+VAR
+	source: FB_LogRecordQueue(maxSize:=3);
+	destination: FB_LogRecordQueue(maxSize:=2);
+	pRecord: POINTER TO FB_LogRecord;
+	failureReason: E_LogRecordQueueFailureReason;
+	noFailure: E_LogRecordQueueFailureReason;
+	success: BOOL;
+	_idx: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testTransfersUpToDestinationCapacity');
+	noFailure := E_LogRecordQueueFailureReason.NA;
+	FOR _idx := 1 TO 3 DO
+		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=_idx));
+		success := source.push(pValue:=pRecord, failureReason=>failureReason);
+		THIS^.AssertTrue(success, 'Expected source push to succeed');
+	END_FOR
+
+	success := source.transferTo(destination:=destination, failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN failureReason = noFailure, 'Expected a partial queue transfer to succeed');
+	THIS^.AssertTrue(source.count = 1 AND_THEN destination.count = 2, 'Expected the destination to take only its capacity');
+
+	success := destination.pop(pValue:=pRecord, failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN pRecord <> 0 AND_THEN pRecord^.timestamp = 1, 'Expected the destination to receive the oldest record first');
+	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+	success := destination.pop(pValue:=pRecord, failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN pRecord <> 0 AND_THEN pRecord^.timestamp = 2, 'Expected the destination to receive a FIFO slice');
+	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+	success := source.pop(pValue:=pRecord, failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN pRecord <> 0 AND_THEN pRecord^.timestamp = 3, 'Expected the source to retain the untransferred tail');
+	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

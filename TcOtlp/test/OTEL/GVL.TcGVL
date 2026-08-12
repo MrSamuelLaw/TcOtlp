@@ -8,6 +8,7 @@ VAR_GLOBAL CONSTANT
 	MAX_LOOP_COUNT:		UDINT := 20000;  // Maximum iterations a for/while loop can have
 END_VAR
 VAR_GLOBAL
+	MAX_EXPORT_BATCH_SIZE: UDINT := 512;	// Shared queue bound for exporters and log serialization.
 	_ID: UDINT := 1;
 END_VAR]]></Declaration>
     <Property Name="NEXT_ID" Id="{66a2dc14-5b7c-4295-87ce-3f72d7397f26}">

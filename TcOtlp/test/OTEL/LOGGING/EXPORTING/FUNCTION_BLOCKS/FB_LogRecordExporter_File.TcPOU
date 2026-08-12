@@ -180,6 +180,11 @@ IF pLogRecords = 0 THEN
 	RETURN;
 END_IF
 
+IF pLogRecords^.count > GVL.MAX_EXPORT_BATCH_SIZE THEN
+	failureResult := E_LogRecordExporterFailureReason.BATCH_SIZE_EXCEEDS_MAX;
+	RETURN;
+END_IF
+
 // Only take ownership when the exporter has no active buffer.
 IF THIS^._pLogRecords <> 0 THEN
 	failureResult := E_LogRecordExporterFailureReason.ACTIVE_EXPORT_IN_PROGRESS;
@@ -191,6 +196,7 @@ IF THIS^.currentState = E_FileExporterState.done OR THIS^.currentState = E_FileE
 	THIS^.currentState := E_FileExporterState.idle;
 	THIS^._computedState := E_FileExporterState.idle;
 END_IF
+pLogRecords^.maxSize := GVL.MAX_EXPORT_BATCH_SIZE;
 THIS^._pLogRecords := pLogRecords;
 pLogRecords := 0;
 

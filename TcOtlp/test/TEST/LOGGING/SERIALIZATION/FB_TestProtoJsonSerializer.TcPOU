@@ -7,8 +7,57 @@ FUNCTION_BLOCK FB_TestProtoJsonSerializer EXTENDS FB_TestSuite
     <Implementation>
       <ST><![CDATA[THIS^.TestSerializeNumberValues();
 THIS^.TestSerializeLogRecord();
+THIS^.TestSerializeLogsDataBound();
 THIS^.TestSerializeLogsData();]]></ST>
     </Implementation>
+    <Method Name="TestSerializeLogsDataBound" Id="{ce07b9a4-fecb-43d6-91ed-77d1742ff2fa}">
+      <Declaration><![CDATA[METHOD TestSerializeLogsDataBound : REFERENCE TO FB_Test
+VAR
+	queue: FB_LogRecordQueue(maxSize:=2);
+	serializer: FB_LogRecordProtoJsonSerializer;
+	pRecord: POINTER TO FB_LogRecord;
+	pRemainingRecord: POINTER TO FB_LogRecord;
+	queueFailureReason: E_LogRecordQueueFailureReason;
+	previousMaxExportBatchSize: UDINT;
+	pushSucceeded: BOOL;
+	_idx: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test SerializeLogsData Bound');
+	queue.free();
+	FOR _idx := 1 TO 2 DO
+		pRecord := __NEW(FB_LogRecord(
+			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
+			timestamp:=_idx
+		));
+		THIS^.AssertTrue(pRecord <> 0, 'Expected bounded serializer record allocation to succeed');
+		IF pRecord = 0 THEN EXIT; END_IF
+		pushSucceeded := queue.push(
+			pValue:=pRecord,
+			failureReason=>queueFailureReason
+		);
+		THIS^.AssertTrue(pushSucceeded, 'Expected bounded serializer queue setup to succeed');
+		IF NOT pushSucceeded AND_THEN pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+	END_FOR
+
+	previousMaxExportBatchSize := GVL.MAX_EXPORT_BATCH_SIZE;
+	GVL.MAX_EXPORT_BATCH_SIZE := 1;
+	serializer.serializeLogsData(queue);
+	THIS^.AssertEquals_UDINT(1, queue.count, 'Expected serializer to take only its configured queue capacity');
+	queue.reset();
+	pRemainingRecord := queue.next();
+	THIS^.AssertTrue(
+		pRemainingRecord <> 0 AND_THEN pRemainingRecord^.timestamp = 2,
+		'Expected caller queue to retain the untransferred record'
+	);
+
+	GVL.MAX_EXPORT_BATCH_SIZE := previousMaxExportBatchSize;
+	queue.free();
+	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="TestSerializeNumberValues" Id="{802e0990-b061-4995-9126-6b3d466b4e43}">
       <Declaration><![CDATA[METHOD TestSerializeNumberValues : REFERENCE TO FB_Test
 VAR
@@ -202,24 +251,20 @@ TcUnit.TEST_FINISHED();
     <Method Name="TestSerializeLogsData" Id="{3baae409-f1cd-4ee8-b8e2-c63cbc28a66d}">
       <Declaration><![CDATA[METHOD TestSerializeLogsData : REFERENCE TO FB_Test
 VAR
-	resourceA: FB_Resource('resource.a');
 	resourceB: FB_Resource('resource.b');
-	providerA: FB_LoggerProvider(resourceA);
-	providerB: FB_LoggerProvider(resourceB);
-	scopeA: FB_InstrumentationScope('scope.a', '1.0.0', 'scope.a.schema');
+	resourceA: FB_Resource('resource.a');
+	resourceC: FB_Resource('resource.c');
 	scopeB: FB_InstrumentationScope('scope.b', '1.0.0', 'scope.b.schema');
-	loggerAA: FB_Logger(scopeA, providerA);
-	loggerAB: FB_Logger(scopeB, providerA);
-	loggerBA: FB_Logger(scopeA, providerB);
-	exporter: FB_LogRecordExporter_ForInspection;
-	processor: FB_LogRecordProcessor_ForBatchInspection(exporter);
-	processors: ARRAY [0..0] OF I_LogRecordProcessor := [processor];
+	scopeA: FB_InstrumentationScope('scope.a', '1.0.0', 'scope.a.schema');
+	scopeC: FB_InstrumentationScope('scope.c', '1.0.0', 'scope.c.schema');
+	queue: FB_LogRecordQueue(maxSize:=8);
 	serializer: FB_LogRecordProtoJsonSerializer;
-	ts1: ULINT := 1;
-	ts2: ULINT := 2;
-	ts3: ULINT := 3;
-	ts4: ULINT := 4;
-	ts5: ULINT := 5;
+	pRecord: POINTER TO FB_LogRecord;
+	queueFailureReason: E_LogRecordQueueFailureReason;
+	attributesFailureReason: E_AttributesFailureReason;
+	copySucceeded: BOOL;
+	pushSucceeded: BOOL;
+	_idx: UDINT;
 	resourceLogs: SJsonValue;
 	resourceObj: SJsonValue;
 	scopeLogs: SJsonValue;
@@ -231,87 +276,147 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test SerializeLogsData');
-	processor.free();
-	exporter.free();
-	loggerAA.free();
-	loggerAB.free();
-	loggerBA.free();
-	processor.maxExportBatchSize := 5;
+	queue.free();
 
-	// Emit out of order. The queue preserves arrival order; flushing builds the sorted batch.
-	loggerBA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(ts1)).emit(processors);
-	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(ts2)).emit(processors);
-	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(ts3)).emit(processors);
-	loggerBA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(ts4)).emit(processors);
-	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(ts5)).emit(processors);
-	THIS^.AssertEquals_UDINT(5, processor.records.count, 'Expected five queued records before flushing');
-	processor();
-	THIS^.AssertEquals_UDINT(0, processor.records.count, 'Expected the queue to be empty after flushing');
-	THIS^.AssertEquals_UDINT(5, exporter.records.count, 'Expected five sorted records for serialization');
+	// Build the serializer boundary directly. Resource arrival order is
+	// B, A, C, B, C, A, B, A; scope order is also interleaved.
+	FOR _idx := 1 TO 8 DO
+		pRecord := __NEW(FB_LogRecord(
+			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
+			timestamp:=_idx
+		));
+		THIS^.AssertTrue(pRecord <> 0, 'Expected record allocation to succeed');
+		IF pRecord = 0 THEN EXIT; END_IF
 
-	serializer.serializeLogsData(exporter.records);
+		CASE _idx OF
+			1, 4, 7:
+				copySucceeded := pRecord^.resource.copyFrom(
+					src:=resourceB,
+					failureResult=>attributesFailureReason
+				);
+			2, 6, 8:
+				copySucceeded := pRecord^.resource.copyFrom(
+					src:=resourceA,
+					failureResult=>attributesFailureReason
+				);
+			3, 5:
+				copySucceeded := pRecord^.resource.copyFrom(
+					src:=resourceC,
+					failureResult=>attributesFailureReason
+				);
+		END_CASE
+		THIS^.AssertTrue(copySucceeded, 'Expected resource snapshot copy to succeed');
+
+		CASE _idx OF
+			1, 7, 6:
+				copySucceeded := pRecord^.scope.copyFrom(
+					src:=scopeB,
+					failureResult=>attributesFailureReason
+				);
+			2, 8:
+				copySucceeded := pRecord^.scope.copyFrom(
+					src:=scopeC,
+					failureResult=>attributesFailureReason
+				);
+			3, 4, 5:
+				copySucceeded := pRecord^.scope.copyFrom(
+					src:=scopeA,
+					failureResult=>attributesFailureReason
+				);
+		END_CASE
+		THIS^.AssertTrue(copySucceeded, 'Expected scope snapshot copy to succeed');
+
+		pushSucceeded := queue.push(
+			pValue:=pRecord,
+			failureReason=>queueFailureReason
+		);
+		THIS^.AssertTrue(pushSucceeded AND_THEN pRecord = 0, 'Expected queue to take record ownership');
+		IF NOT pushSucceeded AND_THEN pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+	END_FOR
+	THIS^.AssertEquals_UDINT(8, queue.count, 'Expected eight records at the serializer boundary');
+
+	serializer.serializeLogsData(queue);
+	THIS^.AssertEquals_UDINT(0, queue.count, 'Expected serializer to take ownership of the queued records');
+
 	resourceLogs := serializer.parser.FindMember(serializer.jsonValue, 'resourceLogs');
 	THIS^.AssertTrue(resourceLogs <> 0 AND_THEN serializer.parser.IsArray(resourceLogs), 'Expected resourceLogs array');
-	resourceObj := serializer.parser.GetArrayValueByIdx(resourceLogs, 0);
-	THIS^.AssertTrue(resourceObj <> 0 AND_THEN serializer.parser.IsObject(resourceObj), 'Expected first ResourceLogs group');
-	resourceObj := serializer.parser.GetArrayValueByIdx(resourceLogs, 1);
-	THIS^.AssertTrue(resourceObj <> 0 AND_THEN serializer.parser.IsObject(resourceObj), 'Expected second ResourceLogs group');
-	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(resourceLogs, 2) = 0, 'Expected exactly two ResourceLogs groups');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(resourceLogs, 3) = 0, 'Expected exactly three ResourceLogs groups');
 
-	// Resource A contains two scopes. Scope A contains both records from that group.
+	// Resource B was seen first. Its scope B records remain in arrival order,
+	// followed by the later first-seen scope A group.
 	resourceObj := serializer.parser.GetArrayValueByIdx(resourceLogs, 0);
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(resourceObj, 'schemaUrl'));
-	THIS^.AssertEquals_STRING('resource.a', actualString, 'Expected resource A first');
+	THIS^.AssertEquals_STRING('resource.b', actualString, 'Expected resource B first');
 	scopeLogs := serializer.parser.FindMember(resourceObj, 'scopeLogs');
 	scopeObj := serializer.parser.GetArrayValueByIdx(scopeLogs, 0);
-	THIS^.AssertTrue(scopeObj <> 0 AND_THEN serializer.parser.IsObject(scopeObj), 'Expected resource A scope A');
-	scopeObj := serializer.parser.GetArrayValueByIdx(scopeLogs, 1);
-	THIS^.AssertTrue(scopeObj <> 0 AND_THEN serializer.parser.IsObject(scopeObj), 'Expected resource A scope B');
-	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(scopeLogs, 2) = 0, 'Expected exactly two scopes for resource A');
-
-	scopeObj := serializer.parser.GetArrayValueByIdx(scopeLogs, 0);
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name'));
-	THIS^.AssertEquals_STRING('scope.a', actualString, 'Expected scope A first');
+	THIS^.AssertEquals_STRING('scope.b', actualString, 'Expected resource B scope B first');
 	logRecords := serializer.parser.FindMember(scopeObj, 'logRecords');
 	recordObj := serializer.parser.GetArrayValueByIdx(logRecords, 0);
-	THIS^.AssertTrue(recordObj <> 0 AND_THEN serializer.parser.IsObject(recordObj), 'Expected first resource A scope A record');
-	recordObj := serializer.parser.GetArrayValueByIdx(logRecords, 1);
-	THIS^.AssertTrue(recordObj <> 0 AND_THEN serializer.parser.IsObject(recordObj), 'Expected second resource A scope A record');
-	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(logRecords, 2) = 0, 'Expected exactly two records in resource A scope A');
-	recordObj := serializer.parser.GetArrayValueByIdx(logRecords, 0);
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(recordObj, 'timeUnixNano'));
-	THIS^.AssertEquals_STRING('3', actualString, 'Expected first record in resource A scope A');
+	THIS^.AssertEquals_STRING('1', actualString, 'Expected first resource B scope B record');
 	recordObj := serializer.parser.GetArrayValueByIdx(logRecords, 1);
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(recordObj, 'timeUnixNano'));
-	THIS^.AssertEquals_STRING('5', actualString, 'Expected second record in resource A scope A');
+	THIS^.AssertEquals_STRING('7', actualString, 'Expected second resource B scope B record');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(logRecords, 2) = 0, 'Expected one resource B scope B group');
 
 	scopeObj := serializer.parser.GetArrayValueByIdx(scopeLogs, 1);
+	actualString := serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name'));
+	THIS^.AssertEquals_STRING('scope.a', actualString, 'Expected resource B scope A second');
 	logRecords := serializer.parser.FindMember(scopeObj, 'logRecords');
 	recordObj := serializer.parser.GetArrayValueByIdx(logRecords, 0);
-	THIS^.AssertTrue(recordObj <> 0 AND_THEN serializer.parser.IsObject(recordObj), 'Expected resource A scope B record');
-	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(logRecords, 1) = 0, 'Expected one record in resource A scope B');
+	actualString := serializer.parser.GetString(serializer.parser.FindMember(recordObj, 'timeUnixNano'));
+	THIS^.AssertEquals_STRING('4', actualString, 'Expected resource B scope A record');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(logRecords, 1) = 0, 'Expected one resource B scope A record');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(scopeLogs, 2) = 0, 'Expected exactly two scopes for resource B');
 
-	// Resource B has one scope containing both records from its contiguous group.
+	// Resource A was seen second. Its repeated scope C records are one group.
 	resourceObj := serializer.parser.GetArrayValueByIdx(resourceLogs, 1);
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(resourceObj, 'schemaUrl'));
-	THIS^.AssertEquals_STRING('resource.b', actualString, 'Expected resource B second');
+	THIS^.AssertEquals_STRING('resource.a', actualString, 'Expected resource A second');
 	scopeLogs := serializer.parser.FindMember(resourceObj, 'scopeLogs');
 	scopeObj := serializer.parser.GetArrayValueByIdx(scopeLogs, 0);
-	THIS^.AssertTrue(scopeObj <> 0 AND_THEN serializer.parser.IsObject(scopeObj), 'Expected resource B scope A');
-	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(scopeLogs, 1) = 0, 'Expected one scope for resource B');
-	scopeObj := serializer.parser.GetArrayValueByIdx(scopeLogs, 0);
+	actualString := serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name'));
+	THIS^.AssertEquals_STRING('scope.c', actualString, 'Expected resource A scope C first');
 	logRecords := serializer.parser.FindMember(scopeObj, 'logRecords');
 	recordObj := serializer.parser.GetArrayValueByIdx(logRecords, 0);
-	THIS^.AssertTrue(recordObj <> 0 AND_THEN serializer.parser.IsObject(recordObj), 'Expected first resource B scope A record');
+	actualString := serializer.parser.GetString(serializer.parser.FindMember(recordObj, 'timeUnixNano'));
+	THIS^.AssertEquals_STRING('2', actualString, 'Expected first resource A scope C record');
 	recordObj := serializer.parser.GetArrayValueByIdx(logRecords, 1);
-	THIS^.AssertTrue(recordObj <> 0 AND_THEN serializer.parser.IsObject(recordObj), 'Expected second resource B scope A record');
-	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(logRecords, 2) = 0, 'Expected exactly two records in resource B scope A');
+	actualString := serializer.parser.GetString(serializer.parser.FindMember(recordObj, 'timeUnixNano'));
+	THIS^.AssertEquals_STRING('8', actualString, 'Expected second resource A scope C record');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(logRecords, 2) = 0, 'Expected one resource A scope C group');
 
-	processor.free();
-	exporter.free();
-	loggerAA.free();
-	loggerAB.free();
-	loggerBA.free();
+	scopeObj := serializer.parser.GetArrayValueByIdx(scopeLogs, 1);
+	actualString := serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name'));
+	THIS^.AssertEquals_STRING('scope.b', actualString, 'Expected resource A scope B second');
+	logRecords := serializer.parser.FindMember(scopeObj, 'logRecords');
+	recordObj := serializer.parser.GetArrayValueByIdx(logRecords, 0);
+	actualString := serializer.parser.GetString(serializer.parser.FindMember(recordObj, 'timeUnixNano'));
+	THIS^.AssertEquals_STRING('6', actualString, 'Expected resource A scope B record');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(logRecords, 1) = 0, 'Expected one resource A scope B record');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(scopeLogs, 2) = 0, 'Expected exactly two scopes for resource A');
+
+	// Resource C was seen third and its non-adjacent records share one scope.
+	resourceObj := serializer.parser.GetArrayValueByIdx(resourceLogs, 2);
+	actualString := serializer.parser.GetString(serializer.parser.FindMember(resourceObj, 'schemaUrl'));
+	THIS^.AssertEquals_STRING('resource.c', actualString, 'Expected resource C third');
+	scopeLogs := serializer.parser.FindMember(resourceObj, 'scopeLogs');
+	scopeObj := serializer.parser.GetArrayValueByIdx(scopeLogs, 0);
+	actualString := serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name'));
+	THIS^.AssertEquals_STRING('scope.a', actualString, 'Expected resource C scope A');
+	logRecords := serializer.parser.FindMember(scopeObj, 'logRecords');
+	recordObj := serializer.parser.GetArrayValueByIdx(logRecords, 0);
+	actualString := serializer.parser.GetString(serializer.parser.FindMember(recordObj, 'timeUnixNano'));
+	THIS^.AssertEquals_STRING('3', actualString, 'Expected first resource C scope A record');
+	recordObj := serializer.parser.GetArrayValueByIdx(logRecords, 1);
+	actualString := serializer.parser.GetString(serializer.parser.FindMember(recordObj, 'timeUnixNano'));
+	THIS^.AssertEquals_STRING('5', actualString, 'Expected second resource C scope A record');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(logRecords, 2) = 0, 'Expected one resource C scope A group');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(scopeLogs, 1) = 0, 'Expected one scope for resource C');
+
+	queue.free();
+	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

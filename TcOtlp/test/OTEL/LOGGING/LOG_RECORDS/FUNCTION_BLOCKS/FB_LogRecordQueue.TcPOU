@@ -14,9 +14,11 @@ VAR
 	_tail: POINTER TO ST_LinkedListNode;
 	_cursor: POINTER TO ST_LinkedListNode;
 END_VAR
+VAR_INPUT
+	maxSize: UDINT;
+END_VAR
 VAR_OUTPUT
 	count: UDINT;
-	maxSize: UDINT;
 	droppedCount: UDINT;
 END_VAR
 ]]></Declaration>
@@ -219,10 +221,42 @@ push := TRUE;]]></ST>
         <ST><![CDATA[THIS^._cursor := THIS^._head;]]></ST>
       </Implementation>
     </Method>
+    <Method Name="rotate" Id="{38f6dc88-7df0-47e8-9ca7-d6d6b143b68e}">
+      <Declaration><![CDATA[(* Moves the head node to the tail without changing record ownership. *)
+METHOD rotate : BOOL
+VAR_OUTPUT
+	failureReason: E_LogRecordQueueFailureReason;
+END_VAR
+VAR
+	_node: POINTER TO ST_LinkedListNode;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[rotate := FALSE;
+failureReason := E_LogRecordQueueFailureReason.NA;
+
+IF THIS^._head = 0 THEN
+	failureReason := E_LogRecordQueueFailureReason.QUEUE_EMPTY;
+	RETURN;
+END_IF
+
+IF THIS^._head <> THIS^._tail THEN
+	_node := THIS^._head;
+	THIS^._head := _node^.nxt;
+	_node^.nxt := 0;
+	THIS^._tail^.nxt := _node;
+	THIS^._tail := _node;
+END_IF
+
+THIS^._cursor := THIS^._head;
+rotate := TRUE;]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="transferTo" Id="{e7eb4308-b34a-4dc8-852c-97a5624b88e2}">
       <Declaration><![CDATA[(*
 	Transfers the allocated nodes and owned records without copying them.
-	The destination must be a different, empty queue with enough capacity.
+	The destination must be a different, empty queue. It receives the oldest
+	records up to its maxSize, and the source retains any remaining records.
 *)
 METHOD transferTo : BOOL
 VAR_IN_OUT
@@ -230,6 +264,10 @@ VAR_IN_OUT
 END_VAR
 VAR_OUTPUT
 	failureReason: E_LogRecordQueueFailureReason;
+END_VAR
+VAR
+	_transferCount: UDINT;
+	_idx: UDINT;
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -244,20 +282,32 @@ IF destination.count <> 0 OR_ELSE destination._head <> 0 OR_ELSE destination._ta
 	failureReason := E_LogRecordQueueFailureReason.DESTINATION_NOT_EMPTY;
 	RETURN;
 END_IF
-IF THIS^.count > destination.maxSize THEN
-	failureReason := E_LogRecordQueueFailureReason.DESTINATION_CAPACITY_TOO_SMALL;
+
+_transferCount := THIS^.count;
+IF _transferCount > destination.maxSize THEN
+	_transferCount := destination.maxSize;
+END_IF
+IF _transferCount = 0 THEN
+	transferTo := TRUE;
 	RETURN;
 END_IF
 
 destination._head := THIS^._head;
-destination._tail := THIS^._tail;
-destination._cursor := THIS^._head;
-destination.count := THIS^.count;
+destination._tail := destination._head;
+FOR _idx := 1 TO _transferCount - 1 DO
+	destination._tail := destination._tail^.nxt;
+END_FOR
 
-THIS^._head := 0;
-THIS^._tail := 0;
-THIS^._cursor := 0;
-THIS^.count := 0;
+THIS^._head := destination._tail^.nxt;
+destination._tail^.nxt := 0;
+destination._cursor := destination._head;
+destination.count := _transferCount;
+
+THIS^.count := THIS^.count - _transferCount;
+THIS^._cursor := THIS^._head;
+IF THIS^._head = 0 THEN
+	THIS^._tail := 0;
+END_IF
 transferTo := TRUE;]]></ST>
       </Implementation>
     </Method>

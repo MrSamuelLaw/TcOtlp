@@ -32,6 +32,11 @@ IF pLogRecords = 0 THEN
 	RETURN;
 END_IF
 
+IF pLogRecords^.count > GVL.MAX_EXPORT_BATCH_SIZE THEN
+	failureResult := E_LogRecordExporterFailureReason.BATCH_SIZE_EXCEEDS_MAX;
+	RETURN;
+END_IF
+
 IF THIS^.busy THEN
 	failureResult := E_LogRecordExporterFailureReason.ACTIVE_EXPORT_IN_PROGRESS;
 	RETURN;
@@ -41,6 +46,7 @@ END_IF
 IF THIS^._pLogRecords <> 0 AND THIS^._pLogRecords <> pLogRecords THEN
 	THIS^.free();
 END_IF
+pLogRecords^.maxSize := GVL.MAX_EXPORT_BATCH_SIZE;
 THIS^._pLogRecords := pLogRecords;
 pLogRecords := 0;
 
@@ -62,7 +68,7 @@ PROPERTY records : REFERENCE TO FB_LogRecordQueue]]></Declaration>
 ]]></Declaration>
         <Implementation>
           <ST><![CDATA[IF THIS^._pLogRecords = 0 THEN
-	THIS^._pLogRecords := __NEW(FB_LogRecordQueue(maxSize:=2000));
+	THIS^._pLogRecords := __NEW(FB_LogRecordQueue(maxSize:=GVL.MAX_EXPORT_BATCH_SIZE));
 END_IF
 records REF= THIS^._pLogRecords^;]]></ST>
         </Implementation>

@@ -322,7 +322,7 @@ END_VAR
 	IF _pValue = 0 THEN RETURN; END_IF
 
 	_arr := THIS^.parser.AddArrayMember(v, pKey^, 0);
-	FOR _idx := 1 TO GVL.MAX_ATTRIBUTES DO
+	FOR _idx := 1 TO pValues^.maxCount DO
 		IF _pValue = 0 THEN EXIT; END_IF
 		_obj := THIS^.parser.PushbackJsonValue(_arr, '{}');
 		THIS^.serializeKeyValue(_obj, _pValue);

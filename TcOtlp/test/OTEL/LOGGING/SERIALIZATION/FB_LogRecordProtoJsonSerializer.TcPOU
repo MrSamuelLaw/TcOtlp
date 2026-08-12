@@ -2,6 +2,9 @@
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_LogRecordProtoJsonSerializer" Id="{9d5713d1-8fd3-47fe-b5ed-3ec522cca7f6}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProtoJsonSerializer EXTENDS FB_BaseProtoJsonSerializer
+VAR
+	_logRecords: FB_LogRecordQueue(maxSize:=GVL.MAX_EXPORT_BATCH_SIZE);
+END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
@@ -77,73 +80,126 @@ logRecords.reset();]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeLogsData" Id="{e949baee-9209-4a36-8a48-4eaffb67bbe1}">
-      <Declaration><![CDATA[METHOD serializeLogsData
+      <Declaration><![CDATA[(*
+	Transfers ownership of up to GVL.MAX_EXPORT_BATCH_SIZE records into the serializer.
+	The caller's queue retains any records beyond that configured bound.
+	Resources and scopes are grouped in first-seen order while record order
+	within each resource/scope group remains unchanged.
+*)
+METHOD serializeLogsData
 VAR_IN_OUT
 	logRecords: FB_LogRecordQueue;
 END_VAR
 VAR
-	_idx: UDINT;
-	_rec: POINTER TO FB_LogRecord;
+	_resourceIdx: UDINT;
+	_scopeIdx: UDINT;
+	_findIdx: UDINT;
+	_recordIdx: UDINT;
+	_recordsToScan: UDINT;
+	_pHeadRecord: POINTER TO FB_LogRecord;
+	_pOwnedRecord: POINTER TO FB_LogRecord;
 	_resourceId: UDINT;
 	_scopeName: T_MaxString;
-	_newResource: BOOL;
-	_newScope: BOOL;
 	_resourceLogs: SJsonValue;
 	_resourceObj: SJsonValue;
 	_scopeLogs: SJsonValue;
 	_scopeObj: SJsonValue;
 	_serializedRecords: SJsonValue;
+	_queueFailureReason: E_LogRecordQueueFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[THIS^.jsonValue := THIS^.parser.NewDocument();
+        <ST><![CDATA[// The serializer owns the records moved out of the caller's queue.
+THIS^._logRecords.free();
+THIS^._logRecords.maxSize := GVL.MAX_EXPORT_BATCH_SIZE;
+IF NOT logRecords.transferTo(
+	destination:=THIS^._logRecords,
+	failureReason=>_queueFailureReason
+) THEN
+	RETURN;
+END_IF
+
+THIS^.jsonValue := THIS^.parser.NewDocument();
 THIS^.jsonValue := THIS^.parser.SetObject(THIS^.jsonValue);
 
 _resourceLogs := THIS^.parser.AddArrayMember(THIS^.jsonValue, 'resourceLogs', 0);
 IF _resourceLogs = 0 THEN
+	THIS^._logRecords.free();
 	RETURN;
 END_IF
 
-// Group adjacent records in one pass without sorting or modifying the source queue.
-logRecords.reset();
-FOR _idx := 0 TO GVL.MAX_LOOP_COUNT - 1 DO
-	_rec := logRecords.next();
-	IF _rec = 0 THEN
+// Each pass consumes one first-seen resource. Other resources retain their
+// relative order as their nodes rotate through the serializer-owned queue.
+FOR _resourceIdx := 1 TO GVL.MAX_LOOP_COUNT DO
+	IF THIS^._logRecords.count = 0 THEN
 		EXIT;
 	END_IF
 
-	_newResource := (_resourceObj = 0) OR_ELSE (_resourceId <> _rec^.resource.id);
-	IF _newResource THEN
-		_resourceObj := THIS^.parser.PushbackJsonValue(_resourceLogs, '{}');
-		IF _resourceObj = 0 THEN EXIT; END_IF
-		THIS^._injectResource(_resourceObj, _rec^.resource);
-		IF _rec^.resource.schemaUrl <> '' THEN
-			THIS^.parser.AddStringMember(_resourceObj, 'schemaUrl', _rec^.resource.schemaUrl);
-		END_IF
+	THIS^._logRecords.reset();
+	_pHeadRecord := THIS^._logRecords.next();
+	IF _pHeadRecord = 0 THEN EXIT; END_IF
+	_resourceId := _pHeadRecord^.resource.id;
 
-		_resourceId := _rec^.resource.id;
-		_scopeLogs := THIS^.parser.AddArrayMember(_resourceObj, 'scopeLogs', 0);
-		IF _scopeLogs = 0 THEN EXIT; END_IF
-		_scopeObj := 0;
+	_resourceObj := THIS^.parser.PushbackJsonValue(_resourceLogs, '{}');
+	IF _resourceObj = 0 THEN EXIT; END_IF
+	THIS^._injectResource(_resourceObj, _pHeadRecord^.resource);
+	IF _pHeadRecord^.resource.schemaUrl <> '' THEN
+		THIS^.parser.AddStringMember(_resourceObj, 'schemaUrl', _pHeadRecord^.resource.schemaUrl);
 	END_IF
 
-	_newScope := _newResource OR_ELSE (_scopeObj = 0) OR_ELSE (_scopeName <> _rec^.scope.name);
-	IF _newScope THEN
+	_scopeLogs := THIS^.parser.AddArrayMember(_resourceObj, 'scopeLogs', 0);
+	IF _scopeLogs = 0 THEN EXIT; END_IF
+
+	// Find and consume each scope belonging to this resource in first-seen order.
+	FOR _scopeIdx := 1 TO GVL.MAX_LOOP_COUNT DO
+		_pHeadRecord := 0;
+		THIS^._logRecords.reset();
+		FOR _findIdx := 1 TO GVL.MAX_LOOP_COUNT DO
+			_pHeadRecord := THIS^._logRecords.next();
+			IF _pHeadRecord = 0 THEN EXIT; END_IF
+			IF _pHeadRecord^.resource.id = _resourceId THEN EXIT; END_IF
+			_pHeadRecord := 0;
+		END_FOR
+		IF _pHeadRecord = 0 THEN EXIT; END_IF
+
+		_scopeName := _pHeadRecord^.scope.name;
 		_scopeObj := THIS^.parser.PushbackJsonValue(_scopeLogs, '{}');
 		IF _scopeObj = 0 THEN EXIT; END_IF
-		THIS^._injectInstrumentationScope(_scopeObj, _rec^.scope);
-		IF _rec^.scope.schemaUrl <> '' THEN
-			THIS^.parser.AddStringMember(_scopeObj, 'schemaUrl', _rec^.scope.schemaUrl);
+		THIS^._injectInstrumentationScope(_scopeObj, _pHeadRecord^.scope);
+		IF _pHeadRecord^.scope.schemaUrl <> '' THEN
+			THIS^.parser.AddStringMember(_scopeObj, 'schemaUrl', _pHeadRecord^.scope.schemaUrl);
 		END_IF
 
-		_scopeName := _rec^.scope.name;
 		_serializedRecords := THIS^.parser.AddArrayMember(_scopeObj, 'logRecords', 0);
 		IF _serializedRecords = 0 THEN EXIT; END_IF
-	END_IF
 
-	THIS^.serializeLogRecord(_serializedRecords, _rec);
+		// Remove matching records and rotate non-matches to preserve their order.
+		_recordsToScan := THIS^._logRecords.count;
+		FOR _recordIdx := 1 TO _recordsToScan DO
+			THIS^._logRecords.reset();
+			_pHeadRecord := THIS^._logRecords.next();
+			IF _pHeadRecord = 0 THEN EXIT; END_IF
+
+			IF _pHeadRecord^.resource.id = _resourceId
+				AND_THEN _pHeadRecord^.scope.name = _scopeName THEN
+				_pOwnedRecord := 0;
+				IF NOT THIS^._logRecords.pop(
+					pValue:=_pOwnedRecord,
+					failureReason=>_queueFailureReason
+				) THEN
+					EXIT;
+				END_IF
+				THIS^.serializeLogRecord(_serializedRecords, _pOwnedRecord);
+				_pOwnedRecord := _pOwnedRecord^.delete();
+			ELSE
+				IF NOT THIS^._logRecords.rotate(failureReason=>_queueFailureReason) THEN EXIT; END_IF
+			END_IF
+		END_FOR
+	END_FOR
 END_FOR
-logRecords.reset();]]></ST>
+
+// Also releases any records left after a parser or loop-limit failure.
+THIS^._logRecords.free();]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeResourceLogs" Id="{6b43c2c7-047f-4862-9b90-b2d2c588a9af}">

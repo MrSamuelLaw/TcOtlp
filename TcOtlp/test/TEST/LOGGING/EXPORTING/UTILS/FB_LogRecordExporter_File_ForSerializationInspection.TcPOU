@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LogRecordExporter_File_ForSerializationInspection" Id="{7733a436-9c26-44c4-9f9a-b58f765ed25f}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Exporter test double that serializes accepted records without destination I/O. *)
+FUNCTION_BLOCK FB_LogRecordExporter_File_ForSerializationInspection EXTENDS FB_LogRecordExporter_Base
+VAR_OUTPUT
+	serializer: FB_LogRecordProtoJsonSerializer;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="export" Id="{a8814952-f93e-467d-a452-a3c44ef19158}">
+      <Declaration><![CDATA[METHOD export : BOOL
+VAR_IN_OUT
+	pLogRecords: POINTER TO FB_LogRecordQueue;
+END_VAR
+VAR_OUTPUT
+	failureResult: E_LogRecordExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[export := FALSE;
+failureResult := E_LogRecordExporterFailureReason.NA;
+
+IF pLogRecords = 0 THEN
+	failureResult := E_LogRecordExporterFailureReason.BATCH_POINTER_NULL;
+	RETURN;
+END_IF
+IF pLogRecords^.count > GVL.MAX_EXPORT_BATCH_SIZE THEN
+	failureResult := E_LogRecordExporterFailureReason.BATCH_SIZE_EXCEEDS_MAX;
+	RETURN;
+END_IF
+
+pLogRecords^.maxSize := GVL.MAX_EXPORT_BATCH_SIZE;
+THIS^.serializer.serializeLogsData(pLogRecords^);
+pLogRecords := pLogRecords^.delete();
+export := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="isBusy" Id="{3fcad1b8-f625-4274-83b7-cc42030874ba}">
+      <Declaration><![CDATA[METHOD isBusy : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[isBusy := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

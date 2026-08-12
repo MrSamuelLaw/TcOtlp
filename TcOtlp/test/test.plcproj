@@ -157,6 +157,9 @@
     <Compile Include="TEST\LOGGING\EXPORTING\FB_TestLogExporters.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TEST\LOGGING\EXPORTING\UTILS\FB_LogRecordExporter_File_ForSerializationInspection.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="TEST\LOGGING\EXPORTING\UTILS\FB_LogRecordExporter_ForInspection.TcPOU">
       <SubType>Code</SubType>
     </Compile>
