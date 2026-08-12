@@ -24,7 +24,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[export := FALSE;
-MEMSET(ADR(failureResult), 0, SIZEOF(failureResult));
+failureResult := E_LogRecordExporterFailureReason.NA;
 
 IF pLogRecords = 0 THEN
 	failureResult := E_LogRecordExporterFailureReason.BATCH_POINTER_NULL;

@@ -6,7 +6,7 @@
 {attribute 'to_string'}
 TYPE E_ValueFactoryFailureReason :
 (
-	
+	NA := 0,  // No failure occurred.
 	DESTINATION_ALREADY_ASSIGNED := 1,  // The destination pointer was already assigned when the operation began.
 	SOURCE_POINTER_NULL,  // The source pointer is null.
 	NUMBER_VALUE_POINTER_NULL,  // The numeric value pointer is null.
@@ -27,6 +27,11 @@ END_TYPE
       <Data>
         <o xml:space="preserve" t="TextListEnumerationTextListObject">
           <l n="TextList" t="ArrayList" cet="TextListRow">
+            <o>
+              <v n="TextID">"NA"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
             <o>
               <v n="TextID">"DESTINATION_ALREADY_ASSIGNED"</v>
               <v n="TextDefault">""</v>

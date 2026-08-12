@@ -143,7 +143,7 @@ IF NOT THIS^._records^.push(pValue:=_pRecord, failureReason=>_queueFailureReason
 END_IF
 
 THIS^.lastOperationSucceeded := TRUE;
-MEMSET(ADR(THIS^.failureResult), 0, SIZEOF(THIS^.failureResult));]]></ST>
+THIS^.failureResult := E_LogRecordProcessorFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Method Name="ensureQueue" Id="{ea1eecb5-ef37-433e-a442-c6100f2bf2c0}">

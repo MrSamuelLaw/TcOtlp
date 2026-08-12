@@ -73,7 +73,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testPushAndPopTransferRecordOwnership');
-	MEMSET(ADR(noFailure), 0, SIZEOF(noFailure));
+	noFailure := E_LogRecordQueueFailureReason.NA;
 	pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=42));
 	pOriginal := pRecord;
 	success := queue.push(pValue:=pRecord, failureReason=>failureReason);
@@ -103,7 +103,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testReportsFailureReasons');
-	MEMSET(ADR(noFailure), 0, SIZEOF(noFailure));
+	noFailure := E_LogRecordQueueFailureReason.NA;
 	success := queue.push(pValue:=pRecord, failureReason=>failureReason);
 	THIS^.AssertFalse(success, 'Expected a null record push to fail');
 	THIS^.AssertTrue(failureReason = E_LogRecordQueueFailureReason.RECORD_POINTER_NULL, 'Expected the null record failure reason');
@@ -158,7 +158,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testTransfersQueueOwnership');
-	MEMSET(ADR(noFailure), 0, SIZEOF(noFailure));
+	noFailure := E_LogRecordQueueFailureReason.NA;
 	FOR _idx := 1 TO 2 DO
 		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=_idx));
 		IF _idx = 1 THEN

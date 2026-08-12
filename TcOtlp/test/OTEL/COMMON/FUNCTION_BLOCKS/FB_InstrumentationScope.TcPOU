@@ -24,7 +24,7 @@ VAR_OUTPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[MEMSET(ADR(failureResult), 0, SIZEOF(failureResult));
+        <ST><![CDATA[failureResult := E_AttributesFailureReason.NA;
 THIS^.name := src.name;
 THIS^.version := src.version;
 THIS^.droppedAttributesCount := src.droppedAttributesCount;

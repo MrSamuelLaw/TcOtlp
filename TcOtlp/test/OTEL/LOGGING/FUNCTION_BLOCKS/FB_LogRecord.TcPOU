@@ -41,7 +41,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[cloneTo := FALSE;
-MEMSET(ADR(failureResult), 0, SIZEOF(failureResult));
+failureResult := E_LogRecordCloneFailureReason.NA;
 
 IF pDest <> 0 THEN
 	failureResult := E_LogRecordCloneFailureReason.DESTINATION_ALREADY_ASSIGNED;

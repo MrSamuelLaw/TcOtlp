@@ -35,7 +35,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[_createLogRecord := FALSE;
-MEMSET(ADR(failureResult), 0, SIZEOF(failureResult));
+failureResult := E_LoggerFailureReason.NA;
 
 IF pDest <> 0 THEN
 	failureResult := E_LoggerFailureReason.LOG_RECORD_ALREADY_STARTED;
@@ -195,7 +195,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[emit := FALSE;
-MEMSET(ADR(failureResult), 0, SIZEOF(failureResult));
+failureResult := E_LoggerFailureReason.NA;
 
 // Preserve the first fluent method failure while releasing the incomplete record.
 IF THIS^._failed THEN
@@ -217,7 +217,7 @@ END_FOR
 THIS^.pLogRecord := THIS^.pLogRecord^.delete();
 
 THIS^._failed := FALSE;
-MEMSET(ADR(THIS^._failureResult), 0, SIZEOF(THIS^._failureResult));
+THIS^._failureResult := E_LoggerFailureReason.NA;
 emit := TRUE;]]></ST>
       </Implementation>
     </Method>
@@ -260,7 +260,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[THIS^.free();
 THIS^._failed := FALSE;
-MEMSET(ADR(THIS^._failureResult), 0, SIZEOF(THIS^._failureResult));]]></ST>
+THIS^._failureResult := E_LoggerFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Property Name="resource" Id="{af2fd56b-1f1f-4731-bef9-9ae40f95e566}">
@@ -578,7 +578,7 @@ IF THIS^.pLogRecord <> 0 THEN
 END_IF
 
 THIS^._failed := FALSE;
-MEMSET(ADR(THIS^._failureResult), 0, SIZEOF(THIS^._failureResult));
+THIS^._failureResult := E_LoggerFailureReason.NA;
 
 // set the timetstamp if the pointer is null (which is the prefered method of building a record)
 IF timestamp <> 0 THEN

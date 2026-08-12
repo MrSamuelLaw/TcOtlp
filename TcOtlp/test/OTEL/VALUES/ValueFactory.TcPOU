@@ -26,7 +26,7 @@ VAR
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[cloneAnyValue := FALSE;
-MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+failureReason := E_ValueFactoryFailureReason.NA;
 
 IF pDest <> 0 THEN
 	failureReason := E_ValueFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED;
@@ -65,7 +65,7 @@ VAR_OUTPUT
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[cloneKeyValue := FALSE;
-MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+failureReason := E_ValueFactoryFailureReason.NA;
 
 IF pDest <> 0 THEN
 	failureReason := E_ValueFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED;
@@ -103,7 +103,7 @@ VAR
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[cloneNumber := FALSE;
-MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+failureReason := E_ValueFactoryFailureReason.NA;
 
 IF pDest <> 0 THEN
 	failureReason := E_ValueFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED;
@@ -167,7 +167,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[cloneString := FALSE;
-MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+failureReason := E_ValueFactoryFailureReason.NA;
 
 IF pDest <> 0 THEN
 	failureReason := E_ValueFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED;
@@ -210,7 +210,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[createKeyValue := FALSE;
-MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+failureReason := E_ValueFactoryFailureReason.NA;
 
 IF pKey = 0 THEN
 	failureReason := E_ValueFactoryFailureReason.KEY_POINTER_NULL;
@@ -274,7 +274,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[createNumber := FALSE;
-MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+failureReason := E_ValueFactoryFailureReason.NA;
 
 createNumber := ValueFactory.createNumber_AnyType(
 	pDest:=pDest,
@@ -308,7 +308,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[createNumber_AnyType := FALSE;
-MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+failureReason := E_ValueFactoryFailureReason.NA;
 
 IF pDest <> 0 THEN
 	failureReason := E_ValueFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED;
@@ -363,7 +363,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[createSpanId := FALSE;
-MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+failureReason := E_ValueFactoryFailureReason.NA;
 
 IF pDest <> 0 THEN
 	failureReason := E_ValueFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED;
@@ -412,7 +412,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[createString := FALSE;
-MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+failureReason := E_ValueFactoryFailureReason.NA;
 
 IF pDest <> 0  THEN
 	failureReason := E_ValueFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED;
@@ -462,7 +462,7 @@ VAR
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[createTraceId := FALSE;
-MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+failureReason := E_ValueFactoryFailureReason.NA;
 
 IF pDest <> 0 THEN
 	failureReason := E_ValueFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED;

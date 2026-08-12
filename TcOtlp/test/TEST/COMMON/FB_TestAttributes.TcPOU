@@ -22,7 +22,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testCopyValues');
-	MEMSET(ADR(noFailure), 0, SIZEOF(noFailure));
+	noFailure := E_AttributesFailureReason.NA;
 
 	// test adding attributes
 	success := attributes.setStringAttribute(key:='strKey', value:=strVal, failureReason=>failureReason);
@@ -64,7 +64,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testSetBehavior');
-	MEMSET(ADR(noFailure), 0, SIZEOF(noFailure));
+	noFailure := E_AttributesFailureReason.NA;
 
 	// test that a string and number can be inserted
 	strVal := 'strValue';
@@ -102,7 +102,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testFailureReasons');
-	MEMSET(ADR(noFailure), 0, SIZEOF(noFailure));
+	noFailure := E_AttributesFailureReason.NA;
 
 	success := attributes.setAttribute(pValue:=pKv, failureReason=>failureReason);
 	THIS^.AssertFalse(success, 'Expected a null key-value pointer to be rejected');

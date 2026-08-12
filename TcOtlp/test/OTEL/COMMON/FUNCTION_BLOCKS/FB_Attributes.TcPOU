@@ -60,7 +60,7 @@ VAR
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[copyFrom := FALSE;
-MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+failureReason := E_AttributesFailureReason.NA;
 
 src.reset();
 FOR _idx := 0 TO THIS^.maxCount DO
@@ -178,7 +178,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[setAttribute := FALSE;
-MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+failureReason := E_AttributesFailureReason.NA;
 
 IF pValue = 0 THEN
 	failureReason := E_AttributesFailureReason.KV_POINTER_NULL;
@@ -260,7 +260,7 @@ VAR
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[setNumberAttribute := FALSE;
-MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+failureReason := E_AttributesFailureReason.NA;
 
 IF NOT ValueFactory.createNumber_AnyType(
 	pDest:=_pNum,
@@ -307,7 +307,7 @@ VAR
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[setNumberAttribute_AnyType := FALSE;
-MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+failureReason := E_AttributesFailureReason.NA;
 
 IF NOT ValueFactory.createNumber_AnyType(
 	pDest:=_pNum,
@@ -354,7 +354,7 @@ VAR
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[setStringAttribute := FALSE;
-MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+failureReason := E_AttributesFailureReason.NA;
 
 IF NOT ValueFactory.createString(
 	pDest:=_pStr,

@@ -6,6 +6,7 @@
 {attribute 'to_string'}
 TYPE E_LogRecordExporterFailureReason :
 (
+	NA := 0,  // No failure occurred.
 	BATCH_POINTER_NULL := 1,  // The supplied log-record queue pointer is null.
 	ACTIVE_EXPORT_IN_PROGRESS,  // The exporter cannot accept another batch while an export is active.
 	EXPORTER_REFERENCE_INVALID  // The supplied exporter reference is invalid.
@@ -16,6 +17,7 @@ END_TYPE
       <Data>
         <o xml:space="preserve" t="TextListEnumerationTextListObject">
           <l n="TextList" t="ArrayList" cet="TextListRow">
+            <o><v n="TextID">"NA"</v><v n="TextDefault">""</v><l n="LanguageTexts" t="ArrayList" /></o>
             <o><v n="TextID">"BATCH_POINTER_NULL"</v><v n="TextDefault">""</v><l n="LanguageTexts" t="ArrayList" /></o>
             <o><v n="TextID">"ACTIVE_EXPORT_IN_PROGRESS"</v><v n="TextDefault">""</v><l n="LanguageTexts" t="ArrayList" /></o>
             <o><v n="TextID">"EXPORTER_REFERENCE_INVALID"</v><v n="TextDefault">""</v><l n="LanguageTexts" t="ArrayList" /></o>

@@ -30,7 +30,7 @@ END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test Value Cloning');
 
-	MEMSET(ADR(noFailure), 0, SIZEOF(noFailure));
+	noFailure := E_ValueFactoryFailureReason.NA;
 	
 	success := ValueFactory.createString(pDest:=pStringSource, pString:=ADR('source'), failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN failureReason=noFailure AND_THEN pStringSource<>0, 'Failed to create the source string');
@@ -108,7 +108,7 @@ VAR
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test KeyValue');
-	MEMSET(ADR(noFailure), 0, SIZEOF(noFailure));
+	noFailure := E_ValueFactoryFailureReason.NA;
 	// test failure for invalid data
 	success := ValueFactory.createKeyValue(pDest:=pKeyVal, pKey:=0, pVal:=0, failureReason=>failureReason);
 	THIS^.AssertFalse(success, 'Expected FB_KeyValue creation to reject a null key pointer');
@@ -194,7 +194,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test NumberValue');
-MEMSET(ADR(noFailure), 0, SIZEOF(noFailure));
+noFailure := E_ValueFactoryFailureReason.NA;
 
 // ANY_NUM accepts every signed, unsigned, and floating-point IEC numeric type.
 success := ValueFactory.createNumber(pDest:=pValue, value:=nSInt, failureReason=>failureReason);
@@ -317,7 +317,7 @@ VAR CONSTANT
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test SpanIdValue');
-	MEMSET(ADR(noFailure), 0, SIZEOF(noFailure));
+	noFailure := E_ValueFactoryFailureReason.NA;
 	
 	// assert that FB_TraceId fails to initialize for invalid data
 	success := ValueFactory.createSpanId(pDest:=pValue, pBytes:=0, nSize:=0, failureReason=>failureReason);
@@ -396,7 +396,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test StringValue');
-	MEMSET(ADR(noFailure), 0, SIZEOF(noFailure));
+	noFailure := E_ValueFactoryFailureReason.NA;
 
 	// assert that FB_String fails to initialize for invalid data
 	success := ValueFactory.createString(pDest:=pValue, pString:=0, failureReason=>failureReason);
@@ -463,7 +463,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test TraceIdValue');
-	MEMSET(ADR(noFailure), 0, SIZEOF(noFailure));
+	noFailure := E_ValueFactoryFailureReason.NA;
 	// assert that FB_TraceId fails to initialize for invalid data
 	success := ValueFactory.createTraceId(pDest:=pValue, pBytes:=0, nSize:=0, failureReason=>failureReason);
 	THIS^.AssertFalse(success, 'Expected trace id creation to reject a null byte pointer');

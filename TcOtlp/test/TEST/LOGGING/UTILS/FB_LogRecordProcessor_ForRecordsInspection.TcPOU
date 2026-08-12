@@ -43,7 +43,7 @@ IF NOT THIS^._records^.push(pValue:=record, failureReason=>queueFailureReason) T
 ELSE
 	record := 0;
 	THIS^.lastOperationSucceeded := TRUE;
-	MEMSET(ADR(THIS^.failureResult), 0, SIZEOF(THIS^.failureResult));
+	THIS^.failureResult := E_LogRecordProcessorFailureReason.NA;
 END_IF]]></ST>
       </Implementation>
     </Method>

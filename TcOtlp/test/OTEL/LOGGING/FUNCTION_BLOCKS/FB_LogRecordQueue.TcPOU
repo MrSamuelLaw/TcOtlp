@@ -116,7 +116,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[pop := FALSE;
-MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+failureReason := E_LogRecordQueueFailureReason.NA;
 
 IF pValue <> 0 THEN
 	failureReason := E_LogRecordQueueFailureReason.DESTINATION_ALREADY_ASSIGNED;
@@ -161,7 +161,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[push := FALSE;
-MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+failureReason := E_LogRecordQueueFailureReason.NA;
 
 IF pValue = 0 THEN
 	failureReason := E_LogRecordQueueFailureReason.RECORD_POINTER_NULL;
@@ -234,7 +234,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[transferTo := FALSE;
-MEMSET(ADR(failureReason), 0, SIZEOF(failureReason));
+failureReason := E_LogRecordQueueFailureReason.NA;
 
 IF ADR(destination) = THIS THEN
 	failureReason := E_LogRecordQueueFailureReason.SELF_TRANSFER_NOT_ALLOWED;

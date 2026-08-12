@@ -6,6 +6,7 @@
 {attribute 'to_string'}
 TYPE E_LoggerFailureReason :
 (
+	NA := 0,  // No failure occurred.
 	LOG_RECORD_ALREADY_STARTED := 1,  // A record is already being built by this logger.
 	LOG_RECORD_NOT_STARTED,  // No active record is available to modify or emit.
 	EVENT_NAME_INVALID,  // The event name could not be copied into an owned value.
@@ -30,6 +31,7 @@ END_TYPE
       <Data>
         <o xml:space="preserve" t="TextListEnumerationTextListObject">
           <l n="TextList" t="ArrayList" cet="TextListRow">
+            <o><v n="TextID">"NA"</v><v n="TextDefault">""</v><l n="LanguageTexts" t="ArrayList" /></o>
             <o><v n="TextID">"LOG_RECORD_ALREADY_STARTED"</v><v n="TextDefault">""</v><l n="LanguageTexts" t="ArrayList" /></o>
             <o><v n="TextID">"LOG_RECORD_NOT_STARTED"</v><v n="TextDefault">""</v><l n="LanguageTexts" t="ArrayList" /></o>
             <o><v n="TextID">"EVENT_NAME_INVALID"</v><v n="TextDefault">""</v><l n="LanguageTexts" t="ArrayList" /></o>
