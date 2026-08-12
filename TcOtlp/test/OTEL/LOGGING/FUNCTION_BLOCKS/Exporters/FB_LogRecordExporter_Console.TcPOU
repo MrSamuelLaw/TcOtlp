@@ -13,19 +13,28 @@ END_VAR
       <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="export" Id="{235fc2e0-2811-42e4-bfd0-f35f1b145a8e}">
-      <Declaration><![CDATA[METHOD export : E_PointerFactoryStatus
+      <Declaration><![CDATA[METHOD export : BOOL
 VAR_IN_OUT
 	(* ownership transfers when set to 0*)
 	pLogRecords	: POINTER TO FB_LogRecordQueue;
 END_VAR
+VAR_OUTPUT
+	failureResult: E_LogRecordExporterFailureReason;
+END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[THIS^.writeToConsole(pLogRecords);
-// ownership transferred; release the batch after writing
-IF pLogRecords <> 0 THEN
-	pLogRecords := pLogRecords^.delete();
+        <ST><![CDATA[export := FALSE;
+MEMSET(ADR(failureResult), 0, SIZEOF(failureResult));
+
+IF pLogRecords = 0 THEN
+	failureResult := E_LogRecordExporterFailureReason.BATCH_POINTER_NULL;
+	RETURN;
 END_IF
-export := E_PointerFactoryStatus.SUCCESS;]]></ST>
+
+THIS^.writeToConsole(pLogRecords);
+// ownership transferred; release the batch after writing
+pLogRecords := pLogRecords^.delete();
+export := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="isBusy" Id="{941c51ad-8a54-463a-9aa8-04504fc50b02}">

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_LogRecordProcessor_ForRecordsInspection" Id="{165df84d-fe08-4138-bc80-62512eeb91af}" SpecialFunc="None">
-    <Declaration><![CDATA[// NOTE: sts is inherited from FB_LogRecordProcessor_Batch
+    <Declaration><![CDATA[// lastOperationSucceeded and failureResult are inherited from FB_LogRecordProcessor_Batch
 FUNCTION_BLOCK FB_LogRecordProcessor_ForRecordsInspection EXTENDS FB_LogRecordProcessor_Batch]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
@@ -13,6 +13,7 @@ VAR_INPUT
 END_VAR
 VAR
 	record: POINTER TO FB_LogRecord;
+	cloneFailureResult: E_LogRecordCloneFailureReason;
 	queueFailureReason: E_LogRecordQueueFailureReason;
 END_VAR
 ]]></Declaration>
@@ -20,7 +21,8 @@ END_VAR
         <ST><![CDATA[IF THIS^._records = 0 THEN
 	THIS^._records := __NEW(FB_LogRecordQueue(maxSize:=THIS^.maxQueueSize));
 	IF THIS^._records = 0 THEN
-		THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+		THIS^.lastOperationSucceeded := FALSE;
+		THIS^.failureResult := E_LogRecordProcessorFailureReason.QUEUE_ALLOCATION_FAILURE;
 		RETURN;
 	END_IF
 END_IF
@@ -28,30 +30,41 @@ END_IF
 THIS^._records^.maxSize := THIS^.maxQueueSize;
 
 record := 0;
-THIS^.sts := logRecord.cloneTo(record);
-IF THIS^.sts <> E_PointerFactoryStatus.SUCCESS THEN
+IF NOT logRecord.cloneTo(pDest:=record, failureResult=>cloneFailureResult) THEN
+	THIS^.lastOperationSucceeded := FALSE;
+	THIS^.failureResult := E_LogRecordProcessorFailureReason.RECORD_CLONE_FAILURE;
 	RETURN;
 END_IF
 
 IF NOT THIS^._records^.push(pValue:=record, failureReason=>queueFailureReason) THEN
 	record := record^.delete();
-	THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	THIS^.lastOperationSucceeded := FALSE;
+	THIS^.failureResult := E_LogRecordProcessorFailureReason.QUEUE_PUSH_FAILURE;
 ELSE
 	record := 0;
+	THIS^.lastOperationSucceeded := TRUE;
+	MEMSET(ADR(THIS^.failureResult), 0, SIZEOF(THIS^.failureResult));
 END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="exportRecords" Id="{87208a9f-4de6-4281-8ddd-ed45005649ec}">
-      <Declaration><![CDATA[METHOD exportRecords : E_PointerFactoryStatus
+      <Declaration><![CDATA[METHOD exportRecords : BOOL
 VAR_INPUT
 	exporter: REFERENCE TO FB_LogRecordExporter_Base;
+END_VAR
+VAR_OUTPUT
+	failureResult: E_LogRecordExporterFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF __ISVALIDREF(exporter) THEN
-	exportRecords := exporter.export(THIS^._records);
+	exportRecords := exporter.export(
+		pLogRecords:=THIS^._records,
+		failureResult=>failureResult
+	);
 ELSE
-	exportRecords := E_PointerFactoryStatus.INVALID_PARAMETERS;
+	exportRecords := FALSE;
+	failureResult := E_LogRecordExporterFailureReason.EXPORTER_REFERENCE_INVALID;
 END_IF]]></ST>
       </Implementation>
     </Method>

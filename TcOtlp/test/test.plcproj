@@ -27,9 +27,6 @@
     <Compile Include="OTEL\COMMON\ENUMS\E_BytesEncoding.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\COMMON\ENUMS\E_PointerFactoryStatus.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\FB_InstrumentationScope.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -58,6 +55,15 @@
     <Compile Include="OTEL\LOGGING\ENUMS\E_LoggerProviderMethodStatus.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\LOGGING\ENUMS\E_LoggerFailureReason.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\LOGGING\ENUMS\E_LogRecordCloneFailureReason.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\LOGGING\ENUMS\E_LogRecordExporterFailureReason.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\LOGGING\ENUMS\E_LogRecordExporterState.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
@@ -65,6 +71,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\LOGGING\ENUMS\E_LogRecordQueueFailureReason.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\LOGGING\ENUMS\E_LogRecordProcessorFailureReason.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\LOGGING\ENUMS\E_SeverityNumber.TcTLEO">

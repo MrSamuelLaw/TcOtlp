@@ -80,9 +80,10 @@ VAR_INPUT
 	logRecord: REFERENCE TO FB_LogRecord;
 END_VAR
 VAR
-	_sts: E_PointerFactoryStatus;
 	_pLogRecord: POINTER TO FB_LogRecord;
+	_cloneFailureResult: E_LogRecordCloneFailureReason;
 	_queueFailureReason: E_LogRecordQueueFailureReason;
+	_exportFailureResult: E_LogRecordExporterFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -90,12 +91,11 @@ END_VAR
 
 IF __ISVALIDREF(THIS^._exporter) THEN
 	IF (NOT THIS^._exporter.isBusy()) THEN
-		_sts := logRecord.cloneTo(_pLogRecord);
-		IF _sts = E_PointerFactoryStatus.SUCCESS THEN
+		IF logRecord.cloneTo(pDest:=_pLogRecord, failureResult=>_cloneFailureResult) THEN
 			THIS^._records := __NEW(FB_LogRecordQueue(maxSize:=1));
 			IF THIS^._records <> 0 AND_THEN THIS^._records^.push(pValue:=_pLogRecord, failureReason=>_queueFailureReason) THEN
 				// A successful exporter accepts the pointer and clears _records.
-				THIS^._exporter.export(THIS^._records);
+				THIS^._exporter.export(pLogRecords:=THIS^._records, failureResult=>_exportFailureResult);
 			END_IF
 		END_IF
 		IF THIS^._records <> 0 THEN THIS^._records := THIS^._records^.delete(); END_IF

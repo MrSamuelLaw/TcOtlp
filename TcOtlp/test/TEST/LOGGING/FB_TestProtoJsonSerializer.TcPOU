@@ -91,7 +91,8 @@ VAR
 	processor: FB_LogRecordProcessor_ForRecordInspection(0);
 	processors: ARRAY [0..0] OF I_LogRecordProcessor := [processor];
 	serializer: FB_LogRecordProtoJsonSerializer();
-	sts: E_PointerFactoryStatus;
+	emitSuccess: BOOL;
+	emitFailureResult: E_LoggerFailureReason;
 	timestamp: ULINT := 1581452773000000789;
 	traceId: ARRAY [0..15] OF BYTE := [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 	spanId: ARRAY [0..7] OF BYTE := [16, 17, 18, 19, 20, 21, 22, 23];
@@ -127,15 +128,14 @@ END_VAR
 		.addStringAttribute('stats.label', 'pVal')
 		.addNumberAttribute('stats.duration_ms', durationMs)
 		.addNumberAttribute('stats.temperature', temperature);
-	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, logger.sts, 'Expected log record creation to succeed');
 	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected a log record before emission');
 	IF logger.pLogRecord <> 0 THEN
 		logger.pLogRecord^.droppedAttributesCount := 2;
 	END_IF
 
-	sts := logger.emit(processors);
-	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, sts, 'Expected log record emission to succeed');
-	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, processor.sts, 'Expected emitted record capture to succeed');
+	emitSuccess := logger.emit(processors:=processors, failureResult=>emitFailureResult);
+	THIS^.AssertTrue(emitSuccess, 'Expected log record emission to succeed');
+	THIS^.AssertTrue(processor.lastOperationSucceeded, 'Expected emitted record capture to succeed');
 	THIS^.AssertTrue(logger.pLogRecord = 0, 'Expected emit to release the logger-owned record');
 	pRecord := processor.pop();
 	THIS^.AssertTrue(pRecord <> 0, 'Expected the processor to return the emitted record');

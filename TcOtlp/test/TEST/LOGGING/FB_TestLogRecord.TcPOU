@@ -25,7 +25,8 @@ VAR
 	traceIdBytes: ARRAY [0..15] OF BYTE := [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 	spanIdBytes: ARRAY [0..7] OF BYTE := [16, 17, 18, 19, 20, 21, 22, 23];
 	flags: E_LogRecordFlag := E_LogRecordFlag.LOG_RECORD_FLAGS_TRACE_FLAGS_MASK;
-	sts: E_PointerFactoryStatus;
+	cloneSuccess: BOOL;
+	cloneFailureResult: E_LogRecordCloneFailureReason;
 	attributesSuccess: BOOL;
 	attributesFailureReason: E_AttributesFailureReason;
 	pClone: POINTER TO FB_LogRecord;
@@ -65,15 +66,27 @@ END_VAR
 		.setSpanId(ADR(spanIdBytes), SIZEOF(spanIdBytes))
 		.setFlags(flags)
 		.addStringAttribute('record.key', 'record.value');
-	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, logger.sts, 'Expected source log record creation to succeed');
 	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected a source log record');
 
 	IF logger.pLogRecord <> 0 THEN
 		logger.pLogRecord^.droppedAttributesCount := 4;
-		sts := logger.pLogRecord^.cloneTo(pClone);
-		THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, sts, 'Expected log record clone to succeed');
+		cloneSuccess := logger.pLogRecord^.cloneTo(
+			pDest:=pClone,
+			failureResult=>cloneFailureResult
+		);
+		THIS^.AssertTrue(cloneSuccess, 'Expected log record clone to succeed');
 		THIS^.AssertTrue(pClone <> 0, 'Expected a cloned log record');
 		THIS^.AssertTrue(pClone <> logger.pLogRecord, 'Expected a distinct log record allocation');
+
+		cloneSuccess := logger.pLogRecord^.cloneTo(
+			pDest:=pClone,
+			failureResult=>cloneFailureResult
+		);
+		THIS^.AssertFalse(cloneSuccess, 'Expected cloning into an assigned destination to fail');
+		THIS^.AssertTrue(
+			cloneFailureResult = E_LogRecordCloneFailureReason.DESTINATION_ALREADY_ASSIGNED,
+			'Expected DESTINATION_ALREADY_ASSIGNED'
+		);
 	END_IF
 
 	IF pClone <> 0 AND_THEN logger.pLogRecord <> 0 THEN

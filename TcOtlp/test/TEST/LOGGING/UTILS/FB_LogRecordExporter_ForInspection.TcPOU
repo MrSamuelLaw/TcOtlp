@@ -15,27 +15,36 @@ END_VAR
       <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="export" Id="{5e7c1f92-3a48-4d06-8b5d-9f24c6a1e7b8}">
-      <Declaration><![CDATA[METHOD export : E_PointerFactoryStatus
+      <Declaration><![CDATA[METHOD export : BOOL
 VAR_IN_OUT
 	pLogRecords: POINTER TO FB_LogRecordQueue;  // ownership transfers when set to 0
 END_VAR
+VAR_OUTPUT
+	failureResult: E_LogRecordExporterFailureReason;
+END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF THIS^.busy THEN
-	export := E_PointerFactoryStatus.POINTER_OWNERSHIP_TRANSFER_FAILURE;
+        <ST><![CDATA[export := FALSE;
+MEMSET(ADR(failureResult), 0, SIZEOF(failureResult));
+
+IF pLogRecords = 0 THEN
+	failureResult := E_LogRecordExporterFailureReason.BATCH_POINTER_NULL;
 	RETURN;
 END_IF
 
-IF pLogRecords <> 0 THEN
-	// release any previously captured batch, then take ownership
-	IF THIS^._pLogRecords <> 0 AND THIS^._pLogRecords <> pLogRecords THEN
-		THIS^.free();
-	END_IF
-	THIS^._pLogRecords := pLogRecords;
-	pLogRecords := 0;
+IF THIS^.busy THEN
+	failureResult := E_LogRecordExporterFailureReason.ACTIVE_EXPORT_IN_PROGRESS;
+	RETURN;
 END_IF
 
-export := E_PointerFactoryStatus.SUCCESS;]]></ST>
+// release any previously captured batch, then take ownership
+IF THIS^._pLogRecords <> 0 AND THIS^._pLogRecords <> pLogRecords THEN
+	THIS^.free();
+END_IF
+THIS^._pLogRecords := pLogRecords;
+pLogRecords := 0;
+
+export := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="isBusy" Id="{a1f83d64-92b7-4e5a-8c39-7d15b0e6c2f9}">

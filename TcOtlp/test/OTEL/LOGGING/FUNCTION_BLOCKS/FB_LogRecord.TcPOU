@@ -26,21 +26,25 @@ END_VAR
       <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="cloneTo" Id="{4a867786-45e0-429a-8696-63d77c0ab19f}">
-      <Declaration><![CDATA[METHOD cloneTo : E_PointerFactoryStatus
+      <Declaration><![CDATA[METHOD cloneTo : BOOL
 VAR_IN_OUT
 	pDest: POINTER TO FB_LogRecord;
 END_VAR
+VAR_OUTPUT
+	failureResult: E_LogRecordCloneFailureReason;
+END_VAR
 VAR
 	_pClone: POINTER TO FB_LogRecord;
-	_factorySuccess: BOOL;
 	_factoryFailureReason: E_ValueFactoryFailureReason;
-	_attributesSuccess: BOOL;
 	_attributesFailureReason: E_AttributesFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pDest <> 0 THEN
-	cloneTo := E_PointerFactoryStatus.POINTER_ALREADY_ALLOCATED;
+        <ST><![CDATA[cloneTo := FALSE;
+MEMSET(ADR(failureResult), 0, SIZEOF(failureResult));
+
+IF pDest <> 0 THEN
+	failureResult := E_LogRecordCloneFailureReason.DESTINATION_ALREADY_ASSIGNED;
 	RETURN;
 END_IF
 
@@ -49,46 +53,39 @@ _pClone := __NEW(FB_LogRecord(
 	timestamp:=THIS^.timestamp
 ));
 IF _pClone = 0 THEN
-	cloneTo := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	failureResult := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
 	RETURN;
 END_IF
 
 _pClone^.droppedAttributesCount := THIS^.droppedAttributesCount;
 
 IF THIS^.eventName <> 0 THEN
-	_factorySuccess := ValueFactory.cloneString(
+	IF NOT ValueFactory.cloneString(
 		pDest:=_pClone^.eventName,
 		pSrc:=THIS^.eventName,
 		failureReason=>_factoryFailureReason
-	);
-	IF NOT _factorySuccess THEN
-		CASE _factoryFailureReason OF
-			E_ValueFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED:
-				cloneTo := E_PointerFactoryStatus.POINTER_ALREADY_ALLOCATED;
-			E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE:
-				cloneTo := E_PointerFactoryStatus.OUT_OF_MEMORY;
-			E_ValueFactoryFailureReason.UNSUPPORTED_VALUE_TYPE:
-				cloneTo := E_PointerFactoryStatus.UNSPECIFIED_ERROR;
+	) THEN
+		IF _factoryFailureReason = E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE THEN
+			failureResult := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
 		ELSE
-			cloneTo := E_PointerFactoryStatus.INVALID_PARAMETERS;
-		END_CASE
+			failureResult := E_LogRecordCloneFailureReason.EVENT_NAME_INVALID;
+		END_IF
 		_pClone := _pClone^.delete();
 		RETURN;
 	END_IF
 END_IF
 
 IF THIS^.traceId <> 0 THEN
-	_factorySuccess := ValueFactory.createTraceId(
+	IF NOT ValueFactory.createTraceId(
 		pDest:=_pClone^.traceId,
 		pBytes:=ADR(THIS^.traceId^.bytes),
 		nSize:=SIZEOF(THIS^.traceId^.bytes),
 		failureReason=>_factoryFailureReason
-	);
-	IF NOT _factorySuccess THEN
+	) THEN
 		IF _factoryFailureReason = E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE THEN
-			cloneTo := E_PointerFactoryStatus.OUT_OF_MEMORY;
+			failureResult := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
 		ELSE
-			cloneTo := E_PointerFactoryStatus.INVALID_PARAMETERS;
+			failureResult := E_LogRecordCloneFailureReason.TRACE_ID_INVALID;
 		END_IF
 		_pClone := _pClone^.delete();
 		RETURN;
@@ -98,7 +95,7 @@ END_IF
 IF THIS^.flags <> 0 THEN
 	_pClone^.flags := __NEW(E_LogRecordFlag);
 	IF _pClone^.flags = 0 THEN
-		cloneTo := E_PointerFactoryStatus.OUT_OF_MEMORY;
+		failureResult := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
 		_pClone := _pClone^.delete();
 		RETURN;
 	END_IF
@@ -106,17 +103,16 @@ IF THIS^.flags <> 0 THEN
 END_IF
 
 IF THIS^.spanId <> 0 THEN
-	_factorySuccess := ValueFactory.createSpanId(
+	IF NOT ValueFactory.createSpanId(
 		pDest:=_pClone^.spanId,
 		pBytes:=ADR(THIS^.spanId^.bytes),
 		nSize:=SIZEOF(THIS^.spanId^.bytes),
 		failureReason=>_factoryFailureReason
-	);
-	IF NOT _factorySuccess THEN
+	) THEN
 		IF _factoryFailureReason = E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE THEN
-			cloneTo := E_PointerFactoryStatus.OUT_OF_MEMORY;
+			failureResult := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
 		ELSE
-			cloneTo := E_PointerFactoryStatus.INVALID_PARAMETERS;
+			failureResult := E_LogRecordCloneFailureReason.SPAN_ID_INVALID;
 		END_IF
 		_pClone := _pClone^.delete();
 		RETURN;
@@ -124,56 +120,60 @@ IF THIS^.spanId <> 0 THEN
 END_IF
 
 IF THIS^.body <> 0 THEN
-	_factorySuccess := ValueFactory.cloneAnyValue(
+	IF NOT ValueFactory.cloneAnyValue(
 		pDest:=_pClone^.body,
 		pSrc:=THIS^.body,
 		failureReason=>_factoryFailureReason
-	);
-	IF NOT _factorySuccess THEN
+	) THEN
 		CASE _factoryFailureReason OF
-			E_ValueFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED:
-				cloneTo := E_PointerFactoryStatus.POINTER_ALREADY_ALLOCATED;
 			E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE:
-				cloneTo := E_PointerFactoryStatus.OUT_OF_MEMORY;
+				failureResult := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
 			E_ValueFactoryFailureReason.UNSUPPORTED_VALUE_TYPE:
-				cloneTo := E_PointerFactoryStatus.UNSPECIFIED_ERROR;
+				failureResult := E_LogRecordCloneFailureReason.BODY_VALUE_TYPE_UNSUPPORTED;
 		ELSE
-			cloneTo := E_PointerFactoryStatus.INVALID_PARAMETERS;
+			failureResult := E_LogRecordCloneFailureReason.BODY_VALUE_INVALID;
 		END_CASE
 		_pClone := _pClone^.delete();
 		RETURN;
 	END_IF
 END_IF
 
-cloneTo := _pClone^.resource.copyFrom(THIS^.resource);
-IF cloneTo <> E_PointerFactoryStatus.SUCCESS THEN
+IF NOT _pClone^.resource.copyFrom(src:=THIS^.resource, failureResult=>_attributesFailureReason) THEN
+	IF _attributesFailureReason = E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE THEN
+		failureResult := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
+	ELSE
+		failureResult := E_LogRecordCloneFailureReason.RESOURCE_COPY_FAILURE;
+	END_IF
 	_pClone := _pClone^.delete();
 	RETURN;
 END_IF
 
-cloneTo := _pClone^.scope.copyFrom(THIS^.scope);
-IF cloneTo <> E_PointerFactoryStatus.SUCCESS THEN
+IF NOT _pClone^.scope.copyFrom(src:=THIS^.scope, failureResult=>_attributesFailureReason) THEN
+	IF _attributesFailureReason = E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE THEN
+		failureResult := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
+	ELSE
+		failureResult := E_LogRecordCloneFailureReason.SCOPE_COPY_FAILURE;
+	END_IF
 	_pClone := _pClone^.delete();
 	RETURN;
 END_IF
 
-_attributesSuccess := _pClone^.attributes.copyFrom(
+IF NOT _pClone^.attributes.copyFrom(
 	src:=THIS^.attributes,
 	failureReason=>_attributesFailureReason
-);
-IF NOT _attributesSuccess THEN
-	IF _attributesFailureReason = E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE
-		OR_ELSE _attributesFailureReason = E_AttributesFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED THEN
-		cloneTo := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	) THEN
+	IF _attributesFailureReason = E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE THEN
+		failureResult := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
 	ELSE
-		cloneTo := E_PointerFactoryStatus.INVALID_PARAMETERS;
+		failureResult := E_LogRecordCloneFailureReason.ATTRIBUTE_COPY_FAILURE;
 	END_IF
 	_pClone := _pClone^.delete();
 	RETURN;
 END_IF
 
 pDest := _pClone;
-cloneTo := E_PointerFactoryStatus.SUCCESS;]]></ST>
+_pClone := 0;
+cloneTo := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="delete" Id="{3cb201ad-0be2-4ce4-945f-e69f0fb01637}">

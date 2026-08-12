@@ -54,7 +54,7 @@ END_VAR
 	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(ts3)).emit(processors);
 	loggerBA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(ts4)).emit(processors);
 	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(ts5)).emit(processors);
-	THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, processor.sts, 'Expected the last emit to succeed');
+	THIS^.AssertTrue(processor.lastOperationSucceeded, 'Expected the last emit to succeed');
 	THIS^.AssertTrue(processor.records.count = 5, 'Expected five queued records');
 
 	// the queue keeps arrival order, oldest at the head

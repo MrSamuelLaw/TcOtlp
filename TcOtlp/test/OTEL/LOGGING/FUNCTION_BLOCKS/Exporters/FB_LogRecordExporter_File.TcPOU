@@ -142,32 +142,41 @@ fileCloserErrId := _fileCloser.nErrId;
 ]]></ST>
     </Implementation>
     <Method Name="export" Id="{b40925c8-02a7-4045-bcc3-ff164425210b}">
-      <Declaration><![CDATA[METHOD export: E_PointerFactoryStatus
+      <Declaration><![CDATA[METHOD export: BOOL
 VAR_IN_OUT
 	pLogRecords: POINTER TO FB_LogRecordQueue;  // ownership transfers when set to 0
+END_VAR
+VAR_OUTPUT
+	failureResult: E_LogRecordExporterFailureReason;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[// Only take ownership when the exporter has no active buffer.
-IF THIS^._pLogRecords = 0 AND pLogRecords <> 0 THEN
-	// Prepare a completed exporter to accept the next batch immediately.
-	IF THIS^.currentState = E_FileExporterState.done OR THIS^.currentState = E_FileExporterState.error THEN
-		THIS^.currentState := E_FileExporterState.idle;
-		THIS^._computedState := E_FileExporterState.idle;
-	END_IF
-	THIS^._pLogRecords := pLogRecords;
-	pLogRecords := 0;
-END_IF
+        <ST><![CDATA[export := FALSE;
+MEMSET(ADR(failureResult), 0, SIZEOF(failureResult));
 
-IF THIS^._pLogRecords = 0 THEN
-	export := E_PointerFactoryStatus.SUCCESS;
+IF pLogRecords = 0 THEN
+	failureResult := E_LogRecordExporterFailureReason.BATCH_POINTER_NULL;
 	RETURN;
 END_IF
+
+// Only take ownership when the exporter has no active buffer.
+IF THIS^._pLogRecords <> 0 THEN
+	failureResult := E_LogRecordExporterFailureReason.ACTIVE_EXPORT_IN_PROGRESS;
+	RETURN;
+END_IF
+
+// Prepare a completed exporter to accept the next batch immediately.
+IF THIS^.currentState = E_FileExporterState.done OR THIS^.currentState = E_FileExporterState.error THEN
+	THIS^.currentState := E_FileExporterState.idle;
+	THIS^._computedState := E_FileExporterState.idle;
+END_IF
+THIS^._pLogRecords := pLogRecords;
+pLogRecords := 0;
 
 IF THIS^._pLogRecords^.count <= 0 THEN
 	THIS^.free();
-	export := E_PointerFactoryStatus.SUCCESS;
-	RETURN;
-END_IF]]></ST>
+END_IF
+
+export := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Init" Id="{749c920a-b4a3-4d4e-b81c-a6a8ffa6d49c}">

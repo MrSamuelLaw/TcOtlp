@@ -15,29 +15,22 @@ END_VAR]]></Declaration>
       <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="copyFrom" Id="{545489b4-e9b6-45f4-bd71-13b12b5d895a}">
-      <Declaration><![CDATA[METHOD copyFrom : E_PointerFactoryStatus
+      <Declaration><![CDATA[METHOD copyFrom : BOOL
 VAR_IN_OUT
 	src: FB_InstrumentationScope;
 END_VAR
-VAR
-	_attributesSuccess: BOOL;
-	_attributesFailureReason: E_AttributesFailureReason;
-END_VAR]]></Declaration>
+VAR_OUTPUT
+	failureResult: E_AttributesFailureReason;
+END_VAR
+]]></Declaration>
       <Implementation>
-        <ST><![CDATA[THIS^.name := src.name;
+        <ST><![CDATA[MEMSET(ADR(failureResult), 0, SIZEOF(failureResult));
+THIS^.name := src.name;
 THIS^.version := src.version;
 THIS^.droppedAttributesCount := src.droppedAttributesCount;
 THIS^.schemaUrl := src.schemaUrl;
 THIS^.attributes.free();
-_attributesSuccess := THIS^.attributes.copyFrom(src:=src.attributes, failureReason=>_attributesFailureReason);
-IF _attributesSuccess THEN
-	copyFrom := E_PointerFactoryStatus.SUCCESS;
-ELSIF _attributesFailureReason = E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE
-	OR_ELSE _attributesFailureReason = E_AttributesFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED THEN
-	copyFrom := E_PointerFactoryStatus.OUT_OF_MEMORY;
-ELSE
-	copyFrom := E_PointerFactoryStatus.INVALID_PARAMETERS;
-END_IF
+copyFrom := THIS^.attributes.copyFrom(src:=src.attributes, failureReason=>failureResult);
 ]]></ST>
       </Implementation>
     </Method>

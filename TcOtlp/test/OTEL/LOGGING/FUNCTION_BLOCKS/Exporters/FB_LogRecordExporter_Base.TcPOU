@@ -11,9 +11,12 @@ END_VAR
       <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="export" Id="{ae492816-f399-4168-9ef3-5fffa135683d}">
-      <Declaration><![CDATA[METHOD ABSTRACT export: E_PointerFactoryStatus
+      <Declaration><![CDATA[METHOD ABSTRACT export: BOOL
 VAR_IN_OUT
 	pLogRecords: POINTER TO FB_LogRecordQueue;  // ownership transfers when set to 0
+END_VAR
+VAR_OUTPUT
+	failureResult: E_LogRecordExporterFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>

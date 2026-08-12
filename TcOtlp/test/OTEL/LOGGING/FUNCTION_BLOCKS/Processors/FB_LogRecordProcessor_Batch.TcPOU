@@ -19,7 +19,8 @@ VAR_INPUT
 	maxExportBatchSize: UDINT := 512;					// the maximum batch size of every export. It must be smaller or equal to maxQueueSize. The default value is 512.
 END_VAR
 VAR_OUTPUT
-	sts: E_PointerFactoryStatus;
+	lastOperationSucceeded: BOOL := TRUE;
+	failureResult: E_LogRecordProcessorFailureReason;
 END_VAR
 VAR
 	_scheduleDelayTimer: TON;
@@ -86,7 +87,8 @@ END_IF
 IF NOT bInCopyCode THEN
 	THIS^._records := __NEW(FB_LogRecordQueue(maxSize:=THIS^.maxQueueSize));
 	IF THIS^._records = 0 THEN
-		THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+		THIS^.lastOperationSucceeded := FALSE;
+		THIS^.failureResult := E_LogRecordProcessorFailureReason.QUEUE_ALLOCATION_FAILURE;
 	END_IF
 END_IF]]></ST>
       </Implementation>
@@ -117,6 +119,7 @@ VAR_INPUT
 END_VAR
 VAR
 	_pRecord: POINTER TO FB_LogRecord;
+	_cloneFailureResult: E_LogRecordCloneFailureReason;
 	_queueFailureReason: E_LogRecordQueueFailureReason;
 END_VAR
 ]]></Declaration>
@@ -125,19 +128,22 @@ END_VAR
 
 IF NOT THIS^.ensureQueue() THEN RETURN; END_IF
 _pRecord := 0;
-THIS^.sts := logRecord.cloneTo(_pRecord);
-IF THIS^.sts <> E_PointerFactoryStatus.SUCCESS THEN
+IF NOT logRecord.cloneTo(pDest:=_pRecord, failureResult=>_cloneFailureResult) THEN
 	IF _pRecord <> 0 THEN _pRecord := _pRecord^.delete(); END_IF
+	THIS^.lastOperationSucceeded := FALSE;
+	THIS^.failureResult := E_LogRecordProcessorFailureReason.RECORD_CLONE_FAILURE;
 	RETURN;
 END_IF
 
 IF NOT THIS^._records^.push(pValue:=_pRecord, failureReason=>_queueFailureReason) THEN
 	_pRecord := _pRecord^.delete();
-	THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	THIS^.lastOperationSucceeded := FALSE;
+	THIS^.failureResult := E_LogRecordProcessorFailureReason.QUEUE_PUSH_FAILURE;
 	RETURN;
 END_IF
 
-THIS^.sts := E_PointerFactoryStatus.SUCCESS;]]></ST>
+THIS^.lastOperationSucceeded := TRUE;
+MEMSET(ADR(THIS^.failureResult), 0, SIZEOF(THIS^.failureResult));]]></ST>
       </Implementation>
     </Method>
     <Method Name="ensureQueue" Id="{ea1eecb5-ef37-433e-a442-c6100f2bf2c0}">
@@ -152,7 +158,8 @@ ensureQueue := THIS^._records <> 0;
 IF ensureQueue THEN
 	THIS^._records^.maxSize := THIS^.maxQueueSize;
 ELSE
-	THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	THIS^.lastOperationSucceeded := FALSE;
+	THIS^.failureResult := E_LogRecordProcessorFailureReason.QUEUE_ALLOCATION_FAILURE;
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -192,7 +199,8 @@ END_IF
 
 THIS^._buffer := __NEW(FB_LogRecordQueue(maxSize:=THIS^.maxExportBatchSize));
 IF THIS^._buffer = 0 THEN
-	THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+	THIS^.lastOperationSucceeded := FALSE;
+	THIS^.failureResult := E_LogRecordProcessorFailureReason.QUEUE_ALLOCATION_FAILURE;
 	RETURN;
 END_IF
 THIS^._buffer^.maxSize := THIS^.maxExportBatchSize;
@@ -202,7 +210,8 @@ FOR _idx := 1 TO THIS^.maxExportBatchSize DO
 
 	IF NOT THIS^._buffer^.push(pValue:=_pRecord, failureReason=>_queueFailureReason) THEN
 		_pRecord := _pRecord^.delete();
-		THIS^.sts := E_PointerFactoryStatus.OUT_OF_MEMORY;
+		THIS^.lastOperationSucceeded := FALSE;
+		THIS^.failureResult := E_LogRecordProcessorFailureReason.QUEUE_PUSH_FAILURE;
 		RETURN;
 	END_IF
 
@@ -218,6 +227,9 @@ buildBuffer := THIS^._buffer^.count > 0;]]></ST>
 	Returns TRUE only when the exporter accepts ownership of that buffer.
 *)
 METHOD pushToExporter : BOOL
+VAR
+	_exportFailureResult: E_LogRecordExporterFailureReason;
+END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[pushToExporter := FALSE;
@@ -237,8 +249,10 @@ IF THIS^._buffer^.count = 0 THEN
 	RETURN;
 END_IF
 
-THIS^._exporter.export(THIS^._buffer);
-pushToExporter := THIS^._buffer = 0;]]></ST>
+pushToExporter := THIS^._exporter.export(
+	pLogRecords:=THIS^._buffer,
+	failureResult=>_exportFailureResult
+);]]></ST>
       </Implementation>
     </Method>
   </POU>

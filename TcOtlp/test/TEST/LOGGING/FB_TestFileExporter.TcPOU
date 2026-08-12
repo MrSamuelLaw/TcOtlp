@@ -37,10 +37,12 @@ END_VAR
 VAR
 	_num: UINT;
 	_fileSize: ULINT;
-	_exportStatus: E_PointerFactoryStatus;
-	_firstSts: E_PointerFactoryStatus;
-	_secondSts: E_PointerFactoryStatus;
-	_thirdSts: E_PointerFactoryStatus;
+	_exportSucceeded: BOOL;
+	_firstEmitSucceeded: BOOL;
+	_secondEmitSucceeded: BOOL;
+	_thirdEmitSucceeded: BOOL;
+	_loggerFailureResult: E_LoggerFailureReason;
+	_exporterFailureResult: E_LogRecordExporterFailureReason;
 	_timestamp: ULINT := ULINT#1581452773000000789;
 	_traceId: ARRAY[0..ValueFactory.nTraceIdBytes-1] OF BYTE := [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 	_spanId: ARRAY[0..ValueFactory.nSpanIdBytes-1] OF BYTE := [16, 17, 18, 19, 20, 21, 22, 23];
@@ -58,7 +60,7 @@ END_VAR]]></Declaration>
 				_resource.attributes.setStringAttribute('host.id', 'PLC1');
 			END_IF
 			_num := 1;
-			_firstSts := _logger
+			_firstEmitSucceeded := _logger
 				.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG, timestamp:=ADR(_timestamp))
 				.setBody('First batched log record')
 				.setEventName('BatchRecord1')
@@ -67,30 +69,30 @@ END_VAR]]></Declaration>
 				.setFlags(E_LogRecordFlag.LOG_RECORD_FLAGS_TRACE_FLAGS_MASK)
 				.addStringAttribute('batch.position', 'first')
 				.addNumberAttribute('batch.positionNum', _num)
-				.emit(_processors);
+				.emit(processors:=_processors, failureResult=>_loggerFailureResult);
 			_num := 2;
-			_secondSts := _logger
+			_secondEmitSucceeded := _logger
 				.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(_timestamp))
 				.setBody('Second batched log record')
 				.setEventName('BatchRecord2')
 				.addStringAttribute('batch.position', 'second')
 				.addNumberAttribute('batch.positionNum', _num)
-				.emit(_processors);
+				.emit(processors:=_processors, failureResult=>_loggerFailureResult);
 			_num := 3;
-			_thirdSts := _logger
+			_thirdEmitSucceeded := _logger
 				.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_WARN, timestamp:=ADR(_timestamp))
 				.setBody('Third batched log record')
 				.setEventName('BatchRecord3')
 				.addStringAttribute('batch.position', 'third')
 				.addNumberAttribute('batch.positionNum', _num)
-				.emit(_processors);
-			THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, _firstSts, 'First emit status was unsuccessful');
-			THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, _secondSts, 'Second emit status was unsuccessful');
-			THIS^.AssertEquals_UDINT(E_PointerFactoryStatus.SUCCESS, _thirdSts, 'Third emit status was unsuccessful');
+				.emit(processors:=_processors, failureResult=>_loggerFailureResult);
+			THIS^.AssertTrue(_firstEmitSucceeded, 'First emit was unsuccessful');
+			THIS^.AssertTrue(_secondEmitSucceeded, 'Second emit was unsuccessful');
+			THIS^.AssertTrue(_thirdEmitSucceeded, 'Third emit was unsuccessful');
 			THIS^.AssertTrue(_logger.pLogRecord = 0, 'Expected emit to release the logger-owned record');
-			IF _firstSts = E_PointerFactoryStatus.SUCCESS
-				AND _secondSts = E_PointerFactoryStatus.SUCCESS
-				AND _thirdSts = E_PointerFactoryStatus.SUCCESS THEN
+			IF _firstEmitSucceeded
+				AND _secondEmitSucceeded
+				AND _thirdEmitSucceeded THEN
 				THIS^.AssertEquals_UDINT(3, _processor.records.count, 'Expected the processor to capture all three log records');
 				_state := 10;
 				RETURN;
@@ -101,8 +103,11 @@ END_VAR]]></Declaration>
 			
 		10: // export
 			IF _processor.pRecords <> 0 THEN
-				_exportStatus := _processor.exportRecords(_exporter);
-				IF _exportStatus <> E_PointerFactoryStatus.SUCCESS OR_ELSE _processor.pRecords <> 0 THEN
+				_exportSucceeded := _processor.exportRecords(
+					exporter:=_exporter,
+					failureResult=>_exporterFailureResult
+				);
+				IF NOT _exportSucceeded OR_ELSE _processor.pRecords <> 0 THEN
 					THIS^.AssertTrue(FALSE, 'Exporter failed to take ownership of the processor buffer');
 					_state := 30;
 					RETURN;
