@@ -1,6 +1,7 @@
 # Notes For Next Time
-1. Refactor Log Record linked list to be a queue.
-2. Refactor Log Record operation status to be a unique enum
+1. Refactor processors to use the bool -> status architecture
+2. Completely overhaul the batching processor.
+3. Add an optional "limit" parameter to the transferTo method for log record queue.
 
 ## Modeling
 - [x] Update the domain model

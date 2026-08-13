@@ -3,7 +3,7 @@
   <POU Name="FB_LogRecordProcessor_Simple" Id="{90ded010-1262-4ab5-9db9-0fd13f25279d}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProcessor_Simple EXTENDS FB_LogRecordProcessor_Mixin IMPLEMENTS I_LogRecordProcessor;
 VAR
-	_records: POINTER TO FB_LogRecordQueue;
+	_records: FB_LogRecordQueue(maxSize:=1);
 	_exporter: REFERENCE TO FB_LogRecordExporter_Base;
 END_VAR
 ]]></Declaration>
@@ -69,9 +69,7 @@ END_IF]]></ST>
       <Declaration><![CDATA[METHOD free
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF THIS^._records <> 0 THEN
-	THIS^._records := THIS^._records^.delete();
-END_IF]]></ST>
+        <ST><![CDATA[THIS^._records.free();]]></ST>
       </Implementation>
     </Method>
     <Method Name="onEmit" Id="{1a689aff-c482-4d8e-b59e-78bd1c66f367}">
@@ -83,7 +81,7 @@ VAR
 	_pLogRecord: POINTER TO FB_LogRecord;
 	_cloneFailureResult: E_LogRecordCloneFailureReason;
 	_queueFailureReason: E_LogRecordQueueFailureReason;
-	_exportFailureResult: E_LogRecordExporterFailureReason;
+	_exportFailureReason: E_LogRecordExporterFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -92,13 +90,14 @@ END_VAR
 IF __ISVALIDREF(THIS^._exporter) THEN
 	IF (NOT THIS^._exporter.isBusy()) THEN
 		IF logRecord.cloneTo(pDest:=_pLogRecord, failureResult=>_cloneFailureResult) THEN
-			THIS^._records := __NEW(FB_LogRecordQueue(maxSize:=1));
-			IF THIS^._records <> 0 AND_THEN THIS^._records^.push(pValue:=_pLogRecord, failureReason=>_queueFailureReason) THEN
-				// A successful exporter accepts the pointer and clears _records.
-				THIS^._exporter.export(pLogRecords:=THIS^._records, failureResult=>_exportFailureResult);
+			IF THIS^._records.push(pValue:=_pLogRecord, failureReason=>_queueFailureReason) THEN
+				THIS^._exporter.export(
+					logRecords:=THIS^._records,
+					count:=1,
+					failureReason=>_exportFailureReason
+				);
 			END_IF
 		END_IF
-		IF THIS^._records <> 0 THEN THIS^._records := THIS^._records^.delete(); END_IF
 	END_IF
 END_IF
 

@@ -7,7 +7,7 @@ VAR
 	fbTestAttributes: FB_TestAttributes();
 	fbTestLogRecordQueue: FB_TestLogRecordQueue();
 	fbTestLogger: FB_TestLogger();
-// 	fbTestProcessors: FB_TestLogProcessors();
+	fbTestProcessors: FB_TestLogProcessors();
 	fbTestExporters: FB_TestLogExporters();
 // 	fbTestLogRecord: FB_TestLogRecord();
 	fbTestProtoJsonSerializer: FB_TestProtoJsonSerializer();

@@ -6,77 +6,8 @@ FUNCTION_BLOCK FB_TestLogExporters EXTENDS FB_TestSuite
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[testOneToOneProcessorRelationship();
-testExportBatchSizeBound();
 testGroupsRecordsThroughExporter();]]></ST>
     </Implementation>
-    <Method Name="testExportBatchSizeBound" Id="{709f342a-7a2f-4bb6-9af7-910f511a15ec}">
-      <Declaration><![CDATA[METHOD testExportBatchSizeBound : REFERENCE TO FB_Test
-VAR
-	fileExporter: FB_LogRecordExporter_File('C:\Users\samue\Desktop\programming projects\TcOtlp\logs.jsonl');
-	consoleExporter: FB_LogRecordExporter_Console;
-	pBatch: POINTER TO FB_LogRecordQueue;
-	pRecord: POINTER TO FB_LogRecord;
-	queueFailureReason: E_LogRecordQueueFailureReason;
-	exporterFailureReason: E_LogRecordExporterFailureReason;
-	previousMaxExportBatchSize: UDINT;
-	exportSucceeded: BOOL;
-	pushSucceeded: BOOL;
-	_idx: UDINT;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test Export Batch Size Bound');
-	previousMaxExportBatchSize := GVL.MAX_EXPORT_BATCH_SIZE;
-	GVL.MAX_EXPORT_BATCH_SIZE := 1;
-	pBatch := __NEW(FB_LogRecordQueue(maxSize:=2));
-	THIS^.AssertTrue(pBatch <> 0, 'Expected oversized batch allocation to succeed');
-
-	IF pBatch <> 0 THEN
-		FOR _idx := 1 TO 2 DO
-			pRecord := __NEW(FB_LogRecord(
-				severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
-				timestamp:=_idx
-			));
-			THIS^.AssertTrue(pRecord <> 0, 'Expected record allocation to succeed');
-			IF pRecord = 0 THEN EXIT; END_IF
-			pushSucceeded := pBatch^.push(
-				pValue:=pRecord,
-				failureReason=>queueFailureReason
-			);
-			THIS^.AssertTrue(pushSucceeded, 'Expected oversized batch setup to succeed');
-			IF NOT pushSucceeded AND_THEN pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
-		END_FOR
-
-		exportSucceeded := fileExporter.export(
-			pLogRecords:=pBatch,
-			failureResult=>exporterFailureReason
-		);
-		THIS^.AssertFalse(exportSucceeded, 'Expected file exporter to reject an oversized batch');
-		THIS^.AssertTrue(pBatch <> 0, 'Expected rejected file batch ownership to remain with the caller');
-		THIS^.AssertTrue(
-			exporterFailureReason = E_LogRecordExporterFailureReason.BATCH_SIZE_EXCEEDS_MAX,
-			'Expected file exporter batch-size failure reason'
-		);
-
-		exportSucceeded := consoleExporter.export(
-			pLogRecords:=pBatch,
-			failureResult=>exporterFailureReason
-		);
-		THIS^.AssertFalse(exportSucceeded, 'Expected console exporter to reject an oversized batch');
-		THIS^.AssertTrue(pBatch <> 0, 'Expected rejected console batch ownership to remain with the caller');
-		THIS^.AssertTrue(
-			exporterFailureReason = E_LogRecordExporterFailureReason.BATCH_SIZE_EXCEEDS_MAX,
-			'Expected console exporter batch-size failure reason'
-		);
-	END_IF
-
-	IF pBatch <> 0 THEN pBatch := pBatch^.delete(); END_IF
-	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
-	fileExporter.free();
-	GVL.MAX_EXPORT_BATCH_SIZE := previousMaxExportBatchSize;
-TcUnit.TEST_FINISHED();]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="testGroupsRecordsThroughExporter" Id="{5d5f1575-5e45-48b1-b9ad-2eec80177025}">
       <Declaration><![CDATA[METHOD testGroupsRecordsThroughExporter : REFERENCE TO FB_Test
 VAR
@@ -86,7 +17,7 @@ VAR
 	scopeA: FB_InstrumentationScope('scope.a', '1.0.0', '');
 	exporter: FB_LogRecordExporter_File_ForSerializationInspection;
 	serialized: REFERENCE TO FB_LogRecordProtoJsonSerializer;
-	pBatch: POINTER TO FB_LogRecordQueue;
+	batch: FB_LogRecordQueue(maxSize:=0);
 	pRecord: POINTER TO FB_LogRecord;
 	queueFailureReason: E_LogRecordQueueFailureReason;
 	exporterFailureReason: E_LogRecordExporterFailureReason;
@@ -106,10 +37,6 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('Test Groups Records Through Exporter');
-	pBatch := __NEW(FB_LogRecordQueue(maxSize:=6));
-	THIS^.AssertTrue(pBatch <> 0, 'Expected exporter batch allocation to succeed');
-
-	IF pBatch <> 0 THEN
 		// Interleave resources B/A and scopes B/A. Repeated B scopes are non-adjacent.
 		FOR _idx := 1 TO 6 DO
 			pRecord := __NEW(FB_LogRecord(
@@ -145,7 +72,7 @@ END_VAR
 			END_IF
 			THIS^.AssertTrue(copySucceeded, 'Expected exporter scope snapshot copy to succeed');
 
-			pushSucceeded := pBatch^.push(
+			pushSucceeded := batch.push(
 				pValue:=pRecord,
 				failureReason=>queueFailureReason
 			);
@@ -154,10 +81,20 @@ END_VAR
 		END_FOR
 
 		exportSucceeded := exporter.export(
-			pLogRecords:=pBatch,
-			failureResult=>exporterFailureReason
+			logRecords:=batch,
+			count:=batch.size,
+			failureReason=>exporterFailureReason
 		);
-		THIS^.AssertTrue(exportSucceeded AND_THEN pBatch = 0, 'Expected exporter to take queue ownership');
+		THIS^.AssertTrue(
+			exportSucceeded
+			AND_THEN batch.size = 0
+			AND_THEN exporterFailureReason = E_LogRecordExporterFailureReason.NA,
+			'Expected exporter success without a failure reason and record ownership transfer'
+		);
+		THIS^.AssertTrue(
+			exporter.serializationFailureReason = E_ProtoJsonSerializerFailureReason.NA,
+			'Expected exporter serialization to complete without a failure reason'
+		);
 		serialized REF= exporter.serializer;
 
 		resourceLogs := serialized.parser.FindMember(serialized.jsonValue, 'resourceLogs');
@@ -195,10 +132,9 @@ END_VAR
 		THIS^.AssertEquals_STRING('resource.a', actualString, 'Expected first-seen resource A group second');
 		scopeLogs := serialized.parser.FindMember(resourceObj, 'scopeLogs');
 		THIS^.AssertTrue(serialized.parser.GetArrayValueByIdx(scopeLogs, 2) = 0, 'Expected exactly two scope groups for resource A');
-	END_IF
 
 	exporter.free();
-	IF pBatch <> 0 THEN pBatch := pBatch^.delete(); END_IF
+	batch.free();
 	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>

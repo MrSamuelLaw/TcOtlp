@@ -6,12 +6,36 @@ FUNCTION_BLOCK FB_TestLogRecordQueue EXTENDS FB_TestSuite
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[THIS^.testEnforcesMaximumSize();
+THIS^.testAllowsUnboundedLength();
 THIS^.testDropsOldestRecordFirst();
 THIS^.testPushAndPopTransferRecordOwnership();
 THIS^.testTransfersQueueOwnership();
-THIS^.testTransfersUpToDestinationCapacity();
+THIS^.testTransfersRequestedCount();
 THIS^.testReportsFailureReasons();]]></ST>
     </Implementation>
+    <Method Name="testAllowsUnboundedLength" Id="{019ff837-5af1-7c2a-a12a-b45f8f7d24d0}">
+      <Declaration><![CDATA[METHOD testAllowsUnboundedLength : REFERENCE TO FB_Test
+VAR
+	queue: FB_LogRecordQueue(maxSize:=0);
+	pRecord: POINTER TO FB_LogRecord;
+	failureReason: E_LogRecordQueueFailureReason;
+	success: BOOL;
+	_idx: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testAllowsUnboundedLength');
+	FOR _idx := 1 TO 3 DO
+		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=_idx));
+		success := queue.push(pValue:=pRecord, failureReason=>failureReason);
+		THIS^.AssertTrue(success AND_THEN pRecord = 0, 'Expected the unbounded queue to take ownership');
+	END_FOR
+	THIS^.AssertEquals_UDINT(3, queue.size, 'Expected maxSize zero to allow every record');
+	THIS^.AssertEquals_UDINT(0, queue.droppedCount, 'Expected the unbounded queue not to drop records');
+	queue.free();
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="testDropsOldestRecordFirst" Id="{cf630375-dba4-48d5-9684-440330c5de11}">
       <Declaration><![CDATA[METHOD testDropsOldestRecordFirst : REFERENCE TO FB_Test
 VAR
@@ -55,9 +79,9 @@ END_VAR
 		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=_idx));
 		success := queue.push(pValue:=pRecord, failureReason=>failureReason);
 		THIS^.AssertTrue(success AND_THEN pRecord = 0, 'Expected push to take ownership');
-		THIS^.AssertTrue(queue.count <= queue.maxSize, 'Expected count not to exceed maxSize');
+		THIS^.AssertTrue(queue.size <= queue.maxSize, 'Expected count not to exceed maxSize');
 	END_FOR
-	THIS^.AssertTrue(queue.count = 2, 'Expected the queue to remain at its maximum size');
+	THIS^.AssertTrue(queue.size = 2, 'Expected the queue to remain at its maximum size');
 	THIS^.AssertTrue(queue.droppedCount = 1, 'Expected one record to be dropped');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
@@ -80,11 +104,11 @@ END_VAR
 	pOriginal := pRecord;
 	success := queue.push(pValue:=pRecord, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN failureReason = noFailure, 'Expected push to succeed without a failure reason');
-	THIS^.AssertTrue(pRecord = 0 AND_THEN queue.count = 1, 'Expected push to transfer ownership into the queue');
+	THIS^.AssertTrue(pRecord = 0 AND_THEN queue.size = 1, 'Expected push to transfer ownership into the queue');
 
 	success := queue.pop(pValue:=pRecord, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN failureReason = noFailure, 'Expected pop to succeed without a failure reason');
-	THIS^.AssertTrue(pRecord = pOriginal AND_THEN queue.count = 0, 'Expected pop to transfer the same record back to the caller');
+	THIS^.AssertTrue(pRecord = pOriginal AND_THEN queue.size = 0, 'Expected pop to transfer the same record back to the caller');
 	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
@@ -93,7 +117,6 @@ TcUnit.TEST_FINISHED();]]></ST>
       <Declaration><![CDATA[METHOD testReportsFailureReasons : REFERENCE TO FB_Test
 VAR
 	queue: FB_LogRecordQueue(maxSize:=1);
-	zeroCapacityQueue: FB_LogRecordQueue(maxSize:=0);
 	pRecord: POINTER TO FB_LogRecord;
 	pAssigned: POINTER TO FB_LogRecord;
 	failureReason: E_LogRecordQueueFailureReason;
@@ -108,13 +131,6 @@ END_VAR
 	THIS^.AssertFalse(success, 'Expected a null record push to fail');
 	THIS^.AssertTrue(failureReason = E_LogRecordQueueFailureReason.RECORD_POINTER_NULL, 'Expected the null record failure reason');
 
-	pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=1));
-	success := zeroCapacityQueue.push(pValue:=pRecord, failureReason=>failureReason);
-	THIS^.AssertFalse(success, 'Expected a zero-capacity push to fail');
-	THIS^.AssertTrue(failureReason = E_LogRecordQueueFailureReason.MAX_SIZE_ZERO, 'Expected the zero maximum-size failure reason');
-	THIS^.AssertTrue(pRecord <> 0, 'Expected a failed push to preserve caller ownership');
-	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
-
 	success := queue.pop(pValue:=pRecord, failureReason=>failureReason);
 	THIS^.AssertFalse(success, 'Expected an empty pop to fail');
 	THIS^.AssertTrue(failureReason = E_LogRecordQueueFailureReason.QUEUE_EMPTY, 'Expected the empty queue failure reason');
@@ -128,43 +144,6 @@ END_VAR
 	pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=5));
 	success := queue.push(pValue:=pRecord, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN failureReason = noFailure, 'Expected success to clear the previous failure reason');
-TcUnit.TEST_FINISHED();]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="testTransfersUpToDestinationCapacity" Id="{f5b79060-62be-451f-b340-4783541a9eaf}">
-      <Declaration><![CDATA[METHOD testTransfersUpToDestinationCapacity : REFERENCE TO FB_Test
-VAR
-	source: FB_LogRecordQueue(maxSize:=3);
-	destination: FB_LogRecordQueue(maxSize:=2);
-	pRecord: POINTER TO FB_LogRecord;
-	failureReason: E_LogRecordQueueFailureReason;
-	noFailure: E_LogRecordQueueFailureReason;
-	success: BOOL;
-	_idx: UDINT;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[TcUnit.TEST('testTransfersUpToDestinationCapacity');
-	noFailure := E_LogRecordQueueFailureReason.NA;
-	FOR _idx := 1 TO 3 DO
-		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=_idx));
-		success := source.push(pValue:=pRecord, failureReason=>failureReason);
-		THIS^.AssertTrue(success, 'Expected source push to succeed');
-	END_FOR
-
-	success := source.transferTo(destination:=destination, failureReason=>failureReason);
-	THIS^.AssertTrue(success AND_THEN failureReason = noFailure, 'Expected a partial queue transfer to succeed');
-	THIS^.AssertTrue(source.count = 1 AND_THEN destination.count = 2, 'Expected the destination to take only its capacity');
-
-	success := destination.pop(pValue:=pRecord, failureReason=>failureReason);
-	THIS^.AssertTrue(success AND_THEN pRecord <> 0 AND_THEN pRecord^.timestamp = 1, 'Expected the destination to receive the oldest record first');
-	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
-	success := destination.pop(pValue:=pRecord, failureReason=>failureReason);
-	THIS^.AssertTrue(success AND_THEN pRecord <> 0 AND_THEN pRecord^.timestamp = 2, 'Expected the destination to receive a FIFO slice');
-	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
-	success := source.pop(pValue:=pRecord, failureReason=>failureReason);
-	THIS^.AssertTrue(success AND_THEN pRecord <> 0 AND_THEN pRecord^.timestamp = 3, 'Expected the source to retain the untransferred tail');
-	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -196,15 +175,52 @@ END_VAR
 		THIS^.AssertTrue(success, 'Expected source push to succeed');
 	END_FOR
 
-	success := source.transferTo(destination:=destination, failureReason=>failureReason);
+	success := source.transferTo(destination:=destination, count:=2, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN failureReason = noFailure, 'Expected queue ownership transfer to succeed');
-	THIS^.AssertTrue(source.count = 0 AND_THEN destination.count = 2, 'Expected only the destination to own the records');
+	THIS^.AssertTrue(source.size = 0 AND_THEN destination.size = 2, 'Expected only the destination to own the records');
 
 	success := destination.pop(pValue:=pRecord, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN pRecord = pFirstOriginal AND_THEN pRecord^.timestamp = 1, 'Expected transfer to preserve the first allocation and FIFO order');
 	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
 	success := destination.pop(pValue:=pRecord, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN pRecord = pSecondOriginal AND_THEN pRecord^.timestamp = 2, 'Expected destination to own the same tail allocation');
+	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testTransfersRequestedCount" Id="{f5b79060-62be-451f-b340-4783541a9eaf}">
+      <Declaration><![CDATA[METHOD testTransfersRequestedCount : REFERENCE TO FB_Test
+VAR
+	source: FB_LogRecordQueue(maxSize:=3);
+	destination: FB_LogRecordQueue(maxSize:=0);
+	pRecord: POINTER TO FB_LogRecord;
+	failureReason: E_LogRecordQueueFailureReason;
+	noFailure: E_LogRecordQueueFailureReason;
+	success: BOOL;
+	_idx: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testTransfersRequestedCount');
+	noFailure := E_LogRecordQueueFailureReason.NA;
+	FOR _idx := 1 TO 3 DO
+		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=_idx));
+		success := source.push(pValue:=pRecord, failureReason=>failureReason);
+		THIS^.AssertTrue(success, 'Expected source push to succeed');
+	END_FOR
+
+	success := source.transferTo(destination:=destination, count:=2, failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN failureReason = noFailure, 'Expected a partial queue transfer to succeed');
+	THIS^.AssertTrue(source.size = 1 AND_THEN destination.size = 2, 'Expected the destination to take only the requested count');
+
+	success := destination.pop(pValue:=pRecord, failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN pRecord <> 0 AND_THEN pRecord^.timestamp = 1, 'Expected the destination to receive the oldest record first');
+	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+	success := destination.pop(pValue:=pRecord, failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN pRecord <> 0 AND_THEN pRecord^.timestamp = 2, 'Expected the destination to receive a FIFO slice');
+	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+	success := source.pop(pValue:=pRecord, failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN pRecord <> 0 AND_THEN pRecord^.timestamp = 3, 'Expected the source to retain the untransferred tail');
 	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_BaseProtoJsonSerializer" Id="{932f076d-7af8-433b-a20e-1bed32694275}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_BaseProtoJsonSerializer
@@ -11,59 +11,120 @@ END_VAR]]></Declaration>
       <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="_injectInstrumentationScope" Id="{9c8cb455-2273-4f58-affd-d3fcbf54d800}">
-      <Declaration><![CDATA[METHOD _injectInstrumentationScope
+      <Declaration><![CDATA[METHOD _injectInstrumentationScope : BOOL
 VAR_IN_OUT
 	v: SJsonValue;
 	instrumentationScope: FB_InstrumentationScope;
 END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
 VAR
 	_obj: SJsonValue;
+	_member: SJsonValue;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[_obj := THIS^.parser.AddObjectMember(v, 'scope');
-THIS^.parser.AddStringMember(_obj, 'name', instrumentationScope.name);
-THIS^.parser.AddStringMember(_obj, 'version', instrumentationScope.version);
-IF instrumentationScope.attributes.count > 0 THEN
-	THIS^.serializeKeyValues(_obj, ADR('attributes'), ADR(instrumentationScope.attributes));
+        <ST><![CDATA[_injectInstrumentationScope := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID;
+	RETURN;
+END_IF
+
+_obj := THIS^.parser.AddObjectMember(v, 'scope');
+IF _obj = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+	RETURN;
+END_IF
+_member := THIS^.parser.AddStringMember(_obj, 'name', instrumentationScope.name);
+IF _member = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+	RETURN;
+END_IF
+_member := THIS^.parser.AddStringMember(_obj, 'version', instrumentationScope.version);
+IF _member = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+	RETURN;
+END_IF
+IF instrumentationScope.attributes.count > 0 AND_THEN NOT THIS^.serializeKeyValues(
+	v:=_obj,
+	pKey:=ADR('attributes'),
+	pValues:=ADR(instrumentationScope.attributes),
+	failureReason=>failureReason
+) THEN
+	RETURN;
 END_IF
 IF instrumentationScope.attributes.count > 0 OR instrumentationScope.droppedAttributesCount > 0 THEN
-	THIS^.serializeUint32Value(_obj, ADR('droppedAttributesCount'), instrumentationScope.droppedAttributesCount);
+	IF NOT THIS^.serializeUint32Value(
+		v:=_obj,
+		pKey:=ADR('droppedAttributesCount'),
+		val:=instrumentationScope.droppedAttributesCount,
+		failureReason=>failureReason
+	) THEN
+		RETURN;
+	END_IF
 END_IF
-]]></ST>
+_injectInstrumentationScope := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="_injectResource" Id="{56a836bc-6996-46a9-b0a3-bbca046e4c06}">
-      <Declaration><![CDATA[METHOD _injectResource
+      <Declaration><![CDATA[METHOD _injectResource : BOOL
 VAR_IN_OUT
 	v: SJsonValue;
 	resource: FB_Resource;
 END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
 VAR
 	_obj: SJsonValue;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[_obj := THIS^.parser.AddObjectMember(v, 'resource');
-IF resource.attributes.count > 0 THEN
-	THIS^.serializeKeyValues(_obj, ADR('attributes'), ADR(resource.attributes));
+        <ST><![CDATA[_injectResource := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID;
+	RETURN;
 END_IF
-IF resource.droppedAttributesCount > 0 THEN
-	THIS^.serializeUint32Value(_obj, ADR('droppedAttributesCount'), resource.droppedAttributesCount);
+
+_obj := THIS^.parser.AddObjectMember(v, 'resource');
+IF _obj = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+	RETURN;
 END_IF
-]]></ST>
+IF resource.attributes.count > 0 AND_THEN NOT THIS^.serializeKeyValues(
+	v:=_obj,
+	pKey:=ADR('attributes'),
+	pValues:=ADR(resource.attributes),
+	failureReason=>failureReason
+) THEN
+	RETURN;
+END_IF
+IF resource.droppedAttributesCount > 0 AND_THEN NOT THIS^.serializeUint32Value(
+	v:=_obj,
+	pKey:=ADR('droppedAttributesCount'),
+	val:=resource.droppedAttributesCount,
+	failureReason=>failureReason
+) THEN
+	RETURN;
+END_IF
+_injectResource := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="_serializeBytes" Id="{07016bcd-d229-46fb-8e82-336747340800}">
       <Declaration><![CDATA[METHOD _serializeBytes : BOOL
 VAR_INPUT
-	pBytes: 	POINTER TO BYTE;	// pointer to bytes to encode
-	nBytes: 	UDINT := 0;			// number of bytes to encode
-	pStr: 		POINTER TO STRING;  // location to put the encoded bytes
-	len:		UDINT;				// len of location to put the encoded bytes
-	encoding: 	E_BytesEncoding;	// encoding format
+	pBytes: POINTER TO BYTE;
+	nBytes: UDINT := 0;
+	pStr: POINTER TO STRING;
+	len: UDINT;
+	encoding: E_BytesEncoding;
 END_VAR
-
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
 VAR
 	_idx: UDINT;
 	_nibble: BYTE;
@@ -71,32 +132,39 @@ VAR
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[_serializeBytes := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF pBytes = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.BYTES_POINTER_NULL;
+	RETURN;
+END_IF
+IF nBytes = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.BYTE_COUNT_ZERO;
+	RETURN;
+END_IF
+IF pStr = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.STRING_POINTER_NULL;
+	RETURN;
+END_IF
 
-IF pStr <> 0 AND len > 0 AND pBytes <> 0 AND nBytes > 0 THEN
-	_requiredLen := nBytes * 2;
-	IF len <= _requiredLen THEN
-		RETURN;
-	END_IF
-	
-	pStr^ := '';
-	// encode bytes to a STRING
-	CASE encoding OF
-		E_BytesEncoding.hex:
-			// Loop from 0 to len - 1 (Standard 0-based array boundary)
-            FOR _idx := 0 TO (nBytes - 1) DO 
-                // 1. Extract High Nibble (Upper 4 bits)
-                _nibble := SHR(pBytes[_idx], 4) AND 16#0F;
-                pStr^[(_idx * 2)] := SEL(_nibble < 10, _nibble + 16#37, _nibble + 16#30);  // ASCII '0' to '9' | ASCII 'A' to 'F'
-                // 2. Extract Low Nibble (Lower 4 bits)
-                _nibble := pBytes[_idx] AND 16#0F;
-				pStr^[(_idx * 2) + 1] := SEL(_nibble < 10, _nibble + 16#37, _nibble + 16#30);
-            END_FOR
-            
-            // 3. Force a Null-Terminator at the end of the string
-			pStr^[_requiredLen] := 0;
-			_serializeBytes := TRUE;
-	END_CASE
-END_IF]]></ST>
+_requiredLen := nBytes * 2;
+IF len <= _requiredLen THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.STRING_BUFFER_TOO_SMALL;
+	RETURN;
+END_IF
+IF encoding <> E_BytesEncoding.hex THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.UNSUPPORTED_BYTES_ENCODING;
+	RETURN;
+END_IF
+
+pStr^ := '';
+FOR _idx := 0 TO nBytes - 1 DO
+	_nibble := SHR(pBytes[_idx], 4) AND 16#0F;
+	pStr^[(_idx * 2)] := SEL(_nibble < 10, _nibble + 16#37, _nibble + 16#30);
+	_nibble := pBytes[_idx] AND 16#0F;
+	pStr^[(_idx * 2) + 1] := SEL(_nibble < 10, _nibble + 16#37, _nibble + 16#30);
+END_FOR
+pStr^[_requiredLen] := 0;
+_serializeBytes := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeAnyValue" Id="{ce526a8b-754d-4e21-9b26-8200d43a6f87}">
@@ -108,9 +176,11 @@ VAR_INPUT
 	pKey: POINTER TO STRING;
 	pVal: POINTER TO FB_AnyValue;
 END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
 VAR
 	_v: SJsonValue;
-	_type: E_ValueType;
 	_pNumber: POINTER TO FB_Number;
 	_pSInt: POINTER TO SINT;
 	_pInt: POINTER TO INT;
@@ -125,188 +195,248 @@ VAR
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[serializeAnyValue := FALSE;
-IF pKey = 0 OR pVal = 0 THEN
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID;
+	RETURN;
+END_IF
+IF pKey = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.KEY_POINTER_NULL;
+	RETURN;
+END_IF
+IF pVal = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.VALUE_POINTER_NULL;
 	RETURN;
 END_IF
 
-_type := pVal^.eType;
-CASE _type OF
-	E_ValueType.E_String:
-		// AnyValue wraps its concrete value in a type-specific field.
-		_v := THIS^.parser.AddObjectMember(v, pKey^);
-		THIS^.serializeStringValue(_v, ADR('stringValue'), pVal);
-		serializeAnyValue := TRUE;
+_v := THIS^.parser.AddObjectMember(v, pKey^);
+IF _v = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+	RETURN;
+END_IF
 
+CASE pVal^.eType OF
+	E_ValueType.E_String:
+		serializeAnyValue := THIS^.serializeStringValue(
+			v:=_v,
+			pKey:=ADR('stringValue'),
+			pVal:=pVal,
+			failureReason=>failureReason
+		);
 	E_ValueType.E_Number:
 		_pNumber := pVal;
 		IF _pNumber^.value.pValue = 0 THEN
+			failureReason := E_ProtoJsonSerializerFailureReason.NUMBER_VALUE_POINTER_NULL;
 			RETURN;
 		END_IF
-
-		_v := THIS^.parser.AddObjectMember(v, pKey^);
-		// AnyValue has one int64 field and one double field, regardless of the IEC source width.
 		CASE _pNumber^.value.TypeClass OF
 			__SYSTEM.TYPE_CLASS.TYPE_SINT:
 				_pSInt := _pNumber^.value.pValue;
-				THIS^.serializeInt64Value(_v, ADR('intValue'), SINT_TO_LINT(_pSInt^));
+				serializeAnyValue := THIS^.serializeInt64Value(_v, ADR('intValue'), SINT_TO_LINT(_pSInt^), failureReason=>failureReason);
 			__SYSTEM.TYPE_CLASS.TYPE_INT:
 				_pInt := _pNumber^.value.pValue;
-				THIS^.serializeInt64Value(_v, ADR('intValue'), INT_TO_LINT(_pInt^));
+				serializeAnyValue := THIS^.serializeInt64Value(_v, ADR('intValue'), INT_TO_LINT(_pInt^), failureReason=>failureReason);
 			__SYSTEM.TYPE_CLASS.TYPE_DINT:
 				_pDInt := _pNumber^.value.pValue;
-				THIS^.serializeInt64Value(_v, ADR('intValue'), DINT_TO_LINT(_pDInt^));
+				serializeAnyValue := THIS^.serializeInt64Value(_v, ADR('intValue'), DINT_TO_LINT(_pDInt^), failureReason=>failureReason);
 			__SYSTEM.TYPE_CLASS.TYPE_LINT:
 				_pLInt := _pNumber^.value.pValue;
-				THIS^.serializeInt64Value(_v, ADR('intValue'), _pLInt^);
+				serializeAnyValue := THIS^.serializeInt64Value(_v, ADR('intValue'), _pLInt^, failureReason=>failureReason);
 			__SYSTEM.TYPE_CLASS.TYPE_USINT:
 				_pUSInt := _pNumber^.value.pValue;
-				THIS^.serializeUint64Value(_v, ADR('intValue'), USINT_TO_ULINT(_pUSInt^));
+				serializeAnyValue := THIS^.serializeUint64Value(_v, ADR('intValue'), USINT_TO_ULINT(_pUSInt^), failureReason=>failureReason);
 			__SYSTEM.TYPE_CLASS.TYPE_UINT:
 				_pUInt := _pNumber^.value.pValue;
-				THIS^.serializeUint64Value(_v, ADR('intValue'), UINT_TO_ULINT(_pUInt^));
+				serializeAnyValue := THIS^.serializeUint64Value(_v, ADR('intValue'), UINT_TO_ULINT(_pUInt^), failureReason=>failureReason);
 			__SYSTEM.TYPE_CLASS.TYPE_UDINT:
 				_pUDInt := _pNumber^.value.pValue;
-				THIS^.serializeUint64Value(_v, ADR('intValue'), UDINT_TO_ULINT(_pUDInt^));
+				serializeAnyValue := THIS^.serializeUint64Value(_v, ADR('intValue'), UDINT_TO_ULINT(_pUDInt^), failureReason=>failureReason);
 			__SYSTEM.TYPE_CLASS.TYPE_ULINT:
 				_pULInt := _pNumber^.value.pValue;
-				THIS^.serializeUint64Value(_v, ADR('intValue'), _pULInt^);
+				serializeAnyValue := THIS^.serializeUint64Value(_v, ADR('intValue'), _pULInt^, failureReason=>failureReason);
 			__SYSTEM.TYPE_CLASS.TYPE_REAL:
 				_pReal := _pNumber^.value.pValue;
-				THIS^.serializeDoubleValue(_v, ADR('doubleValue'), REAL_TO_LREAL(_pReal^));
+				serializeAnyValue := THIS^.serializeDoubleValue(_v, ADR('doubleValue'), REAL_TO_LREAL(_pReal^), failureReason=>failureReason);
 			__SYSTEM.TYPE_CLASS.TYPE_LREAL:
 				_pLReal := _pNumber^.value.pValue;
-				THIS^.serializeDoubleValue(_v, ADR('doubleValue'), _pLReal^);
+				serializeAnyValue := THIS^.serializeDoubleValue(_v, ADR('doubleValue'), _pLReal^, failureReason=>failureReason);
 			ELSE
-				RETURN;
+				failureReason := E_ProtoJsonSerializerFailureReason.UNSUPPORTED_NUMBER_TYPE;
 		END_CASE
-		serializeAnyValue := TRUE;
+	ELSE
+		failureReason := E_ProtoJsonSerializerFailureReason.UNSUPPORTED_VALUE_TYPE;
 END_CASE]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeDoubleValue" Id="{8e1716f5-ca18-4545-9ac3-fe0242797154}">
-      <Declaration><![CDATA[METHOD serializeDoubleValue
+      <Declaration><![CDATA[METHOD serializeDoubleValue : BOOL
 VAR_IN_OUT
 	v: SJsonValue;
 END_VAR
 VAR_INPUT
-	pKey: POINTER TO STRING;  // allows for any length of key
+	pKey: POINTER TO STRING;
 	val: LREAL;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
 END_VAR
 VAR
 	_bits: LWORD;
+	_member: SJsonValue;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pKey <> 0 THEN
-	// ProtoJSON represents non-finite floating-point values as strings.
-	MEMCPY(ADR(_bits), ADR(val), SIZEOF(_bits));
-	IF (_bits AND LWORD#16#7FF0000000000000) = LWORD#16#7FF0000000000000 THEN
-		IF (_bits AND LWORD#16#000FFFFFFFFFFFFF) <> 0 THEN
-			THIS^.parser.AddStringMember(v, pKey^, 'NaN');
-		ELSIF (_bits AND LWORD#16#8000000000000000) <> 0 THEN
-			THIS^.parser.AddStringMember(v, pKey^, '-Infinity');
-		ELSE
-			THIS^.parser.AddStringMember(v, pKey^, 'Infinity');
-		END_IF
+        <ST><![CDATA[serializeDoubleValue := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID; RETURN; END_IF
+IF pKey = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.KEY_POINTER_NULL; RETURN; END_IF
+
+MEMCPY(ADR(_bits), ADR(val), SIZEOF(_bits));
+IF (_bits AND LWORD#16#7FF0000000000000) = LWORD#16#7FF0000000000000 THEN
+	IF (_bits AND LWORD#16#000FFFFFFFFFFFFF) <> 0 THEN
+		_member := THIS^.parser.AddStringMember(v, pKey^, 'NaN');
+	ELSIF (_bits AND LWORD#16#8000000000000000) <> 0 THEN
+		_member := THIS^.parser.AddStringMember(v, pKey^, '-Infinity');
 	ELSE
-		THIS^.parser.AddDoubleMember(v, pKey^, val);
+		_member := THIS^.parser.AddStringMember(v, pKey^, 'Infinity');
 	END_IF
-END_IF]]></ST>
+ELSE
+	_member := THIS^.parser.AddDoubleMember(v, pKey^, val);
+END_IF
+IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
+serializeDoubleValue := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeFloatValue" Id="{61151231-f7cd-44d1-8261-d6a5a8b398f7}">
-      <Declaration><![CDATA[METHOD serializeFloatValue
+      <Declaration><![CDATA[METHOD serializeFloatValue : BOOL
 VAR_IN_OUT
 	v: SJsonValue;
 END_VAR
 VAR_INPUT
-	pKey: POINTER TO STRING;  // allows for any length of key
+	pKey: POINTER TO STRING;
 	val: REAL;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
 END_VAR
 VAR
 	_bits: DWORD;
+	_member: SJsonValue;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pKey <> 0 THEN
-	// ProtoJSON represents non-finite floating-point values as strings.
-	MEMCPY(ADR(_bits), ADR(val), SIZEOF(_bits));
-	IF (_bits AND DWORD#16#7F800000) = DWORD#16#7F800000 THEN
-		IF (_bits AND DWORD#16#007FFFFF) <> 0 THEN
-			THIS^.parser.AddStringMember(v, pKey^, 'NaN');
-		ELSIF (_bits AND DWORD#16#80000000) <> 0 THEN
-			THIS^.parser.AddStringMember(v, pKey^, '-Infinity');
-		ELSE
-			THIS^.parser.AddStringMember(v, pKey^, 'Infinity');
-		END_IF
+        <ST><![CDATA[serializeFloatValue := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID; RETURN; END_IF
+IF pKey = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.KEY_POINTER_NULL; RETURN; END_IF
+
+MEMCPY(ADR(_bits), ADR(val), SIZEOF(_bits));
+IF (_bits AND DWORD#16#7F800000) = DWORD#16#7F800000 THEN
+	IF (_bits AND DWORD#16#007FFFFF) <> 0 THEN
+		_member := THIS^.parser.AddStringMember(v, pKey^, 'NaN');
+	ELSIF (_bits AND DWORD#16#80000000) <> 0 THEN
+		_member := THIS^.parser.AddStringMember(v, pKey^, '-Infinity');
 	ELSE
-		THIS^.parser.AddDoubleMember(v, pKey^, REAL_TO_LREAL(val));
+		_member := THIS^.parser.AddStringMember(v, pKey^, 'Infinity');
 	END_IF
-END_IF]]></ST>
+ELSE
+	_member := THIS^.parser.AddDoubleMember(v, pKey^, REAL_TO_LREAL(val));
+END_IF
+IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
+serializeFloatValue := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeInt32Value" Id="{e79efe08-4ca7-4425-9145-6831c737d25f}">
-      <Declaration><![CDATA[METHOD serializeInt32Value
+      <Declaration><![CDATA[METHOD serializeInt32Value : BOOL
 VAR_IN_OUT
 	v: SJsonValue;
 END_VAR
 VAR_INPUT
-	pKey: POINTER TO STRING;  // allows for any length of key
+	pKey: POINTER TO STRING;
 	val: DINT;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+VAR
+	_member: SJsonValue;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pKey <> 0 THEN
-	// int32, sint32, and sfixed32 are JSON numbers in ProtoJSON.
-	THIS^.parser.AddIntMember(v, pKey^, val);
-END_IF]]></ST>
+        <ST><![CDATA[serializeInt32Value := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID; RETURN; END_IF
+IF pKey = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.KEY_POINTER_NULL; RETURN; END_IF
+_member := THIS^.parser.AddIntMember(v, pKey^, val);
+IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
+serializeInt32Value := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeInt64Value" Id="{b0f53b48-39e6-4d60-9c1c-71cbf01d4ae4}">
-      <Declaration><![CDATA[METHOD serializeInt64Value
+      <Declaration><![CDATA[METHOD serializeInt64Value : BOOL
 VAR_IN_OUT
 	v: SJsonValue;
 END_VAR
 VAR_INPUT
-	pKey: POINTER TO STRING;  // allows for any length of key
+	pKey: POINTER TO STRING;
 	val: LINT;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
 END_VAR
 VAR
 	_buf: STRING(20);
+	_member: SJsonValue;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pKey <> 0 THEN
-	// int64, sint64, and sfixed64 are decimal strings in ProtoJSON.
-	_buf := LINT_TO_STRING(val);
-	THIS^.parser.AddStringMember(v, pKey^, _buf);
-END_IF]]></ST>
+        <ST><![CDATA[serializeInt64Value := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID; RETURN; END_IF
+IF pKey = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.KEY_POINTER_NULL; RETURN; END_IF
+_buf := LINT_TO_STRING(val);
+_member := THIS^.parser.AddStringMember(v, pKey^, _buf);
+IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
+serializeInt64Value := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeKeyValue" Id="{486a70c5-9e67-46b6-89f1-7a33a1497da2}">
-      <Declaration><![CDATA[METHOD serializeKeyValue
+      <Declaration><![CDATA[METHOD serializeKeyValue : BOOL
 VAR_IN_OUT
 	v: SJsonValue;
 END_VAR
 VAR_INPUT
 	pVal: POINTER TO FB_KeyValue;
 END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+VAR
+	_member: SJsonValue;
+END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pVal <> 0 AND_THEN pVal^.pKey <> 0 THEN
-	THIS^.parser.AddStringMember(v, 'key', pVal^.pKey^);
-	THIS^.serializeAnyValue(v, ADR('value'), pVal^.pVal);
-END_IF]]></ST>
+        <ST><![CDATA[serializeKeyValue := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID; RETURN; END_IF
+IF pVal = 0 OR_ELSE pVal^.pVal = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.VALUE_POINTER_NULL; RETURN; END_IF
+IF pVal^.pKey = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.KEY_POINTER_NULL; RETURN; END_IF
+_member := THIS^.parser.AddStringMember(v, 'key', pVal^.pKey^);
+IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
+serializeKeyValue := THIS^.serializeAnyValue(v, ADR('value'), pVal^.pVal, failureReason=>failureReason);]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeKeyValues" Id="{52d74288-6a2d-4c88-827a-3eefad2702d7}">
-      <Declaration><![CDATA[METHOD serializeKeyValues
+      <Declaration><![CDATA[METHOD serializeKeyValues : BOOL
 VAR_IN_OUT
 	v: SJsonValue;
 END_VAR
 VAR_INPUT
 	pKey: POINTER TO STRING;
 	pValues: POINTER TO FB_Attributes;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
 END_VAR
 VAR
 	_idx: UDINT;
@@ -316,20 +446,40 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pKey <> 0 AND pValues <> 0 THEN
-	pValues^.reset();
-	_pValue := pValues^.next();
-	IF _pValue = 0 THEN RETURN; END_IF
+        <ST><![CDATA[serializeKeyValues := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID; RETURN; END_IF
+IF pKey = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.KEY_POINTER_NULL; RETURN; END_IF
+IF pValues = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.VALUE_POINTER_NULL; RETURN; END_IF
+IF pValues^.count = 0 THEN serializeKeyValues := TRUE; RETURN; END_IF
+IF pValues^.count > pValues^.maxCount OR_ELSE pValues^.count > GVL.MAX_LOOP_COUNT THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.LOOP_LIMIT_EXCEEDED;
+	RETURN;
+END_IF
 
-	_arr := THIS^.parser.AddArrayMember(v, pKey^, 0);
-	FOR _idx := 1 TO pValues^.maxCount DO
-		IF _pValue = 0 THEN EXIT; END_IF
-		_obj := THIS^.parser.PushbackJsonValue(_arr, '{}');
-		THIS^.serializeKeyValue(_obj, _pValue);
-		_pValue := pValues^.next();
-	END_FOR
-	pValues^.reset();
-END_IF]]></ST>
+_arr := THIS^.parser.AddArrayMember(v, pKey^, 0);
+IF _arr = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
+pValues^.reset();
+FOR _idx := 1 TO pValues^.count DO
+	_pValue := pValues^.next();
+	IF _pValue = 0 THEN
+		pValues^.reset();
+		failureReason := E_ProtoJsonSerializerFailureReason.ATTRIBUTE_COLLECTION_INCONSISTENT;
+		RETURN;
+	END_IF
+	_obj := THIS^.parser.PushbackJsonValue(_arr, '{}');
+	IF _obj = 0 THEN
+		pValues^.reset();
+		failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+		RETURN;
+	END_IF
+	IF NOT THIS^.serializeKeyValue(_obj, _pValue, failureReason=>failureReason) THEN
+		pValues^.reset();
+		RETURN;
+	END_IF
+END_FOR
+pValues^.reset();
+serializeKeyValues := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeNumberValue" Id="{aeb900f5-c3ec-444b-ae50-1d2bab03506c}">
@@ -340,6 +490,9 @@ END_VAR
 VAR_INPUT
 	pKey: POINTER TO STRING;
 	val: ANY_NUM;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
 END_VAR
 VAR
 	_pSInt: POINTER TO SINT;
@@ -356,151 +509,181 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[serializeNumberValue := FALSE;
-IF pKey = 0 OR val.pValue = 0 THEN
-	RETURN;
-END_IF
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID; RETURN; END_IF
+IF pKey = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.KEY_POINTER_NULL; RETURN; END_IF
+IF val.pValue = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.NUMBER_VALUE_POINTER_NULL; RETURN; END_IF
 
 CASE val.TypeClass OF
 	__SYSTEM.TYPE_CLASS.TYPE_SINT:
 		_pSInt := val.pValue;
-		THIS^.serializeInt32Value(v, pKey, SINT_TO_DINT(_pSInt^));
+		serializeNumberValue := THIS^.serializeInt32Value(v, pKey, SINT_TO_DINT(_pSInt^), failureReason=>failureReason);
 	__SYSTEM.TYPE_CLASS.TYPE_INT:
 		_pInt := val.pValue;
-		THIS^.serializeInt32Value(v, pKey, INT_TO_DINT(_pInt^));
+		serializeNumberValue := THIS^.serializeInt32Value(v, pKey, INT_TO_DINT(_pInt^), failureReason=>failureReason);
 	__SYSTEM.TYPE_CLASS.TYPE_DINT:
 		_pDInt := val.pValue;
-		THIS^.serializeInt32Value(v, pKey, _pDInt^);
+		serializeNumberValue := THIS^.serializeInt32Value(v, pKey, _pDInt^, failureReason=>failureReason);
 	__SYSTEM.TYPE_CLASS.TYPE_LINT:
 		_pLInt := val.pValue;
-		THIS^.serializeInt64Value(v, pKey, _pLInt^);
+		serializeNumberValue := THIS^.serializeInt64Value(v, pKey, _pLInt^, failureReason=>failureReason);
 	__SYSTEM.TYPE_CLASS.TYPE_USINT:
 		_pUSInt := val.pValue;
-		THIS^.serializeUint32Value(v, pKey, USINT_TO_UDINT(_pUSInt^));
+		serializeNumberValue := THIS^.serializeUint32Value(v, pKey, USINT_TO_UDINT(_pUSInt^), failureReason=>failureReason);
 	__SYSTEM.TYPE_CLASS.TYPE_UINT:
 		_pUInt := val.pValue;
-		THIS^.serializeUint32Value(v, pKey, UINT_TO_UDINT(_pUInt^));
+		serializeNumberValue := THIS^.serializeUint32Value(v, pKey, UINT_TO_UDINT(_pUInt^), failureReason=>failureReason);
 	__SYSTEM.TYPE_CLASS.TYPE_UDINT:
 		_pUDInt := val.pValue;
-		THIS^.serializeUint32Value(v, pKey, _pUDInt^);
+		serializeNumberValue := THIS^.serializeUint32Value(v, pKey, _pUDInt^, failureReason=>failureReason);
 	__SYSTEM.TYPE_CLASS.TYPE_ULINT:
 		_pULInt := val.pValue;
-		THIS^.serializeUint64Value(v, pKey, _pULInt^);
+		serializeNumberValue := THIS^.serializeUint64Value(v, pKey, _pULInt^, failureReason=>failureReason);
 	__SYSTEM.TYPE_CLASS.TYPE_REAL:
 		_pReal := val.pValue;
-		THIS^.serializeFloatValue(v, pKey, _pReal^);
+		serializeNumberValue := THIS^.serializeFloatValue(v, pKey, _pReal^, failureReason=>failureReason);
 	__SYSTEM.TYPE_CLASS.TYPE_LREAL:
 		_pLReal := val.pValue;
-		THIS^.serializeDoubleValue(v, pKey, _pLReal^);
+		serializeNumberValue := THIS^.serializeDoubleValue(v, pKey, _pLReal^, failureReason=>failureReason);
 	ELSE
-		RETURN;
-END_CASE
-
-serializeNumberValue := TRUE;]]></ST>
+		failureReason := E_ProtoJsonSerializerFailureReason.UNSUPPORTED_NUMBER_TYPE;
+END_CASE]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeSpanIdValue" Id="{9afc261b-39d5-4d44-b105-baf2b6a972f5}">
-      <Declaration><![CDATA[METHOD serializeSpanIdValue
+      <Declaration><![CDATA[METHOD serializeSpanIdValue : BOOL
 VAR_IN_OUT
 	v: SJsonValue;
 END_VAR
 VAR_INPUT
 	pVal: POINTER TO FB_SpanId;
 END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
 VAR
-	_encodedStr: STRING(16);  // 2 * 8 bytes
+	_encodedStr: STRING(16);
+	_member: SJsonValue;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pVal <> 0 THEN
-	THIS^._serializeBytes(
-		ADR(pVal^.bytes), 
-		SIZEOF(pVal^.bytes), 
-		ADR(_encodedStr), 
-		SIZEOF(_encodedStr), 
-		E_BytesEncoding.hex
-	);
-	THIS^.parser.AddStringMember(v, 'spanId' ,_encodedStr);
-END_IF]]></ST>
+        <ST><![CDATA[serializeSpanIdValue := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID; RETURN; END_IF
+IF pVal = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.VALUE_POINTER_NULL; RETURN; END_IF
+IF NOT THIS^._serializeBytes(ADR(pVal^.bytes), SIZEOF(pVal^.bytes), ADR(_encodedStr), SIZEOF(_encodedStr), E_BytesEncoding.hex, failureReason=>failureReason) THEN RETURN; END_IF
+_member := THIS^.parser.AddStringMember(v, 'spanId', _encodedStr);
+IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
+serializeSpanIdValue := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeStringValue" Id="{a5d8f280-538f-436e-b57c-fc6ce9363756}">
-      <Declaration><![CDATA[METHOD serializeStringValue
+      <Declaration><![CDATA[METHOD serializeStringValue : BOOL
 VAR_IN_OUT
 	v: SJsonValue;
 END_VAR
 VAR_INPUT
-	pKey: POINTER TO STRING;  // allows for any length of key
+	pKey: POINTER TO STRING;
 	pVal: POINTER TO FB_String;
 END_VAR
-
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+VAR
+	_member: SJsonValue;
+END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pKey <> 0 AND_THEN pVal <> 0 AND_THEN  pVal^.pString <> 0 THEN
-	THIS^.parser.AddStringMember(v, pKey^, pVal^.pString^);
-END_IF]]></ST>
+        <ST><![CDATA[serializeStringValue := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID; RETURN; END_IF
+IF pKey = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.KEY_POINTER_NULL; RETURN; END_IF
+IF pVal = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.VALUE_POINTER_NULL; RETURN; END_IF
+IF pVal^.pString = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.STRING_POINTER_NULL; RETURN; END_IF
+_member := THIS^.parser.AddStringMember(v, pKey^, pVal^.pString^);
+IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
+serializeStringValue := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeTraceIdValue" Id="{4de4eecb-e305-4f14-9eca-bec6bc920cae}">
-      <Declaration><![CDATA[METHOD serializeTraceIdValue
+      <Declaration><![CDATA[METHOD serializeTraceIdValue : BOOL
 VAR_IN_OUT
 	v: SJsonValue;
 END_VAR
 VAR_INPUT
 	pVal: POINTER TO FB_TraceId;
 END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
 VAR
-	_encodedStr: STRING(32);  // 2 * 16 bytes
+	_encodedStr: STRING(32);
+	_member: SJsonValue;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pVal <> 0 THEN
-	THIS^._serializeBytes(
-		ADR(pVal^.bytes), 
-		SIZEOF(pVal^.bytes), 
-		ADR(_encodedStr), 
-		SIZEOF(_encodedStr),
-		E_BytesEncoding.hex	
-	);
-	THIS^.parser.AddStringMember(v, 'traceId' ,_encodedStr);
-END_IF]]></ST>
+        <ST><![CDATA[serializeTraceIdValue := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID; RETURN; END_IF
+IF pVal = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.VALUE_POINTER_NULL; RETURN; END_IF
+IF NOT THIS^._serializeBytes(ADR(pVal^.bytes), SIZEOF(pVal^.bytes), ADR(_encodedStr), SIZEOF(_encodedStr), E_BytesEncoding.hex, failureReason=>failureReason) THEN RETURN; END_IF
+_member := THIS^.parser.AddStringMember(v, 'traceId', _encodedStr);
+IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
+serializeTraceIdValue := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeUint32Value" Id="{1dd3acf5-55a1-4a1e-b2ab-a0a8924ebe6b}">
-      <Declaration><![CDATA[METHOD serializeUint32Value
+      <Declaration><![CDATA[METHOD serializeUint32Value : BOOL
 VAR_IN_OUT
 	v: SJsonValue;
 END_VAR
 VAR_INPUT
-	pKey: POINTER TO STRING;  // allows for any length of key
+	pKey: POINTER TO STRING;
 	val: UDINT;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+VAR
+	_member: SJsonValue;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pKey <> 0 THEN
-	// uint32 and fixed32 are JSON numbers in ProtoJSON.
-	THIS^.parser.AddUintMember(v, pKey^, val);
-END_IF]]></ST>
+        <ST><![CDATA[serializeUint32Value := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID; RETURN; END_IF
+IF pKey = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.KEY_POINTER_NULL; RETURN; END_IF
+_member := THIS^.parser.AddUintMember(v, pKey^, val);
+IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
+serializeUint32Value := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeUint64Value" Id="{03b3c74c-f10f-4570-99ed-23668fd8ddf1}">
-      <Declaration><![CDATA[METHOD serializeUint64Value
+      <Declaration><![CDATA[METHOD serializeUint64Value : BOOL
 VAR_IN_OUT
 	v: SJsonValue;
 END_VAR
 VAR_INPUT
-	pKey: POINTER TO STRING;  // allows for any length of key
+	pKey: POINTER TO STRING;
 	val: ULINT;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
 END_VAR
 VAR
 	_buf: STRING(20);
+	_member: SJsonValue;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pKey <> 0 THEN
-	// uint64 and fixed64 are decimal strings in ProtoJSON.
-	_buf := ULINT_TO_STRING(val);
-	THIS^.parser.AddStringMember(v, pKey^, _buf);
-END_IF]]></ST>
+        <ST><![CDATA[serializeUint64Value := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID; RETURN; END_IF
+IF pKey = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.KEY_POINTER_NULL; RETURN; END_IF
+_buf := ULINT_TO_STRING(val);
+_member := THIS^.parser.AddStringMember(v, pKey^, _buf);
+IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
+serializeUint64Value := TRUE;]]></ST>
       </Implementation>
     </Method>
   </POU>

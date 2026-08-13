@@ -7,7 +7,7 @@
 TYPE E_ValueFactoryFailureReason :
 (
 	NA := 0,  // No failure occurred.
-	DESTINATION_ALREADY_ASSIGNED := 1,  // The destination pointer was already assigned when the operation began.
+	DESTINATION_ALREADY_ASSIGNED,  // The destination pointer was already assigned when the operation began.
 	SOURCE_POINTER_NULL,  // The source pointer is null.
 	NUMBER_VALUE_POINTER_NULL,  // The numeric value pointer is null.
 	NUMBER_VALUE_SIZE_INVALID,  // The numeric value size is zero or negative.
@@ -29,7 +29,7 @@ END_TYPE
           <l n="TextList" t="ArrayList" cet="TextListRow">
             <o>
               <v n="TextID">"NA"</v>
-              <v n="TextDefault">""</v>
+              <v n="TextDefault">"0"</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <EnumerationTextList Name="E_AttributesFailureReason" Id="{46c706e7-c1b2-401b-ba9a-eff8813268da}">
     <Declaration><![CDATA[{attribute 'qualified_only'}
@@ -7,7 +7,7 @@
 TYPE E_AttributesFailureReason :
 (
 	NA := 0,  // No attribute failure occurred.
-	KV_POINTER_NULL := 1,  // The supplied key-value pair pointer is null.
+	KV_POINTER_NULL,  // The supplied key-value pair pointer is null.
 	KV_KEY_POINTER_NULL,  // The key-value pair has no key.
 	KV_VALUE_POINTER_NULL,  // The key-value pair has no value.
 	KV_VALUE_INVALID,  // The key-value pair contains an invalid value.
@@ -23,7 +23,7 @@ END_TYPE
           <l n="TextList" t="ArrayList" cet="TextListRow">
             <o>
               <v n="TextID">"NA"</v>
-              <v n="TextDefault">""</v>
+              <v n="TextDefault">"0"</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
@@ -57,7 +57,7 @@ END_TYPE
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
-              <v n="TextID">"MEMORY_ALLOCATION_FAILURE"</v>
+              <v n="TextID">"MEMORY_ALLOCATION_FAILURE  "</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>

@@ -10,6 +10,7 @@ END_VAR
 VAR_OUTPUT
 	currentState: 	E_FileExporterState;
 	errorCode:		E_FileExporterErrorCode;
+	serializationFailureReason: E_ProtoJsonSerializerFailureReason;
 	fileOpenerErrId: 	UDINT;
 	fileWriterErrId: 	UDINT;
 	fileCloserErrId: 	UDINT;		
@@ -32,8 +33,8 @@ VAR
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[_execute := THIS^._pLogRecords <> 0;
-_execRTrig(CLK := _execute AND_THEN THIS^._pLogRecords^.count > 0);
+      <ST><![CDATA[_execute := THIS^._exportActive;
+_execRTrig(CLK := _execute AND_THEN THIS^._records.size > 0);
 
 CASE currentState OF
 	E_FileExporterState.idle, E_FileExporterState.error:
@@ -43,25 +44,32 @@ CASE currentState OF
 		END_IF
 		
 	E_FileExporterState.serializing:
-		_serializer.serializeLogsData(THIS^._pLogRecords^);
-		_jsonVal := _serializer.jsonValue;
-		IF _jsonVal = 0 OR_ELSE NOT _serializer.parser.IsObject(_jsonVal) THEN
+		IF NOT _serializer.serializeLogsData(
+			logRecords:=THIS^._records,
+			failureReason=>serializationFailureReason
+		) THEN
 
 			errorCode := E_FileExporterErrorCode.SERIALIZATION_ERROR;
 			_computedState := E_FileExporterState.error;
 		ELSE
-			_resourceLogsArray := _serializer.parser.FindMember(_jsonVal, 'resourceLogs');
-
-			IF _resourceLogsArray = 0 OR_ELSE NOT _serializer.parser.IsArray(_resourceLogsArray) THEN
+			_jsonVal := _serializer.jsonValue;
+			IF _jsonVal = 0 OR_ELSE NOT _serializer.parser.IsObject(_jsonVal) THEN
 
 				errorCode := E_FileExporterErrorCode.SERIALIZATION_ERROR;
-
 				_computedState := E_FileExporterState.error;
-
 			ELSE
+				_resourceLogsArray := _serializer.parser.FindMember(_jsonVal, 'resourceLogs');
 
-				_computedState := E_FileExporterState.opening;
+				IF _resourceLogsArray = 0 OR_ELSE NOT _serializer.parser.IsArray(_resourceLogsArray) THEN
 
+					errorCode := E_FileExporterErrorCode.SERIALIZATION_ERROR;
+					_computedState := E_FileExporterState.error;
+
+				ELSE
+
+					_computedState := E_FileExporterState.opening;
+
+				END_IF
 			END_IF
 
 		END_IF
@@ -124,7 +132,7 @@ CASE currentState OF
 		IF NOT _execute THEN
 			_computedState := E_FileExporterState.idle;
 		END_IF
-		IF THIS^._pLogRecords <> 0 THEN THIS^._pLogRecords := THIS^._pLogRecords^.delete(); END_IF
+		THIS^.free();
 	
 END_CASE
 
@@ -134,7 +142,7 @@ currentState := _computedState;
 IF currentState <= E_FileExporterState.serializing THEN _hFile := 0; END_IF
 IF currentState = E_FileExporterState.done 
 	OR currentState = E_FileExporterState.error THEN
-	IF THIS^._pLogRecords <> 0 THEN THIS^._pLogRecords := THIS^._pLogRecords^.delete(); END_IF
+	THIS^.free();
 END_IF
 
 
@@ -166,45 +174,26 @@ fileCloserErrId := _fileCloser.nErrId;
     <Method Name="export" Id="{b40925c8-02a7-4045-bcc3-ff164425210b}">
       <Declaration><![CDATA[METHOD export: BOOL
 VAR_IN_OUT
-	pLogRecords: POINTER TO FB_LogRecordQueue;  // ownership transfers when set to 0
+	logRecords: FB_LogRecordQueue;
+END_VAR
+VAR_INPUT
+	count: UDINT;
 END_VAR
 VAR_OUTPUT
-	failureResult: E_LogRecordExporterFailureReason;
+	failureReason: E_LogRecordExporterFailureReason;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[export := FALSE;
-failureResult := E_LogRecordExporterFailureReason.NA;
-
-IF pLogRecords = 0 THEN
-	failureResult := E_LogRecordExporterFailureReason.BATCH_POINTER_NULL;
-	RETURN;
-END_IF
-
-IF pLogRecords^.count > GVL.MAX_EXPORT_BATCH_SIZE THEN
-	failureResult := E_LogRecordExporterFailureReason.BATCH_SIZE_EXCEEDS_MAX;
-	RETURN;
-END_IF
-
-// Only take ownership when the exporter has no active buffer.
-IF THIS^._pLogRecords <> 0 THEN
-	failureResult := E_LogRecordExporterFailureReason.ACTIVE_EXPORT_IN_PROGRESS;
-	RETURN;
-END_IF
-
-// Prepare a completed exporter to accept the next batch immediately.
+        <ST><![CDATA[// Prepare a completed exporter to accept the next batch immediately.
 IF THIS^.currentState = E_FileExporterState.done OR THIS^.currentState = E_FileExporterState.error THEN
 	THIS^.currentState := E_FileExporterState.idle;
 	THIS^._computedState := E_FileExporterState.idle;
 END_IF
-pLogRecords^.maxSize := GVL.MAX_EXPORT_BATCH_SIZE;
-THIS^._pLogRecords := pLogRecords;
-pLogRecords := 0;
-
-IF THIS^._pLogRecords^.count <= 0 THEN
-	THIS^.free();
-END_IF
-
-export := TRUE;]]></ST>
+THIS^.serializationFailureReason := E_ProtoJsonSerializerFailureReason.NA;
+export := SUPER^.export(
+	logRecords:=logRecords,
+	count:=count,
+	failureReason=>failureReason
+);]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Init" Id="{749c920a-b4a3-4d4e-b81c-a6a8ffa6d49c}">
@@ -227,7 +216,7 @@ END_VAR
       <Declaration><![CDATA[METHOD isBusy : BOOL
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[isBusy := THIS^._pLogRecords <> 0;]]></ST>
+        <ST><![CDATA[isBusy := THIS^._exportActive;]]></ST>
       </Implementation>
     </Method>
   </POU>

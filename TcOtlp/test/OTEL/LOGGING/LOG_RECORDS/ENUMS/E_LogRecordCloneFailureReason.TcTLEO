@@ -7,7 +7,7 @@
 TYPE E_LogRecordCloneFailureReason :
 (
 	NA := 0,  // No failure occurred.
-	DESTINATION_ALREADY_ASSIGNED := 1,  // The clone destination pointer is already assigned.
+	DESTINATION_ALREADY_ASSIGNED,  // The clone destination pointer is already assigned.
 	EVENT_NAME_INVALID,  // The source event name could not be cloned.
 	TRACE_ID_INVALID,  // The source Trace ID could not be cloned.
 	SPAN_ID_INVALID,  // The source Span ID could not be cloned.
@@ -31,7 +31,7 @@ END_TYPE
             </o>
             <o>
               <v n="TextID">"DESTINATION_ALREADY_ASSIGNED"</v>
-              <v n="TextDefault">"1"</v>
+              <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>

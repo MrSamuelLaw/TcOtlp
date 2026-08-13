@@ -6,7 +6,7 @@ FUNCTION_BLOCK FB_TestFileExporter EXTENDS FB_TestSuite
 VAR
 	_resource:		FB_Resource(schemaUrl:='');
 	_exporter: 		FB_LogRecordExporter_File(filepath:='C:\Users\samue\Desktop\programming projects\TcOtlp\logs.jsonl');
-	_processor:		FB_LogRecordProcessor_ForRecordsInspection(0);
+	_processor:		FB_LogRecordProcessor_ForRecordsInspection(maxQueueSize:=0, exporter:=0);
 	_provider:		FB_LoggerProvider(resource:=_resource);
 	_scope:			FB_InstrumentationScope(name:='file-exporter-test', version:='0.0.1', schemaUrl:='');
 	_logger:		FB_Logger(scope:=_scope, provider:=_provider);
@@ -43,7 +43,7 @@ VAR
 	_secondEmitSucceeded: BOOL;
 	_thirdEmitSucceeded: BOOL;
 	_loggerFailureResult: E_LoggerFailureReason;
-	_exporterFailureResult: E_LogRecordExporterFailureReason;
+	_exporterFailureReason: E_LogRecordExporterFailureReason;
 	_timestamp: ULINT := ULINT#1581452773000000789;
 	_traceId: ARRAY[0..ValueFactory.nTraceIdBytes-1] OF BYTE := [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 	_spanId: ARRAY[0..ValueFactory.nSpanIdBytes-1] OF BYTE := [16, 17, 18, 19, 20, 21, 22, 23];
@@ -94,7 +94,7 @@ END_VAR]]></Declaration>
 			IF _firstEmitSucceeded
 				AND _secondEmitSucceeded
 				AND _thirdEmitSucceeded THEN
-				THIS^.AssertEquals_UDINT(3, _processor.records.count, 'Expected the processor to capture all three log records');
+				THIS^.AssertEquals_UDINT(3, _processor.records.size, 'Expected the processor to capture all three log records');
 				_state := 10;
 				RETURN;
 			ELSE
@@ -103,12 +103,12 @@ END_VAR]]></Declaration>
 			END_IF
 			
 		10: // export
-			IF _processor.pRecords <> 0 THEN
+			IF _processor.records.size > 0 THEN
 				_exportSucceeded := _processor.exportRecords(
 					exporter:=_exporter,
-					failureResult=>_exporterFailureResult
+					failureReason=>_exporterFailureReason
 				);
-				IF NOT _exportSucceeded OR_ELSE _processor.pRecords <> 0 THEN
+				IF NOT _exportSucceeded OR_ELSE _processor.records.size > 0 THEN
 					THIS^.AssertTrue(FALSE, 'Exporter failed to take ownership of the processor buffer');
 					_state := 30;
 					RETURN;
@@ -125,7 +125,7 @@ END_VAR]]></Declaration>
 				_state := 30;
 				RETURN;
 			ELSIF _exporter.currentState = E_FileExporterState.done THEN
-				THIS^.AssertFalse(_exporter.isBusy(), 'Expected exporter to delete its completed buffer');
+				THIS^.AssertFalse(_exporter.isBusy(), 'Expected exporter to release its completed records');
 				// assert no errors occurred
 				THIS^.AssertEquals_UDINT(0, _exporter.fileOpenerErrId, 'Unexpected file opener error');
 				THIS^.AssertEquals_UDINT(0, _exporter.fileWriterErrId, 'Unexpected file writer error');
@@ -162,7 +162,7 @@ END_VAR]]></Declaration>
 			// clean up the record owned by the processor
 			_processor.free();
 			_logger.free();
-			THIS^.AssertTrue(_processor.pRecords = 0, 'Expected processor to be empty after cleanup');
+			THIS^.AssertTrue(_processor.records.size = 0, 'Expected processor to be empty after cleanup');
 
 			_state := 0;
 			TcUnit.TEST_FINISHED();

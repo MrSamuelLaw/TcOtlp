@@ -15,32 +15,27 @@ END_VAR
     <Method Name="export" Id="{235fc2e0-2811-42e4-bfd0-f35f1b145a8e}">
       <Declaration><![CDATA[METHOD export : BOOL
 VAR_IN_OUT
-	(* ownership transfers when set to 0*)
-	pLogRecords	: POINTER TO FB_LogRecordQueue;
+	logRecords: FB_LogRecordQueue;
+END_VAR
+VAR_INPUT
+	count: UDINT;
 END_VAR
 VAR_OUTPUT
-	failureResult: E_LogRecordExporterFailureReason;
+	failureReason: E_LogRecordExporterFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[export := FALSE;
-failureResult := E_LogRecordExporterFailureReason.NA;
-
-IF pLogRecords = 0 THEN
-	failureResult := E_LogRecordExporterFailureReason.BATCH_POINTER_NULL;
+        <ST><![CDATA[export := SUPER^.export(
+	logRecords:=logRecords,
+	count:=count,
+	failureReason=>failureReason
+);
+IF NOT export THEN
 	RETURN;
 END_IF
 
-IF pLogRecords^.count > GVL.MAX_EXPORT_BATCH_SIZE THEN
-	failureResult := E_LogRecordExporterFailureReason.BATCH_SIZE_EXCEEDS_MAX;
-	RETURN;
-END_IF
-
-pLogRecords^.maxSize := GVL.MAX_EXPORT_BATCH_SIZE;
-THIS^.writeToConsole(pLogRecords);
-// ownership transferred; release the batch after writing
-pLogRecords := pLogRecords^.delete();
-export := TRUE;]]></ST>
+THIS^.writeToConsole(THIS^._records);
+THIS^.free();]]></ST>
       </Implementation>
     </Method>
     <Method Name="isBusy" Id="{941c51ad-8a54-463a-9aa8-04504fc50b02}">
@@ -52,8 +47,8 @@ export := TRUE;]]></ST>
     </Method>
     <Method Name="writeToConsole" Id="{3aea6abb-ab87-43d2-85a8-96216ee4ee7a}">
       <Declaration><![CDATA[METHOD writeToConsole
-VAR_INPUT
-	pLogRecords: POINTER TO FB_LogRecordQueue;
+VAR_IN_OUT
+	logRecords: FB_LogRecordQueue;
 END_VAR
 VAR
 	idx: DINT;
@@ -62,13 +57,9 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF pLogRecords = 0 THEN
-	RETURN;
-END_IF
-
-pLogRecords^.reset();
+        <ST><![CDATA[logRecords.reset();
 FOR idx := 0 TO GVL.MAX_LOOP_COUNT DO
-	logRecord := pLogRecords^.next();
+	logRecord := logRecords.next();
 	IF logRecord = 0 THEN
 		RETURN;
 	END_IF

@@ -2,42 +2,26 @@
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_LogRecordQueue" Id="{9e1ecc03-058c-4b23-92d3-3bd422ae83cb}" SpecialFunc="None">
     <Declaration><![CDATA[(*
-	Bounded FIFO queue that owns every FB_LogRecord pointer it contains.
-	push transfers ownership into the queue and drops the oldest owned records
-	when needed. pop transfers ownership back to the caller. transferTo moves
-	the allocated nodes between statically instantiated queue owners.
+	FIFO queue that owns every FB_LogRecord pointer it contains. A maxSize of
+	zero is unbounded; otherwise push drops the oldest owned records when the
+	bound is reached. pop transfers ownership back to the caller. transferTo
+	moves allocated nodes between queue owners without copying records.
 *)
-{attribute 'enable_dynamic_creation'}
 FUNCTION_BLOCK FB_LogRecordQueue
 VAR
 	_head: POINTER TO ST_LinkedListNode;
 	_tail: POINTER TO ST_LinkedListNode;
 	_cursor: POINTER TO ST_LinkedListNode;
 END_VAR
-VAR_INPUT
-	maxSize: UDINT;
-END_VAR
 VAR_OUTPUT
-	count: UDINT;
+	size: UDINT;
+	maxSize: UDINT;
 	droppedCount: UDINT;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="delete" Id="{ac32f20b-8128-4c42-b4f2-4183bf82ac23}">
-      <Declaration><![CDATA[METHOD delete : ULINT
-VAR
-	pSelf: POINTER TO FB_LogRecordQueue;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[delete := 0;
-THIS^.free();
-pSelf := THIS;
-__DELETE(pSelf);]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="FB_Exit" Id="{6d9d65b6-2d68-47f0-b7cb-88e631d7acef}">
       <Declaration><![CDATA[METHOD FB_Exit : BOOL
 VAR_INPUT
@@ -55,7 +39,7 @@ END_IF]]></ST>
 VAR_INPUT
 	bInitRetains: BOOL;
 	bInCopyCode: BOOL;
-	maxSize: UDINT := 2000;
+	maxSize: UDINT := 0;
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -89,7 +73,7 @@ END_FOR
 THIS^._head := 0;
 THIS^._tail := 0;
 THIS^._cursor := 0;
-THIS^.count := 0;]]></ST>
+THIS^.size := 0;]]></ST>
       </Implementation>
     </Method>
     <Method Name="next" Id="{720ec83f-b785-4449-92d1-d6ec1cfa78ab}">
@@ -142,7 +126,7 @@ pValue := _node^.val;
 _node^.val := 0;
 _node^.nxt := 0;
 __DELETE(_node);
-THIS^.count := THIS^.count - 1;
+THIS^.size := THIS^.size - 1;
 pop := TRUE;]]></ST>
       </Implementation>
     </Method>
@@ -169,10 +153,6 @@ IF pValue = 0 THEN
 	failureReason := E_LogRecordQueueFailureReason.RECORD_POINTER_NULL;
 	RETURN;
 END_IF
-IF THIS^.maxSize = 0 THEN
-	failureReason := E_LogRecordQueueFailureReason.MAX_SIZE_ZERO;
-	RETURN;
-END_IF
 
 // Allocate before evicting so an allocation failure leaves the queue unchanged.
 _node := __NEW(ST_LinkedListNode);
@@ -181,23 +161,25 @@ IF _node = 0 THEN
 	RETURN;
 END_IF
 
-// maxSize is writable so also restore the invariant after a runtime reduction.
-FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
-	IF THIS^.count < THIS^.maxSize THEN
-		EXIT;
-	END_IF
-	IF NOT THIS^.pop(pValue:=_droppedRecord, failureReason=>_popFailureReason) THEN
+// maxSize is writable, so also restore the bound after a runtime reduction.
+IF THIS^.maxSize > 0 THEN
+	FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
+		IF THIS^.size < THIS^.maxSize THEN
+			EXIT;
+		END_IF
+		IF NOT THIS^.pop(pValue:=_droppedRecord, failureReason=>_popFailureReason) THEN
+			__DELETE(_node);
+			failureReason := _popFailureReason;
+			RETURN;
+		END_IF
+		_droppedRecord := _droppedRecord^.delete();
+		THIS^.droppedCount := THIS^.droppedCount + 1;
+	END_FOR
+	IF THIS^.size >= THIS^.maxSize THEN
 		__DELETE(_node);
-		failureReason := _popFailureReason;
+		failureReason := E_LogRecordQueueFailureReason.MAX_SIZE_ENFORCEMENT_FAILURE;
 		RETURN;
 	END_IF
-	_droppedRecord := _droppedRecord^.delete();
-	THIS^.droppedCount := THIS^.droppedCount + 1;
-END_FOR
-IF THIS^.count >= THIS^.maxSize THEN
-	__DELETE(_node);
-	failureReason := E_LogRecordQueueFailureReason.MAX_SIZE_ENFORCEMENT_FAILURE;
-	RETURN;
 END_IF
 
 _node^.val := pValue;
@@ -209,7 +191,7 @@ ELSE
 	THIS^._tail^.nxt := _node;
 END_IF
 THIS^._tail := _node;
-THIS^.count := THIS^.count + 1;
+THIS^.size := THIS^.size + 1;
 pValue := 0;
 push := TRUE;]]></ST>
       </Implementation>
@@ -255,12 +237,15 @@ rotate := TRUE;]]></ST>
     <Method Name="transferTo" Id="{e7eb4308-b34a-4dc8-852c-97a5624b88e2}">
       <Declaration><![CDATA[(*
 	Transfers the allocated nodes and owned records without copying them.
-	The destination must be a different, empty queue. It receives the oldest
-	records up to its maxSize, and the source retains any remaining records.
+	The destination must be a different, empty queue. It receives up to count
+	of the oldest records, also respecting a nonzero destination maxSize.
 *)
 METHOD transferTo : BOOL
 VAR_IN_OUT
 	destination: FB_LogRecordQueue;
+END_VAR
+VAR_INPUT
+	count: UDINT;
 END_VAR
 VAR_OUTPUT
 	failureReason: E_LogRecordQueueFailureReason;
@@ -278,13 +263,16 @@ IF ADR(destination) = THIS THEN
 	failureReason := E_LogRecordQueueFailureReason.SELF_TRANSFER_NOT_ALLOWED;
 	RETURN;
 END_IF
-IF destination.count <> 0 OR_ELSE destination._head <> 0 OR_ELSE destination._tail <> 0 THEN
+IF destination.size <> 0 OR_ELSE destination._head <> 0 OR_ELSE destination._tail <> 0 THEN
 	failureReason := E_LogRecordQueueFailureReason.DESTINATION_NOT_EMPTY;
 	RETURN;
 END_IF
 
-_transferCount := THIS^.count;
-IF _transferCount > destination.maxSize THEN
+_transferCount := count;
+IF _transferCount > THIS^.size THEN
+	_transferCount := THIS^.size;
+END_IF
+IF destination.maxSize > 0 AND_THEN _transferCount > destination.maxSize THEN
 	_transferCount := destination.maxSize;
 END_IF
 IF _transferCount = 0 THEN
@@ -301,9 +289,9 @@ END_FOR
 THIS^._head := destination._tail^.nxt;
 destination._tail^.nxt := 0;
 destination._cursor := destination._head;
-destination.count := _transferCount;
+destination.size := _transferCount;
 
-THIS^.count := THIS^.count - _transferCount;
+THIS^.size := THIS^.size - _transferCount;
 THIS^._cursor := THIS^._head;
 IF THIS^._head = 0 THEN
 	THIS^._tail := 0;

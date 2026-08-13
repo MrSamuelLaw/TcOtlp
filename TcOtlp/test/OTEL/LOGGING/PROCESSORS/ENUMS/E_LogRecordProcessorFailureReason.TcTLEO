@@ -7,9 +7,9 @@
 TYPE E_LogRecordProcessorFailureReason :
 (
 	NA := 0,  // No failure occurred.
-	QUEUE_ALLOCATION_FAILURE := 1,  // A processing queue could not be allocated.
 	RECORD_CLONE_FAILURE,  // The emitted record could not be cloned for retention.
-	QUEUE_PUSH_FAILURE  // The retained record could not be transferred into the queue.
+	QUEUE_PUSH_FAILURE,  // The retained record could not be transferred into the queue.
+	EXPORT_FAILURE  // The exporter did not accept the prepared batch.
 ) UDINT;
 END_TYPE
 ]]></Declaration>
@@ -23,17 +23,17 @@ END_TYPE
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
-              <v n="TextID">"QUEUE_ALLOCATION_FAILURE"</v>
-              <v n="TextDefault">"1"</v>
-              <l n="LanguageTexts" t="ArrayList" />
-            </o>
-            <o>
               <v n="TextID">"RECORD_CLONE_FAILURE"</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
-              <v n="TextID">"QUEUE_PUSH_FAILURE  "</v>
+              <v n="TextID">"QUEUE_PUSH_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"EXPORT_FAILURE  "</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>

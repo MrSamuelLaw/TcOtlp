@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_LogRecordProcessor_ForRecordsInspection" Id="{165df84d-fe08-4138-bc80-62512eeb91af}" SpecialFunc="None">
     <Declaration><![CDATA[(* Processor test double that retains emitted records for assertions. *)
@@ -7,88 +7,30 @@ FUNCTION_BLOCK FB_LogRecordProcessor_ForRecordsInspection EXTENDS FB_LogRecordPr
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="onEmit" Id="{cb8ed68d-eae4-46cd-ac01-fd87889551db}">
-      <Declaration><![CDATA[METHOD onEmit
-VAR_INPUT
-	logRecord: REFERENCE TO FB_LogRecord;
-END_VAR
-VAR
-	record: POINTER TO FB_LogRecord;
-	cloneFailureResult: E_LogRecordCloneFailureReason;
-	queueFailureReason: E_LogRecordQueueFailureReason;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF THIS^._records = 0 THEN
-	THIS^._records := __NEW(FB_LogRecordQueue(maxSize:=THIS^.maxQueueSize));
-	IF THIS^._records = 0 THEN
-		THIS^.lastOperationSucceeded := FALSE;
-		THIS^.failureResult := E_LogRecordProcessorFailureReason.QUEUE_ALLOCATION_FAILURE;
-		RETURN;
-	END_IF
-END_IF
-
-THIS^._records^.maxSize := THIS^.maxQueueSize;
-
-record := 0;
-IF NOT logRecord.cloneTo(pDest:=record, failureResult=>cloneFailureResult) THEN
-	THIS^.lastOperationSucceeded := FALSE;
-	THIS^.failureResult := E_LogRecordProcessorFailureReason.RECORD_CLONE_FAILURE;
-	RETURN;
-END_IF
-
-IF NOT THIS^._records^.push(pValue:=record, failureReason=>queueFailureReason) THEN
-	record := record^.delete();
-	THIS^.lastOperationSucceeded := FALSE;
-	THIS^.failureResult := E_LogRecordProcessorFailureReason.QUEUE_PUSH_FAILURE;
-ELSE
-	record := 0;
-	THIS^.lastOperationSucceeded := TRUE;
-	THIS^.failureResult := E_LogRecordProcessorFailureReason.NA;
-END_IF]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="exportRecords" Id="{87208a9f-4de6-4281-8ddd-ed45005649ec}">
       <Declaration><![CDATA[METHOD exportRecords : BOOL
 VAR_INPUT
 	exporter: REFERENCE TO FB_LogRecordExporter_Base;
 END_VAR
 VAR_OUTPUT
-	failureResult: E_LogRecordExporterFailureReason;
+	failureReason: E_LogRecordExporterFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF __ISVALIDREF(exporter) THEN
-	exportRecords := exporter.export(
-		pLogRecords:=THIS^._records,
-		failureResult=>failureResult
-	);
-ELSE
-	exportRecords := FALSE;
-	failureResult := E_LogRecordExporterFailureReason.EXPORTER_REFERENCE_INVALID;
-END_IF]]></ST>
+        <ST><![CDATA[exportRecords := exporter.export(
+	logRecords:=THIS^._records,
+	count:=THIS^._records.size,
+	failureReason=>failureReason
+);]]></ST>
       </Implementation>
     </Method>
-    <Property Name="pRecords" Id="{a29489ad-5899-47ae-80c4-e92271551fde}">
-      <Declaration><![CDATA[PROPERTY pRecords : POINTER TO FB_LogRecordQueue]]></Declaration>
-      <Get Name="Get" Id="{911cc358-d9b2-441b-8c96-121513b5ba98}">
-        <Declaration><![CDATA[
-]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[pRecords := THIS^._records;]]></ST>
-        </Implementation>
-      </Get>
-    </Property>
     <Property Name="records" Id="{e6573eb1-0ce2-4c29-b81f-faf070bed2e3}">
       <Declaration><![CDATA[PROPERTY records : REFERENCE TO FB_LogRecordQueue]]></Declaration>
       <Get Name="Get" Id="{94707f0e-43af-40f1-b736-6188bca9d8d0}">
         <Declaration><![CDATA[
 ]]></Declaration>
         <Implementation>
-          <ST><![CDATA[IF THIS^._records = 0 THEN
-	THIS^._records := __NEW(FB_LogRecordQueue(maxSize:=THIS^.maxQueueSize));
-END_IF
-records REF= THIS^._records^;]]></ST>
+          <ST><![CDATA[records REF= THIS^._records;]]></ST>
         </Implementation>
       </Get>
     </Property>

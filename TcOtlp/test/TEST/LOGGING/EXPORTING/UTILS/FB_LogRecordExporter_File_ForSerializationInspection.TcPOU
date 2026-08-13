@@ -5,6 +5,7 @@
 FUNCTION_BLOCK FB_LogRecordExporter_File_ForSerializationInspection EXTENDS FB_LogRecordExporter_Base
 VAR_OUTPUT
 	serializer: FB_LogRecordProtoJsonSerializer;
+	serializationFailureReason: E_ProtoJsonSerializerFailureReason;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -13,29 +14,33 @@ END_VAR
     <Method Name="export" Id="{a8814952-f93e-467d-a452-a3c44ef19158}">
       <Declaration><![CDATA[METHOD export : BOOL
 VAR_IN_OUT
-	pLogRecords: POINTER TO FB_LogRecordQueue;
+	logRecords: FB_LogRecordQueue;
+END_VAR
+VAR_INPUT
+	count: UDINT;
 END_VAR
 VAR_OUTPUT
-	failureResult: E_LogRecordExporterFailureReason;
+	failureReason: E_LogRecordExporterFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[export := FALSE;
-failureResult := E_LogRecordExporterFailureReason.NA;
-
-IF pLogRecords = 0 THEN
-	failureResult := E_LogRecordExporterFailureReason.BATCH_POINTER_NULL;
-	RETURN;
-END_IF
-IF pLogRecords^.count > GVL.MAX_EXPORT_BATCH_SIZE THEN
-	failureResult := E_LogRecordExporterFailureReason.BATCH_SIZE_EXCEEDS_MAX;
+        <ST><![CDATA[serializationFailureReason := E_ProtoJsonSerializerFailureReason.NA;
+export := SUPER^.export(
+	logRecords:=logRecords,
+	count:=count,
+	failureReason=>failureReason
+);
+IF NOT export THEN
 	RETURN;
 END_IF
 
-pLogRecords^.maxSize := GVL.MAX_EXPORT_BATCH_SIZE;
-THIS^.serializer.serializeLogsData(pLogRecords^);
-pLogRecords := pLogRecords^.delete();
-export := TRUE;]]></ST>
+// export reports batch acceptance. Detailed synchronous serialization status is
+// exposed separately to mirror the asynchronous production file exporter.
+THIS^.serializer.serializeLogsData(
+	logRecords:=THIS^._records,
+	failureReason=>serializationFailureReason
+);
+THIS^.free();]]></ST>
       </Implementation>
     </Method>
     <Method Name="isBusy" Id="{3fcad1b8-f625-4274-83b7-cc42030874ba}">
