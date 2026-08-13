@@ -11,8 +11,10 @@ VAR
 	valveScope: FB_InstrumentationScope(name:='valve', version:='0.0.0a', schemaUrl:='');
 	valveLogger: FB_Logger(provider:=provider, scope:=valveScope);
 	exporter: FB_LogRecordExporter_File(filepath:='C:\Users\samue\Desktop\programming projects\TcOtlp\logs.jsonl');
-	processor: FB_LogRecordProcessor_Batch(exporter:=exporter);
-	processors: ARRAY [0..0] OF I_LogRecordProcessor := [
+	console_processor: FB_LogRecordProcessor_ConsolePrinter(0);
+	processor: FB_LogRecordProcessor_Batch(500, 1500, 100, exporter);
+	processors: ARRAY [0..1] OF I_LogRecordProcessor := [
+		console_processor,
 		processor
 	];
 	

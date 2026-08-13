@@ -15,8 +15,8 @@ VAR
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[TcUnit.RUN();
-// SIM_MAIN();]]></ST>
+      <ST><![CDATA[// TcUnit.RUN();
+SIM_MAIN();]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

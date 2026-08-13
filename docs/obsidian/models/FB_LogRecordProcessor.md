@@ -1,32 +1,43 @@
-A log record processor takes a log, enriches it, and then clones it, saves it, and pushes it to an exporter if the exporter isn't busy. Processors MUST implement an onEmit method that can be extended to customize the behavior of the processor.
+A logger passes its active log record by reference to each `I_LogRecordProcessor` in array order, then deletes the original record after all processors return. A processor that retains a record must therefore clone it. `I_LogRecordProcessor` requires `onEmit`, `enrich`, `call`, `free`, and the `pSelf` identity used for exporter registration.
 
-## FB_LogRecordProcessor_Simple
+Both concrete processors call `enrich` on the original record before cloning. Their default implementation is a no-op and can be overridden. Because enrichment mutates the original, changes made by one processor are visible to processors later in the logger's processor array.
 
-The FB_LogRecordProcessor_Simple class does not have an internal buffer to export logs. Instead it will silently drop the log records if the exporter is busy.
-### Methods:
+## `FB_LogRecordProcessor_Simple`
 
-`onEmit(logRecord:FB_LogRecord) -> void`
-This method is used by FB_Logger to pass the log record to the processor, if and only if the processor contains an exporter, it MUST clone the record and attempt to export it. If the exporter is busy it MUST drop the log record and SHOULD log to the console that the record was dropped.
+The simple processor has no retained backlog. It uses a one-record queue only as a transient ownership-transfer buffer.
 
-enrich(logRecord: FB_LogRecord) -> void
-This method is no-op on FB_LogRecordProcessor_Simple, but can be overridden by classes that extend FB_LogRecordProcessor_Simple to augment the log record prior to cloning it and passing it to the exporter if and only if the exporter exists.
+### Methods
 
-call() -> void
-alias for () used to call the processor body cyclically while maintaining compatibility with twincat interfaces.
+- **`onEmit(logRecord: REFERENCE TO FB_LogRecord)`** — Calls `enrich` unconditionally. If a registered exporter exists and is not busy, clones the record, places the clone in its transient queue, and offers one record to the exporter. It then releases anything the exporter did not accept. A missing or busy exporter, clone failure, queue failure, or export failure produces no exported clone and logs no warning.
 
-## FB_LogRecordProcessor_Batch
+- **`enrich(logRecord: FB_LogRecord)`** — No-op extension point invoked before the exporter validity and busy checks.
 
-The FB_LogRecordProcessor_Simple class has an internal buffer that is utilized to push records to the exporter in batches if and only if it contains an exporter. If the exporter is null the log records are silently dropped to reduce memory consumption.
-### Methods:
+- **`call()`** — Calls the registered exporter's `call()` method. The simple processor's function-block body is empty, so invoking `processor()` is not an alias for this method.
 
-`onEmit(logRecord:FB_LogRecord) -> void`
-This method is used by FB_Logger to pass the log record to the processor, if and only if the processor contains an exporter, it MUST clone the record. If the instance does not have a an exporter associated with it it MUST NOT clone and save the record to it's internal buffer. 
+- **`free()`** — Releases any record in the transient queue. Normal destruction also invokes this method.
 
-enrich(logRecord: FB_LogRecord) -> void
-This method is no-op on FB_LogRecordProcessor_Simple, but can be overridden by classes that extend FB_LogRecordProcessor_Simple to augment the log record prior to cloning it and passing it to the exporter if and only if the exporter exists.
+## `FB_LogRecordProcessor_Batch`
 
-call() -> void
-alias for () used to call the processor body cyclically while maintaining compatibility with twincat interfaces. If the exporter is busy AND the internal buffer it not full it MUST wait and attempt to push log records to the exporter the next time the processor is called cyclically.
+The batch processor retains cloned records in FIFO arrival order and exports the oldest records in bounded batches. Its underlying queue is unbounded; `maxQueueSize` is enforced by the processor's explicit drop policy.
 
+### Configuration
 
+- **`maxQueueSize: UDINT := 2048`** — Maximum retained records. Zero is unbounded. When a nonzero limit is exceeded, the oldest record is deleted to retain the newest record.
 
+- **`scheduledDelayMillis: UDINT := 1000`** — Maximum time a partial batch waits before becoming eligible for export.
+
+- **`maxExportBatchSize: UDINT := 512`** — Maximum records transferred per export. Zero disables export attempts.
+
+- **`lastOperationSucceeded: BOOL` and `failureResult: E_LogRecordProcessorFailureReason`** — Report the most recent clone, queue, or export operation result.
+
+### Methods
+
+- **`onEmit(logRecord: REFERENCE TO FB_LogRecord)`** — Calls `enrich`, clones the record, and queues the clone even when no exporter is registered. Clone and queue failures are reported through the status outputs. If the configured queue limit is exceeded, the oldest queued record is deleted.
+
+- **`enrich(logRecord: FB_LogRecord)`** — No-op extension point invoked before every clone.
+
+- **`call()`** — Advances the schedule-delay timer and registered exporter. If the exporter is available and not busy, exports up to `maxExportBatchSize` oldest records when a full batch is available or the delay has elapsed. A busy exporter leaves the queue untouched for a later cycle. Without a registered exporter, records remain queued until dropped by `maxQueueSize` or released by `free()`.
+
+The batch processor's function-block body invokes `call()`, so `processor()` and `processor.call()` advance the same cyclic behavior.
+
+- **`free()`** — Releases every queued record and resets the schedule-delay timer. Normal destruction also invokes this method.
