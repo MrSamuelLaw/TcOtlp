@@ -5,12 +5,25 @@
 FUNCTION_BLOCK FB_LogRecordExporter_File_ForSerializationInspection EXTENDS FB_LogRecordExporter_Base
 VAR_OUTPUT
 	serializer: FB_LogRecordProtoJsonSerializer;
-	serializationFailureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+VAR
+	_serializationFailureReason: E_ProtoJsonSerializerFailureReason;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="call" Id="{02f14eb3-c0a1-44a8-a5e1-327221e56a6d}">
+      <Declaration><![CDATA[METHOD call : BOOL
+VAR_OUTPUT
+	failureReason: E_LogRecordExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[failureReason := E_LogRecordExporterFailureReason.NA;
+call := TRUE;]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="export" Id="{a8814952-f93e-467d-a452-a3c44ef19158}">
       <Declaration><![CDATA[METHOD export : BOOL
 VAR_IN_OUT
@@ -24,7 +37,7 @@ VAR_OUTPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[serializationFailureReason := E_ProtoJsonSerializerFailureReason.NA;
+        <ST><![CDATA[_serializationFailureReason := E_ProtoJsonSerializerFailureReason.NA;
 export := SUPER^.export(
 	logRecords:=logRecords,
 	count:=count,
@@ -34,12 +47,13 @@ IF NOT export THEN
 	RETURN;
 END_IF
 
-// export reports batch acceptance. Detailed synchronous serialization status is
-// exposed separately to mirror the asynchronous production file exporter.
-THIS^.serializer.serializeLogsData(
+IF NOT THIS^.serializer.serializeLogsData(
 	logRecords:=THIS^._records,
-	failureReason=>serializationFailureReason
-);
+	failureReason=>_serializationFailureReason
+) THEN
+	failureReason := E_LogRecordExporterFailureReason.SERIALIZATION_FAILURE;
+	export := FALSE;
+END_IF
 THIS^.free();]]></ST>
       </Implementation>
     </Method>

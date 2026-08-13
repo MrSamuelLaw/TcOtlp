@@ -91,10 +91,6 @@ END_VAR
 			AND_THEN exporterFailureReason = E_LogRecordExporterFailureReason.NA,
 			'Expected exporter success without a failure reason and record ownership transfer'
 		);
-		THIS^.AssertTrue(
-			exporter.serializationFailureReason = E_ProtoJsonSerializerFailureReason.NA,
-			'Expected exporter serialization to complete without a failure reason'
-		);
 		serialized REF= exporter.serializer;
 
 		resourceLogs := serialized.parser.FindMember(serialized.jsonValue, 'resourceLogs');

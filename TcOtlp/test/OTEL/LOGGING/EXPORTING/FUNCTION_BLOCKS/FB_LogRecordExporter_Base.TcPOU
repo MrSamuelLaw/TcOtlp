@@ -6,11 +6,22 @@ VAR
 	_processor: PVOID;
 	_records: FB_LogRecordQueue(maxSize:=0);
 	_exportActive: BOOL;
+	_callFailureReason: E_LogRecordExporterFailureReason;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="call" Id="{026c006d-bd3c-4d2e-a9f9-a18db63b8c3f}">
+      <Declaration><![CDATA[METHOD ABSTRACT call : BOOL
+VAR_OUTPUT
+	failureReason: E_LogRecordExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="export" Id="{ae492816-f399-4168-9ef3-5fffa135683d}">
       <Declaration><![CDATA[METHOD export: BOOL
 VAR_IN_OUT

@@ -12,10 +12,13 @@ END_VAR
     </Implementation>
     <Method Name="call" Id="{cbc94a96-e048-4b21-9864-888b5113f033}">
       <Declaration><![CDATA[METHOD call
+VAR
+	_exportFailureReason: E_LogRecordExporterFailureReason;
+END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF __ISVALIDREF(THIS^._exporter) THEN
-	THIS^._exporter();
+	THIS^._exporter.call(failureReason=>_exportFailureReason);
 END_IF]]></ST>
       </Implementation>
     </Method>

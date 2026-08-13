@@ -6,7 +6,12 @@ FUNCTION_BLOCK FB_TestFileExporter EXTENDS FB_TestSuite
 VAR
 	_resource:		FB_Resource(schemaUrl:='');
 	_exporter: 		FB_LogRecordExporter_File(filepath:='C:\Users\samue\Desktop\programming projects\TcOtlp\logs.jsonl');
-	_processor:		FB_LogRecordProcessor_ForRecordsInspection(maxQueueSize:=0, exporter:=0);
+	_processor:		FB_LogRecordProcessor_ForRecordsInspection(
+		maxQueueSize:=0,
+		scheduledDelayMillis:=1000,
+		maxExportBatchSize:=512,
+		exporter:=0
+	);
 	_provider:		FB_LoggerProvider(resource:=_resource);
 	_scope:			FB_InstrumentationScope(name:='file-exporter-test', version:='0.0.1', schemaUrl:='');
 	_logger:		FB_Logger(scope:=_scope, provider:=_provider);
@@ -39,6 +44,7 @@ VAR
 	_num: UINT;
 	_fileSize: ULINT;
 	_exportSucceeded: BOOL;
+	_exportCallSucceeded: BOOL;
 	_firstEmitSucceeded: BOOL;
 	_secondEmitSucceeded: BOOL;
 	_thirdEmitSucceeded: BOOL;
@@ -114,9 +120,13 @@ END_VAR]]></Declaration>
 					RETURN;
 				END_IF
 			END_IF
-			_exporter();
+			_exportCallSucceeded := _exporter.call(failureReason=>_exporterFailureReason);
 			_cycles := _cycles + 1;
-			IF _exporter.currentState = E_FileExporterState.error THEN
+			IF NOT _exportCallSucceeded THEN
+				THIS^.AssertTrue(
+					_exporterFailureReason <> E_LogRecordExporterFailureReason.NA,
+					'Expected an exporter failure reason when call returns FALSE'
+				);
 				THIS^.AssertTrue(FALSE, 'OTLP pipeline failed to export logs to file');
 				_state := 30;
 				RETURN;
@@ -126,10 +136,10 @@ END_VAR]]></Declaration>
 				RETURN;
 			ELSIF _exporter.currentState = E_FileExporterState.done THEN
 				THIS^.AssertFalse(_exporter.isBusy(), 'Expected exporter to release its completed records');
-				// assert no errors occurred
-				THIS^.AssertEquals_UDINT(0, _exporter.fileOpenerErrId, 'Unexpected file opener error');
-				THIS^.AssertEquals_UDINT(0, _exporter.fileWriterErrId, 'Unexpected file writer error');
-				THIS^.AssertEquals_UDINT(0, _exporter.fileCloserErrId, 'Unexpected file closer error');
+				THIS^.AssertTrue(
+					_exporterFailureReason = E_LogRecordExporterFailureReason.NA,
+					'Expected no failure reason when file export succeeds'
+				);
 				_state := 20;
 				RETURN;
 			ELSE

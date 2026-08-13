@@ -8,7 +8,12 @@ TYPE E_LogRecordExporterFailureReason :
 (
 	NA := 0,  // No failure occurred.
 	ACTIVE_EXPORT_IN_PROGRESS,  // The exporter cannot accept another batch while an export is active.
-	QUEUE_TRANSFER_FAILURE  // Records could not be transferred into the exporter queue.
+	QUEUE_TRANSFER_FAILURE,  // Records could not be transferred into the exporter queue.
+	SERIALIZATION_FAILURE,  // The accepted records could not be serialized.
+	BUFFER_ALLOCATION_FAILURE,  // The serialized payload buffer could not be allocated.
+	FILE_OPEN_FAILURE,  // The destination file could not be opened.
+	FILE_WRITE_FAILURE,  // The serialized payload could not be written.
+	FILE_CLOSE_FAILURE  // The destination file could not be closed.
 ) UDINT;
 END_TYPE
 ]]></Declaration>
@@ -27,7 +32,32 @@ END_TYPE
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
-              <v n="TextID">"QUEUE_TRANSFER_FAILURE  "</v>
+              <v n="TextID">"QUEUE_TRANSFER_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SERIALIZATION_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"BUFFER_ALLOCATION_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"FILE_OPEN_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"FILE_WRITE_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"FILE_CLOSE_FAILURE  "</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>

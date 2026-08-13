@@ -14,6 +14,17 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="call" Id="{900e1bfc-7fef-4279-8923-fb8a822cc1c3}">
+      <Declaration><![CDATA[METHOD call : BOOL
+VAR_OUTPUT
+	failureReason: E_LogRecordExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[failureReason := E_LogRecordExporterFailureReason.NA;
+call := TRUE;]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="isBusy" Id="{a1f83d64-92b7-4e5a-8c39-7d15b0e6c2f9}">
       <Declaration><![CDATA[METHOD isBusy : BOOL
 ]]></Declaration>

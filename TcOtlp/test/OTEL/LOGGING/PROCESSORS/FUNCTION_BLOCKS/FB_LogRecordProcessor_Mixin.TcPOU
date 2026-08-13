@@ -8,8 +8,7 @@
       <ST><![CDATA[]]></ST>
     </Implementation>
     <Property Name="pSelf" Id="{c45a0b56-7ccb-46e3-931e-df0fc3157438}">
-      <Declaration><![CDATA[{warning 'Add property implementation'}
-PROPERTY pSelf : PVOID
+      <Declaration><![CDATA[PROPERTY pSelf : PVOID
 ]]></Declaration>
       <Get Name="Get" Id="{570e9249-c17b-4cba-bb86-bb402ea7310c}">
         <Declaration><![CDATA[]]></Declaration>

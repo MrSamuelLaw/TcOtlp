@@ -33,9 +33,6 @@
     <Compile Include="OTEL\COMMON\STRUCTS\ST_LinkedListNode.TcDUT">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\EXPORTING\ENUMS\E_FileExporterErrorCode.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="OTEL\EXPORTING\ENUMS\E_FileExporterState.TcTLEO">
       <SubType>Code</SubType>
     </Compile>

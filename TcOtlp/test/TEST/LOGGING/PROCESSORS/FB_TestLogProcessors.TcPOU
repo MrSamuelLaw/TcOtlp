@@ -131,6 +131,7 @@ END_VAR
 	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 6, 'Expected batch record 2 to be ts6');
 
 	// a full queue drops the oldest record to make room for the newest
+	THIS^.AssertEquals_UDINT(0, boundedProcessor.records.maxSize, 'Expected the internal queue to remain unbounded');
 	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(ts7)).emit(boundedProcessors);
 	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(ts8)).emit(boundedProcessors);
 	loggerBA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(ts9)).emit(boundedProcessors);

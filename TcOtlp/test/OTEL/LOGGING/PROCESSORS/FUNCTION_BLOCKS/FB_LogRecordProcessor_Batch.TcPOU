@@ -25,6 +25,9 @@ END_VAR
     </Implementation>
     <Method Name="call" Id="{52431084-38a6-4b97-9c40-41396451732f}">
       <Declaration><![CDATA[METHOD call
+VAR
+	_exportFailureReason: E_LogRecordExporterFailureReason;
+END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[THIS^._scheduleDelayTimer(
@@ -33,7 +36,7 @@ END_VAR
 );
 
 IF __ISVALIDREF(THIS^._exporter) THEN
-	THIS^._exporter();
+	THIS^._exporter.call(failureReason=>_exportFailureReason);
 	THIS^.exportIfNeeded();
 END_IF]]></ST>
       </Implementation>
