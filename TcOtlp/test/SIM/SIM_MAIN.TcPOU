@@ -10,7 +10,7 @@ VAR
 	motorLogger: FB_Logger(provider:=provider, scope:=motorScope);
 	valveScope: FB_InstrumentationScope(name:='valve', version:='0.0.0a', schemaUrl:='');
 	valveLogger: FB_Logger(provider:=provider, scope:=valveScope);
-	exporter: FB_LogRecordExporter_File(filepath:='C:\Users\samue\Desktop\programming projects\TcOtlp\logs.jsonl');
+	exporter: FB_LogRecordExporter_File(filepath:='/tmp/logs.jsonl');
 	console_processor: FB_LogRecordProcessor_ConsolePrinter(0);
 	processor: FB_LogRecordProcessor_Batch(500, 1500, 100, exporter);
 	processors: ARRAY [0..1] OF I_LogRecordProcessor := [
@@ -23,46 +23,97 @@ VAR
 	
 	// program variables
 	_idx: DINT;
-	motorAlarmFlag: BOOL;
+	motorFaultFlag: BOOL;
+	motorWarningFlag: BOOL;
 	valveAlarmFlag: BOOL;
+	valveClosedFlag: BOOL;
 	valvePosFeedback: 	REAL := 70.0;
  	valvePosCommand: 	REAL := 0.0;
+	motorSpeedSetpoint: U_OtlpSetpoint_Real;
 	motorTemp: REAL;
-	motorTempLimit: REAL := 135.00;  // °F
+	motorTempWarningLimit: REAL := 100.00; // °F 
+	motorTempFaultLimit: REAL := 135.00;  // °F
+	
+	// simulate a delayed rising temp once speed gets too hot
+	motorTempTimer: TON := (PT:=T#1M);
+	valveClosingTimer: TON := (PT:=T#30S);
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[IF firstScan THEN
 	resource.attributes.setStringAttribute('name', 'PLC1');
-
 END_IF
-	
+
+// process loggers	
 FOR _idx := LOWER_BOUND(processors, 1) TO UPPER_BOUND(processors, 1) DO
 	processors[_idx].call();
 END_FOR
 
-IF motorTemp > motorTempLimit AND NOT motorAlarmFlag THEN
+IF motorSpeedSetpoint.payload.flag <> 0  THEN
+	motorSpeedSetpoint.payload.flag := 0;
+	motorLogger
+		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO)
+		.setEventName('motor.speedSetpointChanged')
+		.setBody('motor speed setpoint changed')
+		.addStringAttribute('speed.units', 'Hz')
+		.addNumberAttribute('speed.setpoint', motorSpeedSetpoint.payload.value)
+		.emit(processors);
+END_IF
+
+// simulate a cascading failure due to a high setpoint
+motorTempTimer(IN:=motorSpeedSetpoint.payload.value > 75.0);
+motorTemp := motorTempFaultLimit * TO_REAL(motorTempTimer.ET) / TO_REAL(motorTempTimer.PT);
+
+IF motorTemp > motorTempWarningLimit AND NOT motorWarningFlag THEN
+	motorLogger
+		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_WARN)
+		.setEventName('motor.overTempWarning')
+		.setBody('Motor experienced an over temp alarm, continued temperature rise will result in automatic shutdown!')
+		.addStringAttribute('temperature.units', '°F')
+		.addNumberAttribute('temperature.alarmLimit', motorTempWarningLimit)
+		.addNumberAttribute('temperature.processValue', motorTemp)
+		.emit(processors);
+END_IF
+motorWarningFlag := motorTemp >= motorTempWarningLimit;
+
+IF motorTemp > motorTempFaultLimit AND NOT motorFaultFlag THEN
 	motorLogger
 		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_FATAL)
-		.setEventName('motor.over_temp_fault')
+		.setEventName('motor.overTempFault')
 		.setBody('Motor experienced an over temp fault... initiating auto shutdown sequence!')
-		.addNumberAttribute('temp.limit', motorTempLimit)
-		.addNumberAttribute('temp.actual', motorTemp)
+		.addStringAttribute('temperature.units', '°F')
+		.addNumberAttribute('temperature.alarmLimit', motorTempFaultLimit)
+		.addNumberAttribute('temperature.processValue', motorTemp)
 		.emit(processors);
 END_IF
-motorAlarmFlag := motorTemp > motorTempLimit;
+motorFaultFlag := motorTemp >= motorTempFaultLimit;
 firstScan := FALSE;
 
-IF motorAlarmFlag AND NOT valveAlarmFlag THEN
+IF motorFaultFlag AND NOT valveAlarmFlag THEN
 	valveLogger
 		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_FATAL)
-		.setEventName('valve.emergency_close')
+		.setEventName('valve.emergencyClose')
 		.setBody('Motor has stopped running, closing valve to prevent flooding!')
-		.addNumberAttribute('valve.position_feedback', valvePosFeedback)
-		.addNumberAttribute('valve.position_command', valvePosCommand)
+		.addStringAttribute('position.units', '%')
+		.addNumberAttribute('position.currentValue', valvePosFeedback)
+		.addNumberAttribute('position.commandedValue', valvePosCommand)
 		.emit(processors);
 END_IF
-valveAlarmFlag := motorAlarmFlag;]]></ST>
+valveAlarmFlag := motorFaultFlag;
+valvePosFeedback := SEL(valveClosedFlag, 70.0, 0.0);
+
+valveClosingTimer(IN:=valveAlarmFlag);
+IF valveClosingTimer.Q AND NOT valveClosedFlag THEN
+	valveLogger
+		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO)
+		.setEventName('valve.emergencyCloseComplete')
+		.setBody('Motor has stopped running, valve is interlocked closed prevent flooding!')
+		.addStringAttribute('position.units', '%')
+		.addNumberAttribute('position.currentValue', valvePosFeedback)
+		.addNumberAttribute('position.commandedValue', valvePosCommand)
+		.emit(processors);
+END_IF
+valveClosedFlag := valveClosingTimer.Q;]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

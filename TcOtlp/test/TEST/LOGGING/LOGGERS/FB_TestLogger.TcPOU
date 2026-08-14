@@ -19,7 +19,6 @@ VAR
 	provider: FB_LoggerProvider(resource);
 	scope: FB_InstrumentationScope('name', 'version', '');
 	logger: FB_Logger(scope, provider);
-	record: POINTER TO FB_LogRecord;
 	success: BOOL;
 	failureResult: E_LoggerFailureReason;
 	simpleProcessor: FB_LogRecordProcessor_Simple(0);
@@ -40,31 +39,6 @@ END_VAR]]></Declaration>
 	success := logger.emit(processors:=processors, failureResult=>failureResult);
 	THIS^.AssertTrue(success, 'Unexpected emit failure');
 	THIS^.AssertTrue(logger.pLogRecord = 0, 'Unexpected not-null record');
-TcUnit.TEST_FINISHED();]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="testEmitWithoutRecordReturnsFailure" Id="{266078e4-fb0f-4c33-8b21-a844ac7e4540}">
-      <Declaration><![CDATA[METHOD testEmitWithoutRecordReturnsFailure : REFERENCE TO FB_Test
-VAR
-	resource: FB_Resource('');
-	provider: FB_LoggerProvider(resource);
-	scope: FB_InstrumentationScope('name', 'version', '');
-	logger: FB_Logger(scope, provider);
-	simpleProcessor: FB_LogRecordProcessor_Simple(0);
-	processors: ARRAY [0..0] OF I_LogRecordProcessor := [simpleProcessor];
-	success: BOOL;
-	failureResult: E_LoggerFailureReason;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[TcUnit.TEST('testEmitWithoutRecordReturnsFailure');
-	logger.reset();
-	success := logger.emit(processors:=processors, failureResult=>failureResult);
-	THIS^.AssertFalse(success, 'Expected emit without a started record to fail');
-	THIS^.AssertTrue(
-		failureResult = E_LoggerFailureReason.LOG_RECORD_NOT_STARTED,
-		'Expected LOG_RECORD_NOT_STARTED'
-	);
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -95,6 +69,31 @@ END_VAR
 		'Expected emit to preserve the first fluent failure'
 	);
 	THIS^.AssertTrue(logger.pLogRecord = 0, 'Expected failed emit to release the incomplete record');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testEmitWithoutRecordReturnsFailure" Id="{266078e4-fb0f-4c33-8b21-a844ac7e4540}">
+      <Declaration><![CDATA[METHOD testEmitWithoutRecordReturnsFailure : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	provider: FB_LoggerProvider(resource);
+	scope: FB_InstrumentationScope('name', 'version', '');
+	logger: FB_Logger(scope, provider);
+	simpleProcessor: FB_LogRecordProcessor_Simple(0);
+	processors: ARRAY [0..0] OF I_LogRecordProcessor := [simpleProcessor];
+	success: BOOL;
+	failureResult: E_LoggerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testEmitWithoutRecordReturnsFailure');
+	logger.reset();
+	success := logger.emit(processors:=processors, failureResult=>failureResult);
+	THIS^.AssertFalse(success, 'Expected emit without a started record to fail');
+	THIS^.AssertTrue(
+		failureResult = E_LoggerFailureReason.LOG_RECORD_NOT_STARTED,
+		'Expected LOG_RECORD_NOT_STARTED'
+	);
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

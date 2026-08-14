@@ -1,7 +1,7 @@
 # Notes For Next Time
-1. Refactor processors to use the bool -> status architecture
-2. Completely overhaul the batching processor.
-3. Add an optional "limit" parameter to the transferTo method for log record queue.
+1. Refactor the serialization logic as there is a little AI slop in the logs json serializer.
+
+2. Figure out how to handle setpoint/trigger changes in twincat. 
 
 ## Modeling
 - [x] Update the domain model

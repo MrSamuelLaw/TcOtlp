@@ -416,10 +416,6 @@ _pDest := 0;]]></ST>
       <Declaration><![CDATA[METHOD setFlags: REFERENCE TO FB_Logger
 VAR_INPUT
 	flags: E_LogRecordFlag;
-END_VAR
-VAR
-	_pDest: POINTER TO E_LogRecordFlag;
-	_pOld: POINTER TO UDINT;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[setFlags REF= THIS^;

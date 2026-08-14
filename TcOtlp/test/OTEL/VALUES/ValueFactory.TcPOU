@@ -161,9 +161,6 @@ END_VAR
 VAR_OUTPUT
 	failureReason: E_ValueFactoryFailureReason;
 END_VAR
-VAR
-	_pNew: POINTER TO FB_String;
-END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[cloneString := FALSE;
@@ -266,10 +263,6 @@ VAR_INPUT
 END_VAR
 VAR_OUTPUT
 	failureReason: E_ValueFactoryFailureReason;
-END_VAR
-VAR
-	_value: AnyType;
-	_pNew: POINTER TO FB_Number;
 END_VAR
 ]]></Declaration>
       <Implementation>

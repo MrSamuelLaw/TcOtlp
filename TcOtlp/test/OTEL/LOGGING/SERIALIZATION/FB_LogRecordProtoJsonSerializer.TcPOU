@@ -67,46 +67,6 @@ END_IF
 serializeLogRecord := TRUE;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="serializeLogRecords" Id="{c8755357-2d5c-4040-a054-202bb0d2153c}">
-      <Declaration><![CDATA[METHOD serializeLogRecords : BOOL
-VAR_IN_OUT
-	v: SJsonValue;
-	logRecords: FB_LogRecordQueue;
-END_VAR
-VAR_OUTPUT
-	failureReason: E_ProtoJsonSerializerFailureReason;
-END_VAR
-VAR
-	_idx: UDINT;
-	_arr: SJsonValue;
-	_rec: POINTER TO FB_LogRecord;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[serializeLogRecords := FALSE;
-failureReason := E_ProtoJsonSerializerFailureReason.NA;
-IF v = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID; RETURN; END_IF
-IF logRecords.size > GVL.MAX_LOOP_COUNT THEN failureReason := E_ProtoJsonSerializerFailureReason.LOOP_LIMIT_EXCEEDED; RETURN; END_IF
-
-_arr := THIS^.parser.AddArrayMember(v, 'logRecords', 0);
-IF _arr = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
-
-logRecords.reset();
-FOR _idx := 1 TO logRecords.size DO
-	_rec := logRecords.next();
-	IF _rec = 0 THEN
-		logRecords.reset();
-		failureReason := E_ProtoJsonSerializerFailureReason.LOG_RECORD_COLLECTION_INCONSISTENT;
-		RETURN;
-	END_IF
-	IF NOT THIS^.serializeLogRecord(_arr, _rec, failureReason=>failureReason) THEN
-		logRecords.reset();
-		RETURN;
-	END_IF
-END_FOR
-logRecords.reset();
-serializeLogRecords := TRUE;]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="serializeLogsData" Id="{e949baee-9209-4a36-8a48-4eaffb67bbe1}">
       <Declaration><![CDATA[(*
 	Transfers ownership of all supplied records into the serializer. Records moved into
@@ -120,16 +80,15 @@ VAR_OUTPUT
 	failureReason: E_ProtoJsonSerializerFailureReason;
 END_VAR
 VAR
-	_resourceIdx: UDINT;
-	_scopeIdx: UDINT;
-	_findIdx: UDINT;
-	_recordIdx: UDINT;
+	_groupIdx: UDINT;
+	_scanIdx: UDINT;
 	_ownedRecordCount: UDINT;
 	_recordsToScan: UDINT;
-	_pHeadRecord: POINTER TO FB_LogRecord;
 	_pOwnedRecord: POINTER TO FB_LogRecord;
+	_pHeadRecord: POINTER TO FB_LogRecord;
 	_resourceId: UDINT;
 	_scopeName: T_MaxString;
+	_hasResource: BOOL;
 	_resourceLogs: SJsonValue;
 	_resourceObj: SJsonValue;
 	_scopeLogs: SJsonValue;
@@ -179,124 +138,176 @@ IF _resourceLogs = 0 THEN
 	RETURN;
 END_IF
 
-FOR _resourceIdx := 1 TO _ownedRecordCount DO
-	IF THIS^._logRecords.size = 0 THEN EXIT; END_IF
+_hasResource := FALSE;
+_pOwnedRecord := 0;
+IF THIS^._logRecords.size > 0 AND_THEN NOT THIS^._logRecords.pop(
+	pValue:=_pOwnedRecord,
+	failureReason=>_queueFailureReason
+) THEN
+	THIS^._logRecords.free();
+	failureReason := E_ProtoJsonSerializerFailureReason.QUEUE_POP_FAILURE;
+	RETURN;
+END_IF
+IF _ownedRecordCount > 0 AND_THEN _pOwnedRecord = 0 THEN
+	THIS^._logRecords.free();
+	failureReason := E_ProtoJsonSerializerFailureReason.LOG_RECORD_COLLECTION_INCONSISTENT;
+	RETURN;
+END_IF
+FOR _groupIdx := 1 TO _ownedRecordCount DO
+	IF _pOwnedRecord = 0 THEN EXIT; END_IF
 
-	THIS^._logRecords.reset();
-	_pHeadRecord := THIS^._logRecords.next();
-	IF _pHeadRecord = 0 THEN
-		THIS^._logRecords.free();
-		failureReason := E_ProtoJsonSerializerFailureReason.LOG_RECORD_COLLECTION_INCONSISTENT;
-		RETURN;
-	END_IF
-	_resourceId := _pHeadRecord^.resource.id;
-
-	_resourceObj := THIS^.parser.PushbackJsonValue(_resourceLogs, '{}');
-	IF _resourceObj = 0 THEN
-		THIS^._logRecords.free();
-		failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
-		RETURN;
-	END_IF
-	IF NOT THIS^._injectResource(_resourceObj, _pHeadRecord^.resource, failureReason=>failureReason) THEN
-		THIS^._logRecords.free();
-		RETURN;
-	END_IF
-	IF _pHeadRecord^.resource.schemaUrl <> '' THEN
-		_member := THIS^.parser.AddStringMember(_resourceObj, 'schemaUrl', _pHeadRecord^.resource.schemaUrl);
-		IF _member = 0 THEN
+	IF NOT _hasResource OR_ELSE _pOwnedRecord^.resource.id <> _resourceId THEN
+		_resourceId := _pOwnedRecord^.resource.id;
+		_resourceObj := THIS^.parser.PushbackJsonValue(_resourceLogs, '{}');
+		IF _resourceObj = 0 THEN
+			_pOwnedRecord := _pOwnedRecord^.delete();
 			THIS^._logRecords.free();
 			failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
 			RETURN;
 		END_IF
-	END_IF
-
-	_scopeLogs := THIS^.parser.AddArrayMember(_resourceObj, 'scopeLogs', 0);
-	IF _scopeLogs = 0 THEN
-		THIS^._logRecords.free();
-		failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
-		RETURN;
-	END_IF
-
-	FOR _scopeIdx := 1 TO _ownedRecordCount DO
-		_pHeadRecord := 0;
-		_recordsToScan := THIS^._logRecords.size;
-		THIS^._logRecords.reset();
-		FOR _findIdx := 1 TO _recordsToScan DO
-			_pHeadRecord := THIS^._logRecords.next();
-			IF _pHeadRecord = 0 THEN
-				THIS^._logRecords.free();
-				failureReason := E_ProtoJsonSerializerFailureReason.LOG_RECORD_COLLECTION_INCONSISTENT;
-				RETURN;
-			END_IF
-			IF _pHeadRecord^.resource.id = _resourceId THEN EXIT; END_IF
-			_pHeadRecord := 0;
-		END_FOR
-		IF _pHeadRecord = 0 THEN EXIT; END_IF
-
-		_scopeName := _pHeadRecord^.scope.name;
-		_scopeObj := THIS^.parser.PushbackJsonValue(_scopeLogs, '{}');
-		IF _scopeObj = 0 THEN
-			THIS^._logRecords.free();
-			failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
-			RETURN;
-		END_IF
-		IF NOT THIS^._injectInstrumentationScope(_scopeObj, _pHeadRecord^.scope, failureReason=>failureReason) THEN
+		IF NOT THIS^._injectResource(_resourceObj, _pOwnedRecord^.resource, failureReason=>failureReason) THEN
+			_pOwnedRecord := _pOwnedRecord^.delete();
 			THIS^._logRecords.free();
 			RETURN;
 		END_IF
-		IF _pHeadRecord^.scope.schemaUrl <> '' THEN
-			_member := THIS^.parser.AddStringMember(_scopeObj, 'schemaUrl', _pHeadRecord^.scope.schemaUrl);
+		IF _pOwnedRecord^.resource.schemaUrl <> '' THEN
+			_member := THIS^.parser.AddStringMember(_resourceObj, 'schemaUrl', _pOwnedRecord^.resource.schemaUrl);
 			IF _member = 0 THEN
+				_pOwnedRecord := _pOwnedRecord^.delete();
 				THIS^._logRecords.free();
 				failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
 				RETURN;
 			END_IF
 		END_IF
-
-		_serializedRecords := THIS^.parser.AddArrayMember(_scopeObj, 'logRecords', 0);
-		IF _serializedRecords = 0 THEN
+		_scopeLogs := THIS^.parser.AddArrayMember(_resourceObj, 'scopeLogs', 0);
+		IF _scopeLogs = 0 THEN
+			_pOwnedRecord := _pOwnedRecord^.delete();
 			THIS^._logRecords.free();
 			failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
 			RETURN;
 		END_IF
+		_hasResource := TRUE;
+	END_IF
 
-		_recordsToScan := THIS^._logRecords.size;
-		FOR _recordIdx := 1 TO _recordsToScan DO
-			THIS^._logRecords.reset();
-			_pHeadRecord := THIS^._logRecords.next();
-			IF _pHeadRecord = 0 THEN
+	_scopeName := _pOwnedRecord^.scope.name;
+	_scopeObj := THIS^.parser.PushbackJsonValue(_scopeLogs, '{}');
+	IF _scopeObj = 0 THEN
+		_pOwnedRecord := _pOwnedRecord^.delete();
+		THIS^._logRecords.free();
+		failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+		RETURN;
+	END_IF
+	IF NOT THIS^._injectInstrumentationScope(_scopeObj, _pOwnedRecord^.scope, failureReason=>failureReason) THEN
+		_pOwnedRecord := _pOwnedRecord^.delete();
+		THIS^._logRecords.free();
+		RETURN;
+	END_IF
+	IF _pOwnedRecord^.scope.schemaUrl <> '' THEN
+		_member := THIS^.parser.AddStringMember(_scopeObj, 'schemaUrl', _pOwnedRecord^.scope.schemaUrl);
+		IF _member = 0 THEN
+			_pOwnedRecord := _pOwnedRecord^.delete();
+			THIS^._logRecords.free();
+			failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+			RETURN;
+		END_IF
+	END_IF
+
+	_serializedRecords := THIS^.parser.AddArrayMember(_scopeObj, 'logRecords', 0);
+	IF _serializedRecords = 0 THEN
+		_pOwnedRecord := _pOwnedRecord^.delete();
+		THIS^._logRecords.free();
+		failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+		RETURN;
+	END_IF
+	IF NOT THIS^.serializeLogRecord(_serializedRecords, _pOwnedRecord, failureReason=>failureReason) THEN
+		_pOwnedRecord := _pOwnedRecord^.delete();
+		THIS^._logRecords.free();
+		RETURN;
+	END_IF
+	_pOwnedRecord := _pOwnedRecord^.delete();
+
+	// Consume every remaining record in this resource/scope group. Rotating
+	// nonmatches preserves their arrival order for the next group.
+	_recordsToScan := THIS^._logRecords.size;
+	FOR _scanIdx := 1 TO _recordsToScan DO
+		THIS^._logRecords.reset();
+		_pHeadRecord := THIS^._logRecords.next();
+		IF _pHeadRecord = 0 THEN
+			THIS^._logRecords.free();
+			failureReason := E_ProtoJsonSerializerFailureReason.LOG_RECORD_COLLECTION_INCONSISTENT;
+			RETURN;
+		END_IF
+
+		IF _pHeadRecord^.resource.id = _resourceId AND_THEN _pHeadRecord^.scope.name = _scopeName THEN
+			_pOwnedRecord := 0;
+			IF NOT THIS^._logRecords.pop(pValue:=_pOwnedRecord, failureReason=>_queueFailureReason) THEN
+				THIS^._logRecords.free();
+				failureReason := E_ProtoJsonSerializerFailureReason.QUEUE_POP_FAILURE;
+				RETURN;
+			END_IF
+			IF _pOwnedRecord = 0 THEN
 				THIS^._logRecords.free();
 				failureReason := E_ProtoJsonSerializerFailureReason.LOG_RECORD_COLLECTION_INCONSISTENT;
 				RETURN;
 			END_IF
-
-			IF _pHeadRecord^.resource.id = _resourceId AND_THEN _pHeadRecord^.scope.name = _scopeName THEN
-				_pOwnedRecord := 0;
-				IF NOT THIS^._logRecords.pop(pValue:=_pOwnedRecord, failureReason=>_queueFailureReason) THEN
-					THIS^._logRecords.free();
-					failureReason := E_ProtoJsonSerializerFailureReason.QUEUE_POP_FAILURE;
-					RETURN;
-				END_IF
-				IF _pOwnedRecord = 0 THEN
-					THIS^._logRecords.free();
-					failureReason := E_ProtoJsonSerializerFailureReason.LOG_RECORD_COLLECTION_INCONSISTENT;
-					RETURN;
-				END_IF
-				IF NOT THIS^.serializeLogRecord(_serializedRecords, _pOwnedRecord, failureReason=>failureReason) THEN
-					_pOwnedRecord := _pOwnedRecord^.delete();
-					THIS^._logRecords.free();
-					RETURN;
-				END_IF
+			IF NOT THIS^.serializeLogRecord(_serializedRecords, _pOwnedRecord, failureReason=>failureReason) THEN
 				_pOwnedRecord := _pOwnedRecord^.delete();
-			ELSE
-				IF NOT THIS^._logRecords.rotate(failureReason=>_queueFailureReason) THEN
-					THIS^._logRecords.free();
-					failureReason := E_ProtoJsonSerializerFailureReason.QUEUE_ROTATE_FAILURE;
-					RETURN;
-				END_IF
+				THIS^._logRecords.free();
+				RETURN;
 			END_IF
-		END_FOR
+			_pOwnedRecord := _pOwnedRecord^.delete();
+		ELSE
+			IF NOT THIS^._logRecords.rotate(failureReason=>_queueFailureReason) THEN
+				THIS^._logRecords.free();
+				failureReason := E_ProtoJsonSerializerFailureReason.QUEUE_ROTATE_FAILURE;
+				RETURN;
+			END_IF
+		END_IF
 	END_FOR
+
+	// Prefer the next scope for this resource while preserving the order of
+	// every record left in the queue.
+	_pOwnedRecord := 0;
+	_recordsToScan := THIS^._logRecords.size;
+	FOR _scanIdx := 1 TO _recordsToScan DO
+		THIS^._logRecords.reset();
+		_pHeadRecord := THIS^._logRecords.next();
+		IF _pHeadRecord = 0 THEN
+			THIS^._logRecords.free();
+			failureReason := E_ProtoJsonSerializerFailureReason.LOG_RECORD_COLLECTION_INCONSISTENT;
+			RETURN;
+		END_IF
+		IF _pOwnedRecord = 0 AND_THEN _pHeadRecord^.resource.id = _resourceId THEN
+			IF NOT THIS^._logRecords.pop(pValue:=_pOwnedRecord, failureReason=>_queueFailureReason) THEN
+				THIS^._logRecords.free();
+				failureReason := E_ProtoJsonSerializerFailureReason.QUEUE_POP_FAILURE;
+				RETURN;
+			END_IF
+			IF _pOwnedRecord = 0 THEN
+				THIS^._logRecords.free();
+				failureReason := E_ProtoJsonSerializerFailureReason.LOG_RECORD_COLLECTION_INCONSISTENT;
+				RETURN;
+			END_IF
+		ELSIF NOT THIS^._logRecords.rotate(failureReason=>_queueFailureReason) THEN
+			THIS^._logRecords.free();
+			failureReason := E_ProtoJsonSerializerFailureReason.QUEUE_ROTATE_FAILURE;
+			RETURN;
+		END_IF
+	END_FOR
+
+	IF _pOwnedRecord = 0 AND_THEN THIS^._logRecords.size > 0 AND_THEN NOT THIS^._logRecords.pop(
+		pValue:=_pOwnedRecord,
+		failureReason=>_queueFailureReason
+	) THEN
+		THIS^._logRecords.free();
+		failureReason := E_ProtoJsonSerializerFailureReason.QUEUE_POP_FAILURE;
+		RETURN;
+	END_IF
+	IF _pOwnedRecord = 0 AND_THEN THIS^._logRecords.size < _recordsToScan THEN
+		THIS^._logRecords.free();
+		failureReason := E_ProtoJsonSerializerFailureReason.LOG_RECORD_COLLECTION_INCONSISTENT;
+		RETURN;
+	END_IF
 END_FOR
 
 IF THIS^._logRecords.size > 0 THEN
@@ -306,54 +317,6 @@ IF THIS^._logRecords.size > 0 THEN
 END_IF
 THIS^._logRecords.free();
 serializeLogsData := TRUE;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="serializeResourceLogs" Id="{6b43c2c7-047f-4862-9b90-b2d2c588a9af}">
-      <Declaration><![CDATA[METHOD serializeResourceLogs : BOOL
-VAR_IN_OUT
-	v: SJsonValue;
-	resource: FB_Resource;
-	logRecords: FB_LogRecordQueue;
-END_VAR
-VAR_OUTPUT
-	failureReason: E_ProtoJsonSerializerFailureReason;
-END_VAR
-VAR
-	_member: SJsonValue;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[serializeResourceLogs := FALSE;
-failureReason := E_ProtoJsonSerializerFailureReason.NA;
-IF NOT THIS^._injectResource(v, resource, failureReason=>failureReason) THEN RETURN; END_IF
-IF resource.schemaUrl <> '' THEN
-	_member := THIS^.parser.AddStringMember(v, 'schemaUrl', resource.schemaUrl);
-	IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
-END_IF
-serializeResourceLogs := TRUE;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="serializeScopeLogs" Id="{3d36022d-3f4c-4a69-9fa9-1799ece683a0}">
-      <Declaration><![CDATA[METHOD serializeScopeLogs : BOOL
-VAR_IN_OUT
-	v: SJsonValue;
-	instrumentationScope: FB_InstrumentationScope;
-	logRecords: FB_LogRecordQueue;
-END_VAR
-VAR_OUTPUT
-	failureReason: E_ProtoJsonSerializerFailureReason;
-END_VAR
-VAR
-	_member: SJsonValue;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[serializeScopeLogs := FALSE;
-failureReason := E_ProtoJsonSerializerFailureReason.NA;
-IF NOT THIS^._injectInstrumentationScope(v, instrumentationScope, failureReason=>failureReason) THEN RETURN; END_IF
-IF instrumentationScope.schemaUrl <> '' THEN
-	_member := THIS^.parser.AddStringMember(v, 'schemaUrl', instrumentationScope.schemaUrl);
-	IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
-END_IF
-serializeScopeLogs := THIS^.serializeLogRecords(v, logRecords, failureReason=>failureReason);]]></ST>
       </Implementation>
     </Method>
   </POU>
