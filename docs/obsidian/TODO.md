@@ -1,7 +1,8 @@
 # Notes For Next Time
-1. Refactor the serialization logic as there is a little AI slop in the logs json serializer.
-
-2. Figure out how to handle setpoint/trigger changes in twincat. 
+- Figure out how to handle setpoint/trigger changes in twincat. 
+- Add "array values" data type
+- Add level filters for logging & tracing
+- Start on tracing SDK
 
 ## Modeling
 - [x] Update the domain model

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_BaseProtoJsonSerializer" Id="{932f076d-7af8-433b-a20e-1bed32694275}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_BaseProtoJsonSerializer
@@ -65,7 +65,7 @@ IF instrumentationScope.attributes.count > 0 OR instrumentationScope.droppedAttr
 		RETURN;
 	END_IF
 END_IF
-_injectInstrumentationScope := TRUE;]]></ST>
+_injectInstrumentationScope := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Method Name="_injectResource" Id="{56a836bc-6996-46a9-b0a3-bbca046e4c06}">
@@ -110,7 +110,7 @@ IF resource.droppedAttributesCount > 0 AND_THEN NOT THIS^.serializeUint32Value(
 ) THEN
 	RETURN;
 END_IF
-_injectResource := TRUE;]]></ST>
+_injectResource := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Method Name="_serializeBytes" Id="{07016bcd-d229-46fb-8e82-336747340800}">
@@ -164,7 +164,7 @@ FOR _idx := 0 TO nBytes - 1 DO
 	pStr^[(_idx * 2) + 1] := SEL(_nibble < 10, _nibble + 16#37, _nibble + 16#30);
 END_FOR
 pStr^[_requiredLen] := 0;
-_serializeBytes := TRUE;]]></ST>
+_serializeBytes :=failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeAnyValue" Id="{ce526a8b-754d-4e21-9b26-8200d43a6f87}">
@@ -304,7 +304,7 @@ ELSE
 	_member := THIS^.parser.AddDoubleMember(v, pKey^, val);
 END_IF
 IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
-serializeDoubleValue := TRUE;]]></ST>
+serializeDoubleValue := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeFloatValue" Id="{61151231-f7cd-44d1-8261-d6a5a8b398f7}">
@@ -343,7 +343,7 @@ ELSE
 	_member := THIS^.parser.AddDoubleMember(v, pKey^, REAL_TO_LREAL(val));
 END_IF
 IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
-serializeFloatValue := TRUE;]]></ST>
+serializeFloatValue := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeInt32Value" Id="{e79efe08-4ca7-4425-9145-6831c737d25f}">
@@ -369,7 +369,7 @@ IF v = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INV
 IF pKey = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.KEY_POINTER_NULL; RETURN; END_IF
 _member := THIS^.parser.AddIntMember(v, pKey^, val);
 IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
-serializeInt32Value := TRUE;]]></ST>
+serializeInt32Value := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeInt64Value" Id="{b0f53b48-39e6-4d60-9c1c-71cbf01d4ae4}">
@@ -397,7 +397,7 @@ IF pKey = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.KEY_POINTER
 _buf := LINT_TO_STRING(val);
 _member := THIS^.parser.AddStringMember(v, pKey^, _buf);
 IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
-serializeInt64Value := TRUE;]]></ST>
+serializeInt64Value := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeKeyValue" Id="{486a70c5-9e67-46b6-89f1-7a33a1497da2}">
@@ -451,7 +451,7 @@ failureReason := E_ProtoJsonSerializerFailureReason.NA;
 IF v = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID; RETURN; END_IF
 IF pKey = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.KEY_POINTER_NULL; RETURN; END_IF
 IF pValues = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.VALUE_POINTER_NULL; RETURN; END_IF
-IF pValues^.count = 0 THEN serializeKeyValues := TRUE; RETURN; END_IF
+IF pValues^.count = 0 THEN serializeKeyValues := failureReason = E_ProtoJsonSerializerFailureReason.NA; RETURN; END_IF
 IF pValues^.count > pValues^.maxCount OR_ELSE pValues^.count > GVL.MAX_LOOP_COUNT THEN
 	failureReason := E_ProtoJsonSerializerFailureReason.LOOP_LIMIT_EXCEEDED;
 	RETURN;
@@ -479,7 +479,7 @@ FOR _idx := 1 TO pValues^.count DO
 	END_IF
 END_FOR
 pValues^.reset();
-serializeKeyValues := TRUE;]]></ST>
+serializeKeyValues := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeNumberValue" Id="{aeb900f5-c3ec-444b-ae50-1d2bab03506c}">
@@ -574,7 +574,7 @@ IF pVal = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.VALUE_POINT
 IF NOT THIS^._serializeBytes(ADR(pVal^.bytes), SIZEOF(pVal^.bytes), ADR(_encodedStr), SIZEOF(_encodedStr), E_BytesEncoding.hex, failureReason=>failureReason) THEN RETURN; END_IF
 _member := THIS^.parser.AddStringMember(v, 'spanId', _encodedStr);
 IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
-serializeSpanIdValue := TRUE;]]></ST>
+serializeSpanIdValue := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeStringValue" Id="{a5d8f280-538f-436e-b57c-fc6ce9363756}">
@@ -602,7 +602,7 @@ IF pVal = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.VALUE_POINT
 IF pVal^.pString = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.STRING_POINTER_NULL; RETURN; END_IF
 _member := THIS^.parser.AddStringMember(v, pKey^, pVal^.pString^);
 IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
-serializeStringValue := TRUE;]]></ST>
+serializeStringValue := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeTraceIdValue" Id="{4de4eecb-e305-4f14-9eca-bec6bc920cae}">
@@ -629,7 +629,7 @@ IF pVal = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.VALUE_POINT
 IF NOT THIS^._serializeBytes(ADR(pVal^.bytes), SIZEOF(pVal^.bytes), ADR(_encodedStr), SIZEOF(_encodedStr), E_BytesEncoding.hex, failureReason=>failureReason) THEN RETURN; END_IF
 _member := THIS^.parser.AddStringMember(v, 'traceId', _encodedStr);
 IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
-serializeTraceIdValue := TRUE;]]></ST>
+serializeTraceIdValue := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeUint32Value" Id="{1dd3acf5-55a1-4a1e-b2ab-a0a8924ebe6b}">
@@ -655,7 +655,7 @@ IF v = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INV
 IF pKey = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.KEY_POINTER_NULL; RETURN; END_IF
 _member := THIS^.parser.AddUintMember(v, pKey^, val);
 IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
-serializeUint32Value := TRUE;]]></ST>
+serializeUint32Value := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Method Name="serializeUint64Value" Id="{03b3c74c-f10f-4570-99ed-23668fd8ddf1}">
@@ -683,7 +683,7 @@ IF pKey = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.KEY_POINTER
 _buf := ULINT_TO_STRING(val);
 _member := THIS^.parser.AddStringMember(v, pKey^, _buf);
 IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
-serializeUint64Value := TRUE;]]></ST>
+serializeUint64Value := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
   </POU>

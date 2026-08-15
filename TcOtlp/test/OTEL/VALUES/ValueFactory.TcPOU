@@ -143,7 +143,7 @@ IF _pNew = 0 THEN
 	RETURN;
 END_IF
 pDest := _pNew;
-cloneNumber := TRUE;
+cloneNumber := failureReason = E_ValueFactoryFailureReason.NA;
 
 
 
@@ -249,7 +249,7 @@ IF _pNew = 0 THEN
 	RETURN;
 END_IF
 pDest := _pNew;
-createKeyValue := TRUE;
+createKeyValue := failureReason = E_ValueFactoryFailureReason.NA;
 ]]></ST>
       </Implementation>
     </Method>
@@ -335,7 +335,7 @@ IF _pNew = 0 THEN
 	RETURN;
 END_IF
 pDest := _pNew;
-createNumber_AnyType := TRUE;]]></ST>
+createNumber_AnyType := failureReason = E_ValueFactoryFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Method Name="createSpanId" Id="{8c55c398-28af-4759-b54f-4b55d341d11a}">
@@ -381,7 +381,7 @@ END_IF
 
 MEMCPY(ADR(_pNew^.bytes), pBytes, SIZEOF(_pNew^.bytes));
 pDest := _pNew;
-createSpanId := TRUE;
+createSpanId := failureReason = E_ValueFactoryFailureReason.NA;
 
 ]]></ST>
       </Implementation>
@@ -434,7 +434,7 @@ IF _pNew = 0 THEN
 	RETURN;
 END_IF
 pDest := _pNew;
-createString := TRUE;
+createString := failureReason = E_ValueFactoryFailureReason.NA;
 ]]></ST>
       </Implementation>
     </Method>
@@ -479,7 +479,7 @@ IF _pNew = 0 THEN
 END_IF
 MEMCPY(ADR(_pNew^.bytes), pBytes, SIZEOF(_pNew^.bytes));
 pDest := _pNew;
-createTraceId := TRUE;
+createTraceId := failureReason = E_ValueFactoryFailureReason.NA;
 ]]></ST>
       </Implementation>
     </Method>

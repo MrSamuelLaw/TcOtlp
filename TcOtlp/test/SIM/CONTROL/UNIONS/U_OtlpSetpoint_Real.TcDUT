@@ -3,7 +3,7 @@
   <DUT Name="U_OtlpSetpoint_Real" Id="{3b00abec-1eca-46c9-b563-c0bdee43fdac}">
     <Declaration><![CDATA[TYPE U_OtlpSetpoint_Real :
 UNION
-	rawBytes: ARRAY [0..23] OF BYTE;
+	{attribute 'analysis' := '-33'}rawBytes: ARRAY [0..23] OF BYTE;
 	payload: ST_OtlpSetpoint_Real;
 END_UNION
 END_TYPE

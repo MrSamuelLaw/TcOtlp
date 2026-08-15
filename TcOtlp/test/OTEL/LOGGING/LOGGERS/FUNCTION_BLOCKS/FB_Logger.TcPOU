@@ -10,7 +10,7 @@ VAR
 	_scope: REFERENCE TO FB_InstrumentationScope;
 	_provider: REFERENCE TO FB_LoggerProvider;
 	_failed: BOOL;
-	_failureResult: E_LoggerFailureReason;
+	_failureReason: E_LoggerFailureReason;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -26,7 +26,7 @@ VAR_INPUT
 	timestamp: ULINT;
 END_VAR
 VAR_OUTPUT
-	failureResult: E_LoggerFailureReason;
+	failureReason: E_LoggerFailureReason;
 END_VAR
 VAR
 	_logRecord: POINTER TO FB_LogRecord;
@@ -35,10 +35,10 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[_createLogRecord := FALSE;
-failureResult := E_LoggerFailureReason.NA;
+failureReason := E_LoggerFailureReason.NA;
 
 IF pDest <> 0 THEN
-	failureResult := E_LoggerFailureReason.LOG_RECORD_ALREADY_STARTED;
+	failureReason := E_LoggerFailureReason.LOG_RECORD_ALREADY_STARTED;
 	RETURN;
 END_IF
 
@@ -48,15 +48,15 @@ _logRecord := __NEW(FB_LogRecord(
 ));
 
 IF _logRecord = 0 THEN
-	failureResult := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+	failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
 	RETURN;
 END_IF
 
 IF NOT _logRecord^.resource.copyFrom(src:=THIS^.resource, failureResult=>_attributesFailureResult) THEN
 	IF _attributesFailureResult = E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE THEN
-		failureResult := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+		failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
 	ELSE
-		failureResult := E_LoggerFailureReason.SNAPSHOT_COPY_FAILURE;
+		failureReason := E_LoggerFailureReason.SNAPSHOT_COPY_FAILURE;
 	END_IF
 	_logRecord := _logRecord^.delete();
 	RETURN;
@@ -64,9 +64,9 @@ END_IF
 
 IF NOT _logRecord^.scope.copyFrom(src:=THIS^.scope, failureResult=>_attributesFailureResult) THEN
 	IF _attributesFailureResult = E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE THEN
-		failureResult := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+		failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
 	ELSE
-		failureResult := E_LoggerFailureReason.SNAPSHOT_COPY_FAILURE;
+		failureReason := E_LoggerFailureReason.SNAPSHOT_COPY_FAILURE;
 	END_IF
 	_logRecord := _logRecord^.delete();
 	RETURN;
@@ -74,7 +74,7 @@ END_IF
 
 pDest := _logRecord;
 _logRecord := 0;
-_createLogRecord := TRUE;
+_createLogRecord := failureReason = E_LoggerFailureReason.NA;
 ]]></ST>
       </Implementation>
     </Method>
@@ -92,7 +92,7 @@ END_IF
 // fail early if the log record hasn't been built
 IF THIS^.pLogRecord = 0 THEN
 	THIS^._failed := TRUE;
-	THIS^._failureResult := E_LoggerFailureReason.LOG_RECORD_NOT_STARTED;
+	THIS^._failureReason := E_LoggerFailureReason.LOG_RECORD_NOT_STARTED;
 	RETURN;
 END_IF
 
@@ -126,13 +126,13 @@ IF NOT _attributesSuccess THEN
 	THIS^._failed := TRUE;
 	CASE _attributesFailureReason OF
 		E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE:
-			THIS^._failureResult := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+			THIS^._failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
 		E_AttributesFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED:
-			THIS^._failureResult := E_LoggerFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED;
+			THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED;
 		E_AttributesFailureReason.KV_VALUE_TYPE_UNSUPPORTED:
-			THIS^._failureResult := E_LoggerFailureReason.ATTRIBUTE_VALUE_TYPE_UNSUPPORTED;
+			THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_VALUE_TYPE_UNSUPPORTED;
 	ELSE
-		THIS^._failureResult := E_LoggerFailureReason.ATTRIBUTE_VALUE_INVALID;
+		THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_VALUE_INVALID;
 	END_CASE
 END_IF]]></ST>
       </Implementation>
@@ -163,13 +163,13 @@ IF NOT _attributesSuccess THEN
 	THIS^._failed := TRUE;
 	CASE _attributesFailureReason OF
 		E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE:
-			THIS^._failureResult := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+			THIS^._failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
 		E_AttributesFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED:
-			THIS^._failureResult := E_LoggerFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED;
+			THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED;
 		E_AttributesFailureReason.KV_VALUE_TYPE_UNSUPPORTED:
-			THIS^._failureResult := E_LoggerFailureReason.ATTRIBUTE_VALUE_TYPE_UNSUPPORTED;
+			THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_VALUE_TYPE_UNSUPPORTED;
 	ELSE
-		THIS^._failureResult := E_LoggerFailureReason.ATTRIBUTE_VALUE_INVALID;
+		THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_VALUE_INVALID;
 	END_CASE
 END_IF
 ]]></ST>
@@ -200,14 +200,14 @@ failureResult := E_LoggerFailureReason.NA;
 // Preserve the first fluent method failure while releasing the incomplete record.
 IF THIS^._failed THEN
 	IF THIS^.pLogRecord <> 0 THEN THIS^.pLogRecord := THIS^.pLogRecord^.delete(); END_IF
-	failureResult := THIS^._failureResult;
+	failureResult := THIS^._failureReason;
 	RETURN;
 END_IF
 
 IF THIS^.pLogRecord = 0 THEN
 	THIS^._failed := TRUE;
-	THIS^._failureResult := E_LoggerFailureReason.LOG_RECORD_NOT_STARTED;
-	failureResult := THIS^._failureResult;
+	THIS^._failureReason := E_LoggerFailureReason.LOG_RECORD_NOT_STARTED;
+	failureResult := THIS^._failureReason;
 	RETURN;
 END_IF
 
@@ -216,9 +216,10 @@ FOR _idx := LOWER_BOUND(processors, 1) TO UPPER_BOUND(processors, 1) DO
 END_FOR
 THIS^.pLogRecord := THIS^.pLogRecord^.delete();
 
+emit := THIS^._failureReason = E_LoggerFailureReason.NA;
 THIS^._failed := FALSE;
-THIS^._failureResult := E_LoggerFailureReason.NA;
-emit := TRUE;]]></ST>
+THIS^._failureReason := E_LoggerFailureReason.NA;
+]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Init" Id="{8c3c5b34-9fb4-4244-bcbe-417c9db34dca}">
@@ -249,7 +250,7 @@ END_VAR
 	THIS^.pLogRecord := THIS^.pLogRecord^.delete();
 END_IF
 THIS^._failed := TRUE;
-THIS^._failureResult := E_LoggerFailureReason.LOG_RECORD_NOT_STARTED;]]></ST>
+THIS^._failureReason := E_LoggerFailureReason.LOG_RECORD_NOT_STARTED;]]></ST>
       </Implementation>
     </Method>
     <Method Name="reset" Id="{cfc39e65-b855-4ce2-8008-a09504960012}">
@@ -260,7 +261,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[THIS^.free();
 THIS^._failed := FALSE;
-THIS^._failureResult := E_LoggerFailureReason.NA;]]></ST>
+THIS^._failureReason := E_LoggerFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Property Name="resource" Id="{af2fd56b-1f1f-4731-bef9-9ae40f95e566}">
@@ -305,9 +306,9 @@ IF NOT ValueFactory.createString(
 	) THEN
 	THIS^._failed := TRUE;
 	IF _factoryFailureReason = E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE THEN
-		THIS^._failureResult := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+		THIS^._failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
 	ELSE
-		THIS^._failureResult := E_LoggerFailureReason.BODY_VALUE_INVALID;
+		THIS^._failureReason := E_LoggerFailureReason.BODY_VALUE_INVALID;
 	END_IF
 	RETURN;
 END_IF
@@ -339,7 +340,7 @@ END_IF
 // check that the value is valid
 IF pVal = 0 THEN
 	THIS^._failed := TRUE;
-	THIS^._failureResult := E_LoggerFailureReason.BODY_VALUE_POINTER_NULL;
+	THIS^._failureReason := E_LoggerFailureReason.BODY_VALUE_POINTER_NULL;
 	RETURN;
 END_IF
 
@@ -352,11 +353,11 @@ IF NOT ValueFactory.cloneAnyValue(
 	THIS^._failed := TRUE;
 	CASE _factoryFailureReason OF
 		E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE:
-			THIS^._failureResult := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+			THIS^._failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
 		E_ValueFactoryFailureReason.UNSUPPORTED_VALUE_TYPE:
-			THIS^._failureResult := E_LoggerFailureReason.BODY_VALUE_TYPE_UNSUPPORTED;
+			THIS^._failureReason := E_LoggerFailureReason.BODY_VALUE_TYPE_UNSUPPORTED;
 	ELSE
-		THIS^._failureResult := E_LoggerFailureReason.BODY_VALUE_INVALID;
+		THIS^._failureReason := E_LoggerFailureReason.BODY_VALUE_INVALID;
 	END_CASE
 	RETURN;
 END_IF
@@ -395,9 +396,9 @@ IF NOT ValueFactory.createString(
 	) THEN
 	THIS^._failed := TRUE;
 	IF _factoryFailureReason = E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE THEN
-		THIS^._failureResult := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+		THIS^._failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
 	ELSE
-		THIS^._failureResult := E_LoggerFailureReason.EVENT_NAME_INVALID;
+		THIS^._failureReason := E_LoggerFailureReason.EVENT_NAME_INVALID;
 	END_IF
 	RETURN;
 END_IF
@@ -430,7 +431,7 @@ IF THIS^.pLogRecord^.flags = 0 THEN
 	// if it failed, than the system is out of memory, abort
 	IF THIS^.pLogRecord^.flags = 0 THEN
 		THIS^._failed := TRUE;
-		THIS^._failureResult := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+		THIS^._failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
 		RETURN;
 	END_IF
 END_IF
@@ -466,13 +467,13 @@ IF NOT ValueFactory.createSpanId(
 	THIS^._failed := TRUE;
 	CASE _factoryFailureReason OF
 		E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE:
-			THIS^._failureResult := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+			THIS^._failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
 		E_ValueFactoryFailureReason.SPAN_ID_BYTES_POINTER_NULL:
-			THIS^._failureResult := E_LoggerFailureReason.SPAN_ID_BYTES_POINTER_NULL;
+			THIS^._failureReason := E_LoggerFailureReason.SPAN_ID_BYTES_POINTER_NULL;
 		E_ValueFactoryFailureReason.SPAN_ID_BYTE_COUNT_TOO_SMALL:
-			THIS^._failureResult := E_LoggerFailureReason.SPAN_ID_BYTE_COUNT_TOO_SMALL;
+			THIS^._failureReason := E_LoggerFailureReason.SPAN_ID_BYTE_COUNT_TOO_SMALL;
 	ELSE
-		THIS^._failureResult := E_LoggerFailureReason.SPAN_ID_INVALID;
+		THIS^._failureReason := E_LoggerFailureReason.SPAN_ID_INVALID;
 	END_CASE
 	RETURN;
 END_IF
@@ -515,13 +516,13 @@ IF NOT ValueFactory.createTraceId(
 	THIS^._failed := TRUE;
 	CASE _factoryFailureReason OF
 		E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE:
-			THIS^._failureResult := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+			THIS^._failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
 		E_ValueFactoryFailureReason.TRACE_ID_BYTES_POINTER_NULL:
-			THIS^._failureResult := E_LoggerFailureReason.TRACE_ID_BYTES_POINTER_NULL;
+			THIS^._failureReason := E_LoggerFailureReason.TRACE_ID_BYTES_POINTER_NULL;
 		E_ValueFactoryFailureReason.TRACE_ID_BYTE_COUNT_TOO_SMALL:
-			THIS^._failureResult := E_LoggerFailureReason.TRACE_ID_BYTE_COUNT_TOO_SMALL;
+			THIS^._failureReason := E_LoggerFailureReason.TRACE_ID_BYTE_COUNT_TOO_SMALL;
 	ELSE
-		THIS^._failureResult := E_LoggerFailureReason.TRACE_ID_INVALID;
+		THIS^._failureReason := E_LoggerFailureReason.TRACE_ID_INVALID;
 	END_CASE
 	RETURN;
 END_IF
@@ -568,13 +569,13 @@ END_VAR
 IF THIS^.pLogRecord <> 0 THEN
 	IF NOT THIS^._failed THEN
 		THIS^._failed := TRUE;
-		THIS^._failureResult := E_LoggerFailureReason.LOG_RECORD_ALREADY_STARTED;
+		THIS^._failureReason := E_LoggerFailureReason.LOG_RECORD_ALREADY_STARTED;
 	END_IF
 	RETURN;
 END_IF
 
 THIS^._failed := FALSE;
-THIS^._failureResult := E_LoggerFailureReason.NA;
+THIS^._failureReason := E_LoggerFailureReason.NA;
 
 // set the timetstamp if the pointer is null (which is the prefered method of building a record)
 IF timestamp <> 0 THEN
@@ -588,7 +589,7 @@ IF NOT THIS^._createLogRecord(
 	pDest:=THIS^.pLogRecord,
 	severityNumber:=severityNumber,
 	timestamp:=_timestamp,
-	failureResult=>THIS^._failureResult
+	failureReason=>THIS^._failureReason
 	) THEN
 	THIS^._failed := TRUE;
 END_IF

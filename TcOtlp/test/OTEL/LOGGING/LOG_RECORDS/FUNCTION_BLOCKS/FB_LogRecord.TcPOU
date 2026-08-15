@@ -31,7 +31,7 @@ VAR_IN_OUT
 	pDest: POINTER TO FB_LogRecord;
 END_VAR
 VAR_OUTPUT
-	failureResult: E_LogRecordCloneFailureReason;
+	failureReason: E_LogRecordCloneFailureReason;
 END_VAR
 VAR
 	_pClone: POINTER TO FB_LogRecord;
@@ -41,10 +41,10 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[cloneTo := FALSE;
-failureResult := E_LogRecordCloneFailureReason.NA;
+failureReason := E_LogRecordCloneFailureReason.NA;
 
 IF pDest <> 0 THEN
-	failureResult := E_LogRecordCloneFailureReason.DESTINATION_ALREADY_ASSIGNED;
+	failureReason := E_LogRecordCloneFailureReason.DESTINATION_ALREADY_ASSIGNED;
 	RETURN;
 END_IF
 
@@ -53,7 +53,7 @@ _pClone := __NEW(FB_LogRecord(
 	timestamp:=THIS^.timestamp
 ));
 IF _pClone = 0 THEN
-	failureResult := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
+	failureReason := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
 	RETURN;
 END_IF
 
@@ -66,9 +66,9 @@ IF THIS^.eventName <> 0 THEN
 		failureReason=>_factoryFailureReason
 	) THEN
 		IF _factoryFailureReason = E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE THEN
-			failureResult := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
+			failureReason := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
 		ELSE
-			failureResult := E_LogRecordCloneFailureReason.EVENT_NAME_INVALID;
+			failureReason := E_LogRecordCloneFailureReason.EVENT_NAME_INVALID;
 		END_IF
 		_pClone := _pClone^.delete();
 		RETURN;
@@ -83,9 +83,9 @@ IF THIS^.traceId <> 0 THEN
 		failureReason=>_factoryFailureReason
 	) THEN
 		IF _factoryFailureReason = E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE THEN
-			failureResult := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
+			failureReason := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
 		ELSE
-			failureResult := E_LogRecordCloneFailureReason.TRACE_ID_INVALID;
+			failureReason := E_LogRecordCloneFailureReason.TRACE_ID_INVALID;
 		END_IF
 		_pClone := _pClone^.delete();
 		RETURN;
@@ -95,7 +95,7 @@ END_IF
 IF THIS^.flags <> 0 THEN
 	_pClone^.flags := __NEW(E_LogRecordFlag);
 	IF _pClone^.flags = 0 THEN
-		failureResult := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
+		failureReason := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
 		_pClone := _pClone^.delete();
 		RETURN;
 	END_IF
@@ -110,9 +110,9 @@ IF THIS^.spanId <> 0 THEN
 		failureReason=>_factoryFailureReason
 	) THEN
 		IF _factoryFailureReason = E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE THEN
-			failureResult := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
+			failureReason := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
 		ELSE
-			failureResult := E_LogRecordCloneFailureReason.SPAN_ID_INVALID;
+			failureReason := E_LogRecordCloneFailureReason.SPAN_ID_INVALID;
 		END_IF
 		_pClone := _pClone^.delete();
 		RETURN;
@@ -127,11 +127,11 @@ IF THIS^.body <> 0 THEN
 	) THEN
 		CASE _factoryFailureReason OF
 			E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE:
-				failureResult := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
+				failureReason := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
 			E_ValueFactoryFailureReason.UNSUPPORTED_VALUE_TYPE:
-				failureResult := E_LogRecordCloneFailureReason.BODY_VALUE_TYPE_UNSUPPORTED;
+				failureReason := E_LogRecordCloneFailureReason.BODY_VALUE_TYPE_UNSUPPORTED;
 		ELSE
-			failureResult := E_LogRecordCloneFailureReason.BODY_VALUE_INVALID;
+			failureReason := E_LogRecordCloneFailureReason.BODY_VALUE_INVALID;
 		END_CASE
 		_pClone := _pClone^.delete();
 		RETURN;
@@ -140,9 +140,9 @@ END_IF
 
 IF NOT _pClone^.resource.copyFrom(src:=THIS^.resource, failureResult=>_attributesFailureReason) THEN
 	IF _attributesFailureReason = E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE THEN
-		failureResult := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
+		failureReason := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
 	ELSE
-		failureResult := E_LogRecordCloneFailureReason.RESOURCE_COPY_FAILURE;
+		failureReason := E_LogRecordCloneFailureReason.RESOURCE_COPY_FAILURE;
 	END_IF
 	_pClone := _pClone^.delete();
 	RETURN;
@@ -150,9 +150,9 @@ END_IF
 
 IF NOT _pClone^.scope.copyFrom(src:=THIS^.scope, failureResult=>_attributesFailureReason) THEN
 	IF _attributesFailureReason = E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE THEN
-		failureResult := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
+		failureReason := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
 	ELSE
-		failureResult := E_LogRecordCloneFailureReason.SCOPE_COPY_FAILURE;
+		failureReason := E_LogRecordCloneFailureReason.SCOPE_COPY_FAILURE;
 	END_IF
 	_pClone := _pClone^.delete();
 	RETURN;
@@ -163,9 +163,9 @@ IF NOT _pClone^.attributes.copyFrom(
 	failureReason=>_attributesFailureReason
 	) THEN
 	IF _attributesFailureReason = E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE THEN
-		failureResult := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
+		failureReason := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
 	ELSE
-		failureResult := E_LogRecordCloneFailureReason.ATTRIBUTE_COPY_FAILURE;
+		failureReason := E_LogRecordCloneFailureReason.ATTRIBUTE_COPY_FAILURE;
 	END_IF
 	_pClone := _pClone^.delete();
 	RETURN;
@@ -173,7 +173,7 @@ END_IF
 
 pDest := _pClone;
 _pClone := 0;
-cloneTo := TRUE;]]></ST>
+cloneTo := failureReason = E_LogRecordCloneFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Method Name="delete" Id="{3cb201ad-0be2-4ce4-945f-e69f0fb01637}">

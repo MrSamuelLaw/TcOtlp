@@ -29,7 +29,9 @@ VAR
 	valveClosedFlag: BOOL;
 	valvePosFeedback: 	REAL := 70.0;
  	valvePosCommand: 	REAL := 0.0;
+	{attribute 'OPC.UA.DA' := '1'}
 	motorSpeedSetpoint: U_OtlpSetpoint_Real;
+	{attribute 'OPC.UA.DA' := '1'}
 	motorTemp: REAL;
 	motorTempWarningLimit: REAL := 100.00; // °F 
 	motorTempFaultLimit: REAL := 135.00;  // °F

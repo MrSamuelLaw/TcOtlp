@@ -30,7 +30,7 @@ END_VAR
         <ST><![CDATA[THIS^.free();
 THIS^.lastOperationSucceeded := logRecord.cloneTo(
 	pDest:=THIS^.record,
-	failureResult=>THIS^.failureResult
+	failureReason=>THIS^.failureResult
 );]]></ST>
       </Implementation>
     </Method>

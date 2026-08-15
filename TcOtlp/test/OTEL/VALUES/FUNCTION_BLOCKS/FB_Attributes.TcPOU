@@ -66,7 +66,7 @@ src.reset();
 FOR _idx := 0 TO THIS^.maxCount DO
 	_pSrc := src.next();
 	IF _pSrc = 0 THEN
-		copyFrom := TRUE;
+		copyFrom := failureReason = E_AttributesFailureReason.NA;
 		RETURN;
 	END_IF
 	IF NOT ValueFactory.cloneKeyValue(pDest:=_pDest, pSrc:=_pSrc, failureReason=>_factoryFailureReason) THEN
@@ -81,7 +81,7 @@ FOR _idx := 0 TO THIS^.maxCount DO
 	END_IF
 END_FOR
 
-copyFrom := TRUE;
+copyFrom := failureReason = E_AttributesFailureReason.NA;
 ]]></ST>
       </Implementation>
     </Method>
@@ -206,7 +206,7 @@ FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
 		// replace the value currently at the index
 		_pVal := _pVal^.delete();
 		_node^.val := pValue;
-		setAttribute := TRUE;
+		setAttribute := failureReason = E_AttributesFailureReason.NA;
 		pValue := 0;
 		RETURN;
 	END_IF
@@ -241,7 +241,7 @@ THIS^.count := THIS^.count + 1;
 
 // Ownership transfers only after the value has been linked successfully.
 pValue := 0;
-setAttribute := TRUE;]]></ST>
+setAttribute := failureReason = E_AttributesFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Method Name="setNumberAttribute" Id="{5ce7a6f9-75cf-4bf9-8ec2-655b0a7ea8b4}">

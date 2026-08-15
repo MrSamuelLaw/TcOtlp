@@ -127,7 +127,7 @@ _node^.val := 0;
 _node^.nxt := 0;
 __DELETE(_node);
 THIS^.size := THIS^.size - 1;
-pop := TRUE;]]></ST>
+pop := failureReason = E_LogRecordQueueFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Method Name="push" Id="{160c78e0-3b3f-49cd-8c42-eefe5336e9d8}">
@@ -193,7 +193,7 @@ END_IF
 THIS^._tail := _node;
 THIS^.size := THIS^.size + 1;
 pValue := 0;
-push := TRUE;]]></ST>
+push := failureReason = E_LogRecordQueueFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Method Name="reset" Id="{8e5c6da1-a3e7-4711-8032-291e4a16dc6e}">
@@ -231,7 +231,7 @@ IF THIS^._head <> THIS^._tail THEN
 END_IF
 
 THIS^._cursor := THIS^._head;
-rotate := TRUE;]]></ST>
+rotate := failureReason = E_LogRecordQueueFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Method Name="transferTo" Id="{e7eb4308-b34a-4dc8-852c-97a5624b88e2}">
@@ -276,7 +276,7 @@ IF destination.maxSize > 0 AND_THEN _transferCount > destination.maxSize THEN
 	_transferCount := destination.maxSize;
 END_IF
 IF _transferCount = 0 THEN
-	transferTo := TRUE;
+	transferTo := failureReason = E_LogRecordQueueFailureReason.NA;
 	RETURN;
 END_IF
 
@@ -296,7 +296,7 @@ THIS^._cursor := THIS^._head;
 IF THIS^._head = 0 THEN
 	THIS^._tail := 0;
 END_IF
-transferTo := TRUE;]]></ST>
+transferTo := failureReason = E_LogRecordQueueFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
   </POU>

@@ -5,7 +5,7 @@
 STRUCT
 	flag: UDINT;
 	value: REAL;
-	traceId: ARRAY [0..15] OF BYTE;
+	{attribute 'analysis' := '-33'}traceId: ARRAY [0..15] OF BYTE;
 END_STRUCT
 END_TYPE
 ]]></Declaration>

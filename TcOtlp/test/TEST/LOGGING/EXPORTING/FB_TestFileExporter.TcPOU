@@ -13,8 +13,10 @@ VAR
 		exporter:=0
 	);
 	_provider:		FB_LoggerProvider(resource:=_resource);
-	_scope:			FB_InstrumentationScope(name:='file-exporter-test', version:='0.0.1', schemaUrl:='');
-	_logger:		FB_Logger(scope:=_scope, provider:=_provider);
+	_scope1:			FB_InstrumentationScope(name:='scope1', version:='0.0.1', schemaUrl:='');
+	_logger1:		FB_Logger(scope:=_scope1, provider:=_provider);
+	_scope2:			FB_InstrumentationScope(name:='scope2', version:='0.0.1', schemaUrl:='');
+	_logger2:		FB_Logger(scope:=_scope2, provider:=_provider);
 	_processors:	ARRAY [0..0] OF I_LogRecordProcessor;
 END_VAR
 ]]></Declaration>
@@ -60,14 +62,14 @@ END_VAR]]></Declaration>
 		0: // initialization
 			_cycles := 0;
 			_processor.free();
-			_logger.free();
+			_logger1.free();
 			_processors[0] := _processor;
 			// _resource persists across test re-runs; only add the attribute once
 			IF _resource.attributes.count = 0 THEN
 				_resource.attributes.setStringAttribute('host.id', 'PLC1');
 			END_IF
 			_num := 1;
-			_firstEmitSucceeded := _logger
+			_firstEmitSucceeded := _logger1
 				.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG, timestamp:=ADR(_timestamp))
 				.setBody('First batched log record')
 				.setEventName('BatchRecord1')
@@ -78,7 +80,7 @@ END_VAR]]></Declaration>
 				.addNumberAttribute('batch.positionNum', _num)
 				.emit(processors:=_processors, failureResult=>_loggerFailureResult);
 			_num := 2;
-			_secondEmitSucceeded := _logger
+			_secondEmitSucceeded := _logger2
 				.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(_timestamp))
 				.setBody('Second batched log record')
 				.setEventName('BatchRecord2')
@@ -86,7 +88,7 @@ END_VAR]]></Declaration>
 				.addNumberAttribute('batch.positionNum', _num)
 				.emit(processors:=_processors, failureResult=>_loggerFailureResult);
 			_num := 3;
-			_thirdEmitSucceeded := _logger
+			_thirdEmitSucceeded := _logger1
 				.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_WARN, timestamp:=ADR(_timestamp))
 				.setBody('Third batched log record')
 				.setEventName('BatchRecord3')
@@ -96,7 +98,7 @@ END_VAR]]></Declaration>
 			THIS^.AssertTrue(_firstEmitSucceeded, 'First emit was unsuccessful');
 			THIS^.AssertTrue(_secondEmitSucceeded, 'Second emit was unsuccessful');
 			THIS^.AssertTrue(_thirdEmitSucceeded, 'Third emit was unsuccessful');
-			THIS^.AssertTrue(_logger.pLogRecord = 0, 'Expected emit to release the logger-owned record');
+			THIS^.AssertTrue(_logger1.pLogRecord = 0, 'Expected emit to release the logger-owned record');
 			IF _firstEmitSucceeded
 				AND _secondEmitSucceeded
 				AND _thirdEmitSucceeded THEN
@@ -171,7 +173,7 @@ END_VAR]]></Declaration>
 
 			// clean up the record owned by the processor
 			_processor.free();
-			_logger.free();
+			_logger1.free();
 			THIS^.AssertTrue(_processor.records.size = 0, 'Expected processor to be empty after cleanup');
 
 			_state := 0;

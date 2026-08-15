@@ -73,7 +73,7 @@ END_VAR
 		logger.pLogRecord^.droppedAttributesCount := 4;
 		cloneSuccess := logger.pLogRecord^.cloneTo(
 			pDest:=pClone,
-			failureResult=>cloneFailureResult
+			failureReason=>cloneFailureResult
 		);
 		THIS^.AssertTrue(cloneSuccess, 'Expected log record clone to succeed');
 		THIS^.AssertTrue(pClone <> 0, 'Expected a cloned log record');
@@ -81,7 +81,7 @@ END_VAR
 
 		cloneSuccess := logger.pLogRecord^.cloneTo(
 			pDest:=pClone,
-			failureResult=>cloneFailureResult
+			failureReason=>cloneFailureResult
 		);
 		THIS^.AssertFalse(cloneSuccess, 'Expected cloning into an assigned destination to fail');
 		THIS^.AssertTrue(

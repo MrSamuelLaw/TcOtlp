@@ -92,7 +92,7 @@ END_VAR
 
 IF __ISVALIDREF(THIS^._exporter) THEN
 	IF (NOT THIS^._exporter.isBusy()) THEN
-		IF logRecord.cloneTo(pDest:=_pLogRecord, failureResult=>_cloneFailureResult) THEN
+		IF logRecord.cloneTo(pDest:=_pLogRecord, failureReason=>_cloneFailureResult) THEN
 			IF THIS^._records.push(pValue:=_pLogRecord, failureReason=>_queueFailureReason) THEN
 				THIS^._exporter.export(
 					logRecords:=THIS^._records,
