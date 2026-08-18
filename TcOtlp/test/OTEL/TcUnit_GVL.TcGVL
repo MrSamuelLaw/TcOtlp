@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <GVL Name="TcUnit_GVL" Id="{2c8a878d-5952-40c2-818b-cd6117aea204}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL CONSTANT
+	// Program/logic safety limits
+	DEFAULT_MAX_ATTRIBUTE_COUNT: 	UDINT := 20;  	// Maximum attributes for FB_Attributes
+	MAX_LOOP_COUNT:					UDINT := 20000; // Maximum iterations a for/while loop can have
+	MAX_LOG_RECORDS_PER_SCAN: 		UDINT := 100;  	// Maximum number of log records that can be emitted per scan.
+END_VAR
+VAR_GLOBAL
+	_ID: UDINT := 1;
+END_VAR]]></Declaration>
+    <Property Name="NEXT_ID" Id="{66a2dc14-5b7c-4295-87ce-3f72d7397f26}">
+      <Declaration><![CDATA[PROPERTY NEXT_ID : UDINT]]></Declaration>
+      <Get Name="Get" Id="{67ac250b-bd9e-4a04-b15e-fab6928fa6d3}">
+        <Declaration><![CDATA[
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[NEXT_ID := _ID;
+_ID := _ID + 1;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+  </GVL>
+</TcPlcObject>

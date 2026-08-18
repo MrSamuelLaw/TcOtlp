@@ -89,8 +89,8 @@ END_VAR
 failureReason := E_ProtoJsonSerializerFailureReason.NA;
 
 // fail early if loop limit exceeded.
-_ownedRecordCount := logRecords.size;
-IF _ownedRecordCount > GVL.MAX_LOOP_COUNT THEN
+_ownedRecordCount := logRecords.count;
+IF _ownedRecordCount > TcUnit_GVL.MAX_LOOP_COUNT THEN
 	logRecords.free();
 	failureReason := E_ProtoJsonSerializerFailureReason.LOOP_LIMIT_EXCEEDED;
 	RETURN;
@@ -121,7 +121,7 @@ END_IF
 _pOwnedRecord := 0;
 IF _ownedRecordCount > 0 THEN
 	FOR _resourceIdx := 1 TO _ownedRecordCount DO
-		IF logRecords.size = 0 THEN EXIT; END_IF
+		IF logRecords.count = 0 THEN EXIT; END_IF
 
 		// pop the record to start the group
 		IF NOT logRecords.pop(pValue:=_pOwnedRecord, failureReason=>_queueFailureReason) THEN
@@ -151,7 +151,7 @@ IF _pOwnedRecord <> 0 THEN
 END_IF
 
 // set flag if log records didn't all get consumed
-IF logRecords.size > 0 THEN
+IF logRecords.count > 0 THEN
 	failureReason := E_ProtoJsonSerializerFailureReason.LOOP_LIMIT_EXCEEDED;
 END_IF
 
@@ -204,7 +204,7 @@ END_IF
 
 // Descend through each scope belonging to this resource. The queue remains
 // the owner of every record until a matching record is popped.
-_scopeLimit := logRecords.size + 1;
+_scopeLimit := logRecords.count + 1;
 FOR _scopeIdx := 1 TO _scopeLimit DO
 	IF NOT THIS^.serializeScopeLogs(
 		v:=_scopeLogs,
@@ -218,7 +218,7 @@ FOR _scopeIdx := 1 TO _scopeLimit DO
 
 	// Find the first record for another scope of this resource. Rotating all
 	// other records preserves their arrival order for later resource groups.
-	_recordsToScan := logRecords.size;
+	_recordsToScan := logRecords.count;
 	FOR _scanIdx := 1 TO _recordsToScan DO
 		logRecords.reset();
 		_pHeadRecord := logRecords.next();
@@ -303,7 +303,7 @@ END_IF
 pLogRecord := pLogRecord^.delete();
 
 // Consume and release every remaining record in this resource/scope group.
-_recordsToScan := logRecords.size;
+_recordsToScan := logRecords.count;
 FOR _scanIdx := 1 TO _recordsToScan DO
 	logRecords.reset();
 	_pHeadRecord := logRecords.next();

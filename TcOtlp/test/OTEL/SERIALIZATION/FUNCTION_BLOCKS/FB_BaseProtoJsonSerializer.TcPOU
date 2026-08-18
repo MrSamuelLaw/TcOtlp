@@ -452,7 +452,7 @@ IF v = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INV
 IF pKey = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.KEY_POINTER_NULL; RETURN; END_IF
 IF pValues = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.VALUE_POINTER_NULL; RETURN; END_IF
 IF pValues^.count = 0 THEN serializeKeyValues := failureReason = E_ProtoJsonSerializerFailureReason.NA; RETURN; END_IF
-IF pValues^.count > pValues^.maxCount OR_ELSE pValues^.count > GVL.MAX_LOOP_COUNT THEN
+IF pValues^.count > pValues^.maxCount OR_ELSE pValues^.count > TcUnit_GVL.MAX_LOOP_COUNT THEN
 	failureReason := E_ProtoJsonSerializerFailureReason.LOOP_LIMIT_EXCEEDED;
 	RETURN;
 END_IF

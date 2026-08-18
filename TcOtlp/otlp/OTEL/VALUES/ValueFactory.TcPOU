@@ -1,0 +1,487 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="ValueFactory" Id="{5318f25b-1e24-49d0-9384-44aae427cdb3}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM ValueFactory
+VAR CONSTANT
+	nSpanIdBytes: USINT := 8;
+	nTraceIdBytes: USINT := 16;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="cloneAnyValue" Id="{8839da0d-9b48-408d-bdff-2043466654aa}">
+      <Declaration><![CDATA[METHOD cloneAnyValue : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_AnyValue;
+END_VAR
+VAR_INPUT
+	pSrc: POINTER TO FB_AnyValue;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ValueFactoryFailureReason;
+END_VAR
+VAR
+	_type: E_ValueType;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[cloneAnyValue := FALSE;
+failureReason := E_ValueFactoryFailureReason.NA;
+
+IF pDest <> 0 THEN
+	failureReason := E_ValueFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED;
+	RETURN;
+END_IF
+
+IF pSrc = 0 THEN
+	failureReason := E_ValueFactoryFailureReason.SOURCE_POINTER_NULL;
+	RETURN;
+END_IF
+
+_type := pSrc^.eType;
+CASE _type OF
+	E_ValueType.E_String:
+		cloneAnyValue := ValueFactory.cloneString(pDest:=pDest, pSrc:=pSrc, failureReason=>failureReason);
+	E_ValueType.E_Number:
+		cloneAnyValue := ValueFactory.cloneNumber(pDest:=pDest, pSrc:=pSrc, failureReason=>failureReason);
+	E_ValueType.E_KeyValue:
+		cloneAnyValue := ValueFactory.cloneKeyValue(pDest:=pDest, pSrc:=pSrc, failureReason=>failureReason);
+	ELSE
+		failureReason := E_ValueFactoryFailureReason.UNSUPPORTED_VALUE_TYPE;
+END_CASE
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="cloneKeyValue" Id="{20123686-f1cd-4204-8e28-a3335a356083}">
+      <Declaration><![CDATA[METHOD cloneKeyValue : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_KeyValue;
+END_VAR
+VAR_INPUT
+	pSrc: POINTER TO FB_KeyValue;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ValueFactoryFailureReason;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[cloneKeyValue := FALSE;
+failureReason := E_ValueFactoryFailureReason.NA;
+
+IF pDest <> 0 THEN
+	failureReason := E_ValueFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED;
+	RETURN;
+END_IF
+
+IF pSrc = 0 THEN
+	failureReason := E_ValueFactoryFailureReason.SOURCE_POINTER_NULL;
+	RETURN;
+END_IF
+
+cloneKeyValue := ValueFactory.createKeyValue(
+	pDest:=pDest,
+	pKey:=pSrc^.pKey,
+	pVal:=pSrc^.pVal,
+	failureReason=>failureReason
+);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="cloneNumber" Id="{c8c2af8b-da04-4265-a529-712b272c7beb}">
+      <Declaration><![CDATA[METHOD cloneNumber : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_Number;
+END_VAR
+VAR_INPUT
+	pSrc: POINTER TO FB_Number;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ValueFactoryFailureReason;
+END_VAR
+VAR
+	_value: AnyType;
+	_pNew: POINTER TO FB_Number;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[cloneNumber := FALSE;
+failureReason := E_ValueFactoryFailureReason.NA;
+
+IF pDest <> 0 THEN
+	failureReason := E_ValueFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED;
+	RETURN;
+END_IF
+
+IF pSrc = 0 THEN
+	failureReason := E_ValueFactoryFailureReason.SOURCE_POINTER_NULL;
+	RETURN;
+END_IF
+
+IF pSrc^.value.pValue = 0 THEN
+	failureReason := E_ValueFactoryFailureReason.NUMBER_VALUE_POINTER_NULL;
+	RETURN;
+END_IF
+
+IF pSrc^.value.diSize <= 0 THEN
+	failureReason := E_ValueFactoryFailureReason.NUMBER_VALUE_SIZE_INVALID;
+	RETURN;
+END_IF
+
+// because it's really verbose to extract the number back out of the number we manually clone numbers
+_value := pSrc^.value;
+_value.pValue := __NEW(BYTE, _value.diSize);
+IF _value.pValue = 0 THEN
+	failureReason := E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+MEMCPY(_value.pValue, pSrc^.value.pValue, TO_UDINT(_value.diSize));
+
+_pNew := __NEW(FB_Number(
+	value:=_value
+));
+IF _pNew = 0 THEN
+	failureReason := E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE;
+	__DELETE(_value.pValue);
+	RETURN;
+END_IF
+pDest := _pNew;
+cloneNumber := failureReason = E_ValueFactoryFailureReason.NA;
+
+
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="cloneString" Id="{75da8359-2fbf-4d64-bb7f-67964ede5d4c}">
+      <Declaration><![CDATA[METHOD cloneString : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_String;
+END_VAR
+VAR_INPUT
+	pSrc: POINTER TO FB_String;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ValueFactoryFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[cloneString := FALSE;
+failureReason := E_ValueFactoryFailureReason.NA;
+
+IF pDest <> 0 THEN
+	failureReason := E_ValueFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED;
+	RETURN;
+END_IF
+
+IF pSrc = 0 THEN
+	failureReason := E_ValueFactoryFailureReason.SOURCE_POINTER_NULL;
+	RETURN;
+END_IF
+
+IF pSrc^.pString = 0 THEN
+	failureReason := E_ValueFactoryFailureReason.STRING_POINTER_NULL;
+	RETURN;
+END_IF
+
+cloneString := ValueFactory.createString(pDest:=pDest, pString:=pSrc^.pString, failureReason=>failureReason);
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="createKeyValue" Id="{f689fe1a-08a1-40f9-a3b4-d21f3ff18ac0}">
+      <Declaration><![CDATA[METHOD createKeyValue : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_KeyValue;
+END_VAR
+VAR_INPUT
+	pKey: POINTER TO STRING;
+	pVal: POINTER TO FB_AnyValue;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ValueFactoryFailureReason;
+END_VAR
+VAR
+	_pNew: POINTER TO FB_KeyValue;
+	_pKey: POINTER TO STRING;
+	_pVal: POINTER TO FB_AnyValue;
+	_len: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[createKeyValue := FALSE;
+failureReason := E_ValueFactoryFailureReason.NA;
+
+IF pKey = 0 THEN
+	failureReason := E_ValueFactoryFailureReason.KEY_POINTER_NULL;
+	RETURN;
+END_IF
+
+IF pVal = 0 THEN
+	failureReason := E_ValueFactoryFailureReason.VALUE_POINTER_NULL;
+	RETURN;
+END_IF
+
+IF pDest <> 0 THEN
+	failureReason := E_ValueFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED;
+	RETURN;
+END_IF
+
+// clone all owned data before allocating the value itself
+_len := LEN2(pKey) + 1;
+_pKey := __NEW(BYTE, _len);
+IF _pKey = 0 THEN
+	failureReason := E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+MEMCPY(_pKey, pKey, _len);
+
+createKeyValue := ValueFactory.cloneAnyValue(pDest:=_pVal, pSrc:=pVal, failureReason=>failureReason);
+IF NOT createKeyValue THEN
+	__DELETE(_pKey);
+	IF _pVal <> 0 THEN _pVal := _pVal^.delete(); END_IF
+	RETURN;
+END_IF
+
+_pNew := __NEW(FB_KeyValue(pKey:=_pKey, pVal:=_pVal));
+IF _pNew = 0 THEN
+	createKeyValue := FALSE;
+	failureReason := E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE;
+	__DELETE(_pKey);
+	_pVal := _pVal^.delete();
+	RETURN;
+END_IF
+pDest := _pNew;
+createKeyValue := failureReason = E_ValueFactoryFailureReason.NA;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="createNumber" Id="{02083b4a-4abf-4819-8ad5-4550dbfb07e8}">
+      <Declaration><![CDATA[METHOD createNumber : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_Number;
+END_VAR
+VAR_INPUT
+	value: ANY_NUM;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ValueFactoryFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[createNumber := FALSE;
+failureReason := E_ValueFactoryFailureReason.NA;
+
+createNumber := ValueFactory.createNumber_AnyType(
+	pDest:=pDest,
+	value:=value,
+	failureReason=>failureReason
+);
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="createNumber_AnyType" Id="{df8dbceb-12c8-41a2-9d62-c0dec56c0cbf}">
+      <Declaration><![CDATA[(*
+	This method is necessary because it makes it possible to easily create
+	instance of an FB_Number from already instantiated instances of FB_Number
+	i.e. cloning, when the original number is gone, but the AnyType value exists.
+*)
+METHOD createNumber_AnyType : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_Number;
+END_VAR
+VAR_INPUT
+	value: AnyType;  // notice this is a struct and not the ANY_NUM keyword
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ValueFactoryFailureReason;
+END_VAR
+VAR
+	_value: AnyType;
+	_pNew: POINTER TO FB_Number;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[createNumber_AnyType := FALSE;
+failureReason := E_ValueFactoryFailureReason.NA;
+
+IF pDest <> 0 THEN
+	failureReason := E_ValueFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED;
+	RETURN;
+END_IF
+
+IF value.pValue = 0 THEN
+	failureReason := E_ValueFactoryFailureReason.NUMBER_VALUE_POINTER_NULL;
+	RETURN;
+END_IF
+
+IF value.diSize <= 0 THEN
+	failureReason := E_ValueFactoryFailureReason.NUMBER_VALUE_SIZE_INVALID;
+	RETURN;
+END_IF
+
+// Copy the concrete numeric value so the wrapper never retains caller-owned data.
+_value.TypeClass := value.TypeClass;
+_value.diSize := value.diSize;
+_value.pValue := __NEW(BYTE, TO_UDINT(_value.diSize));
+IF _value.pValue = 0 THEN
+	failureReason := E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+MEMCPY(_value.pValue, value.pValue, TO_UDINT(value.diSize));
+
+_pNew := __NEW(FB_Number(value:=_value));
+IF _pNew = 0 THEN
+	failureReason := E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE;
+	__DELETE(_value.pValue);
+	RETURN;
+END_IF
+pDest := _pNew;
+createNumber_AnyType := failureReason = E_ValueFactoryFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="createSpanId" Id="{e5fffd18-ff32-4cb5-a423-fc497765e043}">
+      <Declaration><![CDATA[METHOD createSpanId : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_SpanId;
+END_VAR
+VAR_INPUT
+	pBytes: POINTER TO BYTE;
+	nSize: UDINT;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ValueFactoryFailureReason;
+END_VAR
+VAR
+	_pNew: POINTER TO FB_SpanId;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[createSpanId := FALSE;
+failureReason := E_ValueFactoryFailureReason.NA;
+
+IF pDest <> 0 THEN
+	failureReason := E_ValueFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED;
+	RETURN;
+END_IF
+
+IF pBytes = 0 THEN
+	failureReason := E_ValueFactoryFailureReason.SPAN_ID_BYTES_POINTER_NULL;
+	RETURN;
+END_IF
+
+IF nSize < ValueFactory.nSpanIdBytes THEN
+	failureReason := E_ValueFactoryFailureReason.SPAN_ID_BYTE_COUNT_TOO_SMALL;
+	RETURN;
+END_IF
+
+_pNew := __NEW(FB_SpanId);
+IF _pNew = 0 THEN
+	failureReason := E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+
+MEMCPY(ADR(_pNew^.bytes), pBytes, SIZEOF(_pNew^.bytes));
+pDest := _pNew;
+createSpanId := failureReason = E_ValueFactoryFailureReason.NA;
+
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="createString" Id="{98c7c2cc-84c9-448b-a0d7-30e376b3d9fb}">
+      <Declaration><![CDATA[METHOD createString : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_String;
+END_VAR
+VAR_INPUT
+	pString: POINTER TO STRING;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ValueFactoryFailureReason;
+END_VAR
+VAR
+	_pString: POINTER TO STRING;
+	_pNew: POINTER TO FB_String;
+	_len: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[createString := FALSE;
+failureReason := E_ValueFactoryFailureReason.NA;
+
+IF pDest <> 0  THEN
+	failureReason := E_ValueFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED;
+	RETURN;
+END_IF
+
+IF pString = 0 THEN
+	failureReason := E_ValueFactoryFailureReason.STRING_POINTER_NULL;
+	RETURN;
+END_IF
+
+// clone the string into a new pointer so as to not use mutable data
+// an extra character is needed for the terminating character, which is a literal 0 just like "cstrings"
+_len := LEN2(pString) + 1;
+_pString := __NEW(BYTE, _len);
+IF _pString = 0 THEN
+	failureReason := E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+MEMCPY(_pString, pString, _len);
+
+_pNew := __NEW(FB_String(pString:=_pString));
+IF _pNew = 0 THEN
+	failureReason := E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE;
+	__DELETE(_pString);
+	RETURN;
+END_IF
+pDest := _pNew;
+createString := failureReason = E_ValueFactoryFailureReason.NA;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="createTraceId" Id="{0e1353b0-8c72-490a-933a-4d6c0513d0aa}">
+      <Declaration><![CDATA[METHOD createTraceId : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_TraceId;
+END_VAR
+VAR_INPUT
+	pBytes: POINTER TO BYTE;
+	nSize: UDINT;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ValueFactoryFailureReason;
+END_VAR
+VAR
+	_pNew: POINTER TO FB_TraceId;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[createTraceId := FALSE;
+failureReason := E_ValueFactoryFailureReason.NA;
+
+IF pDest <> 0 THEN
+	failureReason := E_ValueFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED;
+	RETURN;
+END_IF
+
+IF pBytes = 0 THEN
+	failureReason := E_ValueFactoryFailureReason.TRACE_ID_BYTES_POINTER_NULL;
+	RETURN;
+END_IF
+
+IF nSize < ValueFactory.nTraceIdBytes THEN
+	failureReason := E_ValueFactoryFailureReason.TRACE_ID_BYTE_COUNT_TOO_SMALL;
+	RETURN;
+END_IF
+
+_pNew := __NEW(FB_TraceId);
+IF _pNew = 0 THEN
+	failureReason := E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+MEMCPY(ADR(_pNew^.bytes), pBytes, SIZEOF(_pNew^.bytes));
+pDest := _pNew;
+createTraceId := failureReason = E_ValueFactoryFailureReason.NA;
+]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

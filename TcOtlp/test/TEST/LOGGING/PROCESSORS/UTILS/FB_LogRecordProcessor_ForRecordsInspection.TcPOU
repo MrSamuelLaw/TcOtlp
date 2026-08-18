@@ -19,7 +19,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[exportRecords := exporter.export(
 	logRecords:=THIS^._records,
-	count:=THIS^._records.size,
+	count:=THIS^._records.count,
 	failureReason=>failureReason
 );]]></ST>
       </Implementation>

@@ -1,0 +1,180 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LogRecordProcessor_Batch" Id="{847f7ec4-0494-49b9-b7af-d8bc64e717ad}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Batch processor. onEmit enriches and stores records only. Call the FB body
+	cyclically to advance the exporter and export the oldest queued records when
+	the schedule delay elapses or a full batch is available.
+*)
+FUNCTION_BLOCK FB_LogRecordProcessor_Batch EXTENDS FB_LogRecordProcessor_Mixin IMPLEMENTS I_LogRecordProcessor;
+VAR_OUTPUT
+	maxQueueSize: UDINT := 2048;			// zero is unbounded; otherwise the oldest record is dropped when full
+	scheduledDelayMillis: UDINT := 1000;	// maximum delay before queued records are exported
+	maxExportBatchSize: UDINT := 512;		// maximum records transferred to one export
+	lastOperationSucceeded: BOOL := TRUE;
+	failureResult: E_LogRecordProcessorFailureReason;
+END_VAR
+VAR
+	_scheduleDelayTimer: TON;
+	_records: FB_LogRecordQueue(maxSize:=0);
+	_exporter: REFERENCE TO FB_LogRecordExporter_Base;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.call();]]></ST>
+    </Implementation>
+    <Method Name="call" Id="{2cd88e80-8a66-402a-b9f7-755a91b3a196}">
+      <Declaration><![CDATA[METHOD call
+VAR
+	_exportFailureReason: E_LogRecordExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._scheduleDelayTimer(
+	IN:=THIS^._records.size > 0,
+	PT:=UDINT_TO_TIME(THIS^.scheduledDelayMillis)
+);
+
+IF __ISVALIDREF(THIS^._exporter) THEN
+	THIS^._exporter.call(failureReason=>_exportFailureReason);
+	THIS^.exportIfNeeded();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enrich" Id="{144ce45f-98a9-4f2a-9611-b0d4026ee838}">
+      <Declaration><![CDATA[// no-op; override to change log mutation/enrichment functionality
+METHOD enrich
+VAR_IN_OUT
+	logRecord: FB_LogRecord;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="exportIfNeeded" Id="{cf952dd0-5f8b-4d44-ab10-83adb54e2fee}">
+      <Declaration><![CDATA[METHOD exportIfNeeded
+VAR
+	_exportFailureReason: E_LogRecordExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^.maxExportBatchSize = 0
+	OR_ELSE NOT __ISVALIDREF(THIS^._exporter)
+	OR_ELSE THIS^._exporter.isBusy()
+	OR_ELSE THIS^._records.size = 0 THEN
+	RETURN;
+END_IF
+
+IF NOT THIS^._scheduleDelayTimer.Q
+	AND_THEN THIS^._records.size < THIS^.maxExportBatchSize THEN
+	RETURN;
+END_IF
+
+IF THIS^._exporter.export(
+	logRecords:=THIS^._records,
+	count:=THIS^.maxExportBatchSize,
+	failureReason=>_exportFailureReason
+) THEN
+	THIS^._scheduleDelayTimer(IN:=FALSE, PT:=UDINT_TO_TIME(THIS^.scheduledDelayMillis));
+	THIS^.lastOperationSucceeded := TRUE;
+	THIS^.failureResult := E_LogRecordProcessorFailureReason.NA;
+ELSE
+	THIS^.lastOperationSucceeded := FALSE;
+	THIS^.failureResult := E_LogRecordProcessorFailureReason.EXPORT_FAILURE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Exit" Id="{a9cebf8f-9b00-4350-91cf-4d46362f3054}">
+      <Declaration><![CDATA[METHOD FB_Exit : BOOL
+VAR_INPUT
+	bInCopyCode: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bInCopyCode THEN
+	THIS^.free();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{565902e0-35aa-4c18-aea4-d2e14d450e15}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	maxQueueSize: UDINT := 2048;			// zero is unbounded; otherwise the oldest record is dropped when full
+	scheduledDelayMillis: UDINT := 1000;	// maximum delay before queued records are exported
+	maxExportBatchSize: UDINT := 512;		// maximum records transferred to one export
+	exporter: REFERENCE TO FB_LogRecordExporter_Base;	// the exporter where the LogRecords are pushed.
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.maxQueueSize := maxQueueSize;
+THIS^.scheduledDelayMillis := scheduledDelayMillis;
+THIS^.maxExportBatchSize := maxExportBatchSize;
+IF __ISVALIDREF(exporter) AND_THEN exporter.register(THIS^) THEN
+	THIS^._exporter REF= exporter;
+ELSE
+	THIS^._exporter REF= 0;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{e6e0ade8-6e87-4c24-b4b5-77fa15d1ec71}">
+      <Declaration><![CDATA[METHOD free
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._records.free();
+THIS^._scheduleDelayTimer(IN:=FALSE, PT:=UDINT_TO_TIME(THIS^.scheduledDelayMillis));]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="onEmit" Id="{52c0f2f1-3674-49fb-b76b-872170611737}">
+      <Declaration><![CDATA[(*
+	Clones the log record onto the tail of the arrival-order queue.
+	When the queue holds maxQueueSize records, the oldest record is
+	dropped from the head to make room for the newest.
+*)
+METHOD onEmit
+VAR_INPUT
+	logRecord: REFERENCE TO FB_LogRecord;
+END_VAR
+VAR
+	_pRecord: POINTER TO FB_LogRecord;
+	_cloneFailureResult: E_LogRecordCloneFailureReason;
+	_queueFailureReason: E_LogRecordQueueFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.enrich(logRecord);
+
+_pRecord := 0;
+IF NOT logRecord.cloneTo(pDest:=_pRecord, failureReason=>_cloneFailureResult) THEN
+	IF _pRecord <> 0 THEN _pRecord := _pRecord^.delete(); END_IF
+	THIS^.lastOperationSucceeded := FALSE;
+	THIS^.failureResult := E_LogRecordProcessorFailureReason.RECORD_CLONE_FAILURE;
+	RETURN;
+END_IF
+
+IF NOT THIS^._records.push(pValue:=_pRecord, failureReason=>_queueFailureReason) THEN
+	_pRecord := _pRecord^.delete();
+	THIS^.lastOperationSucceeded := FALSE;
+	THIS^.failureResult := E_LogRecordProcessorFailureReason.QUEUE_PUSH_FAILURE;
+	RETURN;
+END_IF
+
+// The queue remains unbounded; the processor owns the drop policy.
+IF THIS^.maxQueueSize > 0 AND_THEN THIS^._records.size > THIS^.maxQueueSize THEN
+	IF THIS^._records.pop(pValue:=_pRecord, failureReason=>_queueFailureReason) THEN
+		_pRecord := _pRecord^.delete();
+	END_IF
+END_IF
+
+THIS^.lastOperationSucceeded := TRUE;
+THIS^.failureResult := E_LogRecordProcessorFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

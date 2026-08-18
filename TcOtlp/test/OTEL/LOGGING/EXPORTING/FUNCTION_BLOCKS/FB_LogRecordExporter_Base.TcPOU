@@ -4,7 +4,7 @@
     <Declaration><![CDATA[FUNCTION_BLOCK ABSTRACT FB_LogRecordExporter_Base
 VAR
 	_processor: PVOID;
-	_records: FB_LogRecordQueue(maxSize:=0);
+	_records: FB_LogRecordQueue(maxCount:=0);
 	_exportActive: BOOL;
 	_callFailureReason: E_LogRecordExporterFailureReason;
 END_VAR
@@ -57,7 +57,7 @@ IF NOT logRecords.transferTo(
 	RETURN;
 END_IF
 
-THIS^._exportActive := THIS^._records.size > 0;
+THIS^._exportActive := THIS^._records.count > 0;
 export := failureReason = E_LogRecordExporterFailureReason.NA;]]></ST>
       </Implementation>
     </Method>

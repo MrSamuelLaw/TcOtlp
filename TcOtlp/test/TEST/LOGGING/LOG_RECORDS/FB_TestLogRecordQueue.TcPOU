@@ -16,7 +16,7 @@ THIS^.testReportsFailureReasons();]]></ST>
     <Method Name="testAllowsUnboundedLength" Id="{019ff837-5af1-7c2a-a12a-b45f8f7d24d0}">
       <Declaration><![CDATA[METHOD testAllowsUnboundedLength : REFERENCE TO FB_Test
 VAR
-	queue: FB_LogRecordQueue(maxSize:=0);
+	queue: FB_LogRecordQueue(maxCount:=0);
 	pRecord: POINTER TO FB_LogRecord;
 	failureReason: E_LogRecordQueueFailureReason;
 	success: BOOL;
@@ -30,7 +30,7 @@ END_VAR
 		success := queue.push(pValue:=pRecord, failureReason=>failureReason);
 		THIS^.AssertTrue(success AND_THEN pRecord = 0, 'Expected the unbounded queue to take ownership');
 	END_FOR
-	THIS^.AssertEquals_UDINT(3, queue.size, 'Expected maxSize zero to allow every record');
+	THIS^.AssertEquals_UDINT(3, queue.count, 'Expected maxSize zero to allow every record');
 	THIS^.AssertEquals_UDINT(0, queue.droppedCount, 'Expected the unbounded queue not to drop records');
 	queue.free();
 TcUnit.TEST_FINISHED();]]></ST>
@@ -39,7 +39,7 @@ TcUnit.TEST_FINISHED();]]></ST>
     <Method Name="testDropsOldestRecordFirst" Id="{cf630375-dba4-48d5-9684-440330c5de11}">
       <Declaration><![CDATA[METHOD testDropsOldestRecordFirst : REFERENCE TO FB_Test
 VAR
-	queue: FB_LogRecordQueue(maxSize:=2);
+	queue: FB_LogRecordQueue(maxCount:=2);
 	pRecord: POINTER TO FB_LogRecord;
 	failureReason: E_LogRecordQueueFailureReason;
 	success: BOOL;
@@ -66,7 +66,7 @@ TcUnit.TEST_FINISHED();]]></ST>
     <Method Name="testEnforcesMaximumSize" Id="{3d15347b-a733-498c-969f-bd92e68843e9}">
       <Declaration><![CDATA[METHOD testEnforcesMaximumSize : REFERENCE TO FB_Test
 VAR
-	queue: FB_LogRecordQueue(maxSize:=2);
+	queue: FB_LogRecordQueue(maxCount:=2);
 	pRecord: POINTER TO FB_LogRecord;
 	failureReason: E_LogRecordQueueFailureReason;
 	success: BOOL;
@@ -79,9 +79,9 @@ END_VAR
 		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=_idx));
 		success := queue.push(pValue:=pRecord, failureReason=>failureReason);
 		THIS^.AssertTrue(success AND_THEN pRecord = 0, 'Expected push to take ownership');
-		THIS^.AssertTrue(queue.size <= queue.maxSize, 'Expected count not to exceed maxSize');
+		THIS^.AssertTrue(queue.count <= queue.maxCount, 'Expected count not to exceed maxSize');
 	END_FOR
-	THIS^.AssertTrue(queue.size = 2, 'Expected the queue to remain at its maximum size');
+	THIS^.AssertTrue(queue.count = 2, 'Expected the queue to remain at its maximum size');
 	THIS^.AssertTrue(queue.droppedCount = 1, 'Expected one record to be dropped');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
@@ -89,7 +89,7 @@ TcUnit.TEST_FINISHED();]]></ST>
     <Method Name="testPushAndPopTransferRecordOwnership" Id="{a62a9c43-350f-4e05-b17a-4a95998386c2}">
       <Declaration><![CDATA[METHOD testPushAndPopTransferRecordOwnership : REFERENCE TO FB_Test
 VAR
-	queue: FB_LogRecordQueue(maxSize:=2);
+	queue: FB_LogRecordQueue(maxCount:=2);
 	pRecord: POINTER TO FB_LogRecord;
 	pOriginal: POINTER TO FB_LogRecord;
 	failureReason: E_LogRecordQueueFailureReason;
@@ -104,11 +104,11 @@ END_VAR
 	pOriginal := pRecord;
 	success := queue.push(pValue:=pRecord, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN failureReason = noFailure, 'Expected push to succeed without a failure reason');
-	THIS^.AssertTrue(pRecord = 0 AND_THEN queue.size = 1, 'Expected push to transfer ownership into the queue');
+	THIS^.AssertTrue(pRecord = 0 AND_THEN queue.count = 1, 'Expected push to transfer ownership into the queue');
 
 	success := queue.pop(pValue:=pRecord, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN failureReason = noFailure, 'Expected pop to succeed without a failure reason');
-	THIS^.AssertTrue(pRecord = pOriginal AND_THEN queue.size = 0, 'Expected pop to transfer the same record back to the caller');
+	THIS^.AssertTrue(pRecord = pOriginal AND_THEN queue.count = 0, 'Expected pop to transfer the same record back to the caller');
 	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
@@ -116,7 +116,7 @@ TcUnit.TEST_FINISHED();]]></ST>
     <Method Name="testReportsFailureReasons" Id="{09515266-8060-41de-97d3-7b1f99aac163}">
       <Declaration><![CDATA[METHOD testReportsFailureReasons : REFERENCE TO FB_Test
 VAR
-	queue: FB_LogRecordQueue(maxSize:=1);
+	queue: FB_LogRecordQueue(maxCount:=1);
 	pRecord: POINTER TO FB_LogRecord;
 	pAssigned: POINTER TO FB_LogRecord;
 	failureReason: E_LogRecordQueueFailureReason;
@@ -150,8 +150,8 @@ TcUnit.TEST_FINISHED();]]></ST>
     <Method Name="testTransfersQueueOwnership" Id="{fb6226eb-9608-4e3d-8cfa-65afca222a12}">
       <Declaration><![CDATA[METHOD testTransfersQueueOwnership : REFERENCE TO FB_Test
 VAR
-	source: FB_LogRecordQueue(maxSize:=2);
-	destination: FB_LogRecordQueue(maxSize:=2);
+	source: FB_LogRecordQueue(maxCount:=2);
+	destination: FB_LogRecordQueue(maxCount:=2);
 	pRecord: POINTER TO FB_LogRecord;
 	pFirstOriginal: POINTER TO FB_LogRecord;
 	pSecondOriginal: POINTER TO FB_LogRecord;
@@ -177,7 +177,7 @@ END_VAR
 
 	success := source.transferTo(destination:=destination, count:=2, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN failureReason = noFailure, 'Expected queue ownership transfer to succeed');
-	THIS^.AssertTrue(source.size = 0 AND_THEN destination.size = 2, 'Expected only the destination to own the records');
+	THIS^.AssertTrue(source.count = 0 AND_THEN destination.count = 2, 'Expected only the destination to own the records');
 
 	success := destination.pop(pValue:=pRecord, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN pRecord = pFirstOriginal AND_THEN pRecord^.timestamp = 1, 'Expected transfer to preserve the first allocation and FIFO order');
@@ -191,8 +191,8 @@ TcUnit.TEST_FINISHED();]]></ST>
     <Method Name="testTransfersRequestedCount" Id="{f5b79060-62be-451f-b340-4783541a9eaf}">
       <Declaration><![CDATA[METHOD testTransfersRequestedCount : REFERENCE TO FB_Test
 VAR
-	source: FB_LogRecordQueue(maxSize:=3);
-	destination: FB_LogRecordQueue(maxSize:=0);
+	source: FB_LogRecordQueue(maxCount:=3);
+	destination: FB_LogRecordQueue(maxCount:=0);
 	pRecord: POINTER TO FB_LogRecord;
 	failureReason: E_LogRecordQueueFailureReason;
 	noFailure: E_LogRecordQueueFailureReason;
@@ -211,7 +211,7 @@ END_VAR
 
 	success := source.transferTo(destination:=destination, count:=2, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN failureReason = noFailure, 'Expected a partial queue transfer to succeed');
-	THIS^.AssertTrue(source.size = 1 AND_THEN destination.size = 2, 'Expected the destination to take only the requested count');
+	THIS^.AssertTrue(source.count = 1 AND_THEN destination.count = 2, 'Expected the destination to take only the requested count');
 
 	success := destination.pop(pValue:=pRecord, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN pRecord <> 0 AND_THEN pRecord^.timestamp = 1, 'Expected the destination to receive the oldest record first');

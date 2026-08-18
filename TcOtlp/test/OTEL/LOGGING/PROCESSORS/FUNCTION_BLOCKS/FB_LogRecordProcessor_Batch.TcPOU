@@ -16,7 +16,7 @@ VAR_OUTPUT
 END_VAR
 VAR
 	_scheduleDelayTimer: TON;
-	_records: FB_LogRecordQueue(maxSize:=0);
+	_records: FB_LogRecordQueue(maxCount:=0);
 	_exporter: REFERENCE TO FB_LogRecordExporter_Base;
 END_VAR
 ]]></Declaration>
@@ -31,7 +31,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[THIS^._scheduleDelayTimer(
-	IN:=THIS^._records.size > 0,
+	IN:=THIS^._records.count > 0,
 	PT:=UDINT_TO_TIME(THIS^.scheduledDelayMillis)
 );
 
@@ -62,12 +62,12 @@ END_VAR
         <ST><![CDATA[IF THIS^.maxExportBatchSize = 0
 	OR_ELSE NOT __ISVALIDREF(THIS^._exporter)
 	OR_ELSE THIS^._exporter.isBusy()
-	OR_ELSE THIS^._records.size = 0 THEN
+	OR_ELSE THIS^._records.count = 0 THEN
 	RETURN;
 END_IF
 
 IF NOT THIS^._scheduleDelayTimer.Q
-	AND_THEN THIS^._records.size < THIS^.maxExportBatchSize THEN
+	AND_THEN THIS^._records.count < THIS^.maxExportBatchSize THEN
 	RETURN;
 END_IF
 
@@ -166,7 +166,7 @@ IF NOT THIS^._records.push(pValue:=_pRecord, failureReason=>_queueFailureReason)
 END_IF
 
 // The queue remains unbounded; the processor owns the drop policy.
-IF THIS^.maxQueueSize > 0 AND_THEN THIS^._records.size > THIS^.maxQueueSize THEN
+IF THIS^.maxQueueSize > 0 AND_THEN THIS^._records.count > THIS^.maxQueueSize THEN
 	IF THIS^._records.pop(pValue:=_pRecord, failureReason=>_queueFailureReason) THEN
 		_pRecord := _pRecord^.delete();
 	END_IF

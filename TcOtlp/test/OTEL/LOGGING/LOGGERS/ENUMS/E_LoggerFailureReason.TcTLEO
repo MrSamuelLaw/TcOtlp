@@ -23,7 +23,8 @@ TYPE E_LoggerFailureReason :
 	TRACE_ID_BYTE_COUNT_TOO_SMALL,  // The supplied Trace ID buffer is shorter than sixteen bytes.
 	TRACE_ID_INVALID,  // The supplied Trace ID could not be copied.
 	SNAPSHOT_COPY_FAILURE,  // The resource or instrumentation-scope snapshot could not be copied.
-	MEMORY_ALLOCATION_FAILURE  // Dynamic memory allocation failed.
+	MEMORY_ALLOCATION_FAILURE,  // Dynamic memory allocation failed.
+	TRANSFER_TO_PROVIDER_FAILURE  // Could not transfer ownership of the record to the provider
 ) UDINT;
 END_TYPE
 ]]></Declaration>
@@ -117,7 +118,12 @@ END_TYPE
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
-              <v n="TextID">"MEMORY_ALLOCATION_FAILURE  "</v>
+              <v n="TextID">"MEMORY_ALLOCATION_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"TRANSFER_TO_PROVIDER_FAILURE  "</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>

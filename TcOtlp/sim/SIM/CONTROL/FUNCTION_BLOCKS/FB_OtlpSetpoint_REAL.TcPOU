@@ -1,0 +1,116 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_OtlpSetpoint_REAL" Id="{8c77fdb7-ad15-42e0-95ed-49a286ae5854}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_OtlpSetpoint_REAL
+VAR_OUTPUT
+	// items set during init
+	name: T_MaxString;
+	minSetpoint: REAL;
+	maxSetpoint: REAL;
+	// items that are updated using updateSetpoint
+	setpoint: REAL;
+	traceId: ARRAY[0..15] OF BYTE;
+END_VAR
+VAR
+	_valueIsNew: BOOL;
+	_setpoint: REAL;
+	_traceId: ARRAY [0..15] OF BYTE;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="call" Id="{1da29e9c-0a14-4bce-8093-1c729511bb24}">
+      <Declaration><![CDATA[METHOD call : BOOL
+VAR_IN_OUT
+	logger: FB_Logger;
+	processors: ARRAY [*] OF I_LogRecordProcessor;
+END_VAR
+VAR
+	_body: T_MaxString;
+	_formatter: FB_FormatString;
+	_failureReason: E_OtlpControlValueFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._valueIsNew THEN
+	IF validate(THIS^._setpoint, failureReason=>_failureReason) THEN
+		THIS^.setpoint := THIS^._setpoint;
+		THIS^.traceId := THIS^._traceId;
+	ELSE
+		_body := _formatter(
+			sFormat:='Failed to update control setpoint to %d, reason=%s',
+			arg1:=THIS^._setpoint,
+			arg2:=TO_STRING(_failureReason),
+			sOut=>_body
+		);
+		logger
+			.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_WARN)
+			.setEventName('controlSetpointUpdateFailure')
+			.setBody(_body)
+			.setNumberAttribute('setpoint.min', THIS^.minSetpoint)
+			.setNumberAttribute('setpoint.max', THIS^.maxSetpoint)
+			.setNumberAttribute('setpoint.requested', THIS^._setpoint)
+			.setStringAttribute('failureReason', TO_STRING(_failureReason))
+			.emit(processors); 
+	END_IF
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{92f915bb-7f23-4c35-93e2-921462c3a023}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	name: T_MaxString;
+	maxSetpoint: REAL;
+	minSetpoint: REAL;
+	initialSetpoint: REAL;   
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.name := name;
+THIS^.maxSetpoint := maxSetpoint;
+THIS^.minSetpoint := minSetpoint;
+THIS^.setpoint :=  initialSetpoint;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="update" Id="{db9348f4-8111-431e-b261-78632c18012e}">
+      <Declaration><![CDATA[METHOD update
+VAR_INPUT
+	setpoint: REAL;
+	traceId: ARRAY [0..15] OF BYTE;
+END_VAR
+VAR_OUTPUT
+	success: BOOL;
+	failureReason: T_MaxString;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[success := THIS^.validate(setpoint, failureReason=>TO_STRING(failureReason));
+THIS^._setpoint := setpoint;
+THIS^._traceId := traceid;
+THIS^._valueIsNew := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="validate" Id="{2c1ca256-82b1-440f-86af-6807bcca9c3e}">
+      <Declaration><![CDATA[METHOD validate : BOOL
+VAR_INPUT
+	setpoint: REAL;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_OtlpControlValueFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF setpoint > THIS^.maxSetpoint THEN
+	failureReason := E_OtlpControlValueFailureReason.VALUE_OVER_RANGE;
+ELSIF setpoint < THIS^.minSetpoint THEN
+	failureReason := E_OtlpControlValueFailureReason.VALUE_UNDER_RANGE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

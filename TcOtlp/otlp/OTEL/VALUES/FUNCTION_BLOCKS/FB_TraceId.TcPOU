@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TraceId" Id="{fabab798-c42d-4d85-8caa-5b7042226a61}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_TraceId IMPLEMENTS I_OtlpValue
+VAR_OUTPUT
+	bytes: ARRAY [0..15] OF BYTE;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="delete" Id="{f785730e-642f-4c15-84b0-0eb477250509}">
+      <Declaration><![CDATA[METHOD delete: ULINT
+
+VAR
+	pSelf: POINTER TO FB_TraceId;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[pSelf := THIS;
+__DELETE(pSelf);
+delete := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="eType" Id="{202b80c6-e19d-4856-8bd7-df00d8dc2316}">
+      <Declaration><![CDATA[PROPERTY eType : E_ValueType]]></Declaration>
+      <Get Name="Get" Id="{1686cf35-31e6-4b37-a8c0-ea5cc4a42dc0}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[eType := E_ValueType.E_TraceId;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="FB_Exit" Id="{0017ff9a-1b08-4f20-9129-9c4a4456e935}">
+      <Declaration><![CDATA[//FB_Exit must be implemented explicitly. If there is an implementation, then the
+//method is called before the controller removes the code of the function block instance
+//(implicit call). The return value is not evaluated.
+METHOD FB_Exit: BOOL
+VAR_INPUT
+    bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).  
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.free();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{e750dc02-78a7-4727-b864-4e169c99c812}">
+      <Declaration><![CDATA[METHOD free]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// just resets values to defaults
+MEMSET(ADR(THIS^.bytes), 0, SIZEOF(THIS^.bytes));]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

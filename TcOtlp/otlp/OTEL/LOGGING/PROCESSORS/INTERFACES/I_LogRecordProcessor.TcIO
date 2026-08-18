@@ -1,0 +1,38 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Itf Name="I_LogRecordProcessor" Id="{c8966b2f-a1f2-4554-b92f-be7733c6f8ed}">
+    <Declaration><![CDATA[INTERFACE I_LogRecordProcessor
+]]></Declaration>
+    <Method Name="call" Id="{d53180ed-ae1c-48d2-8cd7-cc1cba9e9608}">
+      <Declaration><![CDATA[METHOD call
+VAR_INPUT
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="enrich" Id="{51b177ff-31c3-4e1a-ac88-0b76b88b541f}">
+      <Declaration><![CDATA[METHOD enrich
+VAR_IN_OUT
+	logRecord: FB_LogRecord;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Method Name="free" Id="{568bd27e-46ee-4cae-961d-5b97959bfd19}">
+      <Declaration><![CDATA[METHOD free
+
+]]></Declaration>
+    </Method>
+    <Method Name="onEmit" Id="{023d4b8e-8693-4e55-ba76-882093f57054}">
+      <Declaration><![CDATA[METHOD onEmit
+VAR_INPUT
+	logRecord: REFERENCE TO FB_LogRecord;
+END_VAR
+]]></Declaration>
+    </Method>
+    <Property Name="pSelf" Id="{59ca363b-fae8-44ac-8319-5c5d6e10d545}">
+      <Declaration><![CDATA[PROPERTY pSelf : PVOID]]></Declaration>
+      <Get Name="Get" Id="{c33036f5-457e-4dbd-a76b-ce309a0871d1}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+  </Itf>
+</TcPlcObject>

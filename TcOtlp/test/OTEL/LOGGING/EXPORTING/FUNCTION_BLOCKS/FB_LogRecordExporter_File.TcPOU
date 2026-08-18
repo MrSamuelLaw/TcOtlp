@@ -43,7 +43,7 @@ END_VAR
 failureReason := E_LogRecordExporterFailureReason.NA;
 
 _execute := THIS^._exportActive;
-_execRTrig(CLK := _execute AND_THEN THIS^._records.size > 0);
+_execRTrig(CLK := _execute AND_THEN THIS^._records.count > 0);
 
 CASE currentState OF
 	E_FileExporterState.idle:

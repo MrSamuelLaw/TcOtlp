@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <Itf Name="I_OtlpValue" Id="{4b1e8469-a572-4b7d-a68a-9f96bf42040b}">
+    <Declaration><![CDATA[INTERFACE I_OtlpValue]]></Declaration>
+    <Method Name="delete" Id="{9a3c3b41-b0e3-4d80-8d93-2c5bbc47be55}">
+      <Declaration><![CDATA[// method used to delete all data held by the value and then delete the object itself.
+METHOD delete: ULINT
+]]></Declaration>
+    </Method>
+    <Property Name="eType" Id="{f5123cbd-e7b8-4bb5-b06b-82056367da39}">
+      <Declaration><![CDATA[PROPERTY eType : E_ValueType]]></Declaration>
+      <Get Name="Get" Id="{03106088-a31a-41c0-9cb1-2aa27887b3ed}">
+        <Declaration><![CDATA[]]></Declaration>
+      </Get>
+    </Property>
+    <Method Name="free" Id="{70d86fc3-665b-4739-8ce6-426160832e22}">
+      <Declaration><![CDATA[// deallocates all data owned by the value without deleting the object itself.
+METHOD free
+]]></Declaration>
+    </Method>
+  </Itf>
+</TcPlcObject>

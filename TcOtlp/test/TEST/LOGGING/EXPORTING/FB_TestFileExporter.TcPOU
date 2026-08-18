@@ -76,25 +76,26 @@ END_VAR]]></Declaration>
 				.setTraceId(ADR(_traceId), SIZEOF(_traceId))
 				.setSpanId(ADR(_spanId), SIZEOF(_spanId))
 				.setFlags(E_LogRecordFlag.LOG_RECORD_FLAGS_TRACE_FLAGS_MASK)
-				.addStringAttribute('batch.position', 'first')
-				.addNumberAttribute('batch.positionNum', _num)
-				.emit(processors:=_processors, failureResult=>_loggerFailureResult);
+				.setStringAttribute('batch.position', 'first')
+				.setNumberAttribute('batch.positionNum', _num)
+				.emit(failureResult=>_loggerFailureResult);
 			_num := 2;
 			_secondEmitSucceeded := _logger2
 				.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(_timestamp))
 				.setBody('Second batched log record')
 				.setEventName('BatchRecord2')
-				.addStringAttribute('batch.position', 'second')
-				.addNumberAttribute('batch.positionNum', _num)
-				.emit(processors:=_processors, failureResult=>_loggerFailureResult);
+				.setStringAttribute('batch.position', 'second')
+				.setNumberAttribute('batch.positionNum', _num)
+				.emit(failureResult=>_loggerFailureResult);
 			_num := 3;
 			_thirdEmitSucceeded := _logger1
 				.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_WARN, timestamp:=ADR(_timestamp))
 				.setBody('Third batched log record')
 				.setEventName('BatchRecord3')
-				.addStringAttribute('batch.position', 'third')
-				.addNumberAttribute('batch.positionNum', _num)
-				.emit(processors:=_processors, failureResult=>_loggerFailureResult);
+				.setStringAttribute('batch.position', 'third')
+				.setNumberAttribute('batch.positionNum', _num)
+				.emit(failureResult=>_loggerFailureResult);
+			_provider.call(_processors);
 			THIS^.AssertTrue(_firstEmitSucceeded, 'First emit was unsuccessful');
 			THIS^.AssertTrue(_secondEmitSucceeded, 'Second emit was unsuccessful');
 			THIS^.AssertTrue(_thirdEmitSucceeded, 'Third emit was unsuccessful');
@@ -102,7 +103,7 @@ END_VAR]]></Declaration>
 			IF _firstEmitSucceeded
 				AND _secondEmitSucceeded
 				AND _thirdEmitSucceeded THEN
-				THIS^.AssertEquals_UDINT(3, _processor.records.size, 'Expected the processor to capture all three log records');
+				THIS^.AssertEquals_UDINT(3, _processor.records.count, 'Expected the processor to capture all three log records');
 				_state := 10;
 				RETURN;
 			ELSE
@@ -111,12 +112,12 @@ END_VAR]]></Declaration>
 			END_IF
 			
 		10: // export
-			IF _processor.records.size > 0 THEN
+			IF _processor.records.count > 0 THEN
 				_exportSucceeded := _processor.exportRecords(
 					exporter:=_exporter,
 					failureReason=>_exporterFailureReason
 				);
-				IF NOT _exportSucceeded OR_ELSE _processor.records.size > 0 THEN
+				IF NOT _exportSucceeded OR_ELSE _processor.records.count > 0 THEN
 					THIS^.AssertTrue(FALSE, 'Exporter failed to take ownership of the processor buffer');
 					_state := 30;
 					RETURN;
@@ -174,7 +175,7 @@ END_VAR]]></Declaration>
 			// clean up the record owned by the processor
 			_processor.free();
 			_logger1.free();
-			THIS^.AssertTrue(_processor.records.size = 0, 'Expected processor to be empty after cleanup');
+			THIS^.AssertTrue(_processor.records.count = 0, 'Expected processor to be empty after cleanup');
 
 			_state := 0;
 			TcUnit.TEST_FINISHED();

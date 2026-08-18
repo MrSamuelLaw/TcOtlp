@@ -14,8 +14,8 @@ VAR
 	_cursor: POINTER TO ST_LinkedListNode;
 END_VAR
 VAR_OUTPUT
-	size: UDINT;
-	maxSize: UDINT;
+	count: UDINT;
+	maxCount: UDINT;
 	droppedCount: UDINT;
 END_VAR
 ]]></Declaration>
@@ -39,11 +39,11 @@ END_IF]]></ST>
 VAR_INPUT
 	bInitRetains: BOOL;
 	bInCopyCode: BOOL;
-	maxSize: UDINT := 0;
+	maxCount: UDINT := 0;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[THIS^.maxSize := maxSize;]]></ST>
+        <ST><![CDATA[THIS^.maxCount := maxCount;]]></ST>
       </Implementation>
     </Method>
     <Method Name="free" Id="{fbd1c94b-c09e-4d95-a598-0cd5bb8a61f6}">
@@ -55,7 +55,7 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
+        <ST><![CDATA[FOR _idx := 0 TO TcUnit_GVL.MAX_LOOP_COUNT DO
 	IF THIS^._head = 0 THEN
 		EXIT;
 	END_IF
@@ -73,7 +73,7 @@ END_FOR
 THIS^._head := 0;
 THIS^._tail := 0;
 THIS^._cursor := 0;
-THIS^.size := 0;]]></ST>
+THIS^.count := 0;]]></ST>
       </Implementation>
     </Method>
     <Method Name="next" Id="{720ec83f-b785-4449-92d1-d6ec1cfa78ab}">
@@ -126,7 +126,7 @@ pValue := _node^.val;
 _node^.val := 0;
 _node^.nxt := 0;
 __DELETE(_node);
-THIS^.size := THIS^.size - 1;
+THIS^.count := THIS^.count - 1;
 pop := failureReason = E_LogRecordQueueFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
@@ -162,9 +162,9 @@ IF _node = 0 THEN
 END_IF
 
 // maxSize is writable, so also restore the bound after a runtime reduction.
-IF THIS^.maxSize > 0 THEN
-	FOR _idx := 0 TO GVL.MAX_LOOP_COUNT DO
-		IF THIS^.size < THIS^.maxSize THEN
+IF THIS^.maxCount > 0 THEN
+	FOR _idx := 0 TO TcUnit_GVL.MAX_LOOP_COUNT DO
+		IF THIS^.count < THIS^.maxCount THEN
 			EXIT;
 		END_IF
 		IF NOT THIS^.pop(pValue:=_droppedRecord, failureReason=>_popFailureReason) THEN
@@ -175,7 +175,7 @@ IF THIS^.maxSize > 0 THEN
 		_droppedRecord := _droppedRecord^.delete();
 		THIS^.droppedCount := THIS^.droppedCount + 1;
 	END_FOR
-	IF THIS^.size >= THIS^.maxSize THEN
+	IF THIS^.count >= THIS^.maxCount THEN
 		__DELETE(_node);
 		failureReason := E_LogRecordQueueFailureReason.MAX_SIZE_ENFORCEMENT_FAILURE;
 		RETURN;
@@ -191,7 +191,7 @@ ELSE
 	THIS^._tail^.nxt := _node;
 END_IF
 THIS^._tail := _node;
-THIS^.size := THIS^.size + 1;
+THIS^.count := THIS^.count + 1;
 pValue := 0;
 push := failureReason = E_LogRecordQueueFailureReason.NA;]]></ST>
       </Implementation>
@@ -263,17 +263,17 @@ IF ADR(destination) = THIS THEN
 	failureReason := E_LogRecordQueueFailureReason.SELF_TRANSFER_NOT_ALLOWED;
 	RETURN;
 END_IF
-IF destination.size <> 0 OR_ELSE destination._head <> 0 OR_ELSE destination._tail <> 0 THEN
+IF destination.count <> 0 OR_ELSE destination._head <> 0 OR_ELSE destination._tail <> 0 THEN
 	failureReason := E_LogRecordQueueFailureReason.DESTINATION_NOT_EMPTY;
 	RETURN;
 END_IF
 
 _transferCount := count;
-IF _transferCount > THIS^.size THEN
-	_transferCount := THIS^.size;
+IF _transferCount > THIS^.count THEN
+	_transferCount := THIS^.count;
 END_IF
-IF destination.maxSize > 0 AND_THEN _transferCount > destination.maxSize THEN
-	_transferCount := destination.maxSize;
+IF destination.maxCount > 0 AND_THEN _transferCount > destination.maxCount THEN
+	_transferCount := destination.maxCount;
 END_IF
 IF _transferCount = 0 THEN
 	transferTo := failureReason = E_LogRecordQueueFailureReason.NA;
@@ -289,9 +289,9 @@ END_FOR
 THIS^._head := destination._tail^.nxt;
 destination._tail^.nxt := 0;
 destination._cursor := destination._head;
-destination.size := _transferCount;
+destination.count := _transferCount;
 
-THIS^.size := THIS^.size - _transferCount;
+THIS^.count := THIS^.count - _transferCount;
 THIS^._cursor := THIS^._head;
 IF THIS^._head = 0 THEN
 	THIS^._tail := 0;

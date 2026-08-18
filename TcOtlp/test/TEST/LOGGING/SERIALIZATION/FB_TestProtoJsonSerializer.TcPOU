@@ -98,15 +98,15 @@ END_VAR
 		.setTraceId(ADR(traceId), SIZEOF(traceId))
 		.setSpanId(ADR(spanId), SIZEOF(spanId))
 		.setFlags(E_LogRecordFlag.LOG_RECORD_FLAGS_TRACE_FLAGS_MASK)
-		.addStringAttribute('stats.label', 'pVal')
-		.addNumberAttribute('stats.duration_ms', durationMs)
-		.addNumberAttribute('stats.temperature', temperature);
+		.setStringAttribute('stats.label', 'pVal')
+		.setNumberAttribute('stats.duration_ms', durationMs)
+		.setNumberAttribute('stats.temperature', temperature);
 	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected a log record before emission');
 	IF logger.pLogRecord <> 0 THEN
 		logger.pLogRecord^.droppedAttributesCount := 2;
 	END_IF
 
-	emitSuccess := logger.emit(processors:=processors, failureResult=>emitFailureResult);
+	emitSuccess := logger.emit(failureResult=>emitFailureResult);
 	THIS^.AssertTrue(emitSuccess, 'Expected log record emission to succeed');
 	THIS^.AssertTrue(processor.lastOperationSucceeded, 'Expected emitted record capture to succeed');
 	THIS^.AssertTrue(logger.pLogRecord = 0, 'Expected emit to release the logger-owned record');
@@ -266,7 +266,7 @@ END_VAR
 		THIS^.AssertTrue(pushSucceeded AND_THEN pRecord = 0, 'Expected queue to take record ownership');
 		IF NOT pushSucceeded AND_THEN pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
 	END_FOR
-	THIS^.AssertEquals_UDINT(8, queue.size, 'Expected eight records at the serializer boundary');
+	THIS^.AssertEquals_UDINT(8, queue.count, 'Expected eight records at the serializer boundary');
 
 	serializationSucceeded := serializer.serializeLogsData(
 		logRecords:=queue,
@@ -276,7 +276,7 @@ END_VAR
 		serializationSucceeded AND_THEN serializerFailureReason = E_ProtoJsonSerializerFailureReason.NA,
 		'Expected LogsData serialization to succeed without a failure reason'
 	);
-	THIS^.AssertEquals_UDINT(0, queue.size, 'Expected serializer to take ownership of the queued records');
+	THIS^.AssertEquals_UDINT(0, queue.count, 'Expected serializer to take ownership of the queued records');
 
 	resourceLogs := serializer.parser.FindMember(serializer.jsonValue, 'resourceLogs');
 	THIS^.AssertTrue(resourceLogs <> 0 AND_THEN serializer.parser.IsArray(resourceLogs), 'Expected resourceLogs array');

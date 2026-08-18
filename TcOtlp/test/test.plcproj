@@ -40,7 +40,13 @@
     <Compile Include="OTEL\EXPORTING\ENUMS\E_HttpExporterState.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\GVL.TcGVL">
+    <Compile Include="OTEL\LOGGING\PROVIDERS\ENUMS\E_LoggerProviderFailureReason.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\LOGGING\PROVIDERS\FUNCTION_BLOCKS\FB_LoggerProvider.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\TcUnit_GVL.TcGVL">
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
     </Compile>
@@ -96,9 +102,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\LOGGING\PROCESSORS\INTERFACES\I_LogRecordProcessor.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\LOGGING\PROVIDERS\FB_LoggerProvider.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\LOGGING\SERIALIZATION\FB_LogRecordProtoJsonSerializer.TcPOU">
@@ -217,11 +220,14 @@
     <Folder Include="OTEL\LOGGING\LOG_RECORDS\ENUMS" />
     <Folder Include="OTEL\LOGGING\EXPORTING" />
     <Folder Include="OTEL\LOGGING\PROCESSORS\ENUMS" />
+    <Folder Include="OTEL\LOGGING\PROVIDERS\FUNCTION_BLOCKS" />
+    <Folder Include="OTEL\LOGGING\PROVIDERS\ENUMS" />
     <Folder Include="OTEL\LOGGING\SERIALIZATION" />
     <Folder Include="OTEL\LOGGING\PROCESSORS\INTERFACES" />
     <Folder Include="OTEL\LOGGING\PROVIDERS" />
     <Folder Include="OTEL\LOGGING\PROCESSORS" />
     <Folder Include="OTEL\LOGGING\PROCESSORS\FUNCTION_BLOCKS" />
+    <Folder Include="OTEL\TRACING" />
     <Folder Include="OTEL\VALUES" />
     <Folder Include="OTEL\VALUES\ENUMS" />
     <Folder Include="OTEL\VALUES\FUNCTION_BLOCKS" />
@@ -361,7 +367,7 @@
                   <d n="SubKeys" t="Hashtable" />
                   <d n="Values" t="Hashtable" ckt="String" cvt="Boolean">
                     <v>bActive</v>
-                    <v>True</v>
+                    <v>False</v>
                   </d>
                 </o>
                 <v>4</v>
@@ -379,7 +385,7 @@
                   <d n="SubKeys" t="Hashtable" />
                   <d n="Values" t="Hashtable" ckt="String" cvt="Boolean">
                     <v>bActive</v>
-                    <v>False</v>
+                    <v>True</v>
                   </d>
                 </o>
               </d>
@@ -412,14 +418,17 @@
           <d n="SubKeys" t="Hashtable" />
           <d n="Values" t="Hashtable" ckt="String" cvt="String">
             <v>DisabledWarningIds</v>
-            <v>410,5410</v>
+            <v>5410</v>
           </d>
         </o>
         <v>{eeeeeeee-3909-4298-8022-501ac3238667}</v>
         <o>
           <v n="Name">"{eeeeeeee-3909-4298-8022-501ac3238667}"</v>
           <d n="SubKeys" t="Hashtable" />
-          <d n="Values" t="Hashtable" />
+          <d n="Values" t="Hashtable" ckt="String" cvt="String">
+            <v>WarningAsErrorIds</v>
+            <v>441</v>
+          </d>
         </o>
         <v>{F66C7017-BDD8-4114-926C-81D6D687E35F}</v>
         <o>

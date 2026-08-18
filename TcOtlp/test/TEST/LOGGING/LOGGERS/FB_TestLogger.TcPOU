@@ -21,10 +21,6 @@ VAR
 	logger: FB_Logger(scope, provider);
 	success: BOOL;
 	failureResult: E_LoggerFailureReason;
-	simpleProcessor: FB_LogRecordProcessor_Simple(0);
-	processors: ARRAY [0..0] OF I_LogRecordProcessor := [
-		simpleProcessor
-	];
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testFluentAPI');
@@ -36,7 +32,7 @@ END_VAR]]></Declaration>
 		.setEventName('logger1.event1');
 	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Unexpected null record');
 	
-	success := logger.emit(processors:=processors, failureResult=>failureResult);
+	success := logger.emit(failureResult=>failureResult);
 	THIS^.AssertTrue(success, 'Unexpected emit failure');
 	THIS^.AssertTrue(logger.pLogRecord = 0, 'Unexpected not-null record');
 TcUnit.TEST_FINISHED();]]></ST>
@@ -49,8 +45,6 @@ VAR
 	provider: FB_LoggerProvider(resource);
 	scope: FB_InstrumentationScope('name', 'version', '');
 	logger: FB_Logger(scope, provider);
-	simpleProcessor: FB_LogRecordProcessor_Simple(0);
-	processors: ARRAY [0..0] OF I_LogRecordProcessor := [simpleProcessor];
 	success: BOOL;
 	failureResult: E_LoggerFailureReason;
 END_VAR
@@ -62,7 +56,7 @@ END_VAR
 		.setSpanId(pBytes:=0, nSize:=0)
 		.setTraceId(pBytes:=0, nSize:=0);
 
-	success := logger.emit(processors:=processors, failureResult=>failureResult);
+	success := logger.emit(failureResult=>failureResult);
 	THIS^.AssertFalse(success, 'Expected the invalid Span ID to fail emission');
 	THIS^.AssertTrue(
 		failureResult = E_LoggerFailureReason.SPAN_ID_BYTES_POINTER_NULL,
@@ -79,8 +73,6 @@ VAR
 	provider: FB_LoggerProvider(resource);
 	scope: FB_InstrumentationScope('name', 'version', '');
 	logger: FB_Logger(scope, provider);
-	simpleProcessor: FB_LogRecordProcessor_Simple(0);
-	processors: ARRAY [0..0] OF I_LogRecordProcessor := [simpleProcessor];
 	success: BOOL;
 	failureResult: E_LoggerFailureReason;
 END_VAR
@@ -88,7 +80,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testEmitWithoutRecordReturnsFailure');
 	logger.reset();
-	success := logger.emit(processors:=processors, failureResult=>failureResult);
+	success := logger.emit(failureResult=>failureResult);
 	THIS^.AssertFalse(success, 'Expected emit without a started record to fail');
 	THIS^.AssertTrue(
 		failureResult = E_LoggerFailureReason.LOG_RECORD_NOT_STARTED,
@@ -104,8 +96,6 @@ VAR
 	provider: FB_LoggerProvider(resource);
 	scope: FB_InstrumentationScope('name', 'version', '');
 	logger: FB_Logger(scope, provider);
-	simpleProcessor: FB_LogRecordProcessor_Simple(0);
-	processors: ARRAY [0..0] OF I_LogRecordProcessor := [simpleProcessor];
 	success: BOOL;
 	failureResult: E_LoggerFailureReason;
 END_VAR
@@ -115,7 +105,7 @@ END_VAR
 	logger.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_INFO);
 	logger.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_WARN);
 
-	success := logger.emit(processors:=processors, failureResult=>failureResult);
+	success := logger.emit(failureResult=>failureResult);
 	THIS^.AssertFalse(success, 'Expected starting a second record to fail emission');
 	THIS^.AssertTrue(
 		failureResult = E_LoggerFailureReason.LOG_RECORD_ALREADY_STARTED,

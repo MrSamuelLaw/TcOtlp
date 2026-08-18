@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_AnyValue" Id="{29cd055f-5e1c-41cc-b39c-b91da18d7314}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK ABSTRACT FB_AnyValue IMPLEMENTS I_OtlpValue]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="delete" Id="{3827521d-d666-4d4a-884c-a972d312a03a}">
+      <Declaration><![CDATA[METHOD ABSTRACT delete: ULINT
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="eType" Id="{bf4d53b2-7506-41a1-a023-80970616de42}">
+      <Declaration><![CDATA[PROPERTY ABSTRACT eType : E_ValueType]]></Declaration>
+      <Get Name="Get" Id="{a18f0d2b-b5b9-4ae3-924d-c1e3ff073227}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="free" Id="{19b41e5b-1a61-4123-a98c-b4365114be1d}">
+      <Declaration><![CDATA[(* deallocates all data owned by the value without deleting the object itself.*)
+METHOD ABSTRACT free
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <GVL Name="GVL" Id="{2c8a878d-5952-40c2-818b-cd6117aea204}">
+  <GVL Name="GVL" Id="{fafff3c3-4d09-467c-83c6-9e9cf3eee5b7}">
     <Declaration><![CDATA[{attribute 'qualified_only'}
 VAR_GLOBAL CONSTANT
 	// Program/logic safety limits
@@ -10,9 +10,9 @@ END_VAR
 VAR_GLOBAL
 	_ID: UDINT := 1;
 END_VAR]]></Declaration>
-    <Property Name="NEXT_ID" Id="{66a2dc14-5b7c-4295-87ce-3f72d7397f26}">
+    <Property Name="NEXT_ID" Id="{b0806f51-e306-4618-b098-4a5c2802d5bd}">
       <Declaration><![CDATA[PROPERTY NEXT_ID : UDINT]]></Declaration>
-      <Get Name="Get" Id="{67ac250b-bd9e-4a04-b15e-fab6928fa6d3}">
+      <Get Name="Get" Id="{3a978cc3-ac9e-41d1-95b3-3c244a975a60}">
         <Declaration><![CDATA[
 ]]></Declaration>
         <Implementation>

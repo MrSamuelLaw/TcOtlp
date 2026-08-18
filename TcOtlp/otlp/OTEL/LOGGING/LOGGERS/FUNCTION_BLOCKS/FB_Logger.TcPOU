@@ -1,0 +1,611 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Logger" Id="{b8e16b4f-4f4f-4607-8731-3367de3efb34}" SpecialFunc="None">
+    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_Logger
+VAR_OUTPUT
+	pLogRecord: POINTER TO FB_LogRecord;
+END_VAR
+VAR
+	_scope: REFERENCE TO FB_InstrumentationScope;
+	_provider: REFERENCE TO FB_LoggerProvider;
+	_failed: BOOL;
+	_failureReason: E_LoggerFailureReason;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="_createLogRecord" Id="{d2c9c82f-f85d-4ff3-9fe6-5b6d15ae353c}">
+      <Declaration><![CDATA[METHOD _createLogRecord : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_LogRecord;
+END_VAR
+VAR_INPUT
+	severityNumber: E_SeverityNumber;
+	timestamp: ULINT;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_LoggerFailureReason;
+END_VAR
+VAR
+	_logRecord: POINTER TO FB_LogRecord;
+	_attributesFailureResult: E_AttributesFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_createLogRecord := FALSE;
+failureReason := E_LoggerFailureReason.NA;
+
+IF pDest <> 0 THEN
+	failureReason := E_LoggerFailureReason.LOG_RECORD_ALREADY_STARTED;
+	RETURN;
+END_IF
+
+IF timestamp = 0 THEN
+	// F_GetSystemTime() counts 100ns intervals since 1601-01-01 (FILETIME epoch).
+	// OTLP timeUnixNano is nanoseconds since 1970-01-01 (Unix epoch).
+	// 116444736000000000 = the 1601->1970 offset in 100ns intervals.
+	timestamp := (F_GetSystemTime() - 116444736000000000) * 100;
+END_IF
+
+_logRecord := __NEW(FB_LogRecord(
+	severityNumber:=severityNumber,
+	timestamp:=timestamp
+));
+
+IF _logRecord = 0 THEN
+	failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+
+IF NOT _logRecord^.resource.copyFrom(src:=THIS^.resource, failureResult=>_attributesFailureResult) THEN
+	IF _attributesFailureResult = E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE THEN
+		failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+	ELSE
+		failureReason := E_LoggerFailureReason.SNAPSHOT_COPY_FAILURE;
+	END_IF
+	_logRecord := _logRecord^.delete();
+	RETURN;
+END_IF
+
+IF NOT _logRecord^.scope.copyFrom(src:=THIS^.scope, failureResult=>_attributesFailureResult) THEN
+	IF _attributesFailureResult = E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE THEN
+		failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+	ELSE
+		failureReason := E_LoggerFailureReason.SNAPSHOT_COPY_FAILURE;
+	END_IF
+	_logRecord := _logRecord^.delete();
+	RETURN;
+END_IF
+
+pDest := _logRecord;
+_logRecord := 0;
+_createLogRecord := failureReason = E_LoggerFailureReason.NA;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_shouldReturnEarly" Id="{1a72db8d-0a18-4fca-8b6c-c103ca12623b}">
+      <Declaration><![CDATA[METHOD _shouldReturnEarly : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_shouldReturnEarly := TRUE;
+
+// Preserve the first failure in the active fluent chain.
+IF THIS^._failed THEN
+	RETURN;
+END_IF
+
+// fail early if the log record hasn't been built
+IF THIS^.pLogRecord = 0 THEN
+	THIS^._failed := TRUE;
+	THIS^._failureReason := E_LoggerFailureReason.LOG_RECORD_NOT_STARTED;
+	RETURN;
+END_IF
+
+_shouldReturnEarly := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="emit" Id="{2cbee97e-18ab-4e63-80e7-98ac6e2789d6}">
+      <Declaration><![CDATA[(*
+	Function emits a log record for processing.
+	Each log record owns a snapshot of its instrumentation scope and resource, so processors
+	may retain the record after its logger or provider has been destroyed.
+*)
+METHOD emit: BOOL
+VAR_IN_OUT
+	processors: ARRAY [*] OF I_LogRecordProcessor;
+END_VAR
+VAR_OUTPUT
+	failureResult: E_LoggerFailureReason;
+END_VAR
+VAR
+	_idx: DINT;
+END_VAR
+
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[emit := FALSE;
+failureResult := E_LoggerFailureReason.NA;
+
+// Preserve the first fluent method failure while releasing the incomplete record.
+IF THIS^._failed THEN
+	IF THIS^.pLogRecord <> 0 THEN THIS^.pLogRecord := THIS^.pLogRecord^.delete(); END_IF
+	failureResult := THIS^._failureReason;
+	RETURN;
+END_IF
+
+IF THIS^.pLogRecord = 0 THEN
+	THIS^._failed := TRUE;
+	THIS^._failureReason := E_LoggerFailureReason.LOG_RECORD_NOT_STARTED;
+	failureResult := THIS^._failureReason;
+	RETURN;
+END_IF
+
+FOR _idx := LOWER_BOUND(processors, 1) TO UPPER_BOUND(processors, 1) DO
+	processors[_idx].onEmit(THIS^.pLogRecord^);
+END_FOR
+THIS^.pLogRecord := THIS^.pLogRecord^.delete();
+
+emit := THIS^._failureReason = E_LoggerFailureReason.NA;
+THIS^._failed := FALSE;
+THIS^._failureReason := E_LoggerFailureReason.NA;
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{9e98c3d9-d3d4-42d5-a70a-3ce681979f16}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	scope: REFERENCE TO FB_InstrumentationScope;
+	provider: REFERENCE TO FB_LoggerProvider;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._scope REF= scope;
+THIS^._provider REF= provider;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{1cb9e8b3-b601-4751-bfd7-6e4faa2be5e6}">
+      <Declaration><![CDATA[METHOD free
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^.pLogRecord <> 0 THEN
+	THIS^.pLogRecord := THIS^.pLogRecord^.delete();
+END_IF
+THIS^._failed := TRUE;
+THIS^._failureReason := E_LoggerFailureReason.LOG_RECORD_NOT_STARTED;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="reset" Id="{3fefe987-b974-490e-9196-5583348ec120}">
+      <Declaration><![CDATA[METHOD reset
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.free();
+THIS^._failed := FALSE;
+THIS^._failureReason := E_LoggerFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="resource" Id="{77f19df5-2307-450b-ad51-1c94f786a9ed}">
+      <Declaration><![CDATA[PROPERTY resource : REFERENCE TO FB_Resource]]></Declaration>
+      <Get Name="Get" Id="{7d326f73-dc81-4d38-b11f-615d717eeef9}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[resource REF= THIS^._provider.resource;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="scope" Id="{87079599-b42a-45c9-a375-65f56e39ab26}">
+      <Declaration><![CDATA[PROPERTY scope : REFERENCE TO FB_InstrumentationScope]]></Declaration>
+      <Get Name="Get" Id="{00f433e1-dc7b-48ec-8a7a-78d66525889e}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[scope REF= THIS^._scope;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="setBody" Id="{4babf857-099c-44ff-9b47-939acc3fb4a5}">
+      <Declaration><![CDATA[METHOD setBody: REFERENCE TO FB_Logger
+VAR_INPUT
+	str: T_MaxString;  // use setBody_AnyValue if the body isn't a string
+END_VAR
+VAR
+	_pDest: POINTER TO FB_String;
+	_factoryFailureReason: E_ValueFactoryFailureReason;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setBody REF= THIS^;
+
+IF THIS^._shouldReturnEarly() THEN
+	RETURN;
+END_IF
+
+// Create an owned string body.
+IF NOT ValueFactory.createString(
+	pDest:=_pDest,
+	pString:=ADR(str),
+	failureReason=>_factoryFailureReason
+	) THEN
+	THIS^._failed := TRUE;
+	IF _factoryFailureReason = E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE THEN
+		THIS^._failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+	ELSE
+		THIS^._failureReason := E_LoggerFailureReason.BODY_VALUE_INVALID;
+	END_IF
+	RETURN;
+END_IF
+
+// Replace the body only after the new value has been created successfully.
+IF THIS^.pLogRecord^.body <> 0 THEN
+	THIS^.pLogRecord^.body := THIS^.pLogRecord^.body^.delete();
+END_IF
+THIS^.pLogRecord^.body := _pDest;
+_pDest := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setBody_AnyValue" Id="{9f188e28-0447-4685-849a-1bb13be90760}">
+      <Declaration><![CDATA[METHOD setBody_AnyValue: REFERENCE TO FB_Logger
+VAR_INPUT
+	pVal: POINTER TO FB_AnyValue;  // use setBody_AnyValue if the body isn't a string
+END_VAR
+VAR
+	_pDest: POINTER TO FB_AnyValue;
+	_factoryFailureReason: E_ValueFactoryFailureReason;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setBody_AnyValue REF= THIS^;
+
+IF THIS^._shouldReturnEarly() THEN
+	RETURN;
+END_IF
+
+// check that the value is valid
+IF pVal = 0 THEN
+	THIS^._failed := TRUE;
+	THIS^._failureReason := E_LoggerFailureReason.BODY_VALUE_POINTER_NULL;
+	RETURN;
+END_IF
+
+// try to create a clone
+IF NOT ValueFactory.cloneAnyValue(
+	pDest:=_pDest,
+	pSrc:=pVal,
+	failureReason=>_factoryFailureReason
+	) THEN
+	THIS^._failed := TRUE;
+	CASE _factoryFailureReason OF
+		E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE:
+			THIS^._failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+		E_ValueFactoryFailureReason.UNSUPPORTED_VALUE_TYPE:
+			THIS^._failureReason := E_LoggerFailureReason.BODY_VALUE_TYPE_UNSUPPORTED;
+	ELSE
+		THIS^._failureReason := E_LoggerFailureReason.BODY_VALUE_INVALID;
+	END_CASE
+	RETURN;
+END_IF
+
+// clean up the prior record if it existed
+IF THIS^.pLogRecord^.body <> 0 THEN
+	THIS^.pLogRecord^.body := THIS^.pLogRecord^.body^.delete();
+END_IF
+// transfer ownership
+THIS^.pLogRecord^.body := _pDest;
+_pDest := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setEventName" Id="{bd18b0c8-78f5-4adf-9667-6846c71a2c83}">
+      <Declaration><![CDATA[METHOD setEventName: REFERENCE TO FB_Logger
+VAR_INPUT
+	str: T_MaxString;
+END_VAR
+VAR
+	_pDest: POINTER TO FB_String;
+	_factoryFailureReason: E_ValueFactoryFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setEventName REF= THIS^;
+
+IF THIS^._shouldReturnEarly() THEN
+	RETURN;
+END_IF
+
+// create FB_String
+IF NOT ValueFactory.createString(
+	pDest:=_pDest,
+	pString:=ADR(str),
+	failureReason=>_factoryFailureReason
+	) THEN
+	THIS^._failed := TRUE;
+	IF _factoryFailureReason = E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE THEN
+		THIS^._failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+	ELSE
+		THIS^._failureReason := E_LoggerFailureReason.EVENT_NAME_INVALID;
+	END_IF
+	RETURN;
+END_IF
+
+// assign to record event name
+// delete old event name if it exists
+IF THIS^.pLogRecord^.eventName <> 0 THEN
+	THIS^.pLogRecord^.eventName := THIS^.pLogRecord^.eventName^.delete();
+END_IF
+// transfer ownership of the pointer
+THIS^.pLogRecord^.eventName := _pDest;
+_pDest := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setFlags" Id="{0786ae42-b0f9-4db5-9dd0-743e339de0ec}">
+      <Declaration><![CDATA[METHOD setFlags: REFERENCE TO FB_Logger
+VAR_INPUT
+	flags: E_LogRecordFlag;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setFlags REF= THIS^;
+
+IF THIS^._shouldReturnEarly() THEN
+	RETURN;
+END_IF
+
+// if the value pointer is null, create a new pointer
+IF THIS^.pLogRecord^.flags = 0 THEN
+	THIS^.pLogRecord^.flags := __NEW(E_LogRecordFlag);
+	// if it failed, than the system is out of memory, abort
+	IF THIS^.pLogRecord^.flags = 0 THEN
+		THIS^._failed := TRUE;
+		THIS^._failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+		RETURN;
+	END_IF
+END_IF
+// if everything above worked, assign the value
+THIS^.pLogRecord^.flags^ := flags;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setNumberAttribute" Id="{6b261360-ee10-4286-bf2c-b1e40b0a856c}">
+      <Declaration><![CDATA[METHOD setNumberAttribute: REFERENCE TO FB_Logger
+VAR_INPUT
+	key: T_MaxString;
+	value: ANY_NUM;
+END_VAR
+VAR
+	_attributesSuccess: BOOL;
+	_attributesFailureReason: E_AttributesFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setNumberAttribute REF= THIS^;
+
+IF THIS^._shouldReturnEarly() THEN
+	RETURN;
+END_IF
+
+_attributesSuccess := THIS^.pLogRecord^.attributes.setNumberAttribute_AnyType(
+	key:=key,
+	value:=value,
+	failureReason=>_attributesFailureReason
+);
+IF NOT _attributesSuccess THEN
+	THIS^._failed := TRUE;
+	CASE _attributesFailureReason OF
+		E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE:
+			THIS^._failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+		E_AttributesFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED:
+			THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED;
+		E_AttributesFailureReason.KV_VALUE_TYPE_UNSUPPORTED:
+			THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_VALUE_TYPE_UNSUPPORTED;
+	ELSE
+		THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_VALUE_INVALID;
+	END_CASE
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setSpanId" Id="{0abf921f-8315-412b-ba97-6ae91bc386d5}">
+      <Declaration><![CDATA[METHOD setSpanId: REFERENCE TO FB_Logger
+VAR_INPUT
+	pBytes: POINTER TO BYTE;
+	nSize: UDINT;
+END_VAR
+VAR
+	_pDest: POINTER TO FB_SpanId;
+	_factoryFailureReason: E_ValueFactoryFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setSpanId REF= THIS^;
+
+IF THIS^._shouldReturnEarly() THEN
+	RETURN;
+END_IF
+
+// create an instance of FB_SpanId
+IF NOT ValueFactory.createSpanId(
+	pDest:=_pDest,
+	pBytes:=pBytes,
+	nSize:=nSize,
+	failureReason=>_factoryFailureReason
+	) THEN
+	THIS^._failed := TRUE;
+	CASE _factoryFailureReason OF
+		E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE:
+			THIS^._failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+		E_ValueFactoryFailureReason.SPAN_ID_BYTES_POINTER_NULL:
+			THIS^._failureReason := E_LoggerFailureReason.SPAN_ID_BYTES_POINTER_NULL;
+		E_ValueFactoryFailureReason.SPAN_ID_BYTE_COUNT_TOO_SMALL:
+			THIS^._failureReason := E_LoggerFailureReason.SPAN_ID_BYTE_COUNT_TOO_SMALL;
+	ELSE
+		THIS^._failureReason := E_LoggerFailureReason.SPAN_ID_INVALID;
+	END_CASE
+	RETURN;
+END_IF
+
+// assign to the record
+// delete the prior record if it exists
+IF THIS^.pLogRecord^.spanId <> 0 THEN
+	THIS^.pLogRecord^.spanId := THIS^.pLogRecord^.spanId^.delete();
+END_IF
+// transfer owneship of the data
+THIS^.pLogRecord^.spanId := _pDest;
+_pDest := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setStringAttribute" Id="{0645651d-96c9-4808-a74a-93d0f1e1e8d2}">
+      <Declaration><![CDATA[METHOD setStringAttribute: REFERENCE TO FB_Logger
+VAR_INPUT
+	key: T_MaxString;
+	value: T_MaxString;
+END_VAR
+VAR
+	_attributesSuccess: BOOL;
+	_attributesFailureReason: E_AttributesFailureReason;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setStringAttribute REF= THIS^;
+
+IF THIS^._shouldReturnEarly() THEN
+	RETURN;
+END_IF
+
+_attributesSuccess := THIS^.pLogRecord^.attributes.setStringAttribute(
+	key:=key,
+	value:=value,
+	failureReason=>_attributesFailureReason
+);
+IF NOT _attributesSuccess THEN
+	THIS^._failed := TRUE;
+	CASE _attributesFailureReason OF
+		E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE:
+			THIS^._failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+		E_AttributesFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED:
+			THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED;
+		E_AttributesFailureReason.KV_VALUE_TYPE_UNSUPPORTED:
+			THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_VALUE_TYPE_UNSUPPORTED;
+	ELSE
+		THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_VALUE_INVALID;
+	END_CASE
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setTraceId" Id="{075c32b7-fc1b-4e92-b7fe-bf526edf4c29}">
+      <Declaration><![CDATA[METHOD setTraceId: REFERENCE TO FB_Logger
+VAR_INPUT
+	pBytes: POINTER TO BYTE;
+	nSize: UDINT;
+END_VAR
+VAR
+	_pDest: POINTER TO FB_TraceId;
+	_factoryFailureReason: E_ValueFactoryFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setTraceId REF= THIS^;
+
+IF THIS^._shouldReturnEarly() THEN
+	RETURN;
+END_IF
+
+// create an instance of FB_TraceId
+IF NOT ValueFactory.createTraceId(
+	pDest:=_pDest,
+	pBytes:=pBytes,
+	nSize:=nSize,
+	failureReason=>_factoryFailureReason
+	) THEN
+	THIS^._failed := TRUE;
+	CASE _factoryFailureReason OF
+		E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE:
+			THIS^._failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+		E_ValueFactoryFailureReason.TRACE_ID_BYTES_POINTER_NULL:
+			THIS^._failureReason := E_LoggerFailureReason.TRACE_ID_BYTES_POINTER_NULL;
+		E_ValueFactoryFailureReason.TRACE_ID_BYTE_COUNT_TOO_SMALL:
+			THIS^._failureReason := E_LoggerFailureReason.TRACE_ID_BYTE_COUNT_TOO_SMALL;
+	ELSE
+		THIS^._failureReason := E_LoggerFailureReason.TRACE_ID_INVALID;
+	END_CASE
+	RETURN;
+END_IF
+
+// assign to the log record
+// delete trace id if it's already set.
+IF THIS^.pLogRecord^.traceId <> 0 THEN
+	THIS^.pLogRecord^.traceId := THIS^.pLogRecord^.traceId^.delete();
+END_IF
+// transfer ownership of the data
+THIS^.pLogRecord^.traceId := _pDest;
+_pDest := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="startLogRecord" Id="{b77b9379-4fb5-4715-9180-06516e7d7fc1}">
+      <Declaration><![CDATA[(*
+	This method starts the build process with the required log record state.
+	Use the fluent setter and adder methods for optional fields.
+	
+	Example:
+	IF NOT logger
+		.startLogRecord(severityNumber := E_SeverityNumber.SEVERITY_NUMBER_WARNING)
+		.setBody('process cycle amps warning, motor fault imminent')
+		.addNumberAttribute('motor.amps.min', minAmps)
+		.addNumberAttribute('motor.amps.max', maxAmps)
+		.addNumberAttribute('motor.amps.avg', avgAmps)
+		.emit(processors:=processors, failureResult=>failureResult) THEN
+		// CASE failureResult OF ...
+	END_IF
+*)
+METHOD startLogRecord: REFERENCE TO FB_Logger
+VAR_INPUT
+	severityNumber: E_SeverityNumber;
+	timestamp: POINTER TO ULINT := 0;
+END_VAR
+VAR
+	_timestamp: ULINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[startLogRecord REF= THIS^;
+
+// do not replace the first failure in an active fluent chain
+IF THIS^.pLogRecord <> 0 THEN
+	IF NOT THIS^._failed THEN
+		THIS^._failed := TRUE;
+		THIS^._failureReason := E_LoggerFailureReason.LOG_RECORD_ALREADY_STARTED;
+	END_IF
+	RETURN;
+END_IF
+
+THIS^._failed := FALSE;
+THIS^._failureReason := E_LoggerFailureReason.NA;
+
+// set the timestamp if the pointer is null (which is the preferred method of building a record)
+IF timestamp <> 0 THEN
+	_timestamp := timestamp^;
+ELSE
+	// F_GetSystemTime() counts 100ns intervals since 1601-01-01 (FILETIME epoch).
+	// OTLP timeUnixNano is nanoseconds since 1970-01-01 (Unix epoch).
+	// 116444736000000000 = the 1601->1970 offset in 100ns intervals.
+	_timestamp := (F_GetSystemTime() - 116444736000000000) * 100;
+END_IF
+
+// instantiate a log record
+IF NOT THIS^._createLogRecord(
+	pDest:=THIS^.pLogRecord,
+	severityNumber:=severityNumber,
+	timestamp:=_timestamp,
+	failureReason=>THIS^._failureReason
+	) THEN
+	THIS^._failed := TRUE;
+END_IF
+
+]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

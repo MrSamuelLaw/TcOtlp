@@ -1,0 +1,121 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <EnumerationTextList Name="E_ValueFactoryFailureReason" Id="{deb68734-7fbd-4fc9-8316-6333e87f3d63}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_ValueFactoryFailureReason :
+(
+	NA := 0,  // No failure occurred.
+	DESTINATION_ALREADY_ASSIGNED,  // The destination pointer was already assigned when the operation began.
+	SOURCE_POINTER_NULL,  // The source pointer is null.
+	NUMBER_VALUE_POINTER_NULL,  // The numeric value pointer is null.
+	NUMBER_VALUE_SIZE_INVALID,  // The numeric value size is zero or negative.
+	KEY_POINTER_NULL,  // The key pointer is null.
+	VALUE_POINTER_NULL,  // The value pointer is null.
+	STRING_POINTER_NULL,  // The string pointer is null.
+	SPAN_ID_BYTES_POINTER_NULL,  // The Span ID byte-array pointer is null.
+	SPAN_ID_BYTE_COUNT_TOO_SMALL,  // The supplied byte count is too small for a Span ID.
+	TRACE_ID_BYTES_POINTER_NULL,  // The Trace ID byte-array pointer is null.
+	TRACE_ID_BYTE_COUNT_TOO_SMALL,  // The supplied byte count is too small for a Trace ID.
+	UNSUPPORTED_VALUE_TYPE,  // The source value type is not supported by the factory operation.
+	MEMORY_ALLOCATION_FAILURE  // Dynamic memory allocation failed.
+);
+END_TYPE
+]]></Declaration>
+    <XmlArchive>
+      <Data>
+        <o xml:space="preserve" t="TextListEnumerationTextListObject">
+          <l n="TextList" t="ArrayList" cet="TextListRow">
+            <o>
+              <v n="TextID">"NA"</v>
+              <v n="TextDefault">"0"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"DESTINATION_ALREADY_ASSIGNED"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SOURCE_POINTER_NULL"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"NUMBER_VALUE_POINTER_NULL"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"NUMBER_VALUE_SIZE_INVALID"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"KEY_POINTER_NULL"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"VALUE_POINTER_NULL"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"STRING_POINTER_NULL"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SPAN_ID_BYTES_POINTER_NULL"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SPAN_ID_BYTE_COUNT_TOO_SMALL"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"TRACE_ID_BYTES_POINTER_NULL"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"TRACE_ID_BYTE_COUNT_TOO_SMALL"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"UNSUPPORTED_VALUE_TYPE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"MEMORY_ALLOCATION_FAILURE  "</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">""</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+          </l>
+          <l n="Languages" t="ArrayList" />
+          <v n="GuidInit">{71b37b59-e782-4133-b609-e62c17772dd4}</v>
+          <v n="GuidReInit">{9921e0c8-97d2-4971-82f2-53ed5cddfef4}</v>
+          <v n="GuidExitX">{9d8f782b-7245-4ebc-959b-3624022f30a8}</v>
+        </o>
+      </Data>
+      <TypeList>
+        <Type n="ArrayList">System.Collections.ArrayList</Type>
+        <Type n="Guid">System.Guid</Type>
+        <Type n="String">System.String</Type>
+        <Type n="TextListEnumerationTextListObject">{4b60233c-f940-4beb-b331-82133b520151}</Type>
+        <Type n="TextListRow">{53da1be7-ad25-47c3-b0e8-e26286dad2e0}</Type>
+      </TypeList>
+    </XmlArchive>
+  </EnumerationTextList>
+</TcPlcObject>

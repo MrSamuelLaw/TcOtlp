@@ -1,0 +1,227 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LogRecordExporter_File" Id="{bd664194-3145-4d33-b4c4-22035601123c}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordExporter_File EXTENDS FB_LogRecordExporter_Base
+VAR_INPUT
+	// maxFileSize: 	UDINT;  // size at which to auto rotate the file
+	// maxFiles: 		UDINT;  // max number of files to keep in the rotation
+END_VAR
+
+VAR_OUTPUT
+	currentState: E_FileExporterState;
+END_VAR
+
+VAR
+	_execute: BOOL;
+	_filepath: T_MaxString;
+	_hFile: UINT;
+	_len: UDINT;
+	_execRTrig: R_TRIG;
+	_pString: POINTER TO STRING;
+	_jsonVal: SJsonValue;
+	_resourceLogsArray: SJsonValue;
+	_fileOpener: FB_FileOpen;
+	_fileWriter: FB_FileWrite;
+	_fileCloser: FB_FileClose;
+	_computedState: E_FileExporterState;
+	_failureReason: E_LogRecordExporterFailureReason;
+	_serializationFailureReason: E_ProtoJsonSerializerFailureReason;
+	_serializer: FB_LogRecordProtoJsonSerializer;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.call(failureReason=>THIS^._callFailureReason);]]></ST>
+    </Implementation>
+    <Method Name="call" Id="{9d8b8add-7545-46fb-b159-11f520d172ae}">
+      <Declaration><![CDATA[METHOD call : BOOL
+VAR_OUTPUT
+	failureReason: E_LogRecordExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[call := TRUE;
+failureReason := E_LogRecordExporterFailureReason.NA;
+
+_execute := THIS^._exportActive;
+_execRTrig(CLK := _execute AND_THEN THIS^._records.size > 0);
+
+CASE currentState OF
+	E_FileExporterState.idle:
+		IF _execRTrig.Q THEN
+			_failureReason := E_LogRecordExporterFailureReason.NA;
+			_serializationFailureReason := E_ProtoJsonSerializerFailureReason.NA;
+			_computedState := E_FileExporterState.serializing;
+		END_IF
+
+	E_FileExporterState.serializing:
+		IF NOT _serializer.serializeLogsData(
+			logRecords:=THIS^._records,
+			failureReason=>_serializationFailureReason
+		) THEN
+			_failureReason := E_LogRecordExporterFailureReason.SERIALIZATION_FAILURE;
+			_computedState := E_FileExporterState.error;
+		ELSE
+			_jsonVal := _serializer.jsonValue;
+			IF _jsonVal = 0 OR_ELSE NOT _serializer.parser.IsObject(_jsonVal) THEN
+				_failureReason := E_LogRecordExporterFailureReason.SERIALIZATION_FAILURE;
+				_computedState := E_FileExporterState.error;
+			ELSE
+				_resourceLogsArray := _serializer.parser.FindMember(_jsonVal, 'resourceLogs');
+				IF _resourceLogsArray = 0 OR_ELSE NOT _serializer.parser.IsArray(_resourceLogsArray) THEN
+					_failureReason := E_LogRecordExporterFailureReason.SERIALIZATION_FAILURE;
+					_computedState := E_FileExporterState.error;
+				ELSE
+					_computedState := E_FileExporterState.opening;
+				END_IF
+			END_IF
+		END_IF
+
+	E_FileExporterState.opening:
+		IF _fileOpener.bError THEN
+			_failureReason := E_LogRecordExporterFailureReason.FILE_OPEN_FAILURE;
+			_computedState := E_FileExporterState.error;
+		ELSIF NOT _fileOpener.bBusy THEN
+			_hFile := _fileOpener.hFile;
+			_computedState := E_FileExporterState.buffering;
+		END_IF
+
+	E_FileExporterState.buffering:
+		// Write one complete LogsData object per JSONL line.
+		_len := _serializer.parser.GetJsonLength(_jsonVal);  // includes the null terminating character
+		IF _len = 0 THEN
+			_failureReason := E_LogRecordExporterFailureReason.SERIALIZATION_FAILURE;
+			_computedState := E_FileExporterState.closing;
+		ELSE
+			_pString := __NEW(BYTE, (_len + 1));  // + 1 for the new line
+			IF _pString = 0 THEN
+				_failureReason := E_LogRecordExporterFailureReason.BUFFER_ALLOCATION_FAILURE;
+				_computedState := E_FileExporterState.closing;
+			ELSE
+				_serializer.parser.CopyJson(_jsonVal, _pString^, _len);
+				CONCAT2(_pString, ADR('$N'), _pString, _len + 1);
+				_computedState := E_FileExporterState.writing;
+			END_IF
+		END_IF
+
+	E_FileExporterState.writing:
+		IF _fileWriter.bError THEN
+			IF _pString <> 0 THEN __DELETE(_pString); END_IF
+			_failureReason := E_LogRecordExporterFailureReason.FILE_WRITE_FAILURE;
+			_computedState := E_FileExporterState.closing;
+		ELSIF NOT _fileWriter.bBusy THEN
+			IF _pString <> 0 THEN __DELETE(_pString); END_IF
+			_computedState := E_FileExporterState.closing;
+		END_IF
+
+	E_FileExporterState.closing:
+		IF _fileCloser.bError THEN
+			IF _failureReason = E_LogRecordExporterFailureReason.NA THEN
+				_failureReason := E_LogRecordExporterFailureReason.FILE_CLOSE_FAILURE;
+			END_IF
+			_computedState := E_FileExporterState.error;
+		ELSIF NOT _fileCloser.bBusy THEN
+			IF _failureReason = E_LogRecordExporterFailureReason.NA THEN
+				_computedState := E_FileExporterState.done;
+			ELSE
+				_computedState := E_FileExporterState.error;
+			END_IF
+		END_IF
+
+	E_FileExporterState.done:
+		IF NOT _execute THEN
+			_computedState := E_FileExporterState.idle;
+		END_IF
+		THIS^.free();
+
+	E_FileExporterState.error:
+		// Retain the failure until export accepts a new batch.
+END_CASE
+
+currentState := _computedState;
+
+IF currentState <= E_FileExporterState.serializing THEN _hFile := 0; END_IF
+IF currentState = E_FileExporterState.done
+	OR_ELSE currentState = E_FileExporterState.error THEN
+	THIS^.free();
+END_IF
+
+_fileOpener(
+	sNetId:='',
+	sPathName:=THIS^._filepath,
+	bExecute:=currentState = E_FileExporterState.opening,
+	nMode:=FOPEN_MODEAPPEND OR FOPEN_MODETEXT,
+	ePath:=PATH_GENERIC,
+	tTimeout:=DEFAULT_ADS_TIMEOUT
+);
+
+_fileWriter(
+	hFile:=_hFile,
+	bExecute:=currentState = E_FileExporterState.writing,
+	pWriteBuff:=_pString,
+	cbWriteLen:=_len
+);
+
+_fileCloser(
+	hFile:=_hFile,
+	bExecute:=currentState = E_FileExporterState.closing
+);
+
+IF currentState = E_FileExporterState.error THEN
+	call := FALSE;
+	failureReason := _failureReason;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="export" Id="{702d9d58-d9d2-42d6-9f58-77b93396dfc9}">
+      <Declaration><![CDATA[METHOD export: BOOL
+VAR_IN_OUT
+	logRecords: FB_LogRecordQueue;
+END_VAR
+VAR_INPUT
+	count: UDINT;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_LogRecordExporterFailureReason;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Prepare a completed exporter to accept the next batch immediately.
+IF THIS^.currentState = E_FileExporterState.done OR THIS^.currentState = E_FileExporterState.error THEN
+	THIS^.currentState := E_FileExporterState.idle;
+	THIS^._computedState := E_FileExporterState.idle;
+END_IF
+export := SUPER^.export(
+	logRecords:=logRecords,
+	count:=count,
+	failureReason=>failureReason
+);
+IF export THEN
+	THIS^._failureReason := E_LogRecordExporterFailureReason.NA;
+	THIS^._serializationFailureReason := E_ProtoJsonSerializerFailureReason.NA;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{14f835fc-1f78-41ef-b08d-f61e56c900b1}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	filepath: T_MaxString;  // path to the root file
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._filepath := filepath;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="isBusy" Id="{95d535cd-453c-405f-b069-d5877d54f431}">
+      <Declaration><![CDATA[METHOD isBusy : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[isBusy := THIS^._exportActive;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

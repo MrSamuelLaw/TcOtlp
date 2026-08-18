@@ -57,8 +57,8 @@ IF motorSpeedSetpoint.payload.flag <> 0  THEN
 		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO)
 		.setEventName('motor.speedSetpointChanged')
 		.setBody('motor speed setpoint changed')
-		.addStringAttribute('speed.units', 'Hz')
-		.addNumberAttribute('speed.setpoint', motorSpeedSetpoint.payload.value)
+		.setStringAttribute('speed.units', 'Hz')
+		.setNumberAttribute('speed.setpoint', motorSpeedSetpoint.payload.value)
 		.emit(processors);
 END_IF
 
@@ -71,9 +71,9 @@ IF motorTemp > motorTempWarningLimit AND NOT motorWarningFlag THEN
 		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_WARN)
 		.setEventName('motor.overTempWarning')
 		.setBody('Motor experienced an over temp alarm, continued temperature rise will result in automatic shutdown!')
-		.addStringAttribute('temperature.units', '°F')
-		.addNumberAttribute('temperature.alarmLimit', motorTempWarningLimit)
-		.addNumberAttribute('temperature.processValue', motorTemp)
+		.setStringAttribute('temperature.units', '°F')
+		.setNumberAttribute('temperature.alarmLimit', motorTempWarningLimit)
+		.setNumberAttribute('temperature.processValue', motorTemp)
 		.emit(processors);
 END_IF
 motorWarningFlag := motorTemp >= motorTempWarningLimit;
@@ -83,9 +83,9 @@ IF motorTemp > motorTempFaultLimit AND NOT motorFaultFlag THEN
 		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_FATAL)
 		.setEventName('motor.overTempFault')
 		.setBody('Motor experienced an over temp fault... initiating auto shutdown sequence!')
-		.addStringAttribute('temperature.units', '°F')
-		.addNumberAttribute('temperature.alarmLimit', motorTempFaultLimit)
-		.addNumberAttribute('temperature.processValue', motorTemp)
+		.setStringAttribute('temperature.units', '°F')
+		.setNumberAttribute('temperature.alarmLimit', motorTempFaultLimit)
+		.setNumberAttribute('temperature.processValue', motorTemp)
 		.emit(processors);
 END_IF
 motorFaultFlag := motorTemp >= motorTempFaultLimit;
@@ -96,9 +96,9 @@ IF motorFaultFlag AND NOT valveAlarmFlag THEN
 		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_FATAL)
 		.setEventName('valve.emergencyClose')
 		.setBody('Motor has stopped running, closing valve to prevent flooding!')
-		.addStringAttribute('position.units', '%')
-		.addNumberAttribute('position.currentValue', valvePosFeedback)
-		.addNumberAttribute('position.commandedValue', valvePosCommand)
+		.setStringAttribute('position.units', '%')
+		.setNumberAttribute('position.currentValue', valvePosFeedback)
+		.setNumberAttribute('position.commandedValue', valvePosCommand)
 		.emit(processors);
 END_IF
 valveAlarmFlag := motorFaultFlag;
@@ -110,9 +110,9 @@ IF valveClosingTimer.Q AND NOT valveClosedFlag THEN
 		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO)
 		.setEventName('valve.emergencyCloseComplete')
 		.setBody('Motor has stopped running, valve is interlocked closed prevent flooding!')
-		.addStringAttribute('position.units', '%')
-		.addNumberAttribute('position.currentValue', valvePosFeedback)
-		.addNumberAttribute('position.commandedValue', valvePosCommand)
+		.setStringAttribute('position.units', '%')
+		.setNumberAttribute('position.currentValue', valvePosFeedback)
+		.setNumberAttribute('position.commandedValue', valvePosCommand)
 		.emit(processors);
 END_IF
 valveClosedFlag := valveClosingTimer.Q;]]></ST>

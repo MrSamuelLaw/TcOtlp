@@ -99,97 +99,15 @@ END_IF
 _shouldReturnEarly := FALSE;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="addNumberAttribute" Id="{6e8ebb16-a1b8-4ed2-891a-240f2408bf80}">
-      <Declaration><![CDATA[METHOD addNumberAttribute: REFERENCE TO FB_Logger
-VAR_INPUT
-	key: T_MaxString;
-	value: ANY_NUM;
-END_VAR
-VAR
-	_attributesSuccess: BOOL;
-	_attributesFailureReason: E_AttributesFailureReason;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[addNumberAttribute REF= THIS^;
-
-IF THIS^._shouldReturnEarly() THEN
-	RETURN;
-END_IF
-
-_attributesSuccess := THIS^.pLogRecord^.attributes.setNumberAttribute_AnyType(
-	key:=key,
-	value:=value,
-	failureReason=>_attributesFailureReason
-);
-IF NOT _attributesSuccess THEN
-	THIS^._failed := TRUE;
-	CASE _attributesFailureReason OF
-		E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE:
-			THIS^._failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
-		E_AttributesFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED:
-			THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED;
-		E_AttributesFailureReason.KV_VALUE_TYPE_UNSUPPORTED:
-			THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_VALUE_TYPE_UNSUPPORTED;
-	ELSE
-		THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_VALUE_INVALID;
-	END_CASE
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="addStringAttribute" Id="{ca1a9b5c-3e71-4efc-b089-bac82579b23c}">
-      <Declaration><![CDATA[METHOD addStringAttribute: REFERENCE TO FB_Logger
-VAR_INPUT
-	key: T_MaxString;
-	value: T_MaxString;
-END_VAR
-VAR
-	_attributesSuccess: BOOL;
-	_attributesFailureReason: E_AttributesFailureReason;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[addStringAttribute REF= THIS^;
-
-IF THIS^._shouldReturnEarly() THEN
-	RETURN;
-END_IF
-
-_attributesSuccess := THIS^.pLogRecord^.attributes.setStringAttribute(
-	key:=key,
-	value:=value,
-	failureReason=>_attributesFailureReason
-);
-IF NOT _attributesSuccess THEN
-	THIS^._failed := TRUE;
-	CASE _attributesFailureReason OF
-		E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE:
-			THIS^._failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
-		E_AttributesFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED:
-			THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED;
-		E_AttributesFailureReason.KV_VALUE_TYPE_UNSUPPORTED:
-			THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_VALUE_TYPE_UNSUPPORTED;
-	ELSE
-		THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_VALUE_INVALID;
-	END_CASE
-END_IF
-]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="emit" Id="{9d921a05-0a1a-4507-b871-f56b935dc996}">
       <Declaration><![CDATA[(*
-	Function emits a log record for processing.
+	Function emits a log record by pushing it to the owning provider's queue.
 	Each log record owns a snapshot of its instrumentation scope and resource, so processors
 	may retain the record after its logger or provider has been destroyed.
 *)
 METHOD emit: BOOL
-VAR_IN_OUT
-	processors: ARRAY [*] OF I_LogRecordProcessor;
-END_VAR
 VAR_OUTPUT
 	failureResult: E_LoggerFailureReason;
-END_VAR
-VAR
-	_idx: DINT;
 END_VAR
 
 ]]></Declaration>
@@ -211,10 +129,14 @@ IF THIS^.pLogRecord = 0 THEN
 	RETURN;
 END_IF
 
-FOR _idx := LOWER_BOUND(processors, 1) TO UPPER_BOUND(processors, 1) DO
-	processors[_idx].onEmit(THIS^.pLogRecord^);
-END_FOR
-THIS^.pLogRecord := THIS^.pLogRecord^.delete();
+// Push the record to the provider's queue for cyclical processing.
+IF NOT THIS^._provider.onEmit(THIS^.pLogRecord) THEN
+	THIS^.pLogRecord := THIS^.pLogRecord^.delete();
+	THIS^._failed := TRUE;
+	THIS^._failureReason := E_LoggerFailureReason.TRANSFER_TO_PROVIDER_FAILURE;
+	failureResult := THIS^._failureReason;
+	RETURN;
+END_IF
 
 emit := THIS^._failureReason = E_LoggerFailureReason.NA;
 THIS^._failed := FALSE;
@@ -439,6 +361,44 @@ END_IF
 THIS^.pLogRecord^.flags^ := flags;]]></ST>
       </Implementation>
     </Method>
+    <Method Name="setNumberAttribute" Id="{6e8ebb16-a1b8-4ed2-891a-240f2408bf80}">
+      <Declaration><![CDATA[METHOD setNumberAttribute: REFERENCE TO FB_Logger
+VAR_INPUT
+	key: T_MaxString;
+	value: ANY_NUM;
+END_VAR
+VAR
+	_attributesSuccess: BOOL;
+	_attributesFailureReason: E_AttributesFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setNumberAttribute REF= THIS^;
+
+IF THIS^._shouldReturnEarly() THEN
+	RETURN;
+END_IF
+
+_attributesSuccess := THIS^.pLogRecord^.attributes.setNumberAttribute_AnyType(
+	key:=key,
+	value:=value,
+	failureReason=>_attributesFailureReason
+);
+IF NOT _attributesSuccess THEN
+	THIS^._failed := TRUE;
+	CASE _attributesFailureReason OF
+		E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE:
+			THIS^._failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+		E_AttributesFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED:
+			THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED;
+		E_AttributesFailureReason.KV_VALUE_TYPE_UNSUPPORTED:
+			THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_VALUE_TYPE_UNSUPPORTED;
+	ELSE
+		THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_VALUE_INVALID;
+	END_CASE
+END_IF]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="setSpanId" Id="{14f48eeb-ffc5-4e13-838f-969f880e1995}">
       <Declaration><![CDATA[METHOD setSpanId: REFERENCE TO FB_Logger
 VAR_INPUT
@@ -486,6 +446,60 @@ END_IF
 // transfer owneship of the data
 THIS^.pLogRecord^.spanId := _pDest;
 _pDest := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setStringAttribute" Id="{ca1a9b5c-3e71-4efc-b089-bac82579b23c}">
+      <Declaration><![CDATA[METHOD setStringAttribute: REFERENCE TO FB_Logger
+VAR_INPUT
+	key: T_MaxString;
+	value: T_MaxString;
+END_VAR
+VAR
+	_attributesSuccess: BOOL;
+	_attributesFailureReason: E_AttributesFailureReason;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setStringAttribute REF= THIS^;
+
+IF THIS^._shouldReturnEarly() THEN
+	RETURN;
+END_IF
+
+_attributesSuccess := THIS^.pLogRecord^.attributes.setStringAttribute(
+	key:=key,
+	value:=value,
+	failureReason=>_attributesFailureReason
+);
+IF NOT _attributesSuccess THEN
+	THIS^._failed := TRUE;
+	CASE _attributesFailureReason OF
+		E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE:
+			THIS^._failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
+		E_AttributesFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED:
+			THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED;
+		E_AttributesFailureReason.KV_VALUE_TYPE_UNSUPPORTED:
+			THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_VALUE_TYPE_UNSUPPORTED;
+	ELSE
+		THIS^._failureReason := E_LoggerFailureReason.ATTRIBUTE_VALUE_INVALID;
+	END_CASE
+END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setTimestamp" Id="{7b4d9e15-58e6-4398-9eac-4a27d3cfdaeb}">
+      <Declaration><![CDATA[METHOD setTimestamp: REFERENCE TO FB_Logger
+VAR_INPUT
+	timestamp: ULINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setTimestamp REF= THIS^;
+
+IF THIS^._shouldReturnEarly() THEN
+	RETURN;
+END_IF
+
+// if everything above worked, assign the value
+THIS^.pLogRecord^.timestamp := timestamp;]]></ST>
       </Implementation>
     </Method>
     <Method Name="setTraceId" Id="{ca3f3acd-d52b-46f3-b0a6-82a2580b7b9b}">
@@ -549,17 +563,19 @@ _pDest := 0;]]></ST>
 		.addNumberAttribute('motor.amps.min', minAmps)
 		.addNumberAttribute('motor.amps.max', maxAmps)
 		.addNumberAttribute('motor.amps.avg', avgAmps)
-		.emit(processors:=processors, failureResult=>failureResult) THEN
+		.emit(failureResult=>failureResult) THEN
 		// CASE failureResult OF ...
 	END_IF
 *)
 METHOD startLogRecord: REFERENCE TO FB_Logger
 VAR_INPUT
 	severityNumber: E_SeverityNumber;
-	timestamp: POINTER TO ULINT := 0;
 END_VAR
 VAR
 	_timestamp: ULINT;
+END_VAR
+VAR CONSTANT
+	UNIX_EPOCH_DIFF: ULINT := 116444736000000000;
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -577,12 +593,9 @@ END_IF
 THIS^._failed := FALSE;
 THIS^._failureReason := E_LoggerFailureReason.NA;
 
-// set the timetstamp if the pointer is null (which is the prefered method of building a record)
-IF timestamp <> 0 THEN
-	_timestamp := timestamp^;
-ELSE
-	_timestamp := F_GetSystemTime() * 100; // convert to nanos
-END_IF
+
+_timestamp := (F_GetSystemTime() - UNIX_EPOCH_DIFF * 100); // convert to nanos
+
 
 // instantiate a log record
 IF NOT THIS^._createLogRecord(

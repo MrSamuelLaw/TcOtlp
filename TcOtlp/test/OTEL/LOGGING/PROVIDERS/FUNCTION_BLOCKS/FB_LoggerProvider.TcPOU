@@ -1,0 +1,121 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LoggerProvider" Id="{16983c20-c68e-4842-a5af-294cf7d1f97c}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LoggerProvider
+VAR
+	_resource: REFERENCE TO FB_Resource; // borrowed; the declaring scope owns its lifetime
+END_VAR
+VAR
+	_records: FB_LogRecordQueue(TcUnit_GVL.MAX_LOG_RECORDS_PER_SCAN);
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="call" Id="{6ac1f588-839d-47df-a7be-69b648f9145a}">
+      <Declaration><![CDATA[METHOD call : BOOL
+VAR_IN_OUT
+	processors: ARRAY [*] OF I_LogRecordProcessor;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_LoggerProviderFailureReason;
+END_VAR
+VAR
+	_i: UDINT;
+	_j: DINT;
+	_processorsLowerBound: DINT;
+	_processorsUpperBound: DINT;
+	_ownedRecordCount: UDINT;
+	_record: POINTER TO FB_LogRecord;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[call := FALSE;
+failureReason := E_LoggerProviderFailureReason.NA;
+
+_ownedRecordCount := THIS^._records.count;
+_processorsLowerBound := LOWER_BOUND(processors, 1);
+_processorsUpperBound := UPPER_BOUND(processors, 1);
+
+FOR _i := 1 TO _ownedRecordCount DO
+	IF NOT THIS^._records.pop(_record) THEN
+		failureReason := E_LoggerProviderFailureReason.QUEUE_POP_FAILURE;
+		EXIT;
+	END_IF
+	// call on emit for each record
+	FOR _j := _processorsLowerBound TO _processorsUpperBound DO
+		processors[_j].onEmit(_record^);
+	END_FOR
+	_record := _record^.delete();
+END_FOR
+
+// update each processor
+FOR _j := _processorsLowerBound TO _processorsUpperBound DO
+	processors[_j].call();
+END_FOR
+
+call := failureReason = E_LoggerProviderFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Exit" Id="{a3de6da8-4caa-45e5-82ac-23ff1b828ee2}">
+      <Declaration><![CDATA[//FB_Exit must be implemented explicitly. If there is an implementation, then the
+//method is called before the controller removes the code of the function block instance
+//(implicit call). The return value is not evaluated.
+METHOD FB_Exit: BOOL
+VAR_INPUT
+    bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).  
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bInCopyCode THEN
+	THIS^._records.free();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{4bf253fc-a990-4445-afd2-9dddc5216dd7}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	resource: REFERENCE TO FB_Resource;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._resource REF= resource;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="onEmit" Id="{5fe9168a-4c34-4372-8380-b7c320c1a06c}">
+      <Declaration><![CDATA[METHOD onEmit : BOOL
+VAR_IN_OUT
+	record: POINTER TO FB_LogRecord;
+END_VAR
+VAR
+	_pushFailureReason: E_LogRecordQueueFailureReason;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[onEmit := FALSE;
+
+IF record = 0 THEN
+	RETURN;
+END_IF
+
+IF NOT THIS^._records.push(pValue:=record, failureReason=>_pushFailureReason) THEN
+	RETURN;
+END_IF
+
+onEmit := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="resource" Id="{5c5a395f-26fb-4f37-9459-e8fe5661bff3}">
+      <Declaration><![CDATA[PROPERTY resource : REFERENCE TO FB_Resource]]></Declaration>
+      <Get Name="Get" Id="{e4e2a932-61cb-47f3-8bd9-6fc7f29c0975}">
+        <Declaration><![CDATA[
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[resource REF= THIS^._resource;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+  </POU>
+</TcPlcObject>

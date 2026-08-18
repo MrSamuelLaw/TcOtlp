@@ -1,0 +1,114 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LogRecordProcessor_Simple" Id="{841967fe-c81a-4fb0-b840-138ea7b2658a}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProcessor_Simple EXTENDS FB_LogRecordProcessor_Mixin IMPLEMENTS I_LogRecordProcessor;
+VAR
+	_records: FB_LogRecordQueue(maxSize:=1);
+	_exporter: REFERENCE TO FB_LogRecordExporter_Base;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="call" Id="{bb6c7df4-616f-4db8-9794-4211d13dc1f6}">
+      <Declaration><![CDATA[METHOD call
+VAR
+	_exportFailureReason: E_LogRecordExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF __ISVALIDREF(THIS^._exporter) THEN
+	THIS^._exporter.call(failureReason=>_exportFailureReason);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="enrich" Id="{36cbefd0-ffc7-46c7-90e3-227dca133f75}">
+      <Declaration><![CDATA[// no-op, overwride to change log mutation/enrichment functionality
+METHOD enrich
+VAR_IN_OUT
+	logRecord	: FB_LogRecord;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Exit" Id="{1f1cced3-421e-4a64-a393-4f5f55c5d74d}">
+      <Declaration><![CDATA[//FB_Exit must be implemented explicitly. If there is an implementation, then the
+//method is called before the controller removes the code of the function block instance
+//(implicit call). The return value is not evaluated.
+METHOD FB_Exit: BOOL
+VAR_INPUT
+    bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).  
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bInCopyCode THEN
+	THIS^.free();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{ee502b01-4614-4681-a82e-036d7ffcf1db}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	exporter: REFERENCE TO FB_LogRecordExporter_Base;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF __ISVALIDREF(exporter) AND_THEN exporter.register(THIS^) THEN
+	THIS^._exporter REF= exporter;
+ELSE
+	THIS^._exporter REF= 0;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{63df1d27-3457-42b4-a1ea-b51d9abfe7d0}">
+      <Declaration><![CDATA[METHOD free
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._records.free();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="onEmit" Id="{2e12647d-45bd-43db-876b-1faa5ddb98be}">
+      <Declaration><![CDATA[METHOD onEmit
+VAR_INPUT
+	logRecord: REFERENCE TO FB_LogRecord;
+END_VAR
+VAR
+	_pLogRecord: POINTER TO FB_LogRecord;
+	_cloneFailureResult: E_LogRecordCloneFailureReason;
+	_queueFailureReason: E_LogRecordQueueFailureReason;
+	_exportFailureReason: E_LogRecordExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.enrich(logRecord);
+
+IF __ISVALIDREF(THIS^._exporter) THEN
+	IF (NOT THIS^._exporter.isBusy()) THEN
+		IF logRecord.cloneTo(pDest:=_pLogRecord, failureReason=>_cloneFailureResult) THEN
+			IF THIS^._records.push(pValue:=_pLogRecord, failureReason=>_queueFailureReason) THEN
+				THIS^._exporter.export(
+					logRecords:=THIS^._records,
+					count:=1,
+					failureReason=>_exportFailureReason
+				);
+			END_IF
+		END_IF
+	END_IF
+END_IF
+
+// If the exporter did not accept the buffer, the simple processor drops it.
+THIS^.free();
+IF _pLogRecord <> 0 THEN _pLogRecord := _pLogRecord^.delete(); END_IF
+]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

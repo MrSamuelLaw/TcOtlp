@@ -82,12 +82,12 @@ END_VAR
 
 		exportSucceeded := exporter.export(
 			logRecords:=batch,
-			count:=batch.size,
+			count:=batch.count,
 			failureReason=>exporterFailureReason
 		);
 		THIS^.AssertTrue(
 			exportSucceeded
-			AND_THEN batch.size = 0
+			AND_THEN batch.count = 0
 			AND_THEN exporterFailureReason = E_LogRecordExporterFailureReason.NA,
 			'Expected exporter success without a failure reason and record ownership transfer'
 		);
