@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TraceProtoJsonSerializer" Id="{5f51e6d1-87f5-49e5-9915-a28ccc2db72b}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TraceProtoJsonSerializer EXTENDS FB_BaseProtoJsonSerializer
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>
