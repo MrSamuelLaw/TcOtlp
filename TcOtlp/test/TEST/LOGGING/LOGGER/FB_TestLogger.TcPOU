@@ -10,6 +10,7 @@ FUNCTION_BLOCK FB_TestLogger EXTENDS FB_TestSuite
 THIS^.testEmitWithoutRecordReturnsFailure();
 THIS^.testEmitReturnsFirstFluentFailure();
 THIS^.testStartingSecondRecordReturnsFailure();
+THIS^.testStartLogRecordStampsUnixEpochNanos();
 ]]></ST>
     </Implementation>
     <Method Name="testCanBuildLogRecord" Id="{2f018c08-67ca-4f4b-8614-26172af7e600}">
@@ -112,6 +113,44 @@ END_VAR
 		'Expected LOG_RECORD_ALREADY_STARTED'
 	);
 	THIS^.AssertTrue(logger.pLogRecord = 0, 'Expected failed emit to release the incomplete record');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testStartLogRecordStampsUnixEpochNanos" Id="{3e082376-53e9-4a25-8cd4-9824a3e8e093}">
+      <Declaration><![CDATA[// Regression test: the auto-stamped timestamp must be nanoseconds since the
+// unix epoch. A precedence error in (F_GetSystemTime() - DIFF * 100) underflows
+// ULINT and produces timestamps billions of years in the future.
+METHOD testStartLogRecordStampsUnixEpochNanos : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	provider: FB_LoggerProvider(resource);
+	scope: FB_InstrumentationScope('name', 'version', '');
+	logger: FB_Logger(scope, provider);
+	success: BOOL;
+	failureResult: E_LoggerFailureReason;
+	beforeNs: ULINT;
+	afterNs: ULINT;
+END_VAR
+VAR CONSTANT
+	UNIX_EPOCH_DIFF: ULINT := 116444736000000000;  // 1601 -> 1970 offset in 100ns intervals
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testStartLogRecordStampsUnixEpochNanos');
+	beforeNs := (F_GetSystemTime() - UNIX_EPOCH_DIFF) * 100;
+	logger.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_INFO);
+	afterNs := (F_GetSystemTime() - UNIX_EPOCH_DIFF) * 100;
+
+	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected startLogRecord to allocate a record');
+	IF logger.pLogRecord <> 0 THEN
+		THIS^.AssertTrue(
+			logger.pLogRecord^.timestamp >= beforeNs AND_THEN logger.pLogRecord^.timestamp <= afterNs,
+			'Expected the auto-stamped timestamp to fall within the sampled wall clock window'
+		);
+	END_IF
+
+	success := logger.emit(failureResult=>failureResult);
+	THIS^.AssertTrue(success AND_THEN logger.pLogRecord = 0, 'Expected emit to succeed and release the record');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

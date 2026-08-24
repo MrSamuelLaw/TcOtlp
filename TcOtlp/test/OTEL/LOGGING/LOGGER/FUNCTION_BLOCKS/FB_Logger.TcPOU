@@ -594,7 +594,7 @@ THIS^._failed := FALSE;
 THIS^._failureReason := E_LoggerFailureReason.NA;
 
 
-_timestamp := (F_GetSystemTime() - UNIX_EPOCH_DIFF * 100); // convert to nanos
+_timestamp := (F_GetSystemTime() - UNIX_EPOCH_DIFF) * 100;  // NT ticks (100ns) -> unix epoch nanos
 
 
 // instantiate a log record
