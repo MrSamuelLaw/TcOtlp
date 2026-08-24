@@ -10,7 +10,7 @@ VAR
 	motorLogger: FB_Logger(provider:=provider, scope:=motorScope);
 	valveScope: FB_InstrumentationScope(name:='valve', version:='0.0.0a', schemaUrl:='');
 	valveLogger: FB_Logger(provider:=provider, scope:=valveScope);
-	exporter: FB_LogRecordExporter_File(filepath:='/tmp/logs.jsonl');
+// 	exporter: FB_LogRecordExporter_File(filepath:='/tmp/logs.jsonl');
 	console_processor: FB_LogRecordProcessor_ConsolePrinter(0);
 	processor: FB_LogRecordProcessor_Batch(500, 1500, 100, exporter);
 	processors: ARRAY [0..1] OF I_LogRecordProcessor := [
@@ -30,7 +30,8 @@ VAR
 	valvePosFeedback: 	REAL := 70.0;
  	valvePosCommand: 	REAL := 0.0;
 	{attribute 'OPC.UA.DA' := '1'}
-	motorSpeedSetpoint: U_OtlpSetpoint_Real;
+	motorSpeedSetpoint: REAL := 50.0;
+	motorSpeedSetpointLast: REAL := 50.0;
 	{attribute 'OPC.UA.DA' := '1'}
 	motorTemp: REAL;
 	motorTempWarningLimit: REAL := 100.00; // °F 
@@ -46,24 +47,21 @@ END_VAR
 	resource.attributes.setStringAttribute('name', 'PLC1');
 END_IF
 
-// process loggers	
-FOR _idx := LOWER_BOUND(processors, 1) TO UPPER_BOUND(processors, 1) DO
-	processors[_idx].call();
-END_FOR
+provider.call(processors);
 
-IF motorSpeedSetpoint.payload.flag <> 0  THEN
-	motorSpeedSetpoint.payload.flag := 0;
+IF motorSpeedSetpoint <> motorSpeedSetpointLast  THEN
+	motorSpeedSetpointLast := motorSpeedSetpoint;
 	motorLogger
 		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO)
 		.setEventName('motor.speedSetpointChanged')
 		.setBody('motor speed setpoint changed')
 		.setStringAttribute('speed.units', 'Hz')
-		.setNumberAttribute('speed.setpoint', motorSpeedSetpoint.payload.value)
-		.emit(processors);
+		.setNumberAttribute('speed.setpoint', motorSpeedSetpoint)
+		.emit();
 END_IF
 
 // simulate a cascading failure due to a high setpoint
-motorTempTimer(IN:=motorSpeedSetpoint.payload.value > 75.0);
+motorTempTimer(IN:=motorSpeedSetpoint > 75.0);
 motorTemp := motorTempFaultLimit * TO_REAL(motorTempTimer.ET) / TO_REAL(motorTempTimer.PT);
 
 IF motorTemp > motorTempWarningLimit AND NOT motorWarningFlag THEN
@@ -74,7 +72,7 @@ IF motorTemp > motorTempWarningLimit AND NOT motorWarningFlag THEN
 		.setStringAttribute('temperature.units', '°F')
 		.setNumberAttribute('temperature.alarmLimit', motorTempWarningLimit)
 		.setNumberAttribute('temperature.processValue', motorTemp)
-		.emit(processors);
+		.emit();
 END_IF
 motorWarningFlag := motorTemp >= motorTempWarningLimit;
 
@@ -86,7 +84,7 @@ IF motorTemp > motorTempFaultLimit AND NOT motorFaultFlag THEN
 		.setStringAttribute('temperature.units', '°F')
 		.setNumberAttribute('temperature.alarmLimit', motorTempFaultLimit)
 		.setNumberAttribute('temperature.processValue', motorTemp)
-		.emit(processors);
+		.emit();
 END_IF
 motorFaultFlag := motorTemp >= motorTempFaultLimit;
 firstScan := FALSE;
@@ -99,7 +97,7 @@ IF motorFaultFlag AND NOT valveAlarmFlag THEN
 		.setStringAttribute('position.units', '%')
 		.setNumberAttribute('position.currentValue', valvePosFeedback)
 		.setNumberAttribute('position.commandedValue', valvePosCommand)
-		.emit(processors);
+		.emit();
 END_IF
 valveAlarmFlag := motorFaultFlag;
 valvePosFeedback := SEL(valveClosedFlag, 70.0, 0.0);
@@ -113,7 +111,7 @@ IF valveClosingTimer.Q AND NOT valveClosedFlag THEN
 		.setStringAttribute('position.units', '%')
 		.setNumberAttribute('position.currentValue', valvePosFeedback)
 		.setNumberAttribute('position.commandedValue', valvePosCommand)
-		.emit(processors);
+		.emit();
 END_IF
 valveClosedFlag := valveClosingTimer.Q;]]></ST>
     </Implementation>

@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Status" Id="{b0659daf-d3d9-4e73-b5d7-248fd67a6a84}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Status
+VAR
+	message: POINTER TO FB_String;
+	code: E_StatusCode;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

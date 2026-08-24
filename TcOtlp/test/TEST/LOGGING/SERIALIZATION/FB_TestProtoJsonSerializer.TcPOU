@@ -91,8 +91,8 @@ END_VAR
 	logger
 		.startLogRecord(
 			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG,
-			timestamp:=ADR(timestamp)
 		)
+		.setTimestamp(timestamp)
 		.setEventName('Serialization Event')
 		.setBody('This is a body string value')
 		.setTraceId(ADR(traceId), SIZEOF(traceId))
@@ -108,10 +108,12 @@ END_VAR
 
 	emitSuccess := logger.emit(failureResult=>emitFailureResult);
 	THIS^.AssertTrue(emitSuccess, 'Expected log record emission to succeed');
+	provider.call(processors);
 	THIS^.AssertTrue(processor.lastOperationSucceeded, 'Expected emitted record capture to succeed');
 	THIS^.AssertTrue(logger.pLogRecord = 0, 'Expected emit to release the logger-owned record');
 	pRecord := processor.pop();
 	THIS^.AssertTrue(pRecord <> 0, 'Expected the processor to return the emitted record');
+	IF pRecord <> 0 THEN
 
 	// serializeLogRecord appends one LogRecord object to the supplied JSON array.
 	root := serializer.parser.NewDocument();
@@ -127,50 +129,51 @@ END_VAR
 		'Expected LogRecord serialization to succeed without a failure reason'
 	);
 	obj := serializer.parser.GetArrayValueByIdx(records, 0);
-	THIS^.AssertTrue(serializer.parser.IsObject(obj), 'Expected one serialized LogRecord object');
-
-	// OTLP/JSON encodes enums and fixed32 values as numbers.
-	member := serializer.parser.FindMember(obj, 'severityNumber');
-	THIS^.AssertEquals_UDINT(5, serializer.parser.GetUint(member), 'Expected numeric OTLP severityNumber');
-	actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'severityText'));
-	THIS^.AssertEquals_STRING('SEVERITY_NUMBER_DEBUG', actualString, 'Expected severityText');
-	THIS^.AssertEquals_UDINT(255, serializer.parser.GetUint(serializer.parser.FindMember(obj, 'flags')), 'Expected numeric OTLP flags');
-	THIS^.AssertEquals_UDINT(2, serializer.parser.GetUint(serializer.parser.FindMember(obj, 'droppedAttributesCount')), 'Expected droppedAttributesCount');
-
-	// OTLP/JSON encodes 64-bit integers as decimal strings and trace/span IDs as hex.
-	actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'timeUnixNano'));
-	THIS^.AssertEquals_STRING('1581452773000000789', actualString, 'Expected string-encoded timeUnixNano');
-	actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'traceId'));
-	THIS^.AssertEquals_STRING('000102030405060708090A0B0C0D0E0F', actualString, 'Expected hex-encoded traceId');
-	actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'spanId'));
-	THIS^.AssertEquals_STRING('1011121314151617', actualString, 'Expected hex-encoded spanId');
-
-	actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'eventName'));
-	THIS^.AssertEquals_STRING('Serialization Event', actualString, 'Expected eventName');
-	value := serializer.parser.FindMember(serializer.parser.FindMember(obj, 'body'), 'stringValue');
-	actualString := serializer.parser.GetString(value);
-	THIS^.AssertEquals_STRING('This is a body string value', actualString, 'Expected AnyValue string body');
-
-	attributes := serializer.parser.FindMember(obj, 'attributes');
-	THIS^.AssertTrue(serializer.parser.IsArray(attributes), 'Expected attributes array');
-	attribute := serializer.parser.GetArrayValueByIdx(attributes, 0);
-	actualString := serializer.parser.GetString(serializer.parser.FindMember(attribute, 'key'));
-	THIS^.AssertEquals_STRING('stats.label', actualString, 'Expected string attribute key');
-	value := serializer.parser.FindMember(serializer.parser.FindMember(attribute, 'value'), 'stringValue');
-	actualString := serializer.parser.GetString(value);
-	THIS^.AssertEquals_STRING('pVal', actualString, 'Expected string attribute AnyValue');
-	attribute := serializer.parser.GetArrayValueByIdx(attributes, 1);
-	actualString := serializer.parser.GetString(serializer.parser.FindMember(attribute, 'key'));
-	THIS^.AssertEquals_STRING('stats.duration_ms', actualString, 'Expected numeric attribute key');
-	value := serializer.parser.FindMember(serializer.parser.FindMember(attribute, 'value'), 'intValue');
-	actualString := serializer.parser.GetString(value);
-	THIS^.AssertEquals_STRING('42', actualString, 'Expected numeric attribute AnyValue');
-	attribute := serializer.parser.GetArrayValueByIdx(attributes, 2);
-	actualString := serializer.parser.GetString(serializer.parser.FindMember(attribute, 'key'));
-	THIS^.AssertEquals_STRING('stats.temperature', actualString, 'Expected floating attribute key');
-	value := serializer.parser.FindMember(serializer.parser.FindMember(attribute, 'value'), 'doubleValue');
-	THIS^.AssertTrue(serializer.parser.IsDouble(value) AND_THEN serializer.parser.GetDouble(value) = 21.5, 'Expected floating attribute AnyValue');
-
+		THIS^.AssertTrue(serializer.parser.IsObject(obj), 'Expected one serialized LogRecord object');
+	
+		// OTLP/JSON encodes enums and fixed32 values as numbers.
+		member := serializer.parser.FindMember(obj, 'severityNumber');
+		THIS^.AssertEquals_UDINT(5, serializer.parser.GetUint(member), 'Expected numeric OTLP severityNumber');
+		actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'severityText'));
+		THIS^.AssertEquals_STRING('SEVERITY_NUMBER_DEBUG', actualString, 'Expected severityText');
+		THIS^.AssertEquals_UDINT(255, serializer.parser.GetUint(serializer.parser.FindMember(obj, 'flags')), 'Expected numeric OTLP flags');
+		THIS^.AssertEquals_UDINT(2, serializer.parser.GetUint(serializer.parser.FindMember(obj, 'droppedAttributesCount')), 'Expected droppedAttributesCount');
+	
+		// OTLP/JSON encodes 64-bit integers as decimal strings and trace/span IDs as hex.
+		actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'timeUnixNano'));
+		THIS^.AssertEquals_STRING('1581452773000000789', actualString, 'Expected string-encoded timeUnixNano');
+		actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'traceId'));
+		THIS^.AssertEquals_STRING('000102030405060708090A0B0C0D0E0F', actualString, 'Expected hex-encoded traceId');
+		actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'spanId'));
+		THIS^.AssertEquals_STRING('1011121314151617', actualString, 'Expected hex-encoded spanId');
+	
+		actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'eventName'));
+		THIS^.AssertEquals_STRING('Serialization Event', actualString, 'Expected eventName');
+		value := serializer.parser.FindMember(serializer.parser.FindMember(obj, 'body'), 'stringValue');
+		actualString := serializer.parser.GetString(value);
+		THIS^.AssertEquals_STRING('This is a body string value', actualString, 'Expected AnyValue string body');
+	
+		attributes := serializer.parser.FindMember(obj, 'attributes');
+		THIS^.AssertTrue(serializer.parser.IsArray(attributes), 'Expected attributes array');
+		attribute := serializer.parser.GetArrayValueByIdx(attributes, 0);
+		actualString := serializer.parser.GetString(serializer.parser.FindMember(attribute, 'key'));
+		THIS^.AssertEquals_STRING('stats.label', actualString, 'Expected string attribute key');
+		value := serializer.parser.FindMember(serializer.parser.FindMember(attribute, 'value'), 'stringValue');
+		actualString := serializer.parser.GetString(value);
+		THIS^.AssertEquals_STRING('pVal', actualString, 'Expected string attribute AnyValue');
+		attribute := serializer.parser.GetArrayValueByIdx(attributes, 1);
+		actualString := serializer.parser.GetString(serializer.parser.FindMember(attribute, 'key'));
+		THIS^.AssertEquals_STRING('stats.duration_ms', actualString, 'Expected numeric attribute key');
+		value := serializer.parser.FindMember(serializer.parser.FindMember(attribute, 'value'), 'intValue');
+		actualString := serializer.parser.GetString(value);
+		THIS^.AssertEquals_STRING('42', actualString, 'Expected numeric attribute AnyValue');
+		attribute := serializer.parser.GetArrayValueByIdx(attributes, 2);
+		actualString := serializer.parser.GetString(serializer.parser.FindMember(attribute, 'key'));
+		THIS^.AssertEquals_STRING('stats.temperature', actualString, 'Expected floating attribute key');
+		value := serializer.parser.FindMember(serializer.parser.FindMember(attribute, 'value'), 'doubleValue');
+		THIS^.AssertTrue(serializer.parser.IsDouble(value) AND_THEN serializer.parser.GetDouble(value) = 21.5, 'Expected floating attribute AnyValue');
+	END_IF
+	
 	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
 	processor.free();
 	logger.free();
@@ -188,7 +191,7 @@ VAR
 	scopeB: FB_InstrumentationScope('scope.b', '1.0.0', 'scope.b.schema');
 	scopeA: FB_InstrumentationScope('scope.a', '1.0.0', 'scope.a.schema');
 	scopeC: FB_InstrumentationScope('scope.c', '1.0.0', 'scope.c.schema');
-	queue: FB_LogRecordQueue(maxSize:=0);
+	queue: FB_LogRecordQueue(maxCount:=0);
 	serializer: FB_LogRecordProtoJsonSerializer;
 	pRecord: POINTER TO FB_LogRecord;
 	queueFailureReason: E_LogRecordQueueFailureReason;

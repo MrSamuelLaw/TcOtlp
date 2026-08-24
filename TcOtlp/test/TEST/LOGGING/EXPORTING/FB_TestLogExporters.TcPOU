@@ -17,7 +17,7 @@ VAR
 	scopeA: FB_InstrumentationScope('scope.a', '1.0.0', '');
 	exporter: FB_LogRecordExporter_File_ForSerializationInspection;
 	serialized: REFERENCE TO FB_LogRecordProtoJsonSerializer;
-	batch: FB_LogRecordQueue(maxSize:=0);
+	batch: FB_LogRecordQueue(maxCount:=0);
 	pRecord: POINTER TO FB_LogRecord;
 	queueFailureReason: E_LogRecordQueueFailureReason;
 	exporterFailureReason: E_LogRecordExporterFailureReason;

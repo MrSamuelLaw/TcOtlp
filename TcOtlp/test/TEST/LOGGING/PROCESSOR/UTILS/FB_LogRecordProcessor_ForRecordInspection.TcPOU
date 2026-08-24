@@ -5,7 +5,7 @@
 FUNCTION_BLOCK FB_LogRecordProcessor_ForRecordInspection EXTENDS FB_LogRecordProcessor_Simple
 VAR_OUTPUT
 	record: POINTER TO FB_LogRecord;
-	lastOperationSucceeded: BOOL := TRUE;
+	lastOperationSucceeded: BOOL := FALSE;
 	failureResult: E_LogRecordCloneFailureReason;
 END_VAR]]></Declaration>
     <Implementation>

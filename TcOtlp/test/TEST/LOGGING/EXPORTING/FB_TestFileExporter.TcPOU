@@ -70,7 +70,8 @@ END_VAR]]></Declaration>
 			END_IF
 			_num := 1;
 			_firstEmitSucceeded := _logger1
-				.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG, timestamp:=ADR(_timestamp))
+				.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG)
+				.setTimestamp(_timestamp)
 				.setBody('First batched log record')
 				.setEventName('BatchRecord1')
 				.setTraceId(ADR(_traceId), SIZEOF(_traceId))
@@ -81,7 +82,8 @@ END_VAR]]></Declaration>
 				.emit(failureResult=>_loggerFailureResult);
 			_num := 2;
 			_secondEmitSucceeded := _logger2
-				.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=ADR(_timestamp))
+				.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO)
+				.setTimestamp(_timestamp)
 				.setBody('Second batched log record')
 				.setEventName('BatchRecord2')
 				.setStringAttribute('batch.position', 'second')
@@ -89,7 +91,8 @@ END_VAR]]></Declaration>
 				.emit(failureResult=>_loggerFailureResult);
 			_num := 3;
 			_thirdEmitSucceeded := _logger1
-				.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_WARN, timestamp:=ADR(_timestamp))
+				.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_WARN)
+				.setTimestamp(_timestamp)
 				.setBody('Third batched log record')
 				.setEventName('BatchRecord3')
 				.setStringAttribute('batch.position', 'third')

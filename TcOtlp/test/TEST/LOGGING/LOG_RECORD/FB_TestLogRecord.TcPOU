@@ -59,8 +59,8 @@ END_VAR
 	logger
 		.startLogRecord(
 			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
-			timestamp:=ADR(timestamp)
 		)
+		.setTimestamp(timestamp)
 		.setEventName('record.event')
 		.setBody('record.body')
 		.setTraceId(ADR(traceIdBytes), SIZEOF(traceIdBytes))
