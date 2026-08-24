@@ -55,6 +55,9 @@
     <Compile Include="OTEL\LOGGING\EXPORTING\FUNCTION_BLOCKS\FB_LogRecordExporter_File.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\LOGGING\EXPORTING\FUNCTION_BLOCKS\FB_LogRecordExporter_HTTP.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\LOGGING\LOGGER\ENUMS\E_LoggerFailureReason.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
@@ -168,6 +171,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TEST\LOGGING\EXPORTING\FB_TestFileExporter.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="TEST\LOGGING\EXPORTING\FB_TestHttpExporter.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TEST\LOGGING\EXPORTING\FB_TestLogExporters.TcPOU">

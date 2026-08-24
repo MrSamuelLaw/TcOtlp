@@ -11,6 +11,7 @@ VAR
 	valveScope: FB_InstrumentationScope(name:='valve', version:='0.0.0a', schemaUrl:='');
 	valveLogger: FB_Logger(provider:=provider, scope:=valveScope);
 // 	exporter: FB_LogRecordExporter_File(filepath:='/tmp/logs.jsonl');
+	exporter: FB_LogRecordExporter_HTTP('http://127.0.0.1:4318/v1/logs', TRUE);
 	console_processor: FB_LogRecordProcessor_ConsolePrinter(0);
 	processor: FB_LogRecordProcessor_Batch(500, 1500, 100, exporter);
 	processors: ARRAY [0..1] OF I_LogRecordProcessor := [

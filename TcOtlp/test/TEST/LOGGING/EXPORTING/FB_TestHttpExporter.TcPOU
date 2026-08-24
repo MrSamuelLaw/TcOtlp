@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestHttpExporter" Id="{bfb7e007-9273-4824-8978-2683d2dd42fa}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Tests HTTP log exporter behavior. *)
+FUNCTION_BLOCK FB_TestHttpExporter EXTENDS FB_TestSuite
+VAR
+	_exporterBadUrl: 	FB_LogRecordExporter_HTTP(url:='not-a-valid-url');
+	_exporterRefused: 	FB_LogRecordExporter_HTTP(url:='http://127.0.0.1:1/v1/logs');
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testOneToOneProcessorRelationship();
+THIS^.testInvalidUrlFailsFast();
+THIS^.testConnectionRefusedReportsFailure();]]></ST>
+    </Implementation>
+    <Method Name="testConnectionRefusedReportsFailure" Id="{065feb3c-02c9-46b0-ad35-d7d0685f8118}">
+      <Declaration><![CDATA[METHOD testConnectionRefusedReportsFailure : REFERENCE TO FB_Test
+
+VAR CONSTANT
+	MAX_CYCLES: UDINT := 60000;
+END_VAR
+
+VAR_INST
+	_cycles: 		UDINT;
+	_state:			USINT;
+END_VAR
+
+VAR
+	batch: FB_LogRecordQueue(maxCount:=0);
+	pRecord: POINTER TO FB_LogRecord;
+	pushSucceeded: BOOL;
+	exportSucceeded: BOOL;
+	callSucceeded: BOOL;
+	failureReason: E_LogRecordExporterFailureReason;
+	queueFailureReason: E_LogRecordQueueFailureReason;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test Http Export Connection Refused Reports Failure');
+	CASE _state OF
+		0: // export one batch to the unreachable endpoint
+			_cycles := 0;
+			batch.free();
+			pRecord := __NEW(FB_LogRecord(
+				severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
+				timestamp:=1
+			));
+			THIS^.AssertTrue(pRecord <> 0, 'Expected HTTP exporter record allocation to succeed');
+			pushSucceeded := batch.push(pValue:=pRecord, failureReason=>queueFailureReason);
+			THIS^.AssertTrue(pushSucceeded AND_THEN batch.count = 1, 'Expected the batch to accept the record');
+			exportSucceeded := _exporterRefused.export(
+				logRecords:=batch,
+				count:=batch.count,
+				failureReason=>failureReason
+			);
+			THIS^.AssertTrue(
+				exportSucceeded
+				AND_THEN batch.count = 0
+				AND_THEN failureReason = E_LogRecordExporterFailureReason.NA,
+				'Expected the HTTP exporter to accept the batch for an unreachable endpoint'
+			);
+			_state := 10;
+			RETURN;
+
+		10: // wait for the request to fail; loopback refusal should be quick
+			callSucceeded := _exporterRefused.call(failureReason=>failureReason);
+			_cycles := _cycles + 1;
+			IF NOT callSucceeded THEN
+				THIS^.AssertTrue(
+					failureReason = E_LogRecordExporterFailureReason.HTTP_REQUEST_FAILURE,
+					'Expected HTTP_REQUEST_FAILURE when the server refuses the connection'
+				);
+				THIS^.AssertTrue(
+					_exporterRefused.currentState = E_HttpExporterState.error,
+					'Expected the exporter to enter the error state after a refused connection'
+				);
+				_state := 15;
+				RETURN;
+			ELSIF _cycles > MAX_CYCLES THEN
+				THIS^.AssertTrue(FALSE, 'Timed out waiting for the refused connection to fail');
+				_state := 20;
+				RETURN;
+			ELSE
+				RETURN;
+			END_IF
+
+		15: // a failed export must not wedge the exporter; it accepts the next batch
+			pRecord := __NEW(FB_LogRecord(
+				severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
+				timestamp:=2
+			));
+			THIS^.AssertTrue(pRecord <> 0, 'Expected recovery record allocation to succeed');
+			pushSucceeded := batch.push(pValue:=pRecord, failureReason=>queueFailureReason);
+			THIS^.AssertTrue(pushSucceeded AND_THEN batch.count = 1, 'Expected the recovery batch to accept the record');
+			exportSucceeded := _exporterRefused.export(
+				logRecords:=batch,
+				count:=batch.count,
+				failureReason=>failureReason
+			);
+			THIS^.AssertTrue(
+				exportSucceeded
+				AND_THEN failureReason = E_LogRecordExporterFailureReason.NA
+				AND_THEN _exporterRefused.currentState = E_HttpExporterState.idle,
+				'Expected export to reset an errored exporter back to idle'
+			);
+			_state := 20;
+			RETURN;
+
+		20: // cleanup
+			_exporterRefused.free();
+			batch.free();
+			THIS^.AssertFalse(_exporterRefused.isBusy(), 'Expected the HTTP exporter to release its records on cleanup');
+			_state := 0;
+			TcUnit.TEST_FINISHED();
+	END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testInvalidUrlFailsFast" Id="{77bbc1ef-8cf0-40de-91d7-0bb12b15c980}">
+      <Declaration><![CDATA[METHOD testInvalidUrlFailsFast : REFERENCE TO FB_Test
+VAR
+	batch: FB_LogRecordQueue(maxCount:=0);
+	pRecord: POINTER TO FB_LogRecord;
+	pushSucceeded: BOOL;
+	exportSucceeded: BOOL;
+	callSucceeded: BOOL;
+	failureReason: E_LogRecordExporterFailureReason;
+	queueFailureReason: E_LogRecordQueueFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test Http Export Invalid Url Fails Fast');
+	pRecord := __NEW(FB_LogRecord(
+		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
+		timestamp:=1
+	));
+	THIS^.AssertTrue(pRecord <> 0, 'Expected HTTP exporter record allocation to succeed');
+	pushSucceeded := batch.push(pValue:=pRecord, failureReason=>queueFailureReason);
+	THIS^.AssertTrue(pushSucceeded AND_THEN pRecord = 0, 'Expected the queue to take ownership of the pushed record');
+
+	exportSucceeded := _exporterBadUrl.export(
+		logRecords:=batch,
+		count:=batch.count,
+		failureReason=>failureReason
+	);
+	THIS^.AssertTrue(
+		exportSucceeded
+		AND_THEN batch.count = 0
+		AND_THEN failureReason = E_LogRecordExporterFailureReason.NA,
+		'Expected the exporter to accept the batch before validating the URL'
+	);
+
+	callSucceeded := _exporterBadUrl.call(failureReason=>failureReason);
+	THIS^.AssertFalse(callSucceeded, 'Expected call to report failure for an unparseable endpoint URL');
+	THIS^.AssertTrue(
+		failureReason = E_LogRecordExporterFailureReason.HTTP_URL_PARSE_FAILURE,
+		'Expected HTTP_URL_PARSE_FAILURE for an endpoint URL without an http(s) scheme'
+	);
+	THIS^.AssertTrue(
+		_exporterBadUrl.currentState = E_HttpExporterState.error,
+		'Expected the exporter to enter the error state without sending anything'
+	);
+	THIS^.AssertFalse(_exporterBadUrl.isBusy(), 'Expected the failed batch to be released');
+
+	// A failed exporter recovers when the next export is accepted.
+	pRecord := __NEW(FB_LogRecord(
+		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
+		timestamp:=2
+	));
+	THIS^.AssertTrue(pRecord <> 0, 'Expected recovery record allocation to succeed');
+	pushSucceeded := batch.push(pValue:=pRecord, failureReason=>queueFailureReason);
+	THIS^.AssertTrue(pushSucceeded AND_THEN pRecord = 0, 'Expected the recovery queue push to transfer ownership');
+	exportSucceeded := _exporterBadUrl.export(
+		logRecords:=batch,
+		count:=batch.count,
+		failureReason=>failureReason
+	);
+	THIS^.AssertTrue(
+		exportSucceeded
+		AND_THEN _exporterBadUrl.currentState = E_HttpExporterState.idle,
+		'Expected export to reset an errored exporter back to idle'
+	);
+
+	_exporterBadUrl.free();
+	batch.free();
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testOneToOneProcessorRelationship" Id="{9d759313-f597-41f7-ab4a-178e4e4fc05c}">
+      <Declaration><![CDATA[METHOD testOneToOneProcessorRelationship : REFERENCE TO FB_Test
+VAR
+	exporter: FB_LogRecordExporter_HTTP(url:='http://127.0.0.1:4318/v1/logs');
+	processor1: FB_LogRecordProcessor_Simple(0);
+	processor2: FB_LogRecordProcessor_Simple(0);
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test Http Exporter Processor Registration');
+	THIS^.AssertTrue(exporter.register(processor1), 'Expected processor 1 to be registered with the exporter');
+	THIS^.AssertFalse(exporter.register(processor2), 'Expected processor 2 to NOT be registered with the exporter');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
