@@ -28,11 +28,5 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
     </Method>
-    <Property Name="pSelf" Id="{6d3def51-99b3-4185-9b46-8e6ab7903180}">
-      <Declaration><![CDATA[PROPERTY pSelf : PVOID]]></Declaration>
-      <Get Name="Get" Id="{c324d232-7a31-46b3-9236-f7c9f75b1a3e}">
-        <Declaration><![CDATA[]]></Declaration>
-      </Get>
-    </Property>
   </Itf>
 </TcPlcObject>

@@ -6,7 +6,7 @@
 	cyclically to advance the exporter and export the oldest queued records when
 	the schedule delay elapses or a full batch is available.
 *)
-FUNCTION_BLOCK FB_LogRecordProcessor_Batch EXTENDS FB_LogRecordProcessor_Mixin IMPLEMENTS I_LogRecordProcessor;
+FUNCTION_BLOCK FB_LogRecordProcessor_Batch IMPLEMENTS I_LogRecordProcessor;
 VAR_OUTPUT
 	maxQueueSize: UDINT := 2048;			// zero is unbounded; otherwise the oldest record is dropped when full
 	scheduledDelayMillis: UDINT := 1000;	// maximum delay before queued records are exported
@@ -116,10 +116,8 @@ END_VAR
         <ST><![CDATA[THIS^.maxQueueSize := maxQueueSize;
 THIS^.scheduledDelayMillis := scheduledDelayMillis;
 THIS^.maxExportBatchSize := maxExportBatchSize;
-IF __ISVALIDREF(exporter) AND_THEN exporter.register(THIS^) THEN
+IF __ISVALIDREF(exporter) THEN
 	THIS^._exporter REF= exporter;
-ELSE
-	THIS^._exporter REF= 0;
 END_IF]]></ST>
       </Implementation>
     </Method>

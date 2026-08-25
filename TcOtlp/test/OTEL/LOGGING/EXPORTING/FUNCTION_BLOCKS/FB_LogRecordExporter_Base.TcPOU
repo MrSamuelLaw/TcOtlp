@@ -3,7 +3,6 @@
   <POU Name="FB_LogRecordExporter_Base" Id="{10005d20-6707-4af6-9c91-e8fb51819d17}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK ABSTRACT FB_LogRecordExporter_Base
 VAR
-	_processor: PVOID;
 	_records: FB_LogRecordQueue(maxCount:=0);
 	_exportActive: BOOL;
 	_callFailureReason: E_LogRecordExporterFailureReason;
@@ -86,26 +85,6 @@ THIS^._exportActive := FALSE;]]></ST>
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="register" Id="{849a708c-e03f-4172-8b99-37773ba60614}">
-      <Declaration><![CDATA[METHOD register: BOOL;
-VAR_INPUT
-	processor: I_LogRecordProcessor;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF THIS^._processor = 0 THEN
-	THIS^._processor := processor.pSelf;
-ELSIF THIS^._processor <> processor.pSelf THEN
-	ADSLOGSTR(
-		msgCtrlMask:=ADSLOG_MSGTYPE_ERROR,
-		'Unable to register multiple processors with a single exporter',
-		''
-	);
-END_IF
-register := THIS^._processor = processor.pSelf;
-]]></ST>
       </Implementation>
     </Method>
   </POU>
