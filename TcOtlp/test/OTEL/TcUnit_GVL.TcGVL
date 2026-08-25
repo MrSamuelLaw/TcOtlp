@@ -7,6 +7,7 @@ VAR_GLOBAL CONSTANT
 	DEFAULT_MAX_ATTRIBUTE_COUNT: 	UDINT := 20;  	// Maximum attributes for FB_Attributes
 	MAX_LOOP_COUNT:					UDINT := 20000; // Maximum iterations a for/while loop can have
 	MAX_LOG_RECORDS_PER_SCAN: 		UDINT := 100;  	// Maximum number of log records that can be emitted per scan.
+	MAX_SPAN_RECORDS_PER_SCAN:		UDINT := 100;	// Maximum number of spans that can be emitted per scan.
 END_VAR
 VAR_GLOBAL
 	_ID: UDINT := 1;

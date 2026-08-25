@@ -2,6 +2,7 @@
 <TcPlcObject Version="1.1.0.1">
   <POU Name="SIM_MAIN" Id="{e7bb73c9-25de-42b1-a4f9-ce2c149f30b5}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM SIM_MAIN
+
 VAR
 	// logging config
 	resource: FB_Resource(schemaUrl:='');
@@ -10,14 +11,12 @@ VAR
 	motorLogger: FB_Logger(provider:=provider, scope:=motorScope);
 	valveScope: FB_InstrumentationScope(name:='valve', version:='0.0.0a', schemaUrl:='');
 	valveLogger: FB_Logger(provider:=provider, scope:=valveScope);
-// 	exporter: FB_LogRecordExporter_File(filepath:='/tmp/logs.jsonl');
+	// 	exporter: FB_LogRecordExporter_File(filepath:='/tmp/logs.jsonl');
 	exporter: FB_LogRecordExporter_HTTP('http://127.0.0.1:4318/v1/logs', TRUE);
-	console_processor: FB_LogRecordProcessor_ConsolePrinter(0);
-	processor: FB_LogRecordProcessor_Batch(500, 1500, 100, exporter);
-	processors: ARRAY [0..1] OF I_LogRecordProcessor := [
-		console_processor,
-		processor
-	];
+	signozProcessor: FB_LogRecordProcessor_Signoz(0);
+	consoleProcessor: FB_LogRecordProcessor_ConsolePrinter(0);
+	batchProcessor: FB_LogRecordProcessor_Batch(500, 1500, 100, exporter);
+	processors: ARRAY [0..2] OF I_LogRecordProcessor;
 	
 	// initialization setup
 	firstScan: BOOL := TRUE;
@@ -38,6 +37,9 @@ VAR
 	motorTempWarningLimit: REAL := 100.00; // °F 
 	motorTempFaultLimit: REAL := 135.00;  // °F
 	
+	formatter: FB_FormatString();
+	body: T_MaxString;
+	
 	// simulate a delayed rising temp once speed gets too hot
 	motorTempTimer: TON := (PT:=T#1M);
 	valveClosingTimer: TON := (PT:=T#30S);
@@ -48,14 +50,18 @@ END_VAR
 	resource.attributes.setStringAttribute('name', 'PLC1');
 END_IF
 
+processors[0] := signozProcessor;
+processors[1] := consoleProcessor;
+processors[2] := batchProcessor;
 provider.call(processors);
 
 IF motorSpeedSetpoint <> motorSpeedSetpointLast  THEN
 	motorSpeedSetpointLast := motorSpeedSetpoint;
+	formatter(sFormat:='motor speed setpoint changed to %0.2f', arg1:=F_REAL(motorSpeedSetpoint), sOut=>body);
 	motorLogger
 		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO)
 		.setEventName('motor.speedSetpointChanged')
-		.setBody('motor speed setpoint changed')
+		.setBody(body)
 		.setStringAttribute('speed.units', 'Hz')
 		.setNumberAttribute('speed.setpoint', motorSpeedSetpoint)
 		.emit();

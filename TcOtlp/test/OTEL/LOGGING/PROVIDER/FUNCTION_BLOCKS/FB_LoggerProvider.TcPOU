@@ -42,14 +42,18 @@ FOR _i := 1 TO _ownedRecordCount DO
 	END_IF
 	// call on emit for each record
 	FOR _j := _processorsLowerBound TO _processorsUpperBound DO
-		processors[_j].onEmit(_record^);
+		IF processors[_j] <> 0 AND_THEN __ISVALIDREF(processors[_j]) THEN
+			processors[_j].onEmit(_record^);
+		END_IF
 	END_FOR
 	_record := _record^.delete();
 END_FOR
 
 // update each processor
 FOR _j := _processorsLowerBound TO _processorsUpperBound DO
-	processors[_j].call();
+	IF processors[_j] <> 0 AND_THEN __ISVALIDREF(processors[_j]) THEN
+		processors[_j].call();
+	END_IF
 END_FOR
 
 call := failureReason = E_LoggerProviderFailureReason.NA;]]></ST>
