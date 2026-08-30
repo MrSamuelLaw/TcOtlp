@@ -56,3 +56,9 @@ __pycache__/
 
 # obsidian env
 **/*.obsidian
+
+# log file file testing
+logs.jsonl
+
+# blog outline
+docs/obsidian/blog
