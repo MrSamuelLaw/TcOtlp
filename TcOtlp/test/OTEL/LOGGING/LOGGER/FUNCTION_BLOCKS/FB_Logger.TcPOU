@@ -335,32 +335,6 @@ THIS^.pLogRecord^.eventName := _pDest;
 _pDest := 0;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="setFlags" Id="{5d379f0e-933c-4b0a-a500-5ddf2e9afe34}">
-      <Declaration><![CDATA[METHOD setFlags: REFERENCE TO FB_Logger
-VAR_INPUT
-	flags: E_LogRecordFlag;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[setFlags REF= THIS^;
-
-IF THIS^._shouldReturnEarly() THEN
-	RETURN;
-END_IF
-
-// if the value pointer is null, create a new pointer
-IF THIS^.pLogRecord^.flags = 0 THEN
-	THIS^.pLogRecord^.flags := __NEW(E_LogRecordFlag);
-	// if it failed, than the system is out of memory, abort
-	IF THIS^.pLogRecord^.flags = 0 THEN
-		THIS^._failed := TRUE;
-		THIS^._failureReason := E_LoggerFailureReason.MEMORY_ALLOCATION_FAILURE;
-		RETURN;
-	END_IF
-END_IF
-// if everything above worked, assign the value
-THIS^.pLogRecord^.flags^ := flags;]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="setNumberAttribute" Id="{6e8ebb16-a1b8-4ed2-891a-240f2408bf80}">
       <Declaration><![CDATA[METHOD setNumberAttribute: REFERENCE TO FB_Logger
 VAR_INPUT

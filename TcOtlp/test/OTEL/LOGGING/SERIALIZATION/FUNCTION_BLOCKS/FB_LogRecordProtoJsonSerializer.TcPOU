@@ -49,7 +49,7 @@ IF NOT THIS^.serializeUint64Value(_obj, ADR('timeUnixNano'), pLogRecord^.timesta
 
 IF pLogRecord^.eventName <> 0 AND_THEN NOT THIS^.serializeStringValue(_obj, ADR('eventName'), pLogRecord^.eventName, failureReason=>failureReason) THEN RETURN; END_IF
 IF pLogRecord^.traceId <> 0 AND_THEN NOT THIS^.serializeTraceIdValue(_obj, pLogRecord^.traceId, failureReason=>failureReason) THEN RETURN; END_IF
-IF pLogRecord^.flags <> 0 AND_THEN NOT THIS^.serializeUint32Value(_obj, ADR('flags'), TO_UDINT(pLogRecord^.flags^), failureReason=>failureReason) THEN RETURN; END_IF
+IF pLogRecord^.traceId <> 0 AND_THEN NOT THIS^.serializeUint32Value(_obj, ADR('flags'), TO_UDINT(pLogRecord^.flags), failureReason=>failureReason) THEN RETURN; END_IF
 IF pLogRecord^.spanId <> 0 AND_THEN NOT THIS^.serializeSpanIdValue(_obj, pLogRecord^.spanId, failureReason=>failureReason) THEN RETURN; END_IF
 IF pLogRecord^.body <> 0 AND_THEN NOT THIS^.serializeAnyValue(_obj, ADR('body'), pLogRecord^.body, failureReason=>failureReason) THEN RETURN; END_IF
 IF pLogRecord^.attributes.count > 0 AND_THEN NOT THIS^.serializeKeyValues(_obj, ADR('attributes'), ADR(pLogRecord^.attributes), failureReason=>failureReason) THEN RETURN; END_IF

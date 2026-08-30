@@ -25,7 +25,6 @@ VAR
 	timestamp: ULINT := 123456789;
 	traceIdBytes: ARRAY [0..15] OF BYTE := [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 	spanIdBytes: ARRAY [0..7] OF BYTE := [16, 17, 18, 19, 20, 21, 22, 23];
-	flags: E_LogRecordFlag := E_LogRecordFlag.LOG_RECORD_FLAGS_TRACE_FLAGS_MASK;
 	cloneSuccess: BOOL;
 	cloneFailureResult: E_LogRecordCloneFailureReason;
 	attributesSuccess: BOOL;
@@ -57,15 +56,12 @@ END_VAR
 	THIS^.AssertTrue(attributesSuccess, 'Expected scope attribute creation to succeed');
 
 	logger
-		.startLogRecord(
-			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
-		)
+		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO)
 		.setTimestamp(timestamp)
 		.setEventName('record.event')
 		.setBody('record.body')
 		.setTraceId(ADR(traceIdBytes), SIZEOF(traceIdBytes))
 		.setSpanId(ADR(spanIdBytes), SIZEOF(spanIdBytes))
-		.setFlags(flags)
 		.setStringAttribute('record.key', 'record.value');
 	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected a source log record');
 
@@ -100,14 +96,12 @@ END_VAR
 		THIS^.AssertEquals_STRING(logger.pLogRecord^.scope.version, pClone^.scope.version, 'Expected scope version to be cloned');
 		THIS^.AssertEquals_STRING(logger.pLogRecord^.scope.schemaUrl, pClone^.scope.schemaUrl, 'Expected scope schema URL to be cloned');
 		THIS^.AssertEquals_UDINT(logger.pLogRecord^.scope.droppedAttributesCount, pClone^.scope.droppedAttributesCount, 'Expected dropped scope attribute count to be cloned');
-
 		THIS^.AssertTrue(pClone^.eventName <> logger.pLogRecord^.eventName, 'Expected event name allocation to be cloned');
 		THIS^.AssertTrue(pClone^.eventName^.pString <> logger.pLogRecord^.eventName^.pString, 'Expected event name string allocation to be cloned');
 		THIS^.AssertEquals_STRING(logger.pLogRecord^.eventName^.pString^, pClone^.eventName^.pString^, 'Expected event name value to be cloned');
 		THIS^.AssertTrue(pClone^.traceId <> logger.pLogRecord^.traceId, 'Expected trace ID allocation to be cloned');
 		THIS^.AssertTrue(MEMCMP(ADR(pClone^.traceId^.bytes), ADR(logger.pLogRecord^.traceId^.bytes), SIZEOF(pClone^.traceId^.bytes)) = 0, 'Expected trace ID value to be cloned');
-		THIS^.AssertTrue(pClone^.flags <> logger.pLogRecord^.flags, 'Expected flags allocation to be cloned');
-		THIS^.AssertTrue(pClone^.flags^ = logger.pLogRecord^.flags^, 'Expected flags value to be cloned');
+		THIS^.AssertTrue(pClone^.flags = logger.pLogRecord^.flags, 'Expected flags value to be cloned');
 		THIS^.AssertTrue(pClone^.spanId <> logger.pLogRecord^.spanId, 'Expected span ID allocation to be cloned');
 		THIS^.AssertTrue(MEMCMP(ADR(pClone^.spanId^.bytes), ADR(logger.pLogRecord^.spanId^.bytes), SIZEOF(pClone^.spanId^.bytes)) = 0, 'Expected span ID value to be cloned');
 		THIS^.AssertTrue(pClone^.body <> logger.pLogRecord^.body, 'Expected body allocation to be cloned');

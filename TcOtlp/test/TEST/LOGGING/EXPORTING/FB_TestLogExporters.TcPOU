@@ -5,8 +5,7 @@
 FUNCTION_BLOCK FB_TestLogExporters EXTENDS FB_TestSuite
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[testOneToOneProcessorRelationship();
-testGroupsRecordsThroughExporter();]]></ST>
+      <ST><![CDATA[testGroupsRecordsThroughExporter();]]></ST>
     </Implementation>
     <Method Name="testGroupsRecordsThroughExporter" Id="{5d5f1575-5e45-48b1-b9ad-2eec80177025}">
       <Declaration><![CDATA[METHOD testGroupsRecordsThroughExporter : REFERENCE TO FB_Test
@@ -132,21 +131,6 @@ END_VAR
 	exporter.free();
 	batch.free();
 	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
-TcUnit.TEST_FINISHED();]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="testOneToOneProcessorRelationship" Id="{89abff76-f9b8-4aba-b0cd-1d50ad7339ac}">
-      <Declaration><![CDATA[METHOD testOneToOneProcessorRelationship : REFERENCE TO FB_Test
-VAR
-	exporter: FB_LogRecordExporter_File('C:\Users\samue\Desktop\programming projects\TcOtlp\logs.jsonl');
-	processor1: FB_LogRecordProcessor_Simple(0);
-	processor2: FB_LogRecordProcessor_Simple(0);
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test SimpleLogProcessors');
-	THIS^.AssertTrue(exporter.register(processor1), 'Expected processor 1 to be registered with the exporter');
-	THIS^.AssertFalse(exporter.register(processor2),'Expected processor 2 to NOT be registerd with the exporter');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

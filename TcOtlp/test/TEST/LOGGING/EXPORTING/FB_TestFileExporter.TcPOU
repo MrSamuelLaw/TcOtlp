@@ -76,7 +76,6 @@ END_VAR]]></Declaration>
 				.setEventName('BatchRecord1')
 				.setTraceId(ADR(_traceId), SIZEOF(_traceId))
 				.setSpanId(ADR(_spanId), SIZEOF(_spanId))
-				.setFlags(E_LogRecordFlag.LOG_RECORD_FLAGS_TRACE_FLAGS_MASK)
 				.setStringAttribute('batch.position', 'first')
 				.setNumberAttribute('batch.positionNum', _num)
 				.emit(failureResult=>_loggerFailureResult);

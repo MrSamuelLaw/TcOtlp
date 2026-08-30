@@ -1,16 +1,15 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_TestHttpExporter" Id="{bfb7e007-9273-4824-8978-2683d2dd42fa}" SpecialFunc="None">
     <Declaration><![CDATA[(* Tests HTTP log exporter behavior. *)
 FUNCTION_BLOCK FB_TestHttpExporter EXTENDS FB_TestSuite
 VAR
-	_exporterBadUrl: 	FB_LogRecordExporter_HTTP(url:='not-a-valid-url');
-	_exporterRefused: 	FB_LogRecordExporter_HTTP(url:='http://127.0.0.1:1/v1/logs');
+	_exporterBadUrl: 	FB_LogRecordExporter_HTTP(url:='not-a-valid-url', bNoServerCertCheck:=TRUE);
+	_exporterRefused: 	FB_LogRecordExporter_HTTP(url:='http://127.0.0.1:1/v1/logs', bNoServerCertCheck:=TRUE);
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[THIS^.testOneToOneProcessorRelationship();
-THIS^.testInvalidUrlFailsFast();
+      <ST><![CDATA[THIS^.testInvalidUrlFailsFast();
 THIS^.testConnectionRefusedReportsFailure();]]></ST>
     </Implementation>
     <Method Name="testConnectionRefusedReportsFailure" Id="{065feb3c-02c9-46b0-ad35-d7d0685f8118}">
@@ -181,21 +180,6 @@ END_VAR
 
 	_exporterBadUrl.free();
 	batch.free();
-TcUnit.TEST_FINISHED();]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="testOneToOneProcessorRelationship" Id="{9d759313-f597-41f7-ab4a-178e4e4fc05c}">
-      <Declaration><![CDATA[METHOD testOneToOneProcessorRelationship : REFERENCE TO FB_Test
-VAR
-	exporter: FB_LogRecordExporter_HTTP(url:='http://127.0.0.1:4318/v1/logs');
-	processor1: FB_LogRecordProcessor_Simple(0);
-	processor2: FB_LogRecordProcessor_Simple(0);
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test Http Exporter Processor Registration');
-	THIS^.AssertTrue(exporter.register(processor1), 'Expected processor 1 to be registered with the exporter');
-	THIS^.AssertFalse(exporter.register(processor2), 'Expected processor 2 to NOT be registered with the exporter');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

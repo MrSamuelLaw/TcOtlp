@@ -11,7 +11,6 @@ VAR_INPUT
 	// optional values
 	eventName: 	POINTER TO FB_String; 
 	traceId: 	POINTER TO FB_TraceId;
-	flags: 		POINTER TO E_LogRecordFlag;
 	spanId: 	POINTER TO FB_SpanId;
 	body: 		POINTER TO FB_AnyValue;
 	droppedAttributesCount: UDINT;
@@ -90,16 +89,6 @@ IF THIS^.traceId <> 0 THEN
 		_pClone := _pClone^.delete();
 		RETURN;
 	END_IF
-END_IF
-
-IF THIS^.flags <> 0 THEN
-	_pClone^.flags := __NEW(E_LogRecordFlag);
-	IF _pClone^.flags = 0 THEN
-		failureReason := E_LogRecordCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
-		_pClone := _pClone^.delete();
-		RETURN;
-	END_IF
-	_pClone^.flags^ := THIS^.flags^;
 END_IF
 
 IF THIS^.spanId <> 0 THEN
@@ -223,6 +212,24 @@ THIS^.timestamp := timestamp;
 ]]></ST>
       </Implementation>
     </Method>
+    <Property Name="flags" Id="{a9c4956e-f0c6-4536-ad66-38edc18fb1a7}">
+      <Declaration><![CDATA[PROPERTY flags : UDINT]]></Declaration>
+      <Get Name="Get" Id="{8c04f953-3bf1-49c1-b437-47a1efbbfde3}">
+        <Declaration><![CDATA[VAR
+	traceFlags: BYTE;
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[// bit 0 is the sampled flag, bits 1-7 are reserved for future use according to the spec
+traceFlags := SEL(THIS^.traceId<>0, 2#00000000, 2#00000001);
+
+// the otel spec reserves an additional 24 bits that are all set to zero thus flags is a 32bit field
+// that we "or" together with the traceFlags to create the final 32 it array. 
+flags := (flags AND E_LogRecordFlag.LOG_RECORD_FLAGS_TRACE_FLAGS_MASK) OR traceFlags;
+]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
     <Method Name="free" Id="{541f418c-aa49-48c2-ae9d-c6d4738509a3}">
       <Declaration><![CDATA[METHOD free
 VAR
@@ -231,11 +238,6 @@ END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF THIS^.eventName <> 0 THEN THIS^.eventName := THIS^.eventName^.delete(); END_IF
 IF THIS^.traceId <> 0 THEN THIS^.traceId := THIS^.traceId^.delete(); END_IF
-IF THIS^.flags <> 0 THEN
-	_pTraceFlags := THIS^.flags;
-	__DELETE(_pTraceFlags);
-	THIS^.flags := 0;
-END_IF
 IF THIS^.spanId <> 0 THEN THIS^.spanId := THIS^.spanId^.delete(); END_IF
 IF THIS^.body <> 0 THEN THIS^.body := THIS^.body^.delete(); END_IF
 THIS^.attributes.free();

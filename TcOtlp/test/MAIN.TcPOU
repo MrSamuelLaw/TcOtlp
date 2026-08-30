@@ -3,21 +3,21 @@
   <POU Name="MAIN" Id="{1fa3e08a-8235-40d5-a330-62ab1eea7a52}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM MAIN
 VAR
-// 	{attribute 'analysis' := '-33'}fbTestOtlpValue: FB_TestOtlpValue();
-// 	{attribute 'analysis' := '-33'}fbTestAttributes: FB_TestAttributes();
-// 	{attribute 'analysis' := '-33'}fbTestLogRecordQueue: FB_TestLogRecordQueue();
-// 	{attribute 'analysis' := '-33'}fbTestLogger: FB_TestLogger();
-// 	{attribute 'analysis' := '-33'}fbTestProcessors: FB_TestLogProcessors();
-// 	{attribute 'analysis' := '-33'}fbTestExporters: FB_TestLogExporters();
-// 	{attribute 'analysis' := '-33'}fbTestLogRecord: FB_TestLogRecord();
-// 	{attribute 'analysis' := '-33'}fbTestProtoJsonSerializer: FB_TestProtoJsonSerializer();
-// 	{attribute 'analysis' := '-33'}fbTestFileExporter: FB_TestFileExporter();
-// 	{attribute 'analysis' := '-33'}fbTestHttpExporter: FB_TestHttpExporter();
+	{attribute 'analysis' := '-33'}fbTestOtlpValue: FB_TestOtlpValue();
+	{attribute 'analysis' := '-33'}fbTestAttributes: FB_TestAttributes();
+	{attribute 'analysis' := '-33'}fbTestLogRecordQueue: FB_TestLogRecordQueue();
+	{attribute 'analysis' := '-33'}fbTestLogger: FB_TestLogger();
+	{attribute 'analysis' := '-33'}fbTestProcessors: FB_TestLogProcessors();
+	{attribute 'analysis' := '-33'}fbTestExporters: FB_TestLogExporters();
+	{attribute 'analysis' := '-33'}fbTestLogRecord: FB_TestLogRecord();
+	{attribute 'analysis' := '-33'}fbTestProtoJsonSerializer: FB_TestProtoJsonSerializer();
+	{attribute 'analysis' := '-33'}fbTestFileExporter: FB_TestFileExporter();
+	{attribute 'analysis' := '-33'}fbTestHttpExporter: FB_TestHttpExporter();
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[// TcUnit.RUN();
-SIM_MAIN();]]></ST>
+      <ST><![CDATA[TcUnit.RUN();
+// SIM_MAIN();]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

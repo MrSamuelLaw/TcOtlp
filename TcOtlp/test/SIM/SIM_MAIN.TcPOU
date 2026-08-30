@@ -49,7 +49,7 @@ END_VAR
       <ST><![CDATA[IF firstScan THEN
 	resource.attributes.setStringAttribute('name', 'PLC1');
 END_IF
-
+	
 processors[0] := signozProcessor;
 processors[1] := consoleProcessor;
 processors[2] := batchProcessor;

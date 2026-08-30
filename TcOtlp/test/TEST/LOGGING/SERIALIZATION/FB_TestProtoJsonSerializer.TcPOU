@@ -89,15 +89,12 @@ END_VAR
 
 	// Create a representative record through the public logger API.
 	logger
-		.startLogRecord(
-			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG,
-		)
+		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG)
 		.setTimestamp(timestamp)
 		.setEventName('Serialization Event')
 		.setBody('This is a body string value')
 		.setTraceId(ADR(traceId), SIZEOF(traceId))
 		.setSpanId(ADR(spanId), SIZEOF(spanId))
-		.setFlags(E_LogRecordFlag.LOG_RECORD_FLAGS_TRACE_FLAGS_MASK)
 		.setStringAttribute('stats.label', 'pVal')
 		.setNumberAttribute('stats.duration_ms', durationMs)
 		.setNumberAttribute('stats.temperature', temperature);
@@ -136,7 +133,7 @@ END_VAR
 		THIS^.AssertEquals_UDINT(5, serializer.parser.GetUint(member), 'Expected numeric OTLP severityNumber');
 		actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'severityText'));
 		THIS^.AssertEquals_STRING('SEVERITY_NUMBER_DEBUG', actualString, 'Expected severityText');
-		THIS^.AssertEquals_UDINT(255, serializer.parser.GetUint(serializer.parser.FindMember(obj, 'flags')), 'Expected numeric OTLP flags');
+		THIS^.AssertEquals_UDINT(1, serializer.parser.GetUint(serializer.parser.FindMember(obj, 'flags')), 'Expected numeric OTLP flags');
 		THIS^.AssertEquals_UDINT(2, serializer.parser.GetUint(serializer.parser.FindMember(obj, 'droppedAttributesCount')), 'Expected droppedAttributesCount');
 	
 		// OTLP/JSON encodes 64-bit integers as decimal strings and trace/span IDs as hex.
