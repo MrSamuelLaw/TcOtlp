@@ -55,7 +55,7 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[FOR _idx := 0 TO TcUnit_GVL.MAX_LOOP_COUNT DO
+        <ST><![CDATA[FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
 	IF THIS^._head = 0 THEN
 		EXIT;
 	END_IF
@@ -163,7 +163,7 @@ END_IF
 
 // maxSize is writable, so also restore the bound after a runtime reduction.
 IF THIS^.maxCount > 0 THEN
-	FOR _idx := 0 TO TcUnit_GVL.MAX_LOOP_COUNT DO
+	FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
 		IF THIS^.count < THIS^.maxCount THEN
 			EXIT;
 		END_IF

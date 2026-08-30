@@ -9,7 +9,7 @@ VAR_OUTPUT
 	schemaUrl: T_MaxString;
 END_VAR
 VAR_OUTPUT
-	attributes: FB_Attributes(maxCount := TcUnit_GVL.DEFAULT_MAX_ATTRIBUTE_COUNT);
+	attributes: FB_Attributes(maxCount := TcOtlp_GVL.DEFAULT_MAX_ATTRIBUTE_COUNT);
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
@@ -59,7 +59,7 @@ END_VAR
 
 // claim a process-local identity; keep the existing one during an online change copy
 IF NOT bInCopyCode THEN
-	THIS^.id := TcUnit_GVL.NEXT_ID;
+	THIS^.id := TcOtlp_GVL.NEXT_ID;
 END_IF]]></ST>
       </Implementation>
     </Method>

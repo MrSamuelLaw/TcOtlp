@@ -90,7 +90,7 @@ failureReason := E_ProtoJsonSerializerFailureReason.NA;
 
 // fail early if loop limit exceeded.
 _ownedRecordCount := logRecords.count;
-IF _ownedRecordCount > TcUnit_GVL.MAX_LOOP_COUNT THEN
+IF _ownedRecordCount > TcOtlp_GVL.MAX_LOOP_COUNT THEN
 	logRecords.free();
 	failureReason := E_ProtoJsonSerializerFailureReason.LOOP_LIMIT_EXCEEDED;
 	RETURN;

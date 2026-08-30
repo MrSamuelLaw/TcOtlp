@@ -60,7 +60,6 @@ VAR
 	scope: FB_InstrumentationScope(name:='motor1', version:='0.0.1a', schemaUrl:='');
 	logger: FB_Logger(scope:=scope, provider:=provider);
 	processor: FB_LogRecordProcessor_ForRecordInspection(0);
-	processors: ARRAY [0..0] OF I_LogRecordProcessor := [processor];
 	serializer: FB_LogRecordProtoJsonSerializer();
 	emitSuccess: BOOL;
 	emitFailureResult: E_LoggerFailureReason;
@@ -105,7 +104,9 @@ END_VAR
 
 	emitSuccess := logger.emit(failureResult=>emitFailureResult);
 	THIS^.AssertTrue(emitSuccess, 'Expected log record emission to succeed');
-	provider.call(processors);
+	provider
+		.addProcessor(processor)
+		.tick();
 	THIS^.AssertTrue(processor.lastOperationSucceeded, 'Expected emitted record capture to succeed');
 	THIS^.AssertTrue(logger.pLogRecord = 0, 'Expected emit to release the logger-owned record');
 	pRecord := processor.pop();

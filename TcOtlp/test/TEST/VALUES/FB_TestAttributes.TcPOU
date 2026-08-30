@@ -12,8 +12,8 @@ THIS^.testFailureReasons();]]></ST>
     <Method Name="testCopyValues" Id="{23900586-864d-4e56-8db4-89d06b3a65a9}">
       <Declaration><![CDATA[METHOD testCopyValues : REFERENCE TO FB_Test
 VAR
-	attributes: FB_Attributes(maxCount:=TcUnit_GVL.DEFAULT_MAX_ATTRIBUTE_COUNT);
-	copyTarget: FB_Attributes(maxCount:=TcUnit_GVL.DEFAULT_MAX_ATTRIBUTE_COUNT);
+	attributes: FB_Attributes(maxCount:=TcOtlp_GVL.DEFAULT_MAX_ATTRIBUTE_COUNT);
+	copyTarget: FB_Attributes(maxCount:=TcOtlp_GVL.DEFAULT_MAX_ATTRIBUTE_COUNT);
 	strVal: T_MaxString := 'String';
 	numVal: REAL := 42;
 	success: BOOL;
@@ -142,7 +142,7 @@ TcUnit.TEST_FINISHED();]]></ST>
     <Method Name="testSetBehavior" Id="{ba5afccb-3e5f-42c4-96a6-ce199c7009d2}">
       <Declaration><![CDATA[METHOD testSetBehavior : REFERENCE TO FB_Test
 VAR
-	attributes: FB_Attributes(maxCount:=TcUnit_GVL.DEFAULT_MAX_ATTRIBUTE_COUNT);
+	attributes: FB_Attributes(maxCount:=TcOtlp_GVL.DEFAULT_MAX_ATTRIBUTE_COUNT);
 	strVal: T_MaxString;
 	numVal: REAL;
 	success: BOOL;

@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_LogRecordProcessor_Simple" Id="{90ded010-1262-4ab5-9db9-0fd13f25279d}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProcessor_Simple IMPLEMENTS I_LogRecordProcessor;
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProcessor_Simple EXTENDS FB_LogRecordProcessor_Base;
 VAR
 	_records: FB_LogRecordQueue(maxCount:=1);
 	_exporter: REFERENCE TO FB_LogRecordExporter_Base;
@@ -10,18 +10,6 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="call" Id="{cbc94a96-e048-4b21-9864-888b5113f033}">
-      <Declaration><![CDATA[METHOD call
-VAR
-	_exportFailureReason: E_LogRecordExporterFailureReason;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF __ISVALIDREF(THIS^._exporter) THEN
-	THIS^._exporter.call(failureReason=>_exportFailureReason);
-END_IF]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="enrich" Id="{6f0ee9bd-9f0f-4ae9-bc9c-41fc9bcbd76c}">
       <Declaration><![CDATA[// no-op, overwride to change log mutation/enrichment functionality
 METHOD enrich
@@ -108,6 +96,18 @@ END_IF
 THIS^.free();
 IF _pLogRecord <> 0 THEN _pLogRecord := _pLogRecord^.delete(); END_IF
 ]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="tick" Id="{cbc94a96-e048-4b21-9864-888b5113f033}">
+      <Declaration><![CDATA[METHOD tick
+VAR
+	_exportFailureReason: E_LogRecordExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF __ISVALIDREF(THIS^._exporter) THEN
+	THIS^._exporter.tick(failureReason=>_exportFailureReason);
+END_IF]]></ST>
       </Implementation>
     </Method>
   </POU>

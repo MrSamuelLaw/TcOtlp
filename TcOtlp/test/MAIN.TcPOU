@@ -7,6 +7,7 @@ VAR
 	{attribute 'analysis' := '-33'}fbTestAttributes: FB_TestAttributes();
 	{attribute 'analysis' := '-33'}fbTestLogRecordQueue: FB_TestLogRecordQueue();
 	{attribute 'analysis' := '-33'}fbTestLogger: FB_TestLogger();
+	{attribute 'analysis' := '-33'}fbTestProvider: FB_TestLoggerProvider();
 	{attribute 'analysis' := '-33'}fbTestProcessors: FB_TestLogProcessors();
 	{attribute 'analysis' := '-33'}fbTestExporters: FB_TestLogExporters();
 	{attribute 'analysis' := '-33'}fbTestLogRecord: FB_TestLogRecord();

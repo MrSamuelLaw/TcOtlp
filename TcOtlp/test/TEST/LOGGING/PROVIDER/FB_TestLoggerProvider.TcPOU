@@ -1,0 +1,156 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestLoggerProvider" Id="{a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Tests FB_LoggerProvider processor registration. *)
+FUNCTION_BLOCK FB_TestLoggerProvider EXTENDS FB_TestSuite
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testAddProcessorChaining();
+THIS^.testAddProcessorCount();
+THIS^.testAddProcessorRejectsDuplicates();
+THIS^.testAddProcessorAllowsDistinct();
+THIS^.testFreeReleasesNodes();
+THIS^.testDuplicateProcessorReceivesRecordOnce();
+THIS^.testDistinctProcessorsEachReceiveRecord();]]></ST>
+    </Implementation>
+    <Method Name="testAddProcessorAllowsDistinct" Id="{e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b}">
+      <Declaration><![CDATA[METHOD testAddProcessorAllowsDistinct : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	provider: FB_LoggerProvider(resource);
+	processorA: FB_LogRecordProcessor_Simple(0);
+	processorB: FB_LogRecordProcessor_Simple(0);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test AddProcessorAllowsDistinct');
+	provider.addProcessor(processorA);
+	provider.addProcessor(processorB);
+	THIS^.AssertEquals_UDINT(2, provider.processorCount, 'Expected two distinct processors accepted');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testAddProcessorChaining" Id="{b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e}">
+      <Declaration><![CDATA[METHOD testAddProcessorChaining : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	provider: FB_LoggerProvider(resource);
+	processorA: FB_LogRecordProcessor_Simple(0);
+	processorB: FB_LogRecordProcessor_Simple(0);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test AddProcessorChaining');
+	provider.addProcessor(processorA).addProcessor(processorB);
+	THIS^.AssertEquals_UDINT(2, provider.processorCount, 'Expected two processors after chaining');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testAddProcessorCount" Id="{c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f}">
+      <Declaration><![CDATA[METHOD testAddProcessorCount : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	provider: FB_LoggerProvider(resource);
+	processorA: FB_LogRecordProcessor_Simple(0);
+	processorB: FB_LogRecordProcessor_Simple(0);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test AddProcessorCount');
+	THIS^.AssertEquals_UDINT(0, provider.processorCount, 'Expected zero processors after init');
+	provider.addProcessor(processorA);
+	THIS^.AssertEquals_UDINT(1, provider.processorCount, 'Expected one processor after first add');
+	provider.addProcessor(processorB);
+	THIS^.AssertEquals_UDINT(2, provider.processorCount, 'Expected two processors after second add');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testAddProcessorRejectsDuplicates" Id="{d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a}">
+      <Declaration><![CDATA[METHOD testAddProcessorRejectsDuplicates : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	provider: FB_LoggerProvider(resource);
+	processor: FB_LogRecordProcessor_Simple(0);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test AddProcessorRejectsDuplicates');
+	provider.addProcessor(processor);
+	THIS^.AssertEquals_UDINT(1, provider.processorCount, 'Expected one processor after first add');
+	provider.addProcessor(processor);
+	THIS^.AssertEquals_UDINT(1, provider.processorCount, 'Expected count unchanged after duplicate add');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testDistinctProcessorsEachReceiveRecord" Id="{b8c9d0e1-f2a3-4b4c-5d6e-7f8a9b0c1d2e}">
+      <Declaration><![CDATA[(*
+	Two distinct processors registered with the same provider should each
+	receive the emitted record independently.
+*)
+METHOD testDistinctProcessorsEachReceiveRecord : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	provider: FB_LoggerProvider(resource);
+	scope: FB_InstrumentationScope('scope', '1.0.0', '');
+	logger: FB_Logger(scope, provider);
+	exporterA: FB_LogRecordExporter_ForInspection;
+	processorA: FB_LogRecordProcessor_Simple(exporterA);
+	exporterB: FB_LogRecordExporter_ForInspection;
+	processorB: FB_LogRecordProcessor_Simple(exporterB);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test DistinctProcessorsEachReceiveRecord');
+	provider.addProcessor(processorA);
+	provider.addProcessor(processorB);
+
+	logger.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).emit();
+	provider.tick();
+
+	THIS^.AssertEquals_UDINT(1, exporterA.records.count, 'Expected one record in exporter A');
+	THIS^.AssertEquals_UDINT(1, exporterB.records.count, 'Expected one record in exporter B');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testDuplicateProcessorReceivesRecordOnce" Id="{a7b8c9d0-e1f2-4a3b-4c5d-6e7f8a9b0c1d}">
+      <Declaration><![CDATA[(*
+	When the same processor is added twice (duplicate rejected), it should
+	receive each emitted record exactly once — not twice.
+*)
+METHOD testDuplicateProcessorReceivesRecordOnce : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	provider: FB_LoggerProvider(resource);
+	scope: FB_InstrumentationScope('scope', '1.0.0', '');
+	logger: FB_Logger(scope, provider);
+	exporter: FB_LogRecordExporter_ForInspection;
+	processor: FB_LogRecordProcessor_Simple(exporter);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test DuplicateProcessorReceivesRecordOnce');
+	provider.addProcessor(processor);
+	provider.addProcessor(processor);
+	THIS^.AssertEquals_UDINT(1, provider.processorCount, 'Expected duplicate to be rejected');
+
+	logger.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).emit();
+	provider.tick();
+
+	THIS^.AssertEquals_UDINT(1, exporter.records.count, 'Expected exactly one record in exporter, not two');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testFreeReleasesNodes" Id="{f6a7b8c9-d0e1-4f2a-3b4c-5d6e7f8a9b0c}">
+      <Declaration><![CDATA[METHOD testFreeReleasesNodes : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	provider: FB_LoggerProvider(resource);
+	processorA: FB_LogRecordProcessor_Simple(0);
+	processorB: FB_LogRecordProcessor_Simple(0);
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test FreeReleasesNodes');
+	provider.addProcessor(processorA);
+	provider.addProcessor(processorB);
+	THIS^.AssertEquals_UDINT(2, provider.processorCount, 'Expected two processors before free');
+	provider.tick();
+	THIS^.AssertEquals_UDINT(0, provider.processorCount, 'Expected zero processors after free');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

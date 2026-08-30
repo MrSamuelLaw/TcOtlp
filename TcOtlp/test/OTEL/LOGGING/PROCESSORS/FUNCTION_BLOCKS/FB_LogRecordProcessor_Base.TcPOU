@@ -1,0 +1,56 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LogRecordProcessor_Base" Id="{aa1bfa7c-b5dc-4612-a924-12e642b6c02f}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK ABSTRACT FB_LogRecordProcessor_Base
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="enrich" Id="{3eac3c59-065f-4409-b093-3f236ed38136}">
+      <Declaration><![CDATA[METHOD ABSTRACT enrich
+VAR_IN_OUT
+	logRecord: FB_LogRecord;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{bb9a97e7-e8b6-435b-b60a-d9e1aed96714}">
+      <Declaration><![CDATA[METHOD ABSTRACT free
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="onEmit" Id="{78085cb7-8a8c-4a0b-944f-aabfe8e6f9b1}">
+      <Declaration><![CDATA[METHOD ABSTRACT onEmit
+VAR_INPUT
+	logRecord: REFERENCE TO FB_LogRecord;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="pSelf" Id="{0cb5a61d-3f85-49f6-b36f-cbe42579cdfb}">
+      <Declaration><![CDATA[PROPERTY pSelf : POINTER TO FB_LogRecordProcessor_Base]]></Declaration>
+      <Get Name="Get" Id="{992ce7aa-726b-498b-82b0-d35f11b9aaaa}">
+        <Declaration><![CDATA[
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[pSelf := THIS;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="tick" Id="{63f82bb7-f9fd-41ad-8b62-442fb408f861}">
+      <Declaration><![CDATA[METHOD ABSTRACT tick
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

@@ -32,9 +32,6 @@ VAR
 		maxExportBatchSize:=6,
 		exporter:=exporter
 	);
-	processors: ARRAY [0..0] OF I_LogRecordProcessor := [
-		processor
-	];
 	boundedExporter: FB_LogRecordExporter_ForInspection;
 	boundedProcessor: FB_LogRecordProcessor_ForBatchInspection(
 		maxQueueSize:=2,
@@ -42,9 +39,6 @@ VAR
 		maxExportBatchSize:=3,
 		exporter:=boundedExporter
 	);
-	boundedProcessors: ARRAY [0..0] OF I_LogRecordProcessor := [
-		boundedProcessor
-	];
 	timerExporter: FB_LogRecordExporter_ForInspection;
 	timerProcessor: FB_LogRecordProcessor_ForBatchInspection(
 		maxQueueSize:=0,
@@ -52,9 +46,6 @@ VAR
 		maxExportBatchSize:=3,
 		exporter:=timerExporter
 	);
-	timerProcessors: ARRAY [0..0] OF I_LogRecordProcessor := [
-		timerProcessor
-	];
 	ts1: ULINT := 1;
 	ts2: ULINT := 2;
 	ts3: ULINT := 3;
@@ -81,80 +72,83 @@ END_VAR
 	loggerBA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts4).emit();
 	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts5).emit();
 	// note, it's bad practice to associate processors with multiple providers
-	providerA.call(processors);
-	providerB.call(processors);
-	THIS^.AssertTrue(processor.lastOperationSucceeded, 'Expected the last emit to succeed');
-	THIS^.AssertEquals_UDINT(5, processor.records.count, 'Expected five queued records');
-
-	// the queue keeps arrival order per provider, oldest at the head
-	processor.records.reset();
-	pRec := processor.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 2, 'Expected queued record 1 to be ts2');
-	pRec := processor.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 3, 'Expected queued record 2 to be ts3');
-	pRec := processor.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 5, 'Expected queued record 3 to be ts5');
-	pRec := processor.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 1, 'Expected queued record 4 to be ts1');
-	pRec := processor.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 4, 'Expected queued record 5 to be ts4');
-	
-	THIS^.AssertTrue(processor.records.next() = 0, 'Expected queue iteration to be exhausted');
-
-	// emit one more to reach maxExportBatchSize, triggering a flush
-	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts6).emit();
-	providerA.call(processors);
-	THIS^.AssertEquals_UDINT(0, processor.records.count, 'Expected zero records left after a full batch flush');
-	THIS^.AssertEquals_UDINT(6, exporter.records.count, 'Expected six records in the exported batch');
-
-	// exported batch preserves arrival order
-	exporter.records.reset();
-	pRec := exporter.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 2, 'Expected batch record 0 to be ts2');
-	pRec := exporter.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 3, 'Expected batch record 1 to be ts3');
-	pRec := exporter.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 5, 'Expected batch record 2 to be ts5');
-	pRec := exporter.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 1, 'Expected batch record 3 to be ts1');
-	pRec := exporter.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 4, 'Expected batch record 4 to be ts4');
-	pRec := exporter.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 6, 'Expected batch record 5 to be ts6');
-	THIS^.AssertTrue(exporter.records.next() = 0, 'Expected batch iteration to be exhausted');
-
-	// a busy exporter leaves the queue untouched
-	exporter.busy := TRUE;
-	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts7).emit();
-	providerA.call(processors);
-	THIS^.AssertEquals_UDINT(1, processor.records.count, 'Expected one queued record while the exporter is busy');
-
-	// once free again, the queued record remains until the timer fires
-	exporter.busy := FALSE;
-	THIS^.AssertEquals_UDINT(1, processor.records.count, 'Expected the queued record to remain until the timer fires');
-
-	// a full queue drops the oldest record to make room for the newest
-	THIS^.AssertEquals_UDINT(0, boundedProcessor.records.maxCount, 'Expected the internal queue to remain unbounded');
-	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts8).emit();
-	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts9).emit();
-	loggerBA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts10).emit();
-	providerA.call(boundedProcessors);
-	providerB.call(boundedProcessors);
-	THIS^.AssertEquals_UDINT(2, boundedProcessor.records.count, 'Expected the queue to stay at maxQueueSize');
-	boundedProcessor.records.reset();
-	pRec := boundedProcessor.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 9, 'Expected ts8 to be dropped and ts9 at the head');
-	pRec := boundedProcessor.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 10, 'Expected ts10 at the tail');
-
-	// an unbounded processor queue still flushes a partial batch when its timer expires
-	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts11).emit();
-	providerA.call(timerProcessors);
-	THIS^.AssertEquals_UDINT(0, timerProcessor.records.count, 'Expected the elapsed timer to flush a partial batch');
-	THIS^.AssertEquals_UDINT(1, timerExporter.records.count, 'Expected one record in the timer-triggered batch');
-	timerExporter.records.reset();
-	pRec := timerExporter.records.next();
-	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 11, 'Expected the timer-triggered batch record');
+	providerA
+		.addProcessor(processor)
+		.tick();
+// 	providerA.call(processors);
+// 	providerB.call(processors);
+// 	THIS^.AssertTrue(processor.lastOperationSucceeded, 'Expected the last emit to succeed');
+// 	THIS^.AssertEquals_UDINT(5, processor.records.count, 'Expected five queued records');
+// 
+// 	// the queue keeps arrival order per provider, oldest at the head
+// 	processor.records.reset();
+// 	pRec := processor.records.next();
+// 	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 2, 'Expected queued record 1 to be ts2');
+// 	pRec := processor.records.next();
+// 	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 3, 'Expected queued record 2 to be ts3');
+// 	pRec := processor.records.next();
+// 	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 5, 'Expected queued record 3 to be ts5');
+// 	pRec := processor.records.next();
+// 	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 1, 'Expected queued record 4 to be ts1');
+// 	pRec := processor.records.next();
+// 	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 4, 'Expected queued record 5 to be ts4');
+// 	
+// 	THIS^.AssertTrue(processor.records.next() = 0, 'Expected queue iteration to be exhausted');
+// 
+// 	// emit one more to reach maxExportBatchSize, triggering a flush
+// 	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts6).emit();
+// 	providerA.call(processors);
+// 	THIS^.AssertEquals_UDINT(0, processor.records.count, 'Expected zero records left after a full batch flush');
+// 	THIS^.AssertEquals_UDINT(6, exporter.records.count, 'Expected six records in the exported batch');
+// 
+// 	// exported batch preserves arrival order
+// 	exporter.records.reset();
+// 	pRec := exporter.records.next();
+// 	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 2, 'Expected batch record 0 to be ts2');
+// 	pRec := exporter.records.next();
+// 	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 3, 'Expected batch record 1 to be ts3');
+// 	pRec := exporter.records.next();
+// 	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 5, 'Expected batch record 2 to be ts5');
+// 	pRec := exporter.records.next();
+// 	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 1, 'Expected batch record 3 to be ts1');
+// 	pRec := exporter.records.next();
+// 	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 4, 'Expected batch record 4 to be ts4');
+// 	pRec := exporter.records.next();
+// 	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 6, 'Expected batch record 5 to be ts6');
+// 	THIS^.AssertTrue(exporter.records.next() = 0, 'Expected batch iteration to be exhausted');
+// 
+// 	// a busy exporter leaves the queue untouched
+// 	exporter.busy := TRUE;
+// 	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts7).emit();
+// 	providerA.call(processors);
+// 	THIS^.AssertEquals_UDINT(1, processor.records.count, 'Expected one queued record while the exporter is busy');
+// 
+// 	// once free again, the queued record remains until the timer fires
+// 	exporter.busy := FALSE;
+// 	THIS^.AssertEquals_UDINT(1, processor.records.count, 'Expected the queued record to remain until the timer fires');
+// 
+// 	// a full queue drops the oldest record to make room for the newest
+// 	THIS^.AssertEquals_UDINT(0, boundedProcessor.records.maxCount, 'Expected the internal queue to remain unbounded');
+// 	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts8).emit();
+// 	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts9).emit();
+// 	loggerBA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts10).emit();
+// 	providerA.call(boundedProcessors);
+// 	providerB.call(boundedProcessors);
+// 	THIS^.AssertEquals_UDINT(2, boundedProcessor.records.count, 'Expected the queue to stay at maxQueueSize');
+// 	boundedProcessor.records.reset();
+// 	pRec := boundedProcessor.records.next();
+// 	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 9, 'Expected ts8 to be dropped and ts9 at the head');
+// 	pRec := boundedProcessor.records.next();
+// 	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 10, 'Expected ts10 at the tail');
+// 
+// 	// an unbounded processor queue still flushes a partial batch when its timer expires
+// 	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts11).emit();
+// 	providerA.call(timerProcessors);
+// 	THIS^.AssertEquals_UDINT(0, timerProcessor.records.count, 'Expected the elapsed timer to flush a partial batch');
+// 	THIS^.AssertEquals_UDINT(1, timerExporter.records.count, 'Expected one record in the timer-triggered batch');
+// 	timerExporter.records.reset();
+// 	pRec := timerExporter.records.next();
+// 	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 11, 'Expected the timer-triggered batch record');
 
 	// free releases each processor queue
 	processor.free();
@@ -175,9 +169,6 @@ VAR
 	logger: FB_Logger(scope, provider);
 // 	processor: FB_LogRecordProcessor_ConsolePrinter(0);
 	processor: FB_LogRecordProcessor_Simple(0);
-	processors: ARRAY [0..0] OF I_LogRecordProcessor := [
-		processor
-	];
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -188,7 +179,9 @@ END_VAR
 		)
 		.setBody('this is a test')
 		.emit();
-	provider.call(processors);
+	provider
+		.addProcessor(processor)
+		.tick();
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

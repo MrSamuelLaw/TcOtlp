@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_LogRecordExporter_ForInspection" Id="{d4b9a2e7-6f31-48c5-9b0a-1e8c72d5f4a3}" SpecialFunc="None">
     <Declaration><![CDATA[(*
@@ -14,17 +14,6 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="call" Id="{900e1bfc-7fef-4279-8923-fb8a822cc1c3}">
-      <Declaration><![CDATA[METHOD call : BOOL
-VAR_OUTPUT
-	failureReason: E_LogRecordExporterFailureReason;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[failureReason := E_LogRecordExporterFailureReason.NA;
-call := TRUE;]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="isBusy" Id="{a1f83d64-92b7-4e5a-8c39-7d15b0e6c2f9}">
       <Declaration><![CDATA[METHOD isBusy : BOOL
 ]]></Declaration>
@@ -43,5 +32,16 @@ PROPERTY records : REFERENCE TO FB_LogRecordQueue]]></Declaration>
         </Implementation>
       </Get>
     </Property>
+    <Method Name="tick" Id="{900e1bfc-7fef-4279-8923-fb8a822cc1c3}">
+      <Declaration><![CDATA[METHOD tick : BOOL
+VAR_OUTPUT
+	failureReason: E_LogRecordExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[failureReason := E_LogRecordExporterFailureReason.NA;
+tick := TRUE;]]></ST>
+      </Implementation>
+    </Method>
   </POU>
 </TcPlcObject>

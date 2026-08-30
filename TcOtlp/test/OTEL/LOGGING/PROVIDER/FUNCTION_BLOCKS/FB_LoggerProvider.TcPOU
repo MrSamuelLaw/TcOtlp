@@ -4,59 +4,79 @@
     <Declaration><![CDATA[FUNCTION_BLOCK FB_LoggerProvider
 VAR
 	_resource: REFERENCE TO FB_Resource; // borrowed; the declaring scope owns its lifetime
+	_records: FB_LogRecordQueue(TcOtlp_GVL.MAX_LOG_RECORDS_PER_SCAN);
+	_head: POINTER TO ST_LinkedListNode;
+	_failureReason: E_LoggerProviderFailureReason;
 END_VAR
-VAR
-	_records: FB_LogRecordQueue(TcUnit_GVL.MAX_LOG_RECORDS_PER_SCAN);
+VAR_OUTPUT
+	processorCount: UDINT;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="call" Id="{6ac1f588-839d-47df-a7be-69b648f9145a}">
-      <Declaration><![CDATA[METHOD call : BOOL
-VAR_IN_OUT
-	processors: ARRAY [*] OF I_LogRecordProcessor;
-END_VAR
-VAR_OUTPUT
-	failureReason: E_LoggerProviderFailureReason;
-END_VAR
+    <Method Name="_freeProcessors" Id="{a048b19e-db25-489f-881c-c7f13a9d0e5b}">
+      <Declaration><![CDATA[METHOD _freeProcessors
 VAR
-	_i: UDINT;
-	_j: DINT;
-	_processorsLowerBound: DINT;
-	_processorsUpperBound: DINT;
-	_ownedRecordCount: UDINT;
-	_record: POINTER TO FB_LogRecord;
+	_idx: UDINT;
+	_node: POINTER TO ST_LinkedListNode;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[call := FALSE;
-failureReason := E_LoggerProviderFailureReason.NA;
-
-_ownedRecordCount := THIS^._records.count;
-_processorsLowerBound := LOWER_BOUND(processors, 1);
-_processorsUpperBound := UPPER_BOUND(processors, 1);
-
-FOR _i := 1 TO _ownedRecordCount DO
-	IF NOT THIS^._records.pop(_record) THEN
-		failureReason := E_LoggerProviderFailureReason.QUEUE_POP_FAILURE;
+        <ST><![CDATA[FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
+	IF THIS^._head = 0 THEN
 		EXIT;
 	END_IF
-	// call on emit for each record
-	FOR _j := _processorsLowerBound TO _processorsUpperBound DO
-		IF processors[_j] <> 0 AND_THEN __ISVALIDREF(processors[_j]) THEN
-			processors[_j].onEmit(_record^);
-		END_IF
-	END_FOR
-	_record := _record^.delete();
+	_node := THIS^._head^.nxt;
+	__DELETE(THIS^._head);
+	THIS^._head := _node;
 END_FOR
+THIS^.processorCount := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="addProcessor" Id="{d8725506-cb90-459a-9b97-91a0461551c9}">
+      <Declaration><![CDATA[METHOD addProcessor : REFERENCE TO FB_LoggerProvider
+VAR_INPUT
+	processor: REFERENCE TO FB_LogRecordProcessor_Base;
+END_VAR
+VAR
+	_idx: UDINT;
+	_node: POINTER TO ST_LinkedListNode;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[addProcessor REF= THIS^;
 
-// update each processor
-FOR _j := _processorsLowerBound TO _processorsUpperBound DO
-	IF processors[_j] <> 0 AND_THEN __ISVALIDREF(processors[_j]) THEN
-		processors[_j].call();
+// special case if no processors have been registered
+IF THIS^._head = 0 THEN
+	THIS^._head := __NEW(ST_LinkedListNode);
+	IF THIS^._head = 0 THEN
+		THIS^._failureReason := E_LoggerProviderFailureReason.ADD_PROCESSOR_FAILURE;
+		RETURN;
 	END_IF
-END_FOR
+	THIS^._head^.val := processor.pSelf;
+	THIS^.processorCount := THIS^.processorCount + 1;
+// generic case if at least on processor has been registerd
+ELSE
+	_node := THIS^._head;
+	FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
+		IF _node^.val = processor.pSelf THEN
+			// silently do nothing if processor already added for this tick
+			RETURN;
+		ELSIF _node^.nxt = 0 THEN
+			_node^.nxt := __NEW(ST_LinkedListNode);
+			IF _node^.nxt = 0 THEN
+				THIS^._failureReason := E_LoggerProviderFailureReason.ADD_PROCESSOR_FAILURE;
+				RETURN;
+			END_IF
+			_node^.nxt^.val := processor.pSelf;
+			THIS^.processorCount := THIS^.processorCount + 1;
+			RETURN;
+		END_IF
+		_node := _node^.nxt;
+	END_FOR
+END_IF
 
-call := failureReason = E_LoggerProviderFailureReason.NA;]]></ST>
+
+]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Exit" Id="{a3de6da8-4caa-45e5-82ac-23ff1b828ee2}">
@@ -69,6 +89,7 @@ VAR_INPUT
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF NOT bInCopyCode THEN
+	THIS^._freeProcessors();
 	THIS^._records.free();
 END_IF]]></ST>
       </Implementation>
@@ -121,5 +142,83 @@ onEmit := TRUE;]]></ST>
         </Implementation>
       </Get>
     </Property>
+    <Method Name="tick" Id="{6ac1f588-839d-47df-a7be-69b648f9145a}">
+      <Declaration><![CDATA[METHOD tick : BOOL
+VAR_OUTPUT
+	failureReason: E_LoggerProviderFailureReason;
+END_VAR
+VAR
+	_i: UDINT;
+	_j: UDINT;
+	_ownedRecordCount: UDINT;
+	_node: POINTER TO ST_LinkedListNode;
+	_processor: POINTER TO FB_LogRecordProcessor_Base;
+	_record: POINTER TO FB_LogRecord;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[tick := FALSE;
+failureReason := THIS^._failureReason;
+
+// short circuit if fluent calls to add processors failed
+IF failureReason <> E_LoggerProviderFailureReason.NA THEN
+	RETURN;
+END_IF
+
+// if no processors added skip loop iteration and just free the queue
+IF THIS^._head = 0 THEN
+	THIS^._records.free();
+	tick := TRUE;
+	RETURN;
+END_IF
+
+// loop over each item and call each processor for each record
+_ownedRecordCount := THIS^._records.count;
+FOR _i := 1 TO _ownedRecordCount DO
+	IF NOT THIS^._records.pop(_record) THEN
+		failureReason := E_LoggerProviderFailureReason.QUEUE_POP_FAILURE;
+		JMP _endLabel;
+	END_IF
+	// call on emit for each record
+	_node := THIS^._head;
+	FOR _j := 1 TO THIS^.processorCount DO
+		IF _node = 0 THEN
+			failureReason := E_LoggerProviderFailureReason.UNEXPECTED_NULL_LINKED_LIST_NODE;
+			JMP _endLabel;
+		END_IF
+		_processor := _node^.val;
+		IF _processor = 0 THEN
+			failureReason := E_LoggerProviderFailureReason.UNEXPECTED_NULL_PROCESSOR_POINTER;
+			JMP _endLabel;
+		END_IF
+		_processor^.onEmit(_record^);
+		_node := _node^.nxt;
+	END_FOR
+	_record := _record^.delete();
+END_FOR
+
+// tick each processor
+_node := THIS^._head;
+FOR _j := 1 TO THIS^.processorCount DO
+	_processor := _node^.val;
+	IF _processor = 0 THEN
+		failureReason := E_LoggerProviderFailureReason.UNEXPECTED_NULL_PROCESSOR_POINTER;
+		JMP _endLabel;
+	END_IF
+	_processor^.tick();
+	_node := _node^.nxt;
+	IF _node = 0 THEN
+		failureReason := E_LoggerProviderFailureReason.UNEXPECTED_NULL_LINKED_LIST_NODE;
+		JMP _endLabel;
+	END_IF
+END_FOR
+
+// clean up and return
+_endLabel:
+THIS^._records.free();
+THIS^._freeProcessors();
+IF _record <> 0 THEN _record := _record^.delete(); END_IF
+tick := failureReason = E_LoggerProviderFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
   </POU>
 </TcPlcObject>

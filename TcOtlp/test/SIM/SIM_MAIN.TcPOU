@@ -53,7 +53,7 @@ END_IF
 processors[0] := signozProcessor;
 processors[1] := consoleProcessor;
 processors[2] := batchProcessor;
-provider.call(processors);
+provider.tick(processors);
 
 IF motorSpeedSetpoint <> motorSpeedSetpointLast  THEN
 	motorSpeedSetpointLast := motorSpeedSetpoint;

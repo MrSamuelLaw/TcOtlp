@@ -6,7 +6,7 @@
 	cyclically to advance the exporter and export the oldest queued records when
 	the schedule delay elapses or a full batch is available.
 *)
-FUNCTION_BLOCK FB_LogRecordProcessor_Batch IMPLEMENTS I_LogRecordProcessor;
+FUNCTION_BLOCK FB_LogRecordProcessor_Batch EXTENDS FB_LogRecordProcessor_Base;
 VAR_OUTPUT
 	maxQueueSize: UDINT := 2048;			// zero is unbounded; otherwise the oldest record is dropped when full
 	scheduledDelayMillis: UDINT := 1000;	// maximum delay before queued records are exported
@@ -21,26 +21,8 @@ VAR
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[THIS^.call();]]></ST>
+      <ST><![CDATA[THIS^.tick();]]></ST>
     </Implementation>
-    <Method Name="call" Id="{52431084-38a6-4b97-9c40-41396451732f}">
-      <Declaration><![CDATA[METHOD call
-VAR
-	_exportFailureReason: E_LogRecordExporterFailureReason;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[THIS^._scheduleDelayTimer(
-	IN:=THIS^._records.count > 0,
-	PT:=UDINT_TO_TIME(THIS^.scheduledDelayMillis)
-);
-
-IF __ISVALIDREF(THIS^._exporter) THEN
-	THIS^._exporter.call(failureReason=>_exportFailureReason);
-	THIS^.exportIfNeeded();
-END_IF]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="enrich" Id="{cd91d31c-cfa3-4b93-ac03-7d361155ee3a}">
       <Declaration><![CDATA[// no-op; override to change log mutation/enrichment functionality
 METHOD enrich
@@ -172,6 +154,24 @@ END_IF
 
 THIS^.lastOperationSucceeded := TRUE;
 THIS^.failureResult := E_LogRecordProcessorFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="tick" Id="{52431084-38a6-4b97-9c40-41396451732f}">
+      <Declaration><![CDATA[METHOD tick
+VAR
+	_exportFailureReason: E_LogRecordExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._scheduleDelayTimer(
+	IN:=THIS^._records.count > 0,
+	PT:=UDINT_TO_TIME(THIS^.scheduledDelayMillis)
+);
+
+IF __ISVALIDREF(THIS^._exporter) THEN
+	THIS^._exporter.tick(failureReason=>_exportFailureReason);
+	THIS^.exportIfNeeded();
+END_IF]]></ST>
       </Implementation>
     </Method>
   </POU>

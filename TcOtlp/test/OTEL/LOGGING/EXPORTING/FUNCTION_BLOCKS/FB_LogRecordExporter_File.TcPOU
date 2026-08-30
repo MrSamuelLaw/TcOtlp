@@ -30,16 +30,67 @@ VAR
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[THIS^.call(failureReason=>THIS^._callFailureReason);]]></ST>
+      <ST><![CDATA[THIS^.tick(failureReason=>THIS^._callFailureReason);]]></ST>
     </Implementation>
-    <Method Name="call" Id="{9795f140-a54c-4e98-af65-9a856d7b83ee}">
-      <Declaration><![CDATA[METHOD call : BOOL
+    <Method Name="export" Id="{b40925c8-02a7-4045-bcc3-ff164425210b}">
+      <Declaration><![CDATA[METHOD export: BOOL
+VAR_IN_OUT
+	logRecords: FB_LogRecordQueue;
+END_VAR
+VAR_INPUT
+	count: UDINT;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_LogRecordExporterFailureReason;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Prepare a completed exporter to accept the next batch immediately.
+IF THIS^.currentState = E_FileExporterState.done OR THIS^.currentState = E_FileExporterState.error THEN
+	THIS^.currentState := E_FileExporterState.idle;
+	THIS^._computedState := E_FileExporterState.idle;
+END_IF
+export := SUPER^.export(
+	logRecords:=logRecords,
+	count:=count,
+	failureReason=>failureReason
+);
+IF export THEN
+	THIS^._failureReason := E_LogRecordExporterFailureReason.NA;
+	THIS^._serializationFailureReason := E_ProtoJsonSerializerFailureReason.NA;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{749c920a-b4a3-4d4e-b81c-a6a8ffa6d49c}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	filepath: T_MaxString;  // path to the root file
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._filepath := filepath;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="isBusy" Id="{5ac8aa40-2e76-415b-909c-913a1475f3a9}">
+      <Declaration><![CDATA[METHOD isBusy : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[isBusy := THIS^._exportActive;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="tick" Id="{9795f140-a54c-4e98-af65-9a856d7b83ee}">
+      <Declaration><![CDATA[METHOD tick : BOOL
 VAR_OUTPUT
 	failureReason: E_LogRecordExporterFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[call := TRUE;
+        <ST><![CDATA[tick := TRUE;
 failureReason := E_LogRecordExporterFailureReason.NA;
 
 _execute := THIS^._exportActive;
@@ -167,60 +218,9 @@ _fileCloser(
 );
 
 IF currentState = E_FileExporterState.error THEN
-	call := FALSE;
+	tick := FALSE;
 	failureReason := _failureReason;
 END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="export" Id="{b40925c8-02a7-4045-bcc3-ff164425210b}">
-      <Declaration><![CDATA[METHOD export: BOOL
-VAR_IN_OUT
-	logRecords: FB_LogRecordQueue;
-END_VAR
-VAR_INPUT
-	count: UDINT;
-END_VAR
-VAR_OUTPUT
-	failureReason: E_LogRecordExporterFailureReason;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[// Prepare a completed exporter to accept the next batch immediately.
-IF THIS^.currentState = E_FileExporterState.done OR THIS^.currentState = E_FileExporterState.error THEN
-	THIS^.currentState := E_FileExporterState.idle;
-	THIS^._computedState := E_FileExporterState.idle;
-END_IF
-export := SUPER^.export(
-	logRecords:=logRecords,
-	count:=count,
-	failureReason=>failureReason
-);
-IF export THEN
-	THIS^._failureReason := E_LogRecordExporterFailureReason.NA;
-	THIS^._serializationFailureReason := E_ProtoJsonSerializerFailureReason.NA;
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="FB_Init" Id="{749c920a-b4a3-4d4e-b81c-a6a8ffa6d49c}">
-      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
-//The return value is not evaluated. For a specific influence, you can also declare the
-//methods explicitly and provide additional code there with the standard initialization
-//code. You can evaluate the return value.
-METHOD FB_Init: BOOL
-VAR_INPUT
-    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
-    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
-	filepath: T_MaxString;  // path to the root file
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[THIS^._filepath := filepath;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="isBusy" Id="{5ac8aa40-2e76-415b-909c-913a1475f3a9}">
-      <Declaration><![CDATA[METHOD isBusy : BOOL
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[isBusy := THIS^._exportActive;]]></ST>
       </Implementation>
     </Method>
   </POU>

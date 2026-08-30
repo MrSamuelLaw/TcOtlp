@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_LogRecordProcessor_Mixin" Id="{3481a824-781e-4aa9-819e-1deb6d8b1261}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordProcessor_Mixin
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Property Name="pSelf" Id="{7e6151dd-6198-4fe1-9516-a1dfd6d8bdbe}">
+      <Declaration><![CDATA[PROPERTY pSelf : PVOID]]></Declaration>
+      <Get Name="Get" Id="{7f117015-c51a-4865-8ea3-368656695039}">
+        <Declaration><![CDATA[
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[pSelf := THIS;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+  </POU>
+</TcPlcObject>

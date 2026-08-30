@@ -197,7 +197,7 @@ END_IF
 
 // set the value if it already exists
 _node := THIS^._head;
-FOR _idx := 0 TO TcUnit_GVL.MAX_LOOP_COUNT DO
+FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
 	IF _node = 0 THEN
 		EXIT;
 	END_IF

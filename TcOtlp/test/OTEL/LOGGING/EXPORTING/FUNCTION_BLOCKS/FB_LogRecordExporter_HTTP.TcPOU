@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_LogRecordExporter_HTTP" Id="{94541c0f-c88a-4178-bb34-d3823fe70965}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_LogRecordExporter_HTTP EXTENDS FB_LogRecordExporter_Base
@@ -29,7 +29,7 @@ VAR
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[THIS^.call(failureReason=>THIS^._callFailureReason);]]></ST>
+      <ST><![CDATA[THIS^.tick(failureReason=>THIS^._callFailureReason);]]></ST>
     </Implementation>
     <Method Name="_parseUrl" Id="{a934a701-5d23-4b65-8267-d06ee977f33c}">
       <Declaration><![CDATA[// Splits a full endpoint URL into scheme (http/https), host, port and path.
@@ -90,14 +90,80 @@ THIS^._urlParsed := TRUE;
 _parseUrl := TRUE;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="call" Id="{9b2355dd-f7b1-4921-8536-533aebcd5760}">
-      <Declaration><![CDATA[METHOD call : BOOL
+    <Method Name="export" Id="{c1e9c3db-bbd6-4dba-b7b4-d5219023c6d6}">
+      <Declaration><![CDATA[METHOD export: BOOL
+VAR_IN_OUT
+	logRecords: FB_LogRecordQueue;
+END_VAR
+VAR_INPUT
+	count: UDINT;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_LogRecordExporterFailureReason;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// Prepare a completed exporter to accept the next batch immediately.
+IF THIS^.currentState = E_HttpExporterState.done OR THIS^.currentState = E_HttpExporterState.error THEN
+	THIS^.currentState := E_HttpExporterState.idle;
+	THIS^._computedState := E_HttpExporterState.idle;
+END_IF
+export := SUPER^.export(
+	logRecords:=logRecords,
+	count:=count,
+	failureReason=>failureReason
+);
+IF export THEN
+	THIS^._failureReason := E_LogRecordExporterFailureReason.NA;
+	THIS^._serializationFailureReason := E_ProtoJsonSerializerFailureReason.NA;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{62b2e312-9bed-4019-8a5b-4e0d487d8a0a}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+	bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+	bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	url: T_MaxString;  // full endpoint URL, e.g. 'http://192.168.1.10:4318/v1/logs'
+	bNoServerCertCheck: BOOL := FALSE;  // allow HTTPS connections to servers with self-signed certificates
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.currentState := E_HttpExporterState.idle;
+THIS^._computedState := E_HttpExporterState.idle;
+
+THIS^._url := url;
+THIS^._urlParsed := THIS^._parseUrl();
+
+THIS^._client.sHostName := THIS^._host;
+THIS^._client.nHostPort := THIS^._port;
+THIS^._client.bKeepAlive := TRUE;
+THIS^._client.tConnectionTimeout := T#10S;
+IF THIS^._useTls THEN
+	THIS^._client.stTLS.bNoServerCertCheck := bNoServerCertCheck;
+END_IF
+
+THIS^._request.sContentType := 'application/json';]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="isBusy" Id="{40cc32d7-f759-46ec-80dd-15e4415f71f5}">
+      <Declaration><![CDATA[METHOD isBusy : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[isBusy := THIS^._exportActive;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="tick" Id="{9b2355dd-f7b1-4921-8536-533aebcd5760}">
+      <Declaration><![CDATA[METHOD tick : BOOL
 VAR_OUTPUT
 	failureReason: E_LogRecordExporterFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[call := TRUE;
+        <ST><![CDATA[tick := TRUE;
 failureReason := E_LogRecordExporterFailureReason.NA;
 
 _execute := THIS^._exportActive;
@@ -207,75 +273,9 @@ END_IF
 THIS^._client.Execute();
 
 IF currentState = E_HttpExporterState.error THEN
-	call := FALSE;
+	tick := FALSE;
 	failureReason := _failureReason;
 END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="export" Id="{c1e9c3db-bbd6-4dba-b7b4-d5219023c6d6}">
-      <Declaration><![CDATA[METHOD export: BOOL
-VAR_IN_OUT
-	logRecords: FB_LogRecordQueue;
-END_VAR
-VAR_INPUT
-	count: UDINT;
-END_VAR
-VAR_OUTPUT
-	failureReason: E_LogRecordExporterFailureReason;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[// Prepare a completed exporter to accept the next batch immediately.
-IF THIS^.currentState = E_HttpExporterState.done OR THIS^.currentState = E_HttpExporterState.error THEN
-	THIS^.currentState := E_HttpExporterState.idle;
-	THIS^._computedState := E_HttpExporterState.idle;
-END_IF
-export := SUPER^.export(
-	logRecords:=logRecords,
-	count:=count,
-	failureReason=>failureReason
-);
-IF export THEN
-	THIS^._failureReason := E_LogRecordExporterFailureReason.NA;
-	THIS^._serializationFailureReason := E_ProtoJsonSerializerFailureReason.NA;
-END_IF]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="FB_Init" Id="{62b2e312-9bed-4019-8a5b-4e0d487d8a0a}">
-      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
-//The return value is not evaluated. For a specific influence, you can also declare the
-//methods explicitly and provide additional code there with the standard initialization
-//code. You can evaluate the return value.
-METHOD FB_Init: BOOL
-VAR_INPUT
-	bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
-	bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
-	url: T_MaxString;  // full endpoint URL, e.g. 'http://192.168.1.10:4318/v1/logs'
-	bNoServerCertCheck: BOOL := FALSE;  // allow HTTPS connections to servers with self-signed certificates
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[THIS^.currentState := E_HttpExporterState.idle;
-THIS^._computedState := E_HttpExporterState.idle;
-
-THIS^._url := url;
-THIS^._urlParsed := THIS^._parseUrl();
-
-THIS^._client.sHostName := THIS^._host;
-THIS^._client.nHostPort := THIS^._port;
-THIS^._client.bKeepAlive := TRUE;
-THIS^._client.tConnectionTimeout := T#10S;
-IF THIS^._useTls THEN
-	THIS^._client.stTLS.bNoServerCertCheck := bNoServerCertCheck;
-END_IF
-
-THIS^._request.sContentType := 'application/json';]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="isBusy" Id="{40cc32d7-f759-46ec-80dd-15e4415f71f5}">
-      <Declaration><![CDATA[METHOD isBusy : BOOL
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[isBusy := THIS^._exportActive;]]></ST>
       </Implementation>
     </Method>
   </POU>

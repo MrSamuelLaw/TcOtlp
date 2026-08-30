@@ -61,7 +61,7 @@ END_VAR]]></Declaration>
 			RETURN;
 
 		10: // wait for the request to fail; loopback refusal should be quick
-			callSucceeded := _exporterRefused.call(failureReason=>failureReason);
+			callSucceeded := _exporterRefused.tick(failureReason=>failureReason);
 			_cycles := _cycles + 1;
 			IF NOT callSucceeded THEN
 				THIS^.AssertTrue(
@@ -147,7 +147,7 @@ END_VAR
 		'Expected the exporter to accept the batch before validating the URL'
 	);
 
-	callSucceeded := _exporterBadUrl.call(failureReason=>failureReason);
+	callSucceeded := _exporterBadUrl.tick(failureReason=>failureReason);
 	THIS^.AssertFalse(callSucceeded, 'Expected call to report failure for an unparseable endpoint URL');
 	THIS^.AssertTrue(
 		failureReason = E_LogRecordExporterFailureReason.HTTP_URL_PARSE_FAILURE,
