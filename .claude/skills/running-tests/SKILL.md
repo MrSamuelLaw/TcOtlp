@@ -24,14 +24,23 @@ powershell -ExecutionPolicy Bypass -File tools/run-tests.ps1
 
 | Parameter | Default | Description |
 |---|---|---|
-| `-BuildTimeoutSeconds` | 120 | Max seconds to wait for the solution rebuild |
+| `-BuildTimeoutSeconds` | 120 | Max seconds to wait for the build |
 | `-TestTimeoutSeconds` | 120 | Max seconds to wait for TcUnit results |
-| `-TestPollIntervalSeconds` | 10 | Seconds between output-pane polls |
+| `-PollIntervalMs` | 250 | Milliseconds between DTE polls |
+| `-SettleMs` | 1000 | Quiet period required after the TcUnit summary appears |
+| `-TailLines` | 400 | Lines read from the end of the output pane per poll |
+| `-IncrementalBuild` | off | Use `Build.BuildSolution` instead of a full rebuild |
 
 Example with custom timeouts:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File run-tests.ps1 -BuildTimeoutSeconds 180 -TestTimeoutSeconds 180
+powershell -ExecutionPolicy Bypass -File tools/run-tests.ps1 -BuildTimeoutSeconds 180 -TestTimeoutSeconds 180
+```
+
+Faster iteration when only a few POUs changed:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/run-tests.ps1 -IncrementalBuild
 ```
 
 ## What the Script Does

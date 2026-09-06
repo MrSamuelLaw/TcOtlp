@@ -2,13 +2,28 @@
 .SYNOPSIS
     Automates TcUnit test execution for the TcOtlp project via DTE COM.
 .DESCRIPTION
-    Step 1: Creates a DTE COM instance and opens the solution.
-    Step 2: Rebuilds the solution and checks for build errors.
+    Attaches to a running VS 2022 instance, reloads the solution from disk,
+    builds, activates TwinCAT, and polls the TwinCAT output pane for TcUnit
+    results.
+
+    Every wait is condition-based rather than a fixed sleep: each phase polls a
+    cheap DTE property on a short interval and continues the moment the
+    condition is met, bounded by a stopwatch-measured timeout.
 #>
 param(
     [int]$BuildTimeoutSeconds = 120,
     [int]$TestTimeoutSeconds  = 120,
-    [int]$TestPollIntervalSeconds = 10
+    # How often to poll DTE while waiting. The polled calls are cheap, so this
+    # can be short without loading the IDE.
+    [int]$PollIntervalMs      = 250,
+    # Once the TcUnit sentinels appear, wait for the pane to stop growing for
+    # this long before reading final results.
+    [int]$SettleMs            = 1000,
+    # Lines read from the end of the output pane while polling. The TcUnit
+    # summary block is the last thing printed, so the tail always contains it.
+    [int]$TailLines           = 400,
+    # Use an incremental build instead of a full rebuild.
+    [switch]$IncrementalBuild
 )
 
 $ErrorActionPreference = "Stop"
@@ -37,10 +52,65 @@ foreach ($dll in @("envdte.dll", "envdte80.dll", "Microsoft.VisualStudio.Interop
     }
 }
 
-# C# helper for Output Window COM interop (PowerShell can't marshal these interfaces)
+# C# helper for Output Window COM interop (PowerShell can't marshal these interfaces).
+#
+# Pane reads use EditPoint.GetText rather than TextSelection.SelectAll for two
+# reasons: SelectAll transfers the whole pane across the COM boundary on every
+# poll, so its cost grows with output size, and it clobbers whatever the user had
+# selected in the output window. GetLineCount is the cheap change-detector the
+# poll loop uses so pane text is only transferred when something was printed.
 Add-Type -TypeDefinition @"
 using EnvDTE;
 using EnvDTE80;
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+
+// VS rejects incoming COM calls while it is busy (RPC_E_CALL_REJECTED /
+// RPC_E_SERVERCALL_RETRYLATER). Without a message filter registered, those
+// rejections surface as exceptions to us and can raise a modal "component busy"
+// dialog in the IDE. With one, the COM layer retries transparently.
+// CoRegisterMessageFilter requires an STA thread; powershell.exe is STA by
+// default, and Register() reports failure rather than throwing if it is not.
+[ComImport, Guid("00000016-0000-0000-C000-000000000046"),
+ InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+internal interface IOleMessageFilter {
+    [PreserveSig] int HandleInComingCall(int dwCallType, IntPtr hTaskCaller, int dwTickCount, IntPtr lpInterfaceInfo);
+    [PreserveSig] int RetryRejectedCall(IntPtr hTaskCallee, int dwTickCount, int dwRejectType);
+    [PreserveSig] int MessagePending(IntPtr hTaskCallee, int dwTickCount, int dwPendingType);
+}
+public class MessageFilter : IOleMessageFilter {
+    // Give up on a rejected call after this long so a genuinely stuck IDE
+    // surfaces an error instead of blocking forever.
+    private const int RetryTimeoutMs = 30000;
+    private const int RetryDelayMs = 200;
+
+    [DllImport("Ole32.dll")]
+    private static extern int CoRegisterMessageFilter(IOleMessageFilter newFilter, out IOleMessageFilter oldFilter);
+
+    public static bool Register() {
+        IOleMessageFilter old = null;
+        return CoRegisterMessageFilter(new MessageFilter(), out old) == 0;
+    }
+    public static void Revoke() {
+        IOleMessageFilter old = null;
+        try { CoRegisterMessageFilter(null, out old); } catch { }
+    }
+    int IOleMessageFilter.HandleInComingCall(int dwCallType, IntPtr hTaskCaller, int dwTickCount, IntPtr lpInterfaceInfo) {
+        return 0;   // SERVERCALL_ISHANDLED
+    }
+    int IOleMessageFilter.RetryRejectedCall(IntPtr hTaskCallee, int dwTickCount, int dwRejectType) {
+        // 0 = SERVERCALL_REJECTED, 2 = SERVERCALL_RETRYLATER. VS reports both
+        // while busy, so retry either until the budget runs out; -1 cancels.
+        if ((dwRejectType == 0 || dwRejectType == 2) && dwTickCount < RetryTimeoutMs) {
+            return RetryDelayMs;
+        }
+        return -1;
+    }
+    int IOleMessageFilter.MessagePending(IntPtr hTaskCallee, int dwTickCount, int dwPendingType) {
+        return 2;   // PENDINGMSG_WAITDEFPROCESS
+    }
+}
 public static class ErrorListHelper {
     public static string GetErrors(object dte) {
         DTE2 d = (DTE2)dte;
@@ -49,7 +119,7 @@ public static class ErrorListHelper {
         errorList.ShowWarnings = true;
         errorList.ShowMessages = false;
         var items = errorList.ErrorItems;
-        var sb = new System.Text.StringBuilder();
+        var sb = new StringBuilder();
         for (int i = 1; i <= items.Count; i++) {
             var item = items.Item(i);
             string severity = item.ErrorLevel == vsBuildErrorLevel.vsBuildErrorLevelHigh ? "Error"
@@ -62,47 +132,126 @@ public static class ErrorListHelper {
     }
 }
 public static class OutputWindowHelper {
-    public static void ActivatePane(object dte, string paneName) {
+    private static OutputWindowPane FindPane(object dte, string paneName) {
         DTE d = (DTE)dte;
         Window win = d.Windows.Item(Constants.vsWindowKindOutput);
         OutputWindow ow = (OutputWindow)win.Object;
         foreach (OutputWindowPane pane in ow.OutputWindowPanes) {
-            if (pane.Name == paneName) {
-                pane.Activate();
-                return;
-            }
+            if (pane.Name == paneName) { return pane; }
         }
+        return null;
+    }
+    public static void ActivatePane(object dte, string paneName) {
+        OutputWindowPane pane = FindPane(dte, paneName);
+        if (pane != null) { pane.Activate(); }
     }
     public static void ClearPane(object dte, string paneName) {
-        DTE d = (DTE)dte;
-        Window win = d.Windows.Item(Constants.vsWindowKindOutput);
-        OutputWindow ow = (OutputWindow)win.Object;
-        foreach (OutputWindowPane pane in ow.OutputWindowPanes) {
-            if (pane.Name == paneName) {
-                pane.Clear();
-                return;
-            }
-        }
+        OutputWindowPane pane = FindPane(dte, paneName);
+        if (pane != null) { pane.Clear(); }
+    }
+    // Cheap: a few COM calls, no text transfer. -1 means the pane does not exist yet.
+    public static int GetLineCount(object dte, string paneName) {
+        OutputWindowPane pane = FindPane(dte, paneName);
+        if (pane == null) { return -1; }
+        return pane.TextDocument.EndPoint.Line;
+    }
+    public static string ReadTail(object dte, string paneName, int tailLines) {
+        OutputWindowPane pane = FindPane(dte, paneName);
+        if (pane == null) { return ""; }
+        TextDocument doc = pane.TextDocument;
+        int start = doc.EndPoint.Line - tailLines;
+        if (start < 1) { start = 1; }
+        EditPoint ep = doc.StartPoint.CreateEditPoint();
+        ep.MoveToLineAndOffset(start, 1);
+        return ep.GetText(doc.EndPoint);
     }
     public static string ReadPane(object dte, string paneName) {
-        DTE d = (DTE)dte;
-        Window win = d.Windows.Item(Constants.vsWindowKindOutput);
-        OutputWindow ow = (OutputWindow)win.Object;
-        foreach (OutputWindowPane pane in ow.OutputWindowPanes) {
-            if (pane.Name == paneName) {
-                TextDocument doc = pane.TextDocument;
-                TextSelection sel = (TextSelection)doc.Selection;
-                sel.SelectAll();
-                return sel.Text;
-            }
-        }
-        return "";
+        OutputWindowPane pane = FindPane(dte, paneName);
+        if (pane == null) { return ""; }
+        TextDocument doc = pane.TextDocument;
+        EditPoint ep = doc.StartPoint.CreateEditPoint();
+        return ep.GetText(doc.EndPoint);
     }
 }
 "@ -ReferencedAssemblies @(
     $interopDll
 )
 Write-Host "  Loaded OutputWindowHelper" -ForegroundColor Green
+
+if ([MessageFilter]::Register()) {
+    Write-Host "  Registered COM message filter." -ForegroundColor Green
+} else {
+    Write-Host "  Could not register COM message filter; relying on call retries." -ForegroundColor Yellow
+}
+
+# -- Helpers ------------------------------------------------------------------
+
+# True when the failure is VS rejecting the call because it is busy, rather than
+# a real error. PowerShell wraps a COMException thrown from a static .NET method
+# in a MethodInvocationException, so match on the inner exception chain and not
+# on the type of the outer error.
+function Test-DteBusyError {
+    param([Parameter(Mandatory)]$ErrorRecord)
+    $ex = $ErrorRecord.Exception
+    while ($ex) {
+        if ($ex -is [System.Runtime.InteropServices.COMException]) {
+            $hr = $ex.HResult -band 0xFFFFFFFF
+            # RPC_E_CALL_REJECTED / RPC_E_SERVERCALL_RETRYLATER
+            if ($hr -eq 0x80010001 -or $hr -eq 0x8001010A) { return $true }
+        }
+        $ex = $ex.InnerException
+    }
+    return $false
+}
+
+# The message filter handles most rejections at the COM layer; this is the
+# backstop for the ones it cancels after its own retry budget.
+function Invoke-Dte {
+    param(
+        [Parameter(Mandatory)][scriptblock]$Action,
+        [int]$TimeoutSeconds = 20,
+        [int]$RetryMs = 200
+    )
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    while ($true) {
+        try {
+            return & $Action
+        }
+        catch {
+            if (-not (Test-DteBusyError $_)) { throw }
+            if ($sw.Elapsed.TotalSeconds -ge $TimeoutSeconds) { throw }
+            Start-Sleep -Milliseconds $RetryMs
+        }
+    }
+}
+
+# Poll $Condition until it returns true or the timeout expires.
+# Returns $true on success, $false on timeout.
+function Wait-For {
+    param(
+        [Parameter(Mandatory)][scriptblock]$Condition,
+        [Parameter(Mandatory)][int]$TimeoutSeconds,
+        [int]$IntervalMs = 250,
+        [string]$Label = "condition",
+        # Emit a progress line at most this often so a fast poll interval does
+        # not flood the console.
+        [int]$ReportEveryMs = 5000
+    )
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    $lastReport = 0
+    while ($sw.Elapsed.TotalSeconds -lt $TimeoutSeconds) {
+        if (& $Condition) {
+            Write-Host ("  {0}: ready after {1:N1}s" -f $Label, $sw.Elapsed.TotalSeconds) -ForegroundColor DarkGray
+            return $true
+        }
+        if ($sw.ElapsedMilliseconds - $lastReport -ge $ReportEveryMs) {
+            $lastReport = $sw.ElapsedMilliseconds
+            Write-Host ("  waiting for {0}... ({1:N0}s / {2}s)" -f $Label, $sw.Elapsed.TotalSeconds, $TimeoutSeconds)
+        }
+        Start-Sleep -Milliseconds $IntervalMs
+    }
+    return $false
+}
 
 # -- Step 1: Attach to running VS 2022 instance and open solution -------------
 
@@ -119,56 +268,77 @@ catch {
     exit 1
 }
 
-Start-Sleep -Seconds 2
-$dte.SuppressUI = $false
-$dte.MainWindow.Visible = $true
+# Suppress modal dialogs (reload prompts, save prompts, "component busy") for the
+# duration of the run, then hand the IDE back to the user as we found it.
+$originalSuppressUI = $null
+$originalAutoload   = $null
+try { $originalSuppressUI = $dte.SuppressUI; $dte.SuppressUI = $true } catch {}
+try {
+    Invoke-Dte {
+        $docProps = $dte.Properties("Environment", "Documents")
+        $script:originalAutoload = $docProps.Item("AutoloadExternalChanges").Value
+        $docProps.Item("AutoloadExternalChanges").Value = $true
+    }
+}
+catch {
+    Write-Host "  Could not set AutoloadExternalChanges (non-fatal): $_" -ForegroundColor Yellow
+}
+
+function Restore-VsSettings {
+    try { [MessageFilter]::Revoke() } catch {}
+    if ($null -ne $originalSuppressUI) {
+        try { $dte.SuppressUI = $originalSuppressUI } catch {}
+    }
+    if ($null -ne $originalAutoload) {
+        try { $dte.Properties("Environment", "Documents").Item("AutoloadExternalChanges").Value = $originalAutoload } catch {}
+    }
+}
+
+function Stop-Script {
+    param([int]$Code)
+    Restore-VsSettings
+    exit $Code
+}
+
+# Close open editor windows before touching the solution. A file that is not open
+# in an editor cannot raise a "modified outside the environment" prompt, and this
+# also makes Solution.Close faster.
+try {
+    Invoke-Dte { $dte.Documents.CloseAll([EnvDTE.vsSaveChanges]::vsSaveChangesNo) }
+    Write-Host "  Closed open documents." -ForegroundColor Green
+}
+catch {
+    Write-Host "  Could not close open documents (non-fatal): $_" -ForegroundColor Yellow
+}
 
 # Close and re-open the solution so VS picks up any files changed on disk.
 # Without this, VS may use stale cached versions of .TcPOU files and ignore
-# edits made outside the IDE (e.g. by code-gen scripts or Amp).
-$currentSln = $dte.Solution.FullName
+# edits made outside the IDE (e.g. by code-gen scripts or an agent).
+$currentSln = Invoke-Dte { $dte.Solution.FullName }
 if ($currentSln -and (Test-Path $currentSln)) {
     Write-Host "Closing solution to force file refresh..."
-    $dte.Solution.Close($false)   # $false = don't save pending changes
-    Start-Sleep -Seconds 2
+    Invoke-Dte { $dte.Solution.Close($false) }   # $false = don't save pending changes
+    $closed = Wait-For -Condition { -not (Invoke-Dte { $dte.Solution.IsOpen }) } `
+                       -TimeoutSeconds 60 -IntervalMs $PollIntervalMs -Label "solution close"
+    if (-not $closed) {
+        Write-Host "Solution did not close within 60s." -ForegroundColor Red
+        Stop-Script 1
+    }
 }
 
 Write-Host "Opening solution: $solutionPath"
-$dte.Solution.Open($solutionPath)
-Start-Sleep -Seconds 3
+Invoke-Dte { $dte.Solution.Open($solutionPath) }
+$opened = Wait-For -Condition { Invoke-Dte { $dte.Solution.IsOpen -and $dte.Solution.Projects.Count -gt 0 } } `
+                   -TimeoutSeconds 120 -IntervalMs $PollIntervalMs -Label "solution open"
+if (-not $opened) {
+    Write-Host "Solution did not finish opening within 120s." -ForegroundColor Red
+    Stop-Script 1
+}
 Write-Host "Solution opened." -ForegroundColor Green
-
-# Activate Error List window and configure filters to show ALL items.
-# This is critical: without setting these flags, ErrorItems.Count returns 0
-# because the DTE respects whatever filter state the UI last saved.
-# try {
-#     $dte.ExecuteCommand("View.ErrorList")
-#     Write-Host "Error List window activated."
-# }
-# catch {
-#     Write-Host "Could not activate Error List (non-fatal): $_" -ForegroundColor Yellow
-# }
-
-# try {
-#     $errorList = $dte.ToolWindows.ErrorList
-#     $errorList.ShowErrors = $true
-#     $errorList.ShowWarnings = $true
-#     $errorList.ShowMessages = $true
-#     Write-Host "Error List filters configured (Errors + Warnings + Messages)." -ForegroundColor Green
-# }
-# catch {
-#     Write-Host "Could not configure Error List filters (non-fatal): $_" -ForegroundColor Yellow
-#     Write-Host "  Trying via ExecuteCommand fallback..."
-#     # Fallback: use VS commands to toggle all three filter buttons on
-#     try { $dte.ExecuteCommand("View.ErrorList", " Errors") } catch {}
-#     try { $dte.ExecuteCommand("View.ErrorList", " Warnings") } catch {}
-#     try { $dte.ExecuteCommand("View.ErrorList", " Messages") } catch {}
-#     Write-Host "  Ensure Error List shows Messages manually if needed."
-# }
 
 # -- Switch Output window to TwinCAT pane --------------------------------------
 try {
-    $dte.ExecuteCommand("View.Output")
+    Invoke-Dte { $dte.ExecuteCommand("View.Output") }
     [OutputWindowHelper]::ActivatePane($dte, "TwinCAT")
     Write-Host "Output window switched to TwinCAT pane." -ForegroundColor Green
 }
@@ -176,7 +346,8 @@ catch {
     Write-Host "Could not switch Output window to TwinCAT pane: $_" -ForegroundColor Yellow
 }
 
-# Clear the TwinCAT output pane before building
+# Clear the TwinCAT output pane before building. This also resets the line count
+# the poll loop uses to detect new output.
 try {
     [OutputWindowHelper]::ClearPane($dte, "TwinCAT")
     Write-Host "TwinCAT output pane cleared." -ForegroundColor Green
@@ -185,42 +356,32 @@ catch {
     Write-Host "Could not clear TwinCAT output pane: $_" -ForegroundColor Yellow
 }
 
-# -- Step 2: Rebuild solution -------------------------------------------------
+# -- Step 2: Build solution ---------------------------------------------------
 
-Write-Host "Starting rebuild..."
-$buildRetries = 5
-for ($r = 1; $r -le $buildRetries; $r++) {
-    try {
-        $dte.ExecuteCommand("Build.RebuildSolution")
-        break
-    }
-    catch [System.Runtime.InteropServices.COMException] {
-        if ($r -eq $buildRetries) { throw }
-        Write-Host "  DTE busy (attempt $r/$buildRetries), retrying in 3s..." -ForegroundColor Yellow
-        Start-Sleep -Seconds 3
-    }
+$buildCommand = if ($IncrementalBuild) { "Build.BuildSolution" } else { "Build.RebuildSolution" }
+Write-Host "Starting build ($buildCommand)..."
+Invoke-Dte -TimeoutSeconds 30 -Action { $dte.ExecuteCommand($buildCommand) }
+
+# ExecuteCommand returns before the build starts, so wait for InProgress first --
+# otherwise the stale Done left by the previous build reads as instant success.
+# This exits as soon as the build starts (~2s typically), so the timeout is only
+# reached if the build was so fast we missed the InProgress window entirely,
+# which is not an error worth failing on.
+Wait-For -Condition {
+    (Invoke-Dte { $dte.Solution.SolutionBuild.BuildState }) -eq [EnvDTE.vsBuildState]::vsBuildStateInProgress
+} -TimeoutSeconds 15 -IntervalMs $PollIntervalMs -Label "build start" -ReportEveryMs 60000 | Out-Null
+
+$buildSw = [System.Diagnostics.Stopwatch]::StartNew()
+$built = Wait-For -Condition {
+    (Invoke-Dte { $dte.Solution.SolutionBuild.BuildState }) -eq [EnvDTE.vsBuildState]::vsBuildStateDone
+} -TimeoutSeconds $BuildTimeoutSeconds -IntervalMs $PollIntervalMs -Label "build"
+if (-not $built) {
+    Write-Host "Build timed out after $BuildTimeoutSeconds seconds." -ForegroundColor Red
+    Stop-Script 1
 }
 
-Start-Sleep -Seconds 2
-$elapsed = 2
-$state = $dte.Solution.SolutionBuild.BuildState
-Write-Host "  Initial BuildState: $state"
-
-# vsBuildState: 1=NotStarted, 2=InProgress, 3=Done
-while ($state -ne 3) {
-    if ($elapsed -ge $BuildTimeoutSeconds) {
-        Write-Host "Build timed out after $BuildTimeoutSeconds seconds." -ForegroundColor Red
-        $dte.Quit()
-        exit 1
-    }
-    Start-Sleep -Seconds 2
-    $elapsed += 2
-    $state = $dte.Solution.SolutionBuild.BuildState
-    Write-Host "  Waiting for build... ($elapsed`s / $BuildTimeoutSeconds`s) BuildState=$state"
-}
-
-$buildErrors = $dte.Solution.SolutionBuild.LastBuildInfo
-Write-Host "Build finished. Error count: $buildErrors"
+$buildErrors = Invoke-Dte { $dte.Solution.SolutionBuild.LastBuildInfo }
+Write-Host ("Build finished in {0:N1}s. Error count: {1}" -f $buildSw.Elapsed.TotalSeconds, $buildErrors)
 
 if ($buildErrors -gt 0) {
     Write-Host "`nBuild failed with $buildErrors error(s):" -ForegroundColor Red
@@ -235,7 +396,7 @@ if ($buildErrors -gt 0) {
     catch {
         Write-Host "  Could not read Error List: $_" -ForegroundColor Yellow
     }
-    exit 1
+    Stop-Script 1
 }
 
 Write-Host "Build succeeded." -ForegroundColor Green
@@ -244,8 +405,9 @@ Write-Host "Build succeeded." -ForegroundColor Green
 
 Write-Host "`nStarting TwinCAT..."
 $systemManager = $null
-for ($i = 1; $i -le $dte.Solution.Projects.Count; $i++) {
-    $proj = $dte.Solution.Projects.Item($i)
+$projectCount = Invoke-Dte { $dte.Solution.Projects.Count }
+for ($i = 1; $i -le $projectCount; $i++) {
+    $proj = Invoke-Dte { $dte.Solution.Projects.Item($i) }
     Write-Host "  Project $i`: $($proj.Name) Kind=$($proj.Kind)"
     if ($proj.Object -and ($proj.Object | Get-Member -Name "StartRestartTwinCAT" -ErrorAction SilentlyContinue)) {
         $systemManager = $proj.Object
@@ -256,39 +418,36 @@ for ($i = 1; $i -le $dte.Solution.Projects.Count; $i++) {
 
 if (-not $systemManager) {
     Write-Host "  Could not find TwinCAT system manager in any project." -ForegroundColor Red
-    exit 1
+    Stop-Script 1
 }
 
 try {
     Write-Host "  Activating rebuilt TwinCAT configuration..."
-    $systemManager.ActivateConfiguration()
+    Invoke-Dte -TimeoutSeconds 60 -Action { $systemManager.ActivateConfiguration() }
     Write-Host "  TwinCAT configuration activated." -ForegroundColor Green
 }
 catch {
     Write-Host "  Failed to activate the rebuilt TwinCAT configuration: $_" -ForegroundColor Red
-    exit 1
+    Stop-Script 1
 }
 
-$tcStartRetries = 5
-for ($r = 1; $r -le $tcStartRetries; $r++) {
-    try {
-        $systemManager.StartRestartTwinCAT()
-        Write-Host "  TwinCAT started." -ForegroundColor Green
-        break
-    }
-    catch {
-        if ($r -eq $tcStartRetries) {
-            Write-Host "  Failed to start TwinCAT after $tcStartRetries attempts: $_" -ForegroundColor Red
-            exit 1
-        }
-        Write-Host "  StartRestartTwinCAT busy (attempt $r/$tcStartRetries), retrying in 3s..." -ForegroundColor Yellow
-        Start-Sleep -Seconds 3
-    }
+# Record the pane size after activation so the poll loop below only reacts to
+# output produced by the run that follows.
+$baselineLines = 0
+try { $baselineLines = Invoke-Dte { [OutputWindowHelper]::GetLineCount($dte, "TwinCAT") } } catch { }
+
+try {
+    Invoke-Dte -TimeoutSeconds 60 -Action { $systemManager.StartRestartTwinCAT() }
+    Write-Host "  TwinCAT started." -ForegroundColor Green
+}
+catch {
+    Write-Host "  Failed to start TwinCAT: $_" -ForegroundColor Red
+    Stop-Script 1
 }
 
 # -- Step 4: Wait for TcUnit results in Output window -------------------------
 
-Write-Host "`nWaiting for TcUnit results (timeout ${TestTimeoutSeconds}s, poll every ${TestPollIntervalSeconds}s)..."
+Write-Host "`nWaiting for TcUnit results (timeout ${TestTimeoutSeconds}s, poll every ${PollIntervalMs}ms)..."
 
 $sentinels = @(
     "| Test suites:",
@@ -298,46 +457,87 @@ $sentinels = @(
     "| Duration:"
 )
 
-$elapsed = 0
-$allFound = $false
+$testSw      = [System.Diagnostics.Stopwatch]::StartNew()
+$lastLines   = $baselineLines
+$lastReport  = 0
+$allFound    = $false
+$foundCount  = 0
+$settleSw    = $null
+$lastTail    = $null
+$probeFailed = $false
 
-while (-not $allFound) {
-    if ($elapsed -ge $TestTimeoutSeconds) {
-        Write-Host "TcUnit results timed out after $TestTimeoutSeconds seconds." -ForegroundColor Red
-        exit 1
-    }
+while ($testSw.Elapsed.TotalSeconds -lt $TestTimeoutSeconds) {
+    Start-Sleep -Milliseconds $PollIntervalMs
 
-    Start-Sleep -Seconds $TestPollIntervalSeconds
-    $elapsed += $TestPollIntervalSeconds
-
-    # Read text from the TwinCAT output pane
-    $outputText = ""
+    # Cheap change detection so the pane text is only transferred when something
+    # was actually printed. -1 means the probe itself failed (pane missing, or
+    # VS still rejecting calls) -- that must NOT be read as "no new output", or
+    # the loop waits out the full timeout while the tests are running fine.
+    $lines = -1
     try {
-        $outputText = [OutputWindowHelper]::ReadPane($dte, "TwinCAT")
+        $lines = Invoke-Dte -TimeoutSeconds 5 -Action { [OutputWindowHelper]::GetLineCount($dte, "TwinCAT") }
     }
     catch {
-        Write-Host "  Could not read TwinCAT output pane: $_" -ForegroundColor Yellow
-    }
-
-    $foundCount = 0
-    foreach ($sentinel in $sentinels) {
-        if ($outputText -like "*$sentinel*") {
-            $foundCount++
-        } else {
-            Write-Host "    MISSING sentinel: '$sentinel'"
+        if (-not $probeFailed) {
+            $probeFailed = $true
+            Write-Host "  Line-count probe unavailable ($($_.Exception.Message.Trim())); falling back to tail reads." -ForegroundColor Yellow
         }
     }
 
-    Write-Host "  Polling... ($elapsed`s / $TestTimeoutSeconds`s) Found $foundCount/$($sentinels.Count) sentinels"
+    if ($lines -ge 0 -and $lines -le $lastLines) {
+        # Pane is genuinely quiet. If the sentinels are already present, that
+        # quiet is exactly what we were waiting for.
+        if ($allFound -and $settleSw -and $settleSw.ElapsedMilliseconds -ge $SettleMs) { break }
+        if ($testSw.ElapsedMilliseconds - $lastReport -ge 5000) {
+            $lastReport = $testSw.ElapsedMilliseconds
+            Write-Host ("  waiting for TcUnit output... ({0:N0}s / {1}s) {2} lines" -f `
+                $testSw.Elapsed.TotalSeconds, $TestTimeoutSeconds, $lines)
+        }
+        continue
+    }
 
-    if ($foundCount -eq $sentinels.Count) {
-        $allFound = $true
+    $tail = $null
+    try {
+        $tail = Invoke-Dte -TimeoutSeconds 5 -Action { [OutputWindowHelper]::ReadTail($dte, "TwinCAT", $TailLines) }
+    }
+    catch {
+        continue    # transient; try again next tick rather than treating it as settled
+    }
+
+    # With the line count available, growth is the change signal. Without it,
+    # fall back to comparing the tail text itself.
+    $changed = if ($lines -ge 0) { $lines -gt $lastLines } else { $tail -ne $lastTail }
+    if ($lines -ge 0) { $lastLines = $lines }
+    $lastTail = $tail
+    if ($changed) { $settleSw = [System.Diagnostics.Stopwatch]::StartNew() }
+
+    $foundCount = 0
+    foreach ($sentinel in $sentinels) {
+        if ($tail.Contains($sentinel)) { $foundCount++ }
+    }
+    $allFound = ($foundCount -eq $sentinels.Count)
+
+    if ($allFound -and -not $changed -and $settleSw -and $settleSw.ElapsedMilliseconds -ge $SettleMs) { break }
+
+    if ($testSw.ElapsedMilliseconds - $lastReport -ge 5000) {
+        $lastReport = $testSw.ElapsedMilliseconds
+        Write-Host ("  polling... ({0:N0}s / {1}s) {2} lines, {3}/{4} sentinels" -f `
+            $testSw.Elapsed.TotalSeconds, $TestTimeoutSeconds, $lines, $foundCount, $sentinels.Count)
     }
 }
 
-Start-Sleep -Seconds 5
+if (-not $allFound) {
+    Write-Host "TcUnit results timed out after $TestTimeoutSeconds seconds." -ForegroundColor Red
+    Write-Host "  Missing sentinels:" -ForegroundColor Yellow
+    $tail = ""
+    try { $tail = [OutputWindowHelper]::ReadTail($dte, "TwinCAT", $TailLines) } catch { }
+    foreach ($sentinel in $sentinels) {
+        if (-not $tail.Contains($sentinel)) { Write-Host "    '$sentinel'" -ForegroundColor Yellow }
+    }
+    Stop-Script 1
+}
 
-Write-Host "TcUnit results detected." -ForegroundColor Green
+Write-Host ("TcUnit results detected after {0:N1}s." -f $testSw.Elapsed.TotalSeconds) -ForegroundColor Green
 
 # -- Step 5: Collect results from Output window --------------------------------
 
@@ -377,8 +577,8 @@ Write-Host "==================================" -ForegroundColor Cyan
 # Exit with appropriate code
 if ($failedCount -gt 0) {
     Write-Host "`n$failedCount test(s) failed." -ForegroundColor Red
-    exit 1
+    Stop-Script 1
 } else {
     Write-Host "`nAll tests passed." -ForegroundColor Green
-    exit 0
+    Stop-Script 0
 }
