@@ -105,7 +105,7 @@ END_VAR
 	emitSuccess := logger.emit(failureResult=>emitFailureResult);
 	THIS^.AssertTrue(emitSuccess, 'Expected log record emission to succeed');
 	provider
-		.addProcessor(processor)
+		.stageProcessor(processor)
 		.tick();
 	THIS^.AssertTrue(processor.lastOperationSucceeded, 'Expected emitted record capture to succeed');
 	THIS^.AssertTrue(logger.pLogRecord = 0, 'Expected emit to release the logger-owned record');

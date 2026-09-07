@@ -73,7 +73,7 @@ END_VAR
 	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts5).emit();
 	// note, it's bad practice to associate processors with multiple providers
 	providerA
-		.addProcessor(processor)
+		.stageProcessor(processor)
 		.tick();
 // 	providerA.call(processors);
 // 	providerB.call(processors);
@@ -180,7 +180,7 @@ END_VAR
 		.setBody('this is a test')
 		.emit();
 	provider
-		.addProcessor(processor)
+		.stageProcessor(processor)
 		.tick();
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>

@@ -96,7 +96,7 @@ END_VAR]]></Declaration>
 				.setNumberAttribute('batch.positionNum', _num)
 				.emit(failureResult=>_loggerFailureResult);
 			_provider
-				.addProcessor(_processor)
+				.stageProcessor(_processor)
 				.tick();
 			THIS^.AssertTrue(_firstEmitSucceeded, 'First emit was unsuccessful');
 			THIS^.AssertTrue(_secondEmitSucceeded, 'Second emit was unsuccessful');
