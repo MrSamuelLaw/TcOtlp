@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestTracerProvider" Id="{20e8755b-c8f9-49a2-b93e-6f3f0f554892}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_TestTracerProvider
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

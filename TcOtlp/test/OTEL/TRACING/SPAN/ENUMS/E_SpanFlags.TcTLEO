@@ -1,25 +1,25 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <EnumerationTextList Name="E_SpanFlags" Id="{6480f056-bac2-4a45-ba58-960deaf1b484}">
+  <EnumerationTextList Name="E_SpanFlags" Id="{dab18c6c-551b-489b-9660-07cbbab002e0}">
     <Declaration><![CDATA[{attribute 'qualified_only'}
 {attribute 'strict'}
 {attribute 'to_string'}
-TYPE E_SpanFlags:
+TYPE E_SpanFlags :
 (
-	  // The zero value for the enum. Should not be used for comparisons.
-	  // Instead use bitwise "and" with the appropriate mask as shown above.
-	  SPAN_FLAGS_DO_NOT_USE := 16#0,
-	
-	  // Bits 0-7 are used for trace flags.
-	  SPAN_FLAGS_TRACE_FLAGS_MASK := 16#000000FF,
-	
-	  // Bits 8 and 9 are used to indicate that the parent span or link span is remote.
-	  // Bit 8 (`HAS_IS_REMOTE`) indicates whether the value is known.
-	  // Bit 9 (`IS_REMOTE`) indicates whether the span or link is remote.
-	  SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK := 16#00000100,
-	  SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK := 16#00000200
-	
-	  // Bits 10-31 are reserved for future use.
+	// The zero value for the enum. Should not be used for comparisons.
+	// Instead use bitwise "and" with the appropriate mask as shown above.
+	SPAN_FLAGS_DO_NOT_USE := 16#0,
+
+	// Bits 0-7 are used for trace flags.
+	SPAN_FLAGS_TRACE_FLAGS_MASK := 16#000000FF,
+
+	// Bits 8 and 9 are used to indicate that the parent span or link span is remote.
+	// Bit 8 (`HAS_IS_REMOTE`) indicates whether the value is known.
+	// Bit 9 (`IS_REMOTE`) indicates whether the span or link is remote.
+	SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK := 16#00000100,
+	SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK := 16#00000200
+
+  // Bits 10-31 are reserved for future use.
 ) UDINT;
 END_TYPE
 ]]></Declaration>
@@ -54,9 +54,9 @@ END_TYPE
             </o>
           </l>
           <l n="Languages" t="ArrayList" />
-          <v n="GuidInit">{b3bc8ddc-e72f-4543-ac96-d12450a52524}</v>
-          <v n="GuidReInit">{39de438e-9094-4e8c-93ea-df819e7a1180}</v>
-          <v n="GuidExitX">{4ace917e-e3c4-4008-952f-746dda9d47db}</v>
+          <v n="GuidInit">{2e85f4f3-a1ee-4ee0-9406-361e35dbfda3}</v>
+          <v n="GuidReInit">{bcfaad6e-1a93-4cde-a57b-198cb8726704}</v>
+          <v n="GuidExitX">{6ef32d72-bb43-4bbc-9f3b-91c1e879fc94}</v>
         </o>
       </Data>
       <TypeList>

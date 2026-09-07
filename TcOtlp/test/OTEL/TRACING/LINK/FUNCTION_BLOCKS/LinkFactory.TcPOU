@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="LinkFactory" Id="{a9503e6a-dd15-4216-bf41-c07bf9b9a140}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM LinkFactory
+
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

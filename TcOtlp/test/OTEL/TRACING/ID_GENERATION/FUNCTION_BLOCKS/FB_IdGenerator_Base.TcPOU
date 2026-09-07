@@ -1,0 +1,67 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_IdGenerator_Base" Id="{6ce743c8-92c3-4d0e-a60b-c87358c683fa}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Produces the trace and span identifiers that tracers attach to new spans.
+   This is the only place in the tracing domain that creates identifier values;
+   every other function block borrows or copies them.
+
+   Implementations must never emit an all zero identifier, because an all zero
+   identifier is the OTLP representation of "invalid/absent":
+     - a trace id is 16 bytes and MUST NOT be all zeroes,
+     - a span id is 8 bytes and MUST NOT be all zeroes.
+
+   Generation is separated from span creation because it is not guaranteed to be
+   constant time work. The owning provider calls `call` once per cycle to advance
+   any bounded per cycle work; tracers only take finished identifiers. An
+   implementation may therefore have nothing to hand out yet, in which case
+   generation fails with NO_IDENTIFIERS_AVAILABLE instead of blocking the cycle. *)
+FUNCTION_BLOCK ABSTRACT FB_IdGenerator_Base
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="call" Id="{e8418ed0-8a1c-48a1-ac7c-d8570668f60e}">
+      <Declaration><![CDATA[(* Advances any bounded per cycle generation work.
+   Invoked by the owning provider, not by tracers.
+   Returns FALSE and reports a failure reason when the generator cannot advance. *)
+METHOD ABSTRACT call : BOOL
+VAR_OUTPUT
+	failureReason: E_IdGenFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="generateSpanId" Id="{8719169e-045c-4082-a974-fe9b0f952921}">
+      <Declaration><![CDATA[(* Produces one valid, non zero span id into the caller owned spanId.
+   Returns FALSE without modifying spanId on failure. *)
+METHOD ABSTRACT generateSpanId : BOOL
+VAR_IN_OUT
+	spanId: FB_SpanId;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_IdGenFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="generateTraceId" Id="{a1cbcb86-42b9-49ee-8caf-829aecc880db}">
+      <Declaration><![CDATA[(* Produces one valid, non zero trace id into the caller owned traceId.
+   Returns FALSE without modifying traceId on failure. *)
+METHOD ABSTRACT generateTraceId : BOOL
+VAR_IN_OUT
+	traceId: FB_TraceId;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_IdGenFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

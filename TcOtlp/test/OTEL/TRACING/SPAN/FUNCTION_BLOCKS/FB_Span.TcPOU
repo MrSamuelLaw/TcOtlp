@@ -1,66 +1,63 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_Span" Id="{4f6449bf-c782-4d51-b6ac-83acfd28ad91}" SpecialFunc="None">
-    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
-FUNCTION_BLOCK FB_Span
+  <POU Name="FB_Span" Id="{17f1f0c3-d0bd-4cc5-82c0-c953a2faa69b}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Span
 VAR_OUTPUT
-	// required feelds
-	traceId: 		POINTER TO FB_TraceId;
-	spanId: 		POINTER TO FB_SpanId;
-	name:			POINTER TO FB_String;
-	// optional fields
-	traceState: 	POINTER TO FB_String;
-	parentSpanId: 	POINTER TO FB_SpanId;
-	flags: 			POINTER TO E_SpanFlags;
-END_VAR
-]]></Declaration>
+	// required
+	traceId: POINTER TO FB_TraceId;
+	spanId: POINTER TO FB_SpanId;
+	traceState: POINTER TO FB_String;
+	name: POINTER TO FB_String;
+	startTimestamp: ULINT;
+	endTimestamp: ULINT;
+	attributes: FB_Attributes;
+	
+	// required if child span, must be omitted if root span
+	parentSpanId: POINTER TO FB_SpanId;	
+	status: POINTER TO FB_Status;
+	links: FB_Links;
+	kind: E_SpanKind;
+	
+	// span events have been deprecated, instead logs should be emitted with span context for correlation
+	// events
+	// droppedEventCount
+END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="delete" Id="{0a75b231-a98c-4d73-9670-e42f4cef825b}">
-      <Declaration><![CDATA[METHOD delete : ULINT
-VAR
-	pSelf: POINTER TO FB_Span;
+    <Property Name="flags" Id="{137dd82b-00cb-4635-988f-dcdef800cd46}">
+      <Declaration><![CDATA[PROPERTY flags : UDINT]]></Declaration>
+      <Get Name="Get" Id="{3665a6ba-0b31-43b1-9658-363b8500b852}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="setStatusError" Id="{c18bedc1-4f05-4485-a503-1630f73f361d}">
+      <Declaration><![CDATA[METHOD setStatusError : REFERENCE TO FB_Span
+VAR_INPUT
+	message: T_MaxString;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[pSelf := THIS;
-__DELETE(pSelf);
-delete := 0;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="FB_Exit" Id="{587f4a0e-f9aa-4fba-aa3a-c53056438fc4}">
-      <Declaration><![CDATA[//FB_Exit must be implemented explicitly. If there is an implementation, then the
-//method is called before the controller removes the code of the function block instance
-//(implicit call). The return value is not evaluated.
-METHOD FB_Exit: BOOL
-VAR_INPUT
-    bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).  
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="FB_Init" Id="{f59c1072-d1fd-4238-ab65-5c377a7fd7e7}">
-      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
-//The return value is not evaluated. For a specific influence, you can also declare the
-//methods explicitly and provide additional code there with the standard initialization
-//code. You can evaluate the return value.
-METHOD FB_Init: BOOL
-VAR_INPUT
-    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
-    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)   
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="free" Id="{7aec47dd-0d43-48ee-896a-aa099ebe7b37}">
-      <Declaration><![CDATA[METHOD free
+        <ST><![CDATA[// uses the fluent API to set the status to error with the message for why it failed
+setStatusError REF= THIS^;
 
+// try to create the object with using short circuit evaluation]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setStatusOk" Id="{51e24243-7fdc-4bd7-ac3c-dc78a2884df3}">
+      <Declaration><![CDATA[METHOD setStatusOk : REFERENCE TO FB_Span
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[// uses the fluent API to set the status to OK
+setStatusOk REF= THIS^;
+
+// try to create the object with using short circuit evaluation
+]]></ST>
       </Implementation>
     </Method>
   </POU>

@@ -1,19 +1,19 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <EnumerationTextList Name="E_StatusCode" Id="{70f76ffd-034a-4837-8b5d-1d5f06ebc552}">
+  <EnumerationTextList Name="E_StatusCode" Id="{6c7cce21-2fe4-41e5-8c82-2b54c4e49a98}">
     <Declaration><![CDATA[{attribute 'qualified_only'}
 {attribute 'strict'}
 {attribute 'to_string'}
 TYPE E_StatusCode :
 (
 	// The default status.
-    STATUS_CODE_UNSET              := 0,
-    // The Span has been validated by an Application developer or Operator to 
-    // have completed successfully.
-    STATUS_CODE_OK                  := 1,
-    // The Span contains an error.
-    STATUS_CODE_ERROR               := 2,
-);
+	STATUS_CODE_UNSET := 0,
+	// The Span has been validated by an Application developer or Operator to 
+	// have completed successfully.
+	STATUS_CODE_OK := 1,
+	// The Span contains an error.
+	STATUS_CODE_ERROR := 2
+) UDINT;
 END_TYPE
 ]]></Declaration>
     <XmlArchive>
@@ -42,9 +42,9 @@ END_TYPE
             </o>
           </l>
           <l n="Languages" t="ArrayList" />
-          <v n="GuidInit">{c0156026-2b20-4cea-ba26-3b77050e6ff5}</v>
-          <v n="GuidReInit">{a138cd79-1bef-4b94-8846-9d4c85da4546}</v>
-          <v n="GuidExitX">{7ea04e34-89c1-48d1-83a5-38a595ddd375}</v>
+          <v n="GuidInit">{33331174-ce71-4071-aa35-55db4a6cab16}</v>
+          <v n="GuidReInit">{8395f6fb-1623-41e1-9904-395b701b13bd}</v>
+          <v n="GuidExitX">{adedf6b1-9db1-4b1e-bd13-a10761bd42b6}</v>
         </o>
       </Data>
       <TypeList>

@@ -1,0 +1,92 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <EnumerationTextList Name="E_SpanKind" Id="{ae3df752-94cf-4475-b0fb-d57cb83f402e}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_SpanKind :
+(
+	// Unspecified. Do NOT use as default.
+	// Implementations MAY assume SpanKind to be INTERNAL when receiving UNSPECIFIED.
+	SPAN_KIND_UNSPECIFIED := 0,
+	
+	// Indicates that the span represents an internal operation within an application,
+	// as opposed to an operation happening at the boundaries. Default value.
+	SPAN_KIND_INTERNAL := 1,
+	
+	// Indicates that the span covers server-side handling of an RPC or other
+	// remote network request.
+	SPAN_KIND_SERVER := 2,
+	
+	// Indicates that the span describes a request to some remote service.
+	SPAN_KIND_CLIENT := 3,
+	
+	// Indicates that the span describes a producer sending a message to a broker.
+	// Unlike CLIENT and SERVER, there is often no direct critical path latency relationship
+	// between producer and consumer spans. A PRODUCER span ends when the message was accepted
+	// by the broker while the logical processing of the message might span a much longer time.
+	SPAN_KIND_PRODUCER := 4,
+	
+	// Indicates that the span describes consumer receiving a message from a broker.
+	// Like the PRODUCER kind, there is often no direct critical path latency relationship
+	// between producer and consumer spans.
+	SPAN_KIND_CONSUMER := 5
+) UDINT;
+END_TYPE
+]]></Declaration>
+    <XmlArchive>
+      <Data>
+        <o xml:space="preserve" t="TextListEnumerationTextListObject">
+          <l n="TextList" t="ArrayList" cet="TextListRow">
+            <o>
+              <v n="TextID">"SPAN_KIND_UNSPECIFIED"</v>
+              <v n="TextDefault">"0"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SPAN_KIND_INTERNAL"</v>
+              <v n="TextDefault">"1"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SPAN_KIND_SERVER"</v>
+              <v n="TextDefault">"2"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SPAN_KIND_CLIENT"</v>
+              <v n="TextDefault">"3"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SPAN_KIND_PRODUCER"</v>
+              <v n="TextDefault">"4"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SPAN_KIND_CONSUMER"</v>
+              <v n="TextDefault">"5"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">""</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+          </l>
+          <l n="Languages" t="ArrayList" />
+          <v n="GuidInit">{e5922976-a909-44ba-a019-a2273a2df9bd}</v>
+          <v n="GuidReInit">{99f7fd70-40e8-4169-8aaf-ec09c37f8450}</v>
+          <v n="GuidExitX">{dff45d0a-87eb-4078-aed0-c09eaaa081b2}</v>
+        </o>
+      </Data>
+      <TypeList>
+        <Type n="ArrayList">System.Collections.ArrayList</Type>
+        <Type n="Guid">System.Guid</Type>
+        <Type n="String">System.String</Type>
+        <Type n="TextListEnumerationTextListObject">{4b60233c-f940-4beb-b331-82133b520151}</Type>
+        <Type n="TextListRow">{53da1be7-ad25-47c3-b0e8-e26286dad2e0}</Type>
+      </TypeList>
+    </XmlArchive>
+  </EnumerationTextList>
+</TcPlcObject>

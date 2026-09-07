@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Links" Id="{84632793-b934-468f-abc7-b9540f1e3ec7}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Links
+VAR_OUTPUT
+	count: UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="pop" Id="{140011c5-033a-44d9-9673-d6002d7ea8ef}">
+      <Declaration><![CDATA[METHOD pop : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_Link;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="push" Id="{199c2d38-fc0d-4031-aa3e-bf96309245f4}">
+      <Declaration><![CDATA[METHOD push : BOOL
+VAR_IN_OUT
+	pSrc: POINTER TO FB_Link;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

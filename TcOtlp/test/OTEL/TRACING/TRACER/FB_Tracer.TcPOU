@@ -1,0 +1,58 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Tracer" Id="{630c4506-e919-4bcb-bc32-932a851a5f73}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_Tracer
+VAR
+	_scope: REFERENCE TO FB_InstrumentationScope;
+	_provider: REFERENCE TO FB_TracerProvider;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="FB_Init" Id="{cf4de8a7-906c-49aa-9013-3b2e55322a5d}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	scope: REFERENCE TO FB_InstrumentationScope;
+	provider: REFERENCE TO FB_TracerProvider;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._scope REF= scope;
+THIS^._provider REF= provider;]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="resource" Id="{d5da383f-f0b1-448b-8274-9168134ffb5e}">
+      <Declaration><![CDATA[PROPERTY resource : REFERENCE TO FB_Resource]]></Declaration>
+      <Get Name="Get" Id="{a947aff2-a220-44e2-b602-15d5a22a95cd}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[resource REF= THIS^._provider.resource;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="scope" Id="{ed8fea03-8599-4e6d-9b7f-4d4b3103837e}">
+      <Declaration><![CDATA[PROPERTY scope : REFERENCE TO FB_InstrumentationScope]]></Declaration>
+      <Get Name="Get" Id="{a92a1155-87a4-4158-afa9-2648acd2fcc3}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[scope REF= THIS^._scope;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="startSpan" Id="{49c360a8-a66a-4002-bb96-57eea3b71419}">
+      <Declaration><![CDATA[METHOD startSpan : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

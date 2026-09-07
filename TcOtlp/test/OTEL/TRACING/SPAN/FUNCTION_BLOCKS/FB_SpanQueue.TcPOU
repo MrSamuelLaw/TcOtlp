@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_SpanQueue" Id="{44d433c3-56a3-4e84-9cfe-16a801713247}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_SpanQueue
+VAR_INPUT
+END_VAR
+VAR_OUTPUT
+END_VAR
+VAR
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="pop" Id="{20f7cf69-8ba2-4d4e-b317-f36437396b59}">
+      <Declaration><![CDATA[METHOD pop : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="push" Id="{b052437c-48a1-4966-8fb6-f6eefdfa3878}">
+      <Declaration><![CDATA[METHOD push : BOOL
+VAR_INPUT
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

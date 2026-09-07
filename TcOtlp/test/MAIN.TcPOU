@@ -14,6 +14,7 @@ VAR
 	{attribute 'analysis' := '-33'}fbTestProtoJsonSerializer: FB_TestProtoJsonSerializer();
 	{attribute 'analysis' := '-33'}fbTestFileExporter: FB_TestFileExporter();
 	{attribute 'analysis' := '-33'}fbTestHttpExporter: FB_TestHttpExporter();
+	{attribute 'analysis' := '-33'}fbTestIdGenerator: FB_TestIdGenerator();
 END_VAR
 ]]></Declaration>
     <Implementation>

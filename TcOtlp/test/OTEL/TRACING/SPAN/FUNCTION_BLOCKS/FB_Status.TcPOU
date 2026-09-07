@@ -1,14 +1,62 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_Status" Id="{b0659daf-d3d9-4e73-b5d7-248fd67a6a84}" SpecialFunc="None">
+  <POU Name="FB_Status" Id="{7502d296-8874-4aba-89de-396bbd73f912}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_Status
-VAR
-	message: POINTER TO FB_String;
+VAR_OUTPUT
 	code: E_StatusCode;
+	// optional and only set when status is an error
+	message: POINTER TO FB_String;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="delete" Id="{c4fd0a50-f9e8-441c-a9e5-5109c1bd765e}">
+      <Declaration><![CDATA[METHOD delete : ULINT
+VAR
+	pSelf: POINTER TO FB_Status;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[pSelf := THIS;
+__DELETE(pSelf);
+delete := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Exit" Id="{3b724251-b82f-4054-a000-6e9b3e0640c5}">
+      <Declaration><![CDATA[//FB_Exit must be implemented explicitly. If there is an implementation, then the
+//method is called before the controller removes the code of the function block instance
+//(implicit call). The return value is not evaluated.
+METHOD FB_Exit: BOOL
+VAR_INPUT
+    bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).  
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.free();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{68bac66e-f7c1-47f4-8264-194ff59c77ef}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	code: E_StatusCode;
+	message: POINTER TO FB_String;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.code := code;
+THIS^.message := message;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{e7fec7ec-ce4b-48e8-b324-a216f3da6d96}">
+      <Declaration><![CDATA[METHOD free
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^.message <> 0 THEN THIS^.message^.delete(); END_IF]]></ST>
+      </Implementation>
+    </Method>
   </POU>
 </TcPlcObject>
