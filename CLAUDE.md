@@ -110,6 +110,22 @@ The physical layout is still evolving. Do not move code solely to make the folde
 - Clone records or values when their lifetime must outlast the caller; release every owned allocation exactly once.
 - Preserve bounded PLC execution: cyclic work and loops must have explicit limits.
 - Treat the domain map as provisional. Do not add a new domain or redefine a boundary without a concrete responsibility that does not fit an existing domain.
+- Assume a single task. Multi-task safety is an explicit non-goal; see below.
+
+## Non-goals
+
+**Multi-task safety is an explicit non-goal.** Every function block in this repository may assume it is created, called, and released from one PLC task, and that no other task touches it or the memory it owns.
+
+Write code for that assumption rather than against it:
+
+- No locks, semaphores, critical sections, or `TestAndSet` guards.
+- No atomic or interlocked access, and no volatile-style re-reads of shared state.
+- No defensive copies whose only purpose is to survive preemption by another task.
+- Pointer ownership rules exist for lifetime correctness, not for concurrency. A single owner at a time is enough; it does not have to be a thread-safe owner.
+
+Cyclic state machines still have to survive being spread across scan cycles of their own task, which is a different problem and is still required. An asynchronous service such as an ADS request may complete cycles later, so state that is in flight must stay valid until the request finishes.
+
+If a caller ever does need to reach a component from a second task, that is a design change to be raised first, not something to pre-empt with defensive code.
 
 ## Change workflow
 
