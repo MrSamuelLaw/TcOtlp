@@ -20,7 +20,7 @@ VAR
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[THIS^.tick();]]></ST>
+      <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="enrich" Id="{cd91d31c-cfa3-4b93-ac03-7d361155ee3a}">
       <Declaration><![CDATA[// no-op; override to change log mutation/enrichment functionality
@@ -129,19 +129,21 @@ END_VAR
       <Implementation>
         <ST><![CDATA[THIS^.enrich(logRecord);
 
-_pRecord := 0;
-IF NOT logRecord.cloneTo(pDest:=_pRecord, failureReason=>_cloneFailureResult) THEN
-	IF _pRecord <> 0 THEN _pRecord := _pRecord^.delete(); END_IF
-	THIS^.lastOperationSucceeded := FALSE;
-	THIS^.failureResult := E_LogRecordProcessorFailureReason.RECORD_CLONE_FAILURE;
-	RETURN;
-END_IF
-
-IF NOT THIS^._records.push(pValue:=_pRecord, failureReason=>_queueFailureReason) THEN
-	_pRecord := _pRecord^.delete();
-	THIS^.lastOperationSucceeded := FALSE;
-	THIS^.failureResult := E_LogRecordProcessorFailureReason.QUEUE_PUSH_FAILURE;
-	RETURN;
+IF __ISVALIDREF(THIS^._exporter) THEN
+	_pRecord := 0;
+	IF NOT logRecord.cloneTo(pDest:=_pRecord, failureReason=>_cloneFailureResult) THEN
+		IF _pRecord <> 0 THEN _pRecord := _pRecord^.delete(); END_IF
+		THIS^.lastOperationSucceeded := FALSE;
+		THIS^.failureResult := E_LogRecordProcessorFailureReason.RECORD_CLONE_FAILURE;
+		RETURN;
+	END_IF
+	
+	IF NOT THIS^._records.push(pValue:=_pRecord, failureReason=>_queueFailureReason) THEN
+		_pRecord := _pRecord^.delete();
+		THIS^.lastOperationSucceeded := FALSE;
+		THIS^.failureResult := E_LogRecordProcessorFailureReason.QUEUE_PUSH_FAILURE;
+		RETURN;
+	END_IF
 END_IF
 
 THIS^.lastOperationSucceeded := TRUE;
