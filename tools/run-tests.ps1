@@ -253,7 +253,24 @@ function Wait-For {
     return $false
 }
 
+# Editing .TcPOU files on disk while the solution is open makes VS raise a modal
+# "Reload the new file?" message box per changed file. Those are modal to the IDE,
+# so every DTE call blocks until they are gone -- including the attach below. They
+# have to be cleared through the UI, before DTE is touched at all.
+function Clear-VsDialogs {
+    $dismisser = Join-Path $PSScriptRoot "dismiss-vs-dialogs.ps1"
+    if (-not (Test-Path $dismisser)) { return }
+    try {
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $dismisser -Quiet | Out-Null
+    }
+    catch {
+        Write-Host "  Could not sweep VS dialogs (non-fatal): $_" -ForegroundColor Yellow
+    }
+}
+
 # -- Step 1: Attach to running VS 2022 instance and open solution -------------
+
+Clear-VsDialogs
 
 Write-Host "Attaching to running VS 2022 instance..."
 
@@ -357,6 +374,10 @@ catch {
 }
 
 # -- Step 2: Build solution ---------------------------------------------------
+
+# Re-opening the solution can surface a second round of reload prompts for files
+# the IDE only noticed once they were loaded again.
+Clear-VsDialogs
 
 $buildCommand = if ($IncrementalBuild) { "Build.BuildSolution" } else { "Build.RebuildSolution" }
 Write-Host "Starting build ($buildCommand)..."
