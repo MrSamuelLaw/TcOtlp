@@ -1,3 +1,9 @@
+---
+type: user-story
+audience: engineering
+status: draft
+---
+
 # Engineering User Stories
 
 ## US-ENG-001: Ask AI Why My Loop Won't Tune

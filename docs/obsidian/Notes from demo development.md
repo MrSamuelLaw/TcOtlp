@@ -1,3 +1,9 @@
+---
+type: research
+domain: logging
+status: draft
+---
+
 - Hooking into update life cycles is difficult because loggers cannot own processors and the update functions most occur asynchronously of the twincat RPC
 - Devices such as allen bradly PLC's cannot pass data via opc RPC calls.
 - It's likely better to provide both methods for updating a PLC value.

@@ -1,2 +1,0 @@
-- Review and implement the recommendations in [[E_PointerFactoryStatus Improvements]].
-- Update the `add<X>Attribute` methods to use T_MaxString for the key (and value if the value is a string).

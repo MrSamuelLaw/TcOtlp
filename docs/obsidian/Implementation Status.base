@@ -1,0 +1,41 @@
+filters:
+  and:
+    - type == "model"
+views:
+  - type: table
+    name: All models
+    order:
+      - file.name
+      - domain
+      - status
+      - gap
+    sort:
+      - property: status
+        direction: ASC
+      - property: domain
+        direction: ASC
+    columnSize:
+      note.domain: 201
+      note.status: 282
+  - type: table
+    name: Not yet implemented
+    filters:
+      and:
+        - status != "implemented"
+    order:
+      - file.name
+      - domain
+      - status
+      - gap
+    sort:
+      - property: domain
+        direction: ASC
+  - type: table
+    name: Tracing only
+    filters:
+      and:
+        - domain == "tracing"
+    order:
+      - file.name
+      - status
+      - gap

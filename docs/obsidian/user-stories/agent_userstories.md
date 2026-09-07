@@ -1,3 +1,9 @@
+---
+type: user-story
+audience: agent
+status: draft
+---
+
 # Agent User Stories
 
 ## US-AGT-001: Local Trace-Guided Root Cause Analysis
