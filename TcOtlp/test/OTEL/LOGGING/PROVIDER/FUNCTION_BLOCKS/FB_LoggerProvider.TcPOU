@@ -9,7 +9,7 @@ VAR
 	_failureReason: E_LoggerProviderFailureReason;
 END_VAR
 VAR_OUTPUT
-	processorCount: UDINT;
+	stagedProcessorCount: UDINT;
 END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
@@ -29,54 +29,7 @@ END_VAR]]></Declaration>
 	__DELETE(THIS^._head);
 	THIS^._head := _node;
 END_FOR
-THIS^.processorCount := 0;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="addProcessor" Id="{d8725506-cb90-459a-9b97-91a0461551c9}">
-      <Declaration><![CDATA[METHOD addProcessor : REFERENCE TO FB_LoggerProvider
-VAR_INPUT
-	processor: REFERENCE TO FB_LogRecordProcessor_Base;
-END_VAR
-VAR
-	_idx: UDINT;
-	_node: POINTER TO ST_LinkedListNode;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[addProcessor REF= THIS^;
-
-// special case if no processors have been registered
-IF THIS^._head = 0 THEN
-	THIS^._head := __NEW(ST_LinkedListNode);
-	IF THIS^._head = 0 THEN
-		THIS^._failureReason := E_LoggerProviderFailureReason.ADD_PROCESSOR_FAILURE;
-		RETURN;
-	END_IF
-	THIS^._head^.val := processor.pSelf;
-	THIS^.processorCount := THIS^.processorCount + 1;
-// generic case if at least on processor has been registerd
-ELSE
-	_node := THIS^._head;
-	FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
-		IF _node^.val = processor.pSelf THEN
-			// silently do nothing if processor already added for this tick
-			RETURN;
-		ELSIF _node^.nxt = 0 THEN
-			_node^.nxt := __NEW(ST_LinkedListNode);
-			IF _node^.nxt = 0 THEN
-				THIS^._failureReason := E_LoggerProviderFailureReason.ADD_PROCESSOR_FAILURE;
-				RETURN;
-			END_IF
-			_node^.nxt^.val := processor.pSelf;
-			THIS^.processorCount := THIS^.processorCount + 1;
-			RETURN;
-		END_IF
-		_node := _node^.nxt;
-	END_FOR
-END_IF
-
-
-]]></ST>
+THIS^.stagedProcessorCount := 0;]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Exit" Id="{a3de6da8-4caa-45e5-82ac-23ff1b828ee2}">
@@ -142,6 +95,53 @@ onEmit := TRUE;]]></ST>
         </Implementation>
       </Get>
     </Property>
+    <Method Name="stageProcessor" Id="{d8725506-cb90-459a-9b97-91a0461551c9}">
+      <Declaration><![CDATA[METHOD stageProcessor : REFERENCE TO FB_LoggerProvider
+VAR_INPUT
+	processor: REFERENCE TO FB_LogRecordProcessor_Base;
+END_VAR
+VAR
+	_idx: UDINT;
+	_node: POINTER TO ST_LinkedListNode;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[stageProcessor REF= THIS^;
+
+// special case if no processors have been registered
+IF THIS^._head = 0 THEN
+	THIS^._head := __NEW(ST_LinkedListNode);
+	IF THIS^._head = 0 THEN
+		THIS^._failureReason := E_LoggerProviderFailureReason.STAGE_PROCESSOR_FAILURE;
+		RETURN;
+	END_IF
+	THIS^._head^.val := processor.pSelf;
+	THIS^.stagedProcessorCount := THIS^.stagedProcessorCount + 1;
+// generic case if at least on processor has been registerd
+ELSE
+	_node := THIS^._head;
+	FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
+		IF _node^.val = processor.pSelf THEN
+			// silently do nothing if processor already added for this tick
+			RETURN;
+		ELSIF _node^.nxt = 0 THEN
+			_node^.nxt := __NEW(ST_LinkedListNode);
+			IF _node^.nxt = 0 THEN
+				THIS^._failureReason := E_LoggerProviderFailureReason.STAGE_PROCESSOR_FAILURE;
+				RETURN;
+			END_IF
+			_node^.nxt^.val := processor.pSelf;
+			THIS^.stagedProcessorCount := THIS^.stagedProcessorCount + 1;
+			RETURN;
+		END_IF
+		_node := _node^.nxt;
+	END_FOR
+END_IF
+
+
+]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="tick" Id="{6ac1f588-839d-47df-a7be-69b648f9145a}">
       <Declaration><![CDATA[METHOD tick : BOOL
 VAR_OUTPUT
@@ -180,7 +180,7 @@ FOR _i := 1 TO _ownedRecordCount DO
 	END_IF
 	// call on emit for each record
 	_node := THIS^._head;
-	FOR _j := 1 TO THIS^.processorCount DO
+	FOR _j := 1 TO THIS^.stagedProcessorCount DO
 		IF _node = 0 THEN
 			failureReason := E_LoggerProviderFailureReason.UNEXPECTED_NULL_LINKED_LIST_NODE;
 			JMP _endLabel;
@@ -198,7 +198,7 @@ END_FOR
 
 // tick each processor
 _node := THIS^._head;
-FOR _j := 1 TO THIS^.processorCount DO
+FOR _j := 1 TO THIS^.stagedProcessorCount DO
 	_processor := _node^.val;
 	IF _processor = 0 THEN
 		failureReason := E_LoggerProviderFailureReason.UNEXPECTED_NULL_PROCESSOR_POINTER;

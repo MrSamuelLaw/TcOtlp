@@ -9,7 +9,7 @@ TYPE E_LoggerProviderFailureReason :
 	NA := 0,  // No failure occurred.
 	RECORD_POINTER_NULL,  // The supplied log record pointer is null.
 	QUEUE_POP_FAILURE,  // A record could not be popped from the provider's queue during cyclical processing.
-	ADD_PROCESSOR_FAILURE,  // A processor could not be added to the internal linked list for some reason.
+	STAGE_PROCESSOR_FAILURE,  // A processor could not be added to the internal linked list for some reason.
 	UNEXPECTED_NULL_PROCESSOR_POINTER,  // A processor pointer was invalid when being accessed internally to the provider.
 	UNEXPECTED_NULL_LINKED_LIST_NODE  // A processor linked list poitner was invalid when being accessed internally to the provider.
 ) UDINT;
@@ -35,7 +35,7 @@ END_TYPE
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
-              <v n="TextID">"ADD_PROCESSOR_FAILURE"</v>
+              <v n="TextID">"STAGE_PROCESSOR_FAILURE"</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
