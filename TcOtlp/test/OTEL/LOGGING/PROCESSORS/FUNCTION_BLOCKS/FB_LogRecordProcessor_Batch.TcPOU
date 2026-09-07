@@ -8,7 +8,6 @@
 *)
 FUNCTION_BLOCK FB_LogRecordProcessor_Batch EXTENDS FB_LogRecordProcessor_Base;
 VAR_OUTPUT
-	maxQueueSize: UDINT := 2048;			// zero is unbounded; otherwise the oldest record is dropped when full
 	scheduledDelayMillis: UDINT := 1000;	// maximum delay before queued records are exported
 	maxExportBatchSize: UDINT := 512;		// maximum records transferred to one export
 	lastOperationSucceeded: BOOL := TRUE;
@@ -16,7 +15,7 @@ VAR_OUTPUT
 END_VAR
 VAR
 	_scheduleDelayTimer: TON;
-	_records: FB_LogRecordQueue(maxCount:=0);
+	_records: FB_LogRecordQueue(maxCount:=0);  // set again during THIS^.FB_Init
 	_exporter: REFERENCE TO FB_LogRecordExporter_Base;
 END_VAR
 ]]></Declaration>
@@ -95,7 +94,7 @@ VAR_INPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[THIS^.maxQueueSize := maxQueueSize;
+        <ST><![CDATA[THIS^._records.FB_Init(FALSE, FALSE, maxQueueSize);
 THIS^.scheduledDelayMillis := scheduledDelayMillis;
 THIS^.maxExportBatchSize := maxExportBatchSize;
 IF __ISVALIDREF(exporter) THEN
@@ -143,13 +142,6 @@ IF NOT THIS^._records.push(pValue:=_pRecord, failureReason=>_queueFailureReason)
 	THIS^.lastOperationSucceeded := FALSE;
 	THIS^.failureResult := E_LogRecordProcessorFailureReason.QUEUE_PUSH_FAILURE;
 	RETURN;
-END_IF
-
-// The queue remains unbounded; the processor owns the drop policy.
-IF THIS^.maxQueueSize > 0 AND_THEN THIS^._records.count > THIS^.maxQueueSize THEN
-	IF THIS^._records.pop(pValue:=_pRecord, failureReason=>_queueFailureReason) THEN
-		_pRecord := _pRecord^.delete();
-	END_IF
 END_IF
 
 THIS^.lastOperationSucceeded := TRUE;
