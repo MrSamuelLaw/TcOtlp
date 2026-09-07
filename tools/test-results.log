@@ -1,155 +1,184 @@
-﻿MSG | 9/7/2026 8:07:39 AM 059 ms | 'System Manager' (32924): Activate configuration performed from 'DESKTOP-V6KMEBB' (192.168.97.90.1.1) by 'samue'
-MSG | 9/7/2026 8:07:39 AM 876 ms | 'TcOsSys' (50): TwinCAT System Start: AdsState: 5 NumProc: 4
-MSG | 9/7/2026 8:07:39 AM 880 ms | 'License Server' (30): license validation status is Valid(3)
-MSG | 9/7/2026 8:07:39 AM 885 ms | 'License Server' (30): license validation status is Valid(3)
-MSG | 9/7/2026 8:07:40 AM 283 ms | 'TcOsSys' (50): TwinCAT system start completed. AdsState: >5<
-MSG | 9/7/2026 8:07:40 AM 293 ms | 'PlcTask1' (351): | Test suite ID=0 'MAIN.fbTestOtlpValue'
-MSG | 9/7/2026 8:07:40 AM 313 ms | 'PlcTask1' (351): | ID=0 number of tests=6, number of failed tests=0, duration=2.9527e-3
-MSG | 9/7/2026 8:07:40 AM 333 ms | 'PlcTask1' (351): | Test name=Test StringValue
-MSG | 9/7/2026 8:07:40 AM 353 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestOtlpValue
-MSG | 9/7/2026 8:07:40 AM 373 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=12, duration=1.314e-4
-MSG | 9/7/2026 8:07:40 AM 393 ms | 'PlcTask1' (351): | Test name=Test TraceIdValue
-MSG | 9/7/2026 8:07:40 AM 413 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestOtlpValue
-MSG | 9/7/2026 8:07:40 AM 433 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=15, duration=1.415e-4
-MSG | 9/7/2026 8:07:40 AM 453 ms | 'PlcTask1' (351): | Test name=Test SpanIdValue
-MSG | 9/7/2026 8:07:40 AM 473 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestOtlpValue
-MSG | 9/7/2026 8:07:40 AM 493 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=15, duration=2.973e-4
-MSG | 9/7/2026 8:07:40 AM 513 ms | 'PlcTask1' (351): | Test name=Test KeyValue
-MSG | 9/7/2026 8:07:40 AM 533 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestOtlpValue
-MSG | 9/7/2026 8:07:40 AM 553 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=17, duration=4.379e-4
-MSG | 9/7/2026 8:07:40 AM 573 ms | 'PlcTask1' (351): | Test name=Test NumberValue
-MSG | 9/7/2026 8:07:40 AM 593 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestOtlpValue
-MSG | 9/7/2026 8:07:40 AM 613 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=36, duration=1.1577e-3
-MSG | 9/7/2026 8:07:40 AM 633 ms | 'PlcTask1' (351): | Test name=Test Value Cloning
-MSG | 9/7/2026 8:07:40 AM 653 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestOtlpValue
-MSG | 9/7/2026 8:07:40 AM 673 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=17, duration=7.325e-4
-MSG | 9/7/2026 8:07:40 AM 693 ms | 'PlcTask1' (351): | Test suite ID=1 'MAIN.fbTestAttributes'
-MSG | 9/7/2026 8:07:40 AM 713 ms | 'PlcTask1' (351): | ID=1 number of tests=3, number of failed tests=0, duration=6.346e-4
-MSG | 9/7/2026 8:07:40 AM 733 ms | 'PlcTask1' (351): | Test name=testSetBehavior
-MSG | 9/7/2026 8:07:40 AM 753 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestAttributes
-MSG | 9/7/2026 8:07:40 AM 773 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=5, duration=6.28e-5
-MSG | 9/7/2026 8:07:40 AM 793 ms | 'PlcTask1' (351): | Test name=testCopyValues
-MSG | 9/7/2026 8:07:40 AM 813 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestAttributes
-MSG | 9/7/2026 8:07:40 AM 833 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=12, duration=7.13e-5
-MSG | 9/7/2026 8:07:40 AM 853 ms | 'PlcTask1' (351): | Test name=testFailureReasons
-MSG | 9/7/2026 8:07:40 AM 873 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestAttributes
-MSG | 9/7/2026 8:07:40 AM 893 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=23, duration=4.802e-4
-MSG | 9/7/2026 8:07:40 AM 913 ms | 'PlcTask1' (351): | Test suite ID=2 'MAIN.fbTestLogRecordQueue'
-MSG | 9/7/2026 8:07:40 AM 933 ms | 'PlcTask1' (351): | ID=2 number of tests=7, number of failed tests=0, duration=8.683e-4
-MSG | 9/7/2026 8:07:40 AM 953 ms | 'PlcTask1' (351): | Test name=testEnforcesMaximumSize
-MSG | 9/7/2026 8:07:40 AM 973 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogRecordQueue
-MSG | 9/7/2026 8:07:40 AM 993 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=8, duration=1.713e-4
-MSG | 9/7/2026 8:07:41 AM 013 ms | 'PlcTask1' (351): | Test name=testAllowsUnboundedLength
-MSG | 9/7/2026 8:07:41 AM 033 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogRecordQueue
-MSG | 9/7/2026 8:07:41 AM 053 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=5, duration=4.63e-5
-MSG | 9/7/2026 8:07:41 AM 073 ms | 'PlcTask1' (351): | Test name=testDropsOldestRecordFirst
-MSG | 9/7/2026 8:07:41 AM 093 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogRecordQueue
-MSG | 9/7/2026 8:07:41 AM 113 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=5, duration=6.17e-5
-MSG | 9/7/2026 8:07:41 AM 133 ms | 'PlcTask1' (351): | Test name=testPushAndPopTransferRecordOwnership
-MSG | 9/7/2026 8:07:41 AM 153 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogRecordQueue
-MSG | 9/7/2026 8:07:41 AM 173 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=4, duration=7.19e-5
-MSG | 9/7/2026 8:07:41 AM 193 ms | 'PlcTask1' (351): | Test name=testTransfersQueueOwnership
-MSG | 9/7/2026 8:07:41 AM 213 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogRecordQueue
-MSG | 9/7/2026 8:07:41 AM 233 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=6, duration=1.035e-4
-MSG | 9/7/2026 8:07:41 AM 253 ms | 'PlcTask1' (351): | Test name=testTransfersRequestedCount
-MSG | 9/7/2026 8:07:41 AM 273 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogRecordQueue
-MSG | 9/7/2026 8:07:41 AM 293 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=8, duration=1.473e-4
-MSG | 9/7/2026 8:07:41 AM 313 ms | 'PlcTask1' (351): | Test name=testReportsFailureReasons
-MSG | 9/7/2026 8:07:41 AM 333 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogRecordQueue
-MSG | 9/7/2026 8:07:41 AM 353 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=7, duration=2.009e-4
-MSG | 9/7/2026 8:07:41 AM 373 ms | 'PlcTask1' (351): | Test suite ID=3 'MAIN.fbTestLogger'
-MSG | 9/7/2026 8:07:41 AM 393 ms | 'PlcTask1' (351): | ID=3 number of tests=5, number of failed tests=0, duration=1.21e-4
-MSG | 9/7/2026 8:07:41 AM 413 ms | 'PlcTask1' (351): | Test name=testFluentAPI
-MSG | 9/7/2026 8:07:41 AM 433 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogger
-MSG | 9/7/2026 8:07:41 AM 453 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=3, duration=3.35e-5
-MSG | 9/7/2026 8:07:41 AM 473 ms | 'PlcTask1' (351): | Test name=testEmitWithoutRecordReturnsFailure
-MSG | 9/7/2026 8:07:41 AM 493 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogger
-MSG | 9/7/2026 8:07:41 AM 513 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=2, duration=1.05e-5
-MSG | 9/7/2026 8:07:41 AM 533 ms | 'PlcTask1' (351): | Test name=testEmitReturnsFirstFluentFailure
-MSG | 9/7/2026 8:07:41 AM 553 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogger
-MSG | 9/7/2026 8:07:41 AM 573 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=3, duration=1.37e-5
-MSG | 9/7/2026 8:07:41 AM 593 ms | 'PlcTask1' (351): | Test name=testStartingSecondRecordReturnsFailure
-MSG | 9/7/2026 8:07:41 AM 613 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogger
-MSG | 9/7/2026 8:07:41 AM 633 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=3, duration=1.73e-5
-MSG | 9/7/2026 8:07:41 AM 653 ms | 'PlcTask1' (351): | Test name=testStartLogRecordStampsUnixEpochNanos
-MSG | 9/7/2026 8:07:41 AM 673 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogger
-MSG | 9/7/2026 8:07:41 AM 693 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=3, duration=2.06e-5
-MSG | 9/7/2026 8:07:41 AM 713 ms | 'PlcTask1' (351): | Test suite ID=4 'MAIN.fbTestProvider'
-MSG | 9/7/2026 8:07:41 AM 733 ms | 'PlcTask1' (351): | ID=4 number of tests=8, number of failed tests=0, duration=1.912e-4
-MSG | 9/7/2026 8:07:41 AM 753 ms | 'PlcTask1' (351): | Test name=Test StageProcessorChaining
-MSG | 9/7/2026 8:07:41 AM 773 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProvider
-MSG | 9/7/2026 8:07:41 AM 793 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=1, duration=3.27e-5
-MSG | 9/7/2026 8:07:41 AM 813 ms | 'PlcTask1' (351): | Test name=Test StageProcessorCount
-MSG | 9/7/2026 8:07:41 AM 833 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProvider
-MSG | 9/7/2026 8:07:41 AM 853 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=3, duration=1.22e-5
-MSG | 9/7/2026 8:07:41 AM 873 ms | 'PlcTask1' (351): | Test name=Test StageProcessorRejectsDuplicates
-MSG | 9/7/2026 8:07:41 AM 893 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProvider
-MSG | 9/7/2026 8:07:41 AM 913 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=2, duration=7.3e-6
-MSG | 9/7/2026 8:07:41 AM 933 ms | 'PlcTask1' (351): | Test name=Test StageProcessorAllowsDistinct
-MSG | 9/7/2026 8:07:41 AM 953 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProvider
-MSG | 9/7/2026 8:07:41 AM 973 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=1, duration=4.9e-6
-MSG | 9/7/2026 8:07:41 AM 993 ms | 'PlcTask1' (351): | Test name=Test FreeReleasesNodes
-MSG | 9/7/2026 8:07:42 AM 013 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProvider
-MSG | 9/7/2026 8:07:42 AM 033 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=2, duration=1.05e-5
-MSG | 9/7/2026 8:07:42 AM 053 ms | 'PlcTask1' (351): | Test name=Test DuplicateProcessorReceivesRecordOnce
-MSG | 9/7/2026 8:07:42 AM 073 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProvider
-MSG | 9/7/2026 8:07:42 AM 093 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=2, duration=1.5e-5
-MSG | 9/7/2026 8:07:42 AM 113 ms | 'PlcTask1' (351): | Test name=Test DistinctProcessorsEachReceiveRecord
-MSG | 9/7/2026 8:07:42 AM 133 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProvider
-MSG | 9/7/2026 8:07:42 AM 153 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=2, duration=1.77e-5
-MSG | 9/7/2026 8:07:42 AM 173 ms | 'PlcTask1' (351): | Test name=Test TickReportsSuccess
-MSG | 9/7/2026 8:07:42 AM 193 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProvider
-MSG | 9/7/2026 8:07:42 AM 213 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=5, duration=4.77e-5
-MSG | 9/7/2026 8:07:42 AM 233 ms | 'PlcTask1' (351): | Test suite ID=5 'MAIN.fbTestProcessors'
-MSG | 9/7/2026 8:07:42 AM 253 ms | 'PlcTask1' (351): | ID=5 number of tests=2, number of failed tests=0, duration=4.514e-4
-MSG | 9/7/2026 8:07:42 AM 273 ms | 'PlcTask1' (351): | Test name=Test SimpleLogProcessors
-MSG | 9/7/2026 8:07:42 AM 293 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProcessors
-MSG | 9/7/2026 8:07:42 AM 313 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=0, duration=1.09e-5
-MSG | 9/7/2026 8:07:42 AM 333 ms | 'PlcTask1' (351): | Test name=Test BatchLogProcessors
-MSG | 9/7/2026 8:07:42 AM 353 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProcessors
-MSG | 9/7/2026 8:07:42 AM 373 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=35, duration=4.195e-4
-MSG | 9/7/2026 8:07:42 AM 393 ms | 'PlcTask1' (351): | Test suite ID=6 'MAIN.fbTestExporters'
-MSG | 9/7/2026 8:07:42 AM 413 ms | 'PlcTask1' (351): | ID=6 number of tests=1, number of failed tests=0, duration=3.125e-4
-MSG | 9/7/2026 8:07:42 AM 433 ms | 'PlcTask1' (351): | Test name=Test Groups Records Through Exporter
-MSG | 9/7/2026 8:07:42 AM 453 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestExporters
-MSG | 9/7/2026 8:07:42 AM 473 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=37, duration=2.925e-4
-MSG | 9/7/2026 8:07:42 AM 493 ms | 'PlcTask1' (351): | Test suite ID=7 'MAIN.fbTestLogRecord'
-MSG | 9/7/2026 8:07:42 AM 513 ms | 'PlcTask1' (351): | ID=7 number of tests=1, number of failed tests=0, duration=6.56e-4
-MSG | 9/7/2026 8:07:42 AM 533 ms | 'PlcTask1' (351): | Test name=canDeepCopyCloneRecord
-MSG | 9/7/2026 8:07:42 AM 553 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogRecord
-MSG | 9/7/2026 8:07:42 AM 573 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=49, duration=6.444e-4
-MSG | 9/7/2026 8:07:42 AM 593 ms | 'PlcTask1' (351): | Test suite ID=8 'MAIN.fbTestProtoJsonSerializer'
-MSG | 9/7/2026 8:07:42 AM 613 ms | 'PlcTask1' (351): | ID=8 number of tests=4, number of failed tests=0, duration=3.3388e-3
-MSG | 9/7/2026 8:07:42 AM 633 ms | 'PlcTask1' (351): | Test name=Test SerializeNumberValues
-MSG | 9/7/2026 8:07:42 AM 653 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProtoJsonSerializer
-MSG | 9/7/2026 8:07:42 AM 673 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=23, duration=2.156e-4
-MSG | 9/7/2026 8:07:42 AM 693 ms | 'PlcTask1' (351): | Test name=Test SerializeLogRecord
-MSG | 9/7/2026 8:07:42 AM 713 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProtoJsonSerializer
-MSG | 9/7/2026 8:07:42 AM 733 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=23, duration=6.152e-4
-MSG | 9/7/2026 8:07:42 AM 753 ms | 'PlcTask1' (351): | Test name=Test Serializer Failure Reasons
-MSG | 9/7/2026 8:07:42 AM 773 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProtoJsonSerializer
-MSG | 9/7/2026 8:07:42 AM 793 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=4, duration=9.78e-5
-MSG | 9/7/2026 8:07:42 AM 813 ms | 'PlcTask1' (351): | Test name=Test SerializeLogsData
-MSG | 9/7/2026 8:07:42 AM 833 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProtoJsonSerializer
-MSG | 9/7/2026 8:07:42 AM 853 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=61, duration=2.2908e-3
-MSG | 9/7/2026 8:07:42 AM 873 ms | 'PlcTask1' (351): | Test suite ID=9 'MAIN.fbTestFileExporter'
-MSG | 9/7/2026 8:07:42 AM 893 ms | 'PlcTask1' (351): | ID=9 number of tests=1, number of failed tests=0, duration=1.294592e-1
-MSG | 9/7/2026 8:07:42 AM 913 ms | 'PlcTask1' (351): | Test name=Test File Export Batched LogRecords
-MSG | 9/7/2026 8:07:42 AM 933 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestFileExporter
-MSG | 9/7/2026 8:07:42 AM 953 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=9, duration=1.294537e-1
-MSG | 9/7/2026 8:07:50 AM 213 ms | 'PlcTask1' (351): | Test suite ID=10 'MAIN.fbTestHttpExporter'
-MSG | 9/7/2026 8:07:50 AM 233 ms | 'PlcTask1' (351): | ID=10 number of tests=2, number of failed tests=0, duration=10.086838
-MSG | 9/7/2026 8:07:50 AM 253 ms | 'PlcTask1' (351): | Test name=Test Http Export Invalid Url Fails Fast
-MSG | 9/7/2026 8:07:50 AM 273 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestHttpExporter
-MSG | 9/7/2026 8:07:50 AM 293 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=10, duration=6.57e-5
-MSG | 9/7/2026 8:07:50 AM 313 ms | 'PlcTask1' (351): | Test name=Test Http Export Connection Refused Reports Failure
-MSG | 9/7/2026 8:07:50 AM 333 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestHttpExporter
-MSG | 9/7/2026 8:07:50 AM 353 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=9, duration=10.0867618
-ERR | 9/7/2026 8:07:50 AM 373 ms | 'PlcTask1' (351): | ==========TESTS FINISHED RUNNING==========
-ERR | 9/7/2026 8:07:50 AM 393 ms | 'PlcTask1' (351): | Test suites: 11
-ERR | 9/7/2026 8:07:50 AM 413 ms | 'PlcTask1' (351): | Tests: 40
-ERR | 9/7/2026 8:07:50 AM 433 ms | 'PlcTask1' (351): | Successful tests: 40
-ERR | 9/7/2026 8:07:50 AM 453 ms | 'PlcTask1' (351): | Failed tests: 0
-ERR | 9/7/2026 8:07:50 AM 473 ms | 'PlcTask1' (351): | Duration: 10.0964843
-ERR | 9/7/2026 8:07:50 AM 493 ms | 'PlcTask1' (351): | ======================================
+﻿MSG | 9/7/2026 12:05:13 PM 149 ms | 'System Manager' (32966): Activate configuration performed from 'DESKTOP-V6KMEBB' (192.168.97.90.1.1) by 'samue'
+MSG | 9/7/2026 12:05:14 PM 158 ms | 'TcOsSys' (50): TwinCAT System Start: AdsState: 5 NumProc: 4
+MSG | 9/7/2026 12:05:14 PM 162 ms | 'License Server' (30): license validation status is Valid(3)
+MSG | 9/7/2026 12:05:14 PM 174 ms | 'License Server' (30): license validation status is Valid(3)
+MSG | 9/7/2026 12:05:14 PM 886 ms | 'TcOsSys' (50): TwinCAT system start completed. AdsState: >5<
+MSG | 9/7/2026 12:05:14 PM 896 ms | 'PlcTask1' (351): | Test suite ID=0 'MAIN.fbTestOtlpValue'
+MSG | 9/7/2026 12:05:14 PM 916 ms | 'PlcTask1' (351): | ID=0 number of tests=6, number of failed tests=0, duration=5.1288e-3
+MSG | 9/7/2026 12:05:14 PM 936 ms | 'PlcTask1' (351): | Test name=Test StringValue
+MSG | 9/7/2026 12:05:14 PM 956 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestOtlpValue
+MSG | 9/7/2026 12:05:14 PM 976 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=12, duration=1.754e-4
+MSG | 9/7/2026 12:05:14 PM 996 ms | 'PlcTask1' (351): | Test name=Test TraceIdValue
+MSG | 9/7/2026 12:05:15 PM 016 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestOtlpValue
+MSG | 9/7/2026 12:05:15 PM 036 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=15, duration=2.259e-4
+MSG | 9/7/2026 12:05:15 PM 056 ms | 'PlcTask1' (351): | Test name=Test SpanIdValue
+MSG | 9/7/2026 12:05:15 PM 076 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestOtlpValue
+MSG | 9/7/2026 12:05:15 PM 096 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=15, duration=3.568e-4
+MSG | 9/7/2026 12:05:15 PM 116 ms | 'PlcTask1' (351): | Test name=Test KeyValue
+MSG | 9/7/2026 12:05:15 PM 136 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestOtlpValue
+MSG | 9/7/2026 12:05:15 PM 156 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=17, duration=5.787e-4
+MSG | 9/7/2026 12:05:15 PM 176 ms | 'PlcTask1' (351): | Test name=Test NumberValue
+MSG | 9/7/2026 12:05:15 PM 196 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestOtlpValue
+MSG | 9/7/2026 12:05:15 PM 216 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=36, duration=2.0652e-3
+MSG | 9/7/2026 12:05:15 PM 236 ms | 'PlcTask1' (351): | Test name=Test Value Cloning
+MSG | 9/7/2026 12:05:15 PM 256 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestOtlpValue
+MSG | 9/7/2026 12:05:15 PM 276 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=17, duration=1.6238e-3
+MSG | 9/7/2026 12:05:15 PM 296 ms | 'PlcTask1' (351): | Test suite ID=1 'MAIN.fbTestAttributes'
+MSG | 9/7/2026 12:05:15 PM 316 ms | 'PlcTask1' (351): | ID=1 number of tests=3, number of failed tests=0, duration=7.584e-4
+MSG | 9/7/2026 12:05:15 PM 336 ms | 'PlcTask1' (351): | Test name=testSetBehavior
+MSG | 9/7/2026 12:05:15 PM 356 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestAttributes
+MSG | 9/7/2026 12:05:15 PM 376 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=5, duration=1.66e-4
+MSG | 9/7/2026 12:05:15 PM 396 ms | 'PlcTask1' (351): | Test name=testCopyValues
+MSG | 9/7/2026 12:05:15 PM 416 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestAttributes
+MSG | 9/7/2026 12:05:15 PM 436 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=12, duration=1.009e-4
+MSG | 9/7/2026 12:05:15 PM 456 ms | 'PlcTask1' (351): | Test name=testFailureReasons
+MSG | 9/7/2026 12:05:15 PM 476 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestAttributes
+MSG | 9/7/2026 12:05:15 PM 496 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=23, duration=4.4e-4
+MSG | 9/7/2026 12:05:15 PM 516 ms | 'PlcTask1' (351): | Test suite ID=2 'MAIN.fbTestLogRecordQueue'
+MSG | 9/7/2026 12:05:15 PM 536 ms | 'PlcTask1' (351): | ID=2 number of tests=7, number of failed tests=0, duration=9.72e-4
+MSG | 9/7/2026 12:05:15 PM 556 ms | 'PlcTask1' (351): | Test name=testEnforcesMaximumSize
+MSG | 9/7/2026 12:05:15 PM 576 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogRecordQueue
+MSG | 9/7/2026 12:05:15 PM 596 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=8, duration=1.342e-4
+MSG | 9/7/2026 12:05:15 PM 616 ms | 'PlcTask1' (351): | Test name=testAllowsUnboundedLength
+MSG | 9/7/2026 12:05:15 PM 636 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogRecordQueue
+MSG | 9/7/2026 12:05:15 PM 656 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=5, duration=4.88e-5
+MSG | 9/7/2026 12:05:15 PM 676 ms | 'PlcTask1' (351): | Test name=testDropsOldestRecordFirst
+MSG | 9/7/2026 12:05:15 PM 696 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogRecordQueue
+MSG | 9/7/2026 12:05:15 PM 716 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=5, duration=6.42e-5
+MSG | 9/7/2026 12:05:15 PM 736 ms | 'PlcTask1' (351): | Test name=testPushAndPopTransferRecordOwnership
+MSG | 9/7/2026 12:05:15 PM 756 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogRecordQueue
+MSG | 9/7/2026 12:05:15 PM 776 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=4, duration=6.05e-5
+MSG | 9/7/2026 12:05:15 PM 796 ms | 'PlcTask1' (351): | Test name=testTransfersQueueOwnership
+MSG | 9/7/2026 12:05:15 PM 816 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogRecordQueue
+MSG | 9/7/2026 12:05:15 PM 836 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=6, duration=1.209e-4
+MSG | 9/7/2026 12:05:15 PM 856 ms | 'PlcTask1' (351): | Test name=testTransfersRequestedCount
+MSG | 9/7/2026 12:05:15 PM 876 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogRecordQueue
+MSG | 9/7/2026 12:05:15 PM 896 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=8, duration=2.062e-4
+MSG | 9/7/2026 12:05:15 PM 916 ms | 'PlcTask1' (351): | Test name=testReportsFailureReasons
+MSG | 9/7/2026 12:05:15 PM 936 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogRecordQueue
+MSG | 9/7/2026 12:05:15 PM 956 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=7, duration=2.618e-4
+MSG | 9/7/2026 12:05:15 PM 976 ms | 'PlcTask1' (351): | Test suite ID=3 'MAIN.fbTestLogger'
+MSG | 9/7/2026 12:05:15 PM 996 ms | 'PlcTask1' (351): | ID=3 number of tests=5, number of failed tests=0, duration=2.025e-4
+MSG | 9/7/2026 12:05:16 PM 016 ms | 'PlcTask1' (351): | Test name=testFluentAPI
+MSG | 9/7/2026 12:05:16 PM 036 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogger
+MSG | 9/7/2026 12:05:16 PM 056 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=3, duration=7.08e-5
+MSG | 9/7/2026 12:05:16 PM 076 ms | 'PlcTask1' (351): | Test name=testEmitWithoutRecordReturnsFailure
+MSG | 9/7/2026 12:05:16 PM 096 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogger
+MSG | 9/7/2026 12:05:16 PM 116 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=2, duration=8.7e-6
+MSG | 9/7/2026 12:05:16 PM 136 ms | 'PlcTask1' (351): | Test name=testEmitReturnsFirstFluentFailure
+MSG | 9/7/2026 12:05:16 PM 156 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogger
+MSG | 9/7/2026 12:05:16 PM 176 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=3, duration=2.34e-5
+MSG | 9/7/2026 12:05:16 PM 196 ms | 'PlcTask1' (351): | Test name=testStartingSecondRecordReturnsFailure
+MSG | 9/7/2026 12:05:16 PM 216 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogger
+MSG | 9/7/2026 12:05:16 PM 236 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=3, duration=2.55e-5
+MSG | 9/7/2026 12:05:16 PM 256 ms | 'PlcTask1' (351): | Test name=testStartLogRecordStampsUnixEpochNanos
+MSG | 9/7/2026 12:05:16 PM 276 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogger
+MSG | 9/7/2026 12:05:16 PM 296 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=3, duration=3.6e-5
+MSG | 9/7/2026 12:05:16 PM 316 ms | 'PlcTask1' (351): | Test suite ID=4 'MAIN.fbTestProvider'
+MSG | 9/7/2026 12:05:16 PM 336 ms | 'PlcTask1' (351): | ID=4 number of tests=8, number of failed tests=0, duration=3.021e-4
+MSG | 9/7/2026 12:05:16 PM 356 ms | 'PlcTask1' (351): | Test name=Test StageProcessorChaining
+MSG | 9/7/2026 12:05:16 PM 376 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProvider
+MSG | 9/7/2026 12:05:16 PM 396 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=1, duration=4.82e-5
+MSG | 9/7/2026 12:05:16 PM 416 ms | 'PlcTask1' (351): | Test name=Test StageProcessorCount
+MSG | 9/7/2026 12:05:16 PM 436 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProvider
+MSG | 9/7/2026 12:05:16 PM 456 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=3, duration=1.24e-5
+MSG | 9/7/2026 12:05:16 PM 476 ms | 'PlcTask1' (351): | Test name=Test StageProcessorRejectsDuplicates
+MSG | 9/7/2026 12:05:16 PM 496 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProvider
+MSG | 9/7/2026 12:05:16 PM 516 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=2, duration=1.21e-5
+MSG | 9/7/2026 12:05:16 PM 536 ms | 'PlcTask1' (351): | Test name=Test StageProcessorAllowsDistinct
+MSG | 9/7/2026 12:05:16 PM 556 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProvider
+MSG | 9/7/2026 12:05:16 PM 576 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=1, duration=7.9e-6
+MSG | 9/7/2026 12:05:16 PM 596 ms | 'PlcTask1' (351): | Test name=Test FreeReleasesNodes
+MSG | 9/7/2026 12:05:16 PM 616 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProvider
+MSG | 9/7/2026 12:05:16 PM 636 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=2, duration=1.56e-5
+MSG | 9/7/2026 12:05:16 PM 656 ms | 'PlcTask1' (351): | Test name=Test DuplicateProcessorReceivesRecordOnce
+MSG | 9/7/2026 12:05:16 PM 676 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProvider
+MSG | 9/7/2026 12:05:16 PM 696 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=2, duration=2.51e-5
+MSG | 9/7/2026 12:05:16 PM 716 ms | 'PlcTask1' (351): | Test name=Test DistinctProcessorsEachReceiveRecord
+MSG | 9/7/2026 12:05:16 PM 736 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProvider
+MSG | 9/7/2026 12:05:16 PM 756 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=2, duration=3.07e-5
+MSG | 9/7/2026 12:05:16 PM 776 ms | 'PlcTask1' (351): | Test name=Test TickReportsSuccess
+MSG | 9/7/2026 12:05:16 PM 796 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProvider
+MSG | 9/7/2026 12:05:16 PM 816 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=5, duration=7.9e-5
+MSG | 9/7/2026 12:05:16 PM 836 ms | 'PlcTask1' (351): | Test suite ID=5 'MAIN.fbTestProcessors'
+MSG | 9/7/2026 12:05:16 PM 856 ms | 'PlcTask1' (351): | ID=5 number of tests=2, number of failed tests=0, duration=7.355e-4
+MSG | 9/7/2026 12:05:16 PM 876 ms | 'PlcTask1' (351): | Test name=Test SimpleLogProcessors
+MSG | 9/7/2026 12:05:16 PM 896 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProcessors
+MSG | 9/7/2026 12:05:16 PM 916 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=0, duration=2.27e-5
+MSG | 9/7/2026 12:05:16 PM 936 ms | 'PlcTask1' (351): | Test name=Test BatchLogProcessors
+MSG | 9/7/2026 12:05:16 PM 956 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProcessors
+MSG | 9/7/2026 12:05:16 PM 976 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=35, duration=6.799e-4
+MSG | 9/7/2026 12:05:16 PM 996 ms | 'PlcTask1' (351): | Test suite ID=6 'MAIN.fbTestExporters'
+MSG | 9/7/2026 12:05:17 PM 016 ms | 'PlcTask1' (351): | ID=6 number of tests=1, number of failed tests=0, duration=6.078e-4
+MSG | 9/7/2026 12:05:17 PM 036 ms | 'PlcTask1' (351): | Test name=Test Groups Records Through Exporter
+MSG | 9/7/2026 12:05:17 PM 056 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestExporters
+MSG | 9/7/2026 12:05:17 PM 076 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=37, duration=5.54e-4
+MSG | 9/7/2026 12:05:17 PM 096 ms | 'PlcTask1' (351): | Test suite ID=7 'MAIN.fbTestLogRecord'
+MSG | 9/7/2026 12:05:17 PM 116 ms | 'PlcTask1' (351): | ID=7 number of tests=1, number of failed tests=0, duration=1.4801e-3
+MSG | 9/7/2026 12:05:17 PM 136 ms | 'PlcTask1' (351): | Test name=canDeepCopyCloneRecord
+MSG | 9/7/2026 12:05:17 PM 156 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestLogRecord
+MSG | 9/7/2026 12:05:17 PM 176 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=49, duration=1.4408e-3
+MSG | 9/7/2026 12:05:17 PM 196 ms | 'PlcTask1' (351): | Test suite ID=8 'MAIN.fbTestProtoJsonSerializer'
+MSG | 9/7/2026 12:05:17 PM 216 ms | 'PlcTask1' (351): | ID=8 number of tests=4, number of failed tests=0, duration=4.114e-3
+MSG | 9/7/2026 12:05:17 PM 236 ms | 'PlcTask1' (351): | Test name=Test SerializeNumberValues
+MSG | 9/7/2026 12:05:17 PM 256 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProtoJsonSerializer
+MSG | 9/7/2026 12:05:17 PM 276 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=23, duration=3.654e-4
+MSG | 9/7/2026 12:05:17 PM 296 ms | 'PlcTask1' (351): | Test name=Test SerializeLogRecord
+MSG | 9/7/2026 12:05:17 PM 316 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProtoJsonSerializer
+MSG | 9/7/2026 12:05:17 PM 336 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=23, duration=6.639e-4
+MSG | 9/7/2026 12:05:17 PM 356 ms | 'PlcTask1' (351): | Test name=Test Serializer Failure Reasons
+MSG | 9/7/2026 12:05:17 PM 376 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProtoJsonSerializer
+MSG | 9/7/2026 12:05:17 PM 396 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=4, duration=1.139e-4
+MSG | 9/7/2026 12:05:17 PM 416 ms | 'PlcTask1' (351): | Test name=Test SerializeLogsData
+MSG | 9/7/2026 12:05:17 PM 436 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestProtoJsonSerializer
+MSG | 9/7/2026 12:05:17 PM 456 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=61, duration=2.8072e-3
+MSG | 9/7/2026 12:05:17 PM 476 ms | 'PlcTask1' (351): | Test suite ID=9 'MAIN.fbTestFileExporter'
+MSG | 9/7/2026 12:05:17 PM 496 ms | 'PlcTask1' (351): | ID=9 number of tests=1, number of failed tests=0, duration=1.314576e-1
+MSG | 9/7/2026 12:05:17 PM 516 ms | 'PlcTask1' (351): | Test name=Test File Export Batched LogRecords
+MSG | 9/7/2026 12:05:17 PM 536 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestFileExporter
+MSG | 9/7/2026 12:05:17 PM 556 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=9, duration=1.31434e-1
+MSG | 9/7/2026 12:05:24 PM 786 ms | 'PlcTask1' (351): | Test suite ID=10 'MAIN.fbTestHttpExporter'
+MSG | 9/7/2026 12:05:24 PM 806 ms | 'PlcTask1' (351): | ID=10 number of tests=2, number of failed tests=0, duration=10.0830777
+MSG | 9/7/2026 12:05:24 PM 826 ms | 'PlcTask1' (351): | Test name=Test Http Export Invalid Url Fails Fast
+MSG | 9/7/2026 12:05:24 PM 846 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestHttpExporter
+MSG | 9/7/2026 12:05:24 PM 866 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=10, duration=1.119e-4
+MSG | 9/7/2026 12:05:24 PM 886 ms | 'PlcTask1' (351): | Test name=Test Http Export Connection Refused Reports Failure
+MSG | 9/7/2026 12:05:24 PM 906 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestHttpExporter
+MSG | 9/7/2026 12:05:24 PM 926 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=9, duration=10.0829519
+MSG | 9/7/2026 12:05:24 PM 946 ms | 'PlcTask1' (351): | Test suite ID=11 'MAIN.fbTestIdGenerator'
+MSG | 9/7/2026 12:05:24 PM 966 ms | 'PlcTask1' (351): | ID=11 number of tests=9, number of failed tests=0, duration=6.20601e-2
+MSG | 9/7/2026 12:05:24 PM 986 ms | 'PlcTask1' (351): | Test name=testFailsBeforeTheFirstRefill
+MSG | 9/7/2026 12:05:25 PM 006 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestIdGenerator
+MSG | 9/7/2026 12:05:25 PM 026 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=6, duration=8.55e-5
+MSG | 9/7/2026 12:05:25 PM 046 ms | 'PlcTask1' (351): | Test name=testGeneratesNonZeroTraceId
+MSG | 9/7/2026 12:05:25 PM 066 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestIdGenerator
+MSG | 9/7/2026 12:05:25 PM 086 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=3, duration=1.94741e-2
+MSG | 9/7/2026 12:05:25 PM 106 ms | 'PlcTask1' (351): | Test name=testGeneratesNonZeroSpanId
+MSG | 9/7/2026 12:05:25 PM 126 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestIdGenerator
+MSG | 9/7/2026 12:05:25 PM 146 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=3, duration=1.95785e-2
+MSG | 9/7/2026 12:05:25 PM 166 ms | 'PlcTask1' (351): | Test name=testGeneratesUniqueTraceIds
+MSG | 9/7/2026 12:05:25 PM 186 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestIdGenerator
+MSG | 9/7/2026 12:05:25 PM 206 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=44, duration=3.05446e-2
+MSG | 9/7/2026 12:05:25 PM 226 ms | 'PlcTask1' (351): | Test name=testGeneratesUniqueSpanIds
+MSG | 9/7/2026 12:05:25 PM 246 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestIdGenerator
+MSG | 9/7/2026 12:05:25 PM 266 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=44, duration=3.0876e-2
+MSG | 9/7/2026 12:05:25 PM 286 ms | 'PlcTask1' (351): | Test name=testSeparateGeneratorsDoNotCollide
+MSG | 9/7/2026 12:05:25 PM 306 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestIdGenerator
+MSG | 9/7/2026 12:05:25 PM 326 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=4, duration=2.014e-2
+MSG | 9/7/2026 12:05:25 PM 346 ms | 'PlcTask1' (351): | Test name=testRefillsAfterTheBufferIsDrained
+MSG | 9/7/2026 12:05:25 PM 366 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestIdGenerator
+MSG | 9/7/2026 12:05:25 PM 386 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=4, duration=6.15905e-2
+MSG | 9/7/2026 12:05:25 PM 406 ms | 'PlcTask1' (351): | Test name=testGeneratesThroughTheBaseReference
+MSG | 9/7/2026 12:05:25 PM 426 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestIdGenerator
+MSG | 9/7/2026 12:05:25 PM 446 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=4, duration=3.12997e-2
+MSG | 9/7/2026 12:05:25 PM 466 ms | 'PlcTask1' (351): | Test name=testHonorsConfiguredCapacity
+MSG | 9/7/2026 12:05:25 PM 486 ms | 'PlcTask1' (351): | Test class name=MAIN.fbTestIdGenerator
+MSG | 9/7/2026 12:05:25 PM 506 ms | 'PlcTask1' (351): | Test status=PASS, number of asserts=5, duration=6.19068e-2
+ERR | 9/7/2026 12:05:25 PM 526 ms | 'PlcTask1' (351): | ==========TESTS FINISHED RUNNING==========
+ERR | 9/7/2026 12:05:25 PM 546 ms | 'PlcTask1' (351): | Test suites: 12
+ERR | 9/7/2026 12:05:25 PM 566 ms | 'PlcTask1' (351): | Tests: 49
+ERR | 9/7/2026 12:05:25 PM 586 ms | 'PlcTask1' (351): | Successful tests: 49
+ERR | 9/7/2026 12:05:25 PM 606 ms | 'PlcTask1' (351): | Failed tests: 0
+ERR | 9/7/2026 12:05:25 PM 626 ms | 'PlcTask1' (351): | Duration: 10.1081199
+ERR | 9/7/2026 12:05:25 PM 646 ms | 'PlcTask1' (351): | ======================================
 

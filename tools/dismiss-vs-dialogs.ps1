@@ -45,11 +45,13 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
 
 # Message text of the dialogs this script is allowed to click. Anything else is left for a human.
+# All of these mean the same thing: a file changed on disk and the IDE wants to reload it.
 $KnownDialogPatterns = @(
     'has been changed outside the environment',
     'has been modified outside of the environment',
     'have been modified outside the environment',
-    'been modified outside the source editor'
+    'been modified outside the source editor',
+    'has been modified outside of TwinCAT XAE'
 )
 
 if (-not ('TcOtlp.Win' -as [type])) {
@@ -114,6 +116,15 @@ function New-IdCondition {
     return New-Object System.Windows.Automation.PropertyCondition ($AE::AutomationIdProperty), $AutomationId
 }
 
+# When dialogs stack, the outer window's automation subtree also contains the inner dialog's
+# controls, so an outer window can appear to own buttons that are not its own. Counting the
+# message bodies tells us whether a window holds exactly one dialog; if it holds more, we leave
+# it for a later sweep and let the innermost one close first.
+function Get-DialogCount {
+    param($Element)
+    return @($Element.FindAll($SCOPE_DESC, (New-IdCondition -AutomationId 'Text'))).Count
+}
+
 # The message body lives in a read-only TextBox with AutomationId "Text". Fall back to joining
 # every descendant label so a differently shaped dialog is still reported rather than silently
 # treated as unrecognised.
@@ -162,6 +173,10 @@ function Invoke-DialogSweep {
         # Only Visual Studio's own message boxes; the main window and the glow border frames
         # share the same window class.
         if ($element.Current.AutomationId -ne 'Microsoft.VisualStudio.MessageBox') { continue }
+
+        # Only act on a window holding a single dialog, so the button we find is certain to
+        # belong to the message we matched rather than to a nested dialog we have not vetted.
+        if ((Get-DialogCount -Element $element) -ne 1) { continue }
 
         $message = Get-DialogMessage -Element $element
         $matched = $false
