@@ -199,6 +199,12 @@ END_FOR
 // tick each processor
 _node := THIS^._head;
 FOR _j := 1 TO THIS^.stagedProcessorCount DO
+	// guard before dereferencing; walking off the tail on the last iteration is
+	// normal termination, so only a list shorter than the count is a failure
+	IF _node = 0 THEN
+		failureReason := E_LoggerProviderFailureReason.UNEXPECTED_NULL_LINKED_LIST_NODE;
+		JMP _endLabel;
+	END_IF
 	_processor := _node^.val;
 	IF _processor = 0 THEN
 		failureReason := E_LoggerProviderFailureReason.UNEXPECTED_NULL_PROCESSOR_POINTER;
@@ -206,10 +212,6 @@ FOR _j := 1 TO THIS^.stagedProcessorCount DO
 	END_IF
 	_processor^.tick();
 	_node := _node^.nxt;
-	IF _node = 0 THEN
-		failureReason := E_LoggerProviderFailureReason.UNEXPECTED_NULL_LINKED_LIST_NODE;
-		JMP _endLabel;
-	END_IF
 END_FOR
 
 // clean up and return

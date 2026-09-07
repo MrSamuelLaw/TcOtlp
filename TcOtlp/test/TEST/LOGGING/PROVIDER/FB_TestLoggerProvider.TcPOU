@@ -11,7 +11,8 @@ THIS^.testStageProcessorRejectsDuplicates();
 THIS^.testStageProcessorAllowsDistinct();
 THIS^.testFreeReleasesNodes();
 THIS^.testDuplicateProcessorReceivesRecordOnce();
-THIS^.testDistinctProcessorsEachReceiveRecord();]]></ST>
+THIS^.testDistinctProcessorsEachReceiveRecord();
+THIS^.testTickReportsSuccess();]]></ST>
     </Implementation>
     <Method Name="testDistinctProcessorsEachReceiveRecord" Id="{b8c9d0e1-f2a3-4b4c-5d6e-7f8a9b0c1d2e}">
       <Declaration><![CDATA[(*
@@ -149,6 +150,57 @@ END_VAR]]></Declaration>
 	THIS^.AssertEquals_UDINT(1, provider.stagedProcessorCount, 'Expected one processor after first add');
 	provider.stageProcessor(processor);
 	THIS^.AssertEquals_UDINT(1, provider.stagedProcessorCount, 'Expected count unchanged after duplicate add');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testTickReportsSuccess" Id="{4f4e1261-083c-45ca-9366-b5a02c20233f}">
+      <Declaration><![CDATA[(*
+	Exhausting the staged-processor list is normal loop termination, not a
+	corrupt list, so tick must report success once every processor has run.
+*)
+METHOD testTickReportsSuccess : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	provider: FB_LoggerProvider(resource);
+	scope: FB_InstrumentationScope('scope', '1.0.0', '');
+	logger: FB_Logger(scope, provider);
+	exporterA: FB_LogRecordExporter_ForInspection;
+	processorA: FB_LogRecordProcessor_Simple(exporterA);
+	exporterB: FB_LogRecordExporter_ForInspection;
+	processorB: FB_LogRecordProcessor_Simple(exporterB);
+	tickSucceeded: BOOL;
+	tickFailureReason: E_LoggerProviderFailureReason;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test TickReportsSuccess');
+	// a single staged processor walks the list to its tail on the first iteration
+	logger.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).emit();
+	tickSucceeded := provider
+		.stageProcessor(processorA)
+		.tick(failureReason=>tickFailureReason);
+	THIS^.AssertTrue(tickSucceeded, 'Expected tick to succeed with one staged processor');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_LoggerProviderFailureReason.NA),
+		TO_UDINT(tickFailureReason),
+		'Expected no failure reason with one staged processor'
+	);
+
+	// tick unstages every processor, so both must be staged again
+	logger.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).emit();
+	tickSucceeded := provider
+		.stageProcessor(processorA)
+		.stageProcessor(processorB)
+		.tick(failureReason=>tickFailureReason);
+	THIS^.AssertTrue(tickSucceeded, 'Expected tick to succeed with two staged processors');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_LoggerProviderFailureReason.NA),
+		TO_UDINT(tickFailureReason),
+		'Expected no failure reason with two staged processors'
+	);
+
+	// a tick with nothing staged still reports success
+	tickSucceeded := provider.tick(failureReason=>tickFailureReason);
+	THIS^.AssertTrue(tickSucceeded, 'Expected tick to succeed with no staged processors');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

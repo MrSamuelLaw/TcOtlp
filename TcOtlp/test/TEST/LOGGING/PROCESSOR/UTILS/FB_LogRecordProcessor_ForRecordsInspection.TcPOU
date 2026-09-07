@@ -24,6 +24,45 @@ END_VAR
 );]]></ST>
       </Implementation>
     </Method>
+    <Method Name="onEmit" Id="{8cff1ee9-6c2d-4cee-b612-4a7db990b38e}">
+      <Declaration><![CDATA[(*
+	Retains every emitted record for assertions, whether or not an exporter is
+	bound. FB_LogRecordProcessor_Batch.onEmit deliberately skips the clone and
+	the queue push when it has no exporter; this double overrides that so a test
+	can collect records and hand them to an exporter itself via exportRecords.
+*)
+METHOD onEmit
+VAR_INPUT
+	logRecord: REFERENCE TO FB_LogRecord;
+END_VAR
+VAR
+	_pRecord: POINTER TO FB_LogRecord;
+	_cloneFailureResult: E_LogRecordCloneFailureReason;
+	_queueFailureReason: E_LogRecordQueueFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.enrich(logRecord);
+
+_pRecord := 0;
+IF NOT logRecord.cloneTo(pDest:=_pRecord, failureReason=>_cloneFailureResult) THEN
+	IF _pRecord <> 0 THEN _pRecord := _pRecord^.delete(); END_IF
+	THIS^.lastOperationSucceeded := FALSE;
+	THIS^.failureResult := E_LogRecordProcessorFailureReason.RECORD_CLONE_FAILURE;
+	RETURN;
+END_IF
+
+IF NOT THIS^._records.push(pValue:=_pRecord, failureReason=>_queueFailureReason) THEN
+	_pRecord := _pRecord^.delete();
+	THIS^.lastOperationSucceeded := FALSE;
+	THIS^.failureResult := E_LogRecordProcessorFailureReason.QUEUE_PUSH_FAILURE;
+	RETURN;
+END_IF
+
+THIS^.lastOperationSucceeded := TRUE;
+THIS^.failureResult := E_LogRecordProcessorFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
     <Property Name="records" Id="{e6573eb1-0ce2-4c29-b81f-faf070bed2e3}">
       <Declaration><![CDATA[PROPERTY records : REFERENCE TO FB_LogRecordQueue]]></Declaration>
       <Get Name="Get" Id="{94707f0e-43af-40f1-b736-6188bca9d8d0}">
