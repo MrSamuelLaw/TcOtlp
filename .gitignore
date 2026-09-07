@@ -59,6 +59,7 @@ __pycache__/
 
 # log file file testing
 logs.jsonl
+tools/test-results.log
 
 # blog outline
 docs/obsidian/blog
