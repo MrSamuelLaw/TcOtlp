@@ -20,19 +20,6 @@ FUNCTION_BLOCK ABSTRACT FB_IdGenerator_Base
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="call" Id="{e8418ed0-8a1c-48a1-ac7c-d8570668f60e}">
-      <Declaration><![CDATA[(* Advances any bounded per cycle generation work.
-   Invoked by the owning provider, not by tracers.
-   Returns FALSE and reports a failure reason when the generator cannot advance. *)
-METHOD ABSTRACT call : BOOL
-VAR_OUTPUT
-	failureReason: E_IdGenFailureReason;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="generateSpanId" Id="{8719169e-045c-4082-a974-fe9b0f952921}">
       <Declaration><![CDATA[(* Produces one valid, non zero span id into the caller owned spanId.
    Returns FALSE without modifying spanId on failure. *)
@@ -55,6 +42,19 @@ METHOD ABSTRACT generateTraceId : BOOL
 VAR_IN_OUT
 	traceId: FB_TraceId;
 END_VAR
+VAR_OUTPUT
+	failureReason: E_IdGenFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="tick" Id="{e8418ed0-8a1c-48a1-ac7c-d8570668f60e}">
+      <Declaration><![CDATA[(* Advances any bounded per cycle generation work.
+   Invoked by the owning provider, not by tracers.
+   Returns FALSE and reports a failure reason when the generator cannot advance. *)
+METHOD ABSTRACT tick : BOOL
 VAR_OUTPUT
 	failureReason: E_IdGenFailureReason;
 END_VAR

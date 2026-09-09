@@ -7,9 +7,10 @@
 TYPE E_IdGenFailureReason :
 (
 	NA := 0,  // No failure occurred.
-	NO_IDENTIFIERS_AVAILABLE,  // The chunk list held too few chunks; the caller must retry on a later cycle.
-	GUID_SERVICE_FAILED,  // The TwinCAT GUID service reported an error while the list was being refilled.
-	MEMORY_ALLOCATION_FAILURE  // A chunk node or the staging block could not be allocated.
+	NO_IDENTIFIERS_AVAILABLE,  // The ring held too few bytes; the caller must retry on a later cycle.
+	GUID_SERVICE_FAILED,  // The TwinCAT GUID service reported an error while the ring was being refilled.
+	MEMORY_ALLOCATION_FAILURE,  // The ring could not be allocated.
+	INVALID_CONFIGUATION  // parameters used to configure the generator were not valid
 ) UDINT;
 END_TYPE
 ]]></Declaration>
@@ -34,6 +35,11 @@ END_TYPE
             </o>
             <o>
               <v n="TextID">"MEMORY_ALLOCATION_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"INVALID_CONFIGUATION  "</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>

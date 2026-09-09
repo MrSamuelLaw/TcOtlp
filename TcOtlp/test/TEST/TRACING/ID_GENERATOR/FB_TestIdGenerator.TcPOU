@@ -3,37 +3,33 @@
   <POU Name="FB_TestIdGenerator" Id="{8b541683-370a-4944-9efb-d4dbe8f57299}" SpecialFunc="None">
     <Declaration><![CDATA[(* Tests trace and span identifier generation.
 
-   The generator refills its chunk list from the operating system GUID service over ADS, so
-   a fresh generator has nothing to hand out until `call` has been pumped for a few cycles.
-   Every test that needs identifiers therefore owns its generator instance and waits for the
-   first refill before asserting. *)
+   A generator fills its ring from the operating system guid service over ADS, so a fresh one
+   has nothing to hand out until tick has been pumped for a few cycles. Every test that needs
+   identifiers waits for that first refill before asserting anything about the bytes it gets
+   back.
+
+   Each test declares its generator in its own VAR_INST, next to the state machine that pumps
+   it, so the ring a test reasons about is written down where the test reads it rather than in
+   a list on the suite. Ring sizes are therefore chosen per test: most take a ring far larger
+   than they draw from, so the seam never comes into it, while the wrap and capacity tests
+   deliberately take the smallest ring the configuration allows, because a ring that small is
+   the only one a test can drain often enough to lap. *)
 FUNCTION_BLOCK FB_TestIdGenerator EXTENDS FB_TestSuite
-VAR
-	_pristineGen: FB_IdGenerator(maxCount := 64, guidsPerRefill := 16);  // never pumped, so it stays empty
-	_nonZeroTraceGen: FB_IdGenerator(maxCount := 64, guidsPerRefill := 16);
-	_nonZeroSpanGen: FB_IdGenerator(maxCount := 64, guidsPerRefill := 16);
-	_uniqueTraceGen: FB_IdGenerator(maxCount := 64, guidsPerRefill := 16);
-	_uniqueSpanGen: FB_IdGenerator(maxCount := 64, guidsPerRefill := 16);
-	_collisionGenA: FB_IdGenerator(maxCount := 64, guidsPerRefill := 16);
-	_collisionGenB: FB_IdGenerator(maxCount := 64, guidsPerRefill := 16);
-	_baseRefGen: FB_IdGenerator(maxCount := 64, guidsPerRefill := 16);
-	_drainGen: FB_IdGenerator(maxCount := 64, guidsPerRefill := 16);
-	_capacityGen: FB_IdGenerator(maxCount := 4, guidsPerRefill := 1);  // deliberately short
-END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[THIS^.testFailsBeforeTheFirstRefill();
+      <ST><![CDATA[THIS^.testRejectsInvalidConfiguration();
+THIS^.testFailsBeforeTheFirstRefill();
 THIS^.testGeneratesNonZeroTraceId();
 THIS^.testGeneratesNonZeroSpanId();
 THIS^.testGeneratesUniqueTraceIds();
 THIS^.testGeneratesUniqueSpanIds();
-THIS^.testSeparateGeneratorsDoNotCollide();
-THIS^.testRefillsAfterTheBufferIsDrained();
+THIS^.testDrawsAcrossTheWrap();
+THIS^.testHonorsConfiguredCapacity();
 THIS^.testGeneratesThroughTheBaseReference();
-THIS^.testHonorsConfiguredCapacity();]]></ST>
+THIS^.testSeparateGeneratorsDoNotCollide();]]></ST>
     </Implementation>
-    <Method Name="_isZero" Id="{8eeb504c-43a7-4654-a69b-fcd34676925e}">
-      <Declaration><![CDATA[(* TRUE when every byte in the buffer is zero, which is the OTLP invalid identifier. *)
+    <Method Name="_isZero" Id="{5705a4f9-bf6a-4d55-849b-bcecacb7cf3f}">
+      <Declaration><![CDATA[(* TRUE when every byte in the buffer is zero, which is the identifier OTLP reads as absent. *)
 METHOD _isZero : BOOL
 VAR_INPUT
 	pBytes: POINTER TO BYTE;
@@ -46,7 +42,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[_isZero := TRUE;
 
-IF pBytes = 0 OR_ELSE nBytes = 0 THEN
+IF (pBytes = 0) OR_ELSE (nBytes = 0) THEN
 	RETURN;
 END_IF
 
@@ -58,12 +54,111 @@ FOR _idx := 0 TO nBytes - 1 DO
 END_FOR]]></ST>
       </Implementation>
     </Method>
-    <Method Name="testFailsBeforeTheFirstRefill" Id="{3f7c21ae-6d90-4b58-9c04-7a1e5d83b6f2}">
-      <Declaration><![CDATA[(* A generator that has never been pumped holds no identifiers, and must say so instead of
-   handing out an all zero id. *)
+    <Method Name="testDrawsAcrossTheWrap" Id="{9792fca8-fa0f-415e-a698-2a0efab33a17}">
+      <Declaration><![CDATA[(* Exercises the seam. A thirty two byte ring cannot hold eight identifiers at once, so the
+   draws are spread over cycles and the read point laps the ring several times.
+
+   Taking sixteen bytes and then eight moves the read point by twenty four, which lands it on
+   every eight byte alignment in turn: some trace draws stop short of the end of the ring, one
+   ends exactly on it, and one starts near the end and has to be stitched from both sides. A
+   stitch that copied the wrong end, or re-read bytes already handed out, shows up here as a
+   repeat among the samples. *)
+METHOD testDrawsAcrossTheWrap : REFERENCE TO FB_Test
+
+VAR CONSTANT
+	MAX_CYCLES: UDINT := 60000;
+	SAMPLES: UDINT := 8;
+END_VAR
+
+VAR_INST
+	_generator: FB_IdGenerator(nTraceIds := 1, nSpanIds := 1);  // 24 bytes, which FB_Init rounds up to 32
+	_cycles: UDINT;
+	_state: USINT;
+	_traceIdx: UDINT;
+	_spanIdx: UDINT;
+	_traceSamples: ARRAY [0..7, 0..15] OF BYTE;  // held across cycles, unlike the other suites
+	_spanSamples: ARRAY [0..7, 0..7] OF BYTE;
+END_VAR
+
+VAR
+	traceId: FB_TraceId;
+	spanId: FB_SpanId;
+	failureReason: E_IdGenFailureReason;
+	tickSucceeded: BOOL;
+	_i: UDINT;
+	_j: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testDrawsAcrossTheWrap');
+	CASE _state OF
+		0: // take whatever the ring can serve this cycle, however many laps that takes
+			tickSucceeded := _generator.tick(failureReason=>failureReason);
+			_cycles := _cycles + 1;
+			IF NOT tickSucceeded THEN
+				THIS^.AssertTrue(FALSE, 'Expected the guid service to refill the ring without error');
+				_state := 255;
+				TcUnit.TEST_FINISHED();
+				RETURN;
+			END_IF
+
+			IF (_traceIdx < SAMPLES) AND_THEN _generator.generateTraceId(traceId:=traceId, failureReason=>failureReason) THEN
+				MEMCPY(ADR(_traceSamples[_traceIdx, 0]), ADR(traceId.bytes), SIZEOF(traceId.bytes));
+				_traceIdx := _traceIdx + 1;
+			END_IF
+
+			IF (_spanIdx < SAMPLES) AND_THEN _generator.generateSpanId(spanId:=spanId, failureReason=>failureReason) THEN
+				MEMCPY(ADR(_spanSamples[_spanIdx, 0]), ADR(spanId.bytes), SIZEOF(spanId.bytes));
+				_spanIdx := _spanIdx + 1;
+			END_IF
+
+			IF (_traceIdx >= SAMPLES) AND (_spanIdx >= SAMPLES) THEN
+				_state := 10;
+			ELSIF _cycles > MAX_CYCLES THEN
+				THIS^.AssertTrue(FALSE, 'Timed out collecting identifiers from a ring small enough to wrap');
+				_state := 255;
+				TcUnit.TEST_FINISHED();
+			END_IF
+			RETURN;
+
+		10:
+			FOR _i := 0 TO 7 DO
+				THIS^.AssertFalse(
+					THIS^._isZero(pBytes:=ADR(_traceSamples[_i, 0]), nBytes:=TO_UDINT(SIZEOF(traceId.bytes))),
+					'Expected no trace id drawn from a wrapping ring to be all zeroes'
+				);
+				THIS^.AssertFalse(
+					THIS^._isZero(pBytes:=ADR(_spanSamples[_i, 0]), nBytes:=TO_UDINT(SIZEOF(spanId.bytes))),
+					'Expected no span id drawn from a wrapping ring to be all zeroes'
+				);
+
+				FOR _j := 0 TO 7 DO
+					IF _i <> _j THEN
+						THIS^.AssertTrue(
+							MEMCMP(ADR(_traceSamples[_i, 0]), ADR(_traceSamples[_j, 0]), SIZEOF(traceId.bytes)) <> 0,
+							'Expected every trace id to differ, including the one stitched across the wrap'
+						);
+						THIS^.AssertTrue(
+							MEMCMP(ADR(_spanSamples[_i, 0]), ADR(_spanSamples[_j, 0]), SIZEOF(spanId.bytes)) <> 0,
+							'Expected every span id to differ, including the ones taken either side of the wrap'
+						);
+					END_IF
+				END_FOR
+			END_FOR
+
+			_state := 255;
+			TcUnit.TEST_FINISHED();
+			RETURN;
+	END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testFailsBeforeTheFirstRefill" Id="{fa5f5605-0d88-4c65-a08f-8e7758eb0e3c}">
+      <Declaration><![CDATA[(* A generator that has never been ticked holds no bytes. It has to say so, because the only
+   thing it could hand out instead is the all zero identifier OTLP reads as absent. *)
 METHOD testFailsBeforeTheFirstRefill : REFERENCE TO FB_Test
 
 VAR_INST
+	_generator: FB_IdGenerator(nTraceIds := 16, nSpanIds := 16);  // deliberately never ticked, so it stays empty
 	_state: USINT;
 END_VAR
 
@@ -72,32 +167,35 @@ VAR
 	spanId: FB_SpanId;
 	failureReason: E_IdGenFailureReason;
 	success: BOOL;
-END_VAR]]></Declaration>
+END_VAR
+]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testFailsBeforeTheFirstRefill');
 	CASE _state OF
 		0:
-			success := _pristineGen.generateTraceId(traceId:=traceId, failureReason=>failureReason);
+			THIS^.AssertTrue(_generator.configValid, 'Expected a generator with a ring to report a valid configuration');
+
+			success := _generator.generateTraceId(traceId:=traceId, failureReason=>failureReason);
 			THIS^.AssertFalse(success, 'Expected trace id generation to fail before the first refill');
 			THIS^.AssertEquals_UDINT(
 				TO_UDINT(E_IdGenFailureReason.NO_IDENTIFIERS_AVAILABLE),
 				TO_UDINT(failureReason),
-				'Expected an empty buffer to report NO_IDENTIFIERS_AVAILABLE'
+				'Expected an empty ring to report NO_IDENTIFIERS_AVAILABLE'
 			);
 			THIS^.AssertTrue(
-				THIS^._isZero(pBytes:=ADR(traceId.bytes), nBytes:=SIZEOF(traceId.bytes)),
+				THIS^._isZero(pBytes:=ADR(traceId.bytes), nBytes:=TO_UDINT(SIZEOF(traceId.bytes))),
 				'Expected a failed draw to leave the trace id untouched'
 			);
 
-			success := _pristineGen.generateSpanId(spanId:=spanId, failureReason=>failureReason);
+			success := _generator.generateSpanId(spanId:=spanId, failureReason=>failureReason);
 			THIS^.AssertFalse(success, 'Expected span id generation to fail before the first refill');
 			THIS^.AssertEquals_UDINT(
 				TO_UDINT(E_IdGenFailureReason.NO_IDENTIFIERS_AVAILABLE),
 				TO_UDINT(failureReason),
-				'Expected an empty buffer to report NO_IDENTIFIERS_AVAILABLE'
+				'Expected an empty ring to report NO_IDENTIFIERS_AVAILABLE'
 			);
 			THIS^.AssertTrue(
-				THIS^._isZero(pBytes:=ADR(spanId.bytes), nBytes:=SIZEOF(spanId.bytes)),
+				THIS^._isZero(pBytes:=ADR(spanId.bytes), nBytes:=TO_UDINT(SIZEOF(spanId.bytes))),
 				'Expected a failed draw to leave the span id untouched'
 			);
 
@@ -106,7 +204,7 @@ END_VAR]]></Declaration>
 	END_CASE]]></ST>
       </Implementation>
     </Method>
-    <Method Name="testGeneratesNonZeroSpanId" Id="{cfdb60ac-5da7-49f9-8b22-ef9d77930d85}">
+    <Method Name="testGeneratesNonZeroSpanId" Id="{c01f2fbf-833e-4610-a831-147215eb25ee}">
       <Declaration><![CDATA[METHOD testGeneratesNonZeroSpanId : REFERENCE TO FB_Test
 
 VAR CONSTANT
@@ -114,6 +212,7 @@ VAR CONSTANT
 END_VAR
 
 VAR_INST
+	_generator: FB_IdGenerator(nTraceIds := 16, nSpanIds := 16);
 	_cycles: UDINT;
 	_state: USINT;
 END_VAR
@@ -121,23 +220,24 @@ END_VAR
 VAR
 	spanId: FB_SpanId;
 	failureReason: E_IdGenFailureReason;
-	callSucceeded: BOOL;
+	tickSucceeded: BOOL;
 	success: BOOL;
-END_VAR]]></Declaration>
+END_VAR
+]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testGeneratesNonZeroSpanId');
 	CASE _state OF
-		0: // the buffer arrives asynchronously, so pump the generator until it can serve
-			callSucceeded := _nonZeroSpanGen.call(failureReason=>failureReason);
+		0: // the ring fills asynchronously, so pump the generator until it can serve a draw
+			tickSucceeded := _generator.tick(failureReason=>failureReason);
 			_cycles := _cycles + 1;
-			IF NOT callSucceeded THEN
-				THIS^.AssertTrue(FALSE, 'Expected the GUID service to refill the buffer without error');
+			IF NOT tickSucceeded THEN
+				THIS^.AssertTrue(FALSE, 'Expected the guid service to refill the ring without error');
 				_state := 255;
 				TcUnit.TEST_FINISHED();
 				RETURN;
 			END_IF
 
-			success := _nonZeroSpanGen.generateSpanId(spanId:=spanId, failureReason=>failureReason);
+			success := _generator.generateSpanId(spanId:=spanId, failureReason=>failureReason);
 			IF NOT success THEN
 				IF _cycles > MAX_CYCLES THEN
 					THIS^.AssertTrue(FALSE, 'Timed out waiting for the first span id');
@@ -147,18 +247,23 @@ END_VAR]]></Declaration>
 				RETURN;
 			END_IF
 
-			THIS^.AssertEquals_UDINT(TO_UDINT(E_IdGenFailureReason.NA), TO_UDINT(failureReason), 'Expected no failure reason on success');
-			THIS^.AssertEquals_UDINT(8, TO_UDINT(SIZEOF(spanId.bytes)), 'Expected a span id to be 8 bytes');
+			THIS^.AssertEquals_UDINT(
+				TO_UDINT(E_IdGenFailureReason.NA),
+				TO_UDINT(failureReason),
+				'Expected no failure reason alongside a successful draw'
+			);
+			THIS^.AssertEquals_UDINT(8, TO_UDINT(SIZEOF(spanId.bytes)), 'Expected a span id to be eight bytes wide');
 			THIS^.AssertFalse(
-				THIS^._isZero(pBytes:=ADR(spanId.bytes), nBytes:=SIZEOF(spanId.bytes)),
+				THIS^._isZero(pBytes:=ADR(spanId.bytes), nBytes:=TO_UDINT(SIZEOF(spanId.bytes))),
 				'Expected the span id not to be all zeroes'
 			);
+
 			_state := 255;
 			TcUnit.TEST_FINISHED();
 	END_CASE]]></ST>
       </Implementation>
     </Method>
-    <Method Name="testGeneratesNonZeroTraceId" Id="{d62f59a8-4a87-4aed-88f9-05f62524bade}">
+    <Method Name="testGeneratesNonZeroTraceId" Id="{cfbbf726-8541-4b2a-9891-863ceae20668}">
       <Declaration><![CDATA[METHOD testGeneratesNonZeroTraceId : REFERENCE TO FB_Test
 
 VAR CONSTANT
@@ -166,6 +271,7 @@ VAR CONSTANT
 END_VAR
 
 VAR_INST
+	_generator: FB_IdGenerator(nTraceIds := 16, nSpanIds := 16);
 	_cycles: UDINT;
 	_state: USINT;
 END_VAR
@@ -173,23 +279,24 @@ END_VAR
 VAR
 	traceId: FB_TraceId;
 	failureReason: E_IdGenFailureReason;
-	callSucceeded: BOOL;
+	tickSucceeded: BOOL;
 	success: BOOL;
-END_VAR]]></Declaration>
+END_VAR
+]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testGeneratesNonZeroTraceId');
 	CASE _state OF
-		0: // the buffer arrives asynchronously, so pump the generator until it can serve
-			callSucceeded := _nonZeroTraceGen.call(failureReason=>failureReason);
+		0: // the ring fills asynchronously, so pump the generator until it can serve a draw
+			tickSucceeded := _generator.tick(failureReason=>failureReason);
 			_cycles := _cycles + 1;
-			IF NOT callSucceeded THEN
-				THIS^.AssertTrue(FALSE, 'Expected the GUID service to refill the buffer without error');
+			IF NOT tickSucceeded THEN
+				THIS^.AssertTrue(FALSE, 'Expected the guid service to refill the ring without error');
 				_state := 255;
 				TcUnit.TEST_FINISHED();
 				RETURN;
 			END_IF
 
-			success := _nonZeroTraceGen.generateTraceId(traceId:=traceId, failureReason=>failureReason);
+			success := _generator.generateTraceId(traceId:=traceId, failureReason=>failureReason);
 			IF NOT success THEN
 				IF _cycles > MAX_CYCLES THEN
 					THIS^.AssertTrue(FALSE, 'Timed out waiting for the first trace id');
@@ -199,20 +306,25 @@ END_VAR]]></Declaration>
 				RETURN;
 			END_IF
 
-			THIS^.AssertEquals_UDINT(TO_UDINT(E_IdGenFailureReason.NA), TO_UDINT(failureReason), 'Expected no failure reason on success');
-			THIS^.AssertEquals_UDINT(16, TO_UDINT(SIZEOF(traceId.bytes)), 'Expected a trace id to be 16 bytes');
+			THIS^.AssertEquals_UDINT(
+				TO_UDINT(E_IdGenFailureReason.NA),
+				TO_UDINT(failureReason),
+				'Expected no failure reason alongside a successful draw'
+			);
+			THIS^.AssertEquals_UDINT(16, TO_UDINT(SIZEOF(traceId.bytes)), 'Expected a trace id to be sixteen bytes wide');
 			THIS^.AssertFalse(
-				THIS^._isZero(pBytes:=ADR(traceId.bytes), nBytes:=SIZEOF(traceId.bytes)),
+				THIS^._isZero(pBytes:=ADR(traceId.bytes), nBytes:=TO_UDINT(SIZEOF(traceId.bytes))),
 				'Expected the trace id not to be all zeroes'
 			);
+
 			_state := 255;
 			TcUnit.TEST_FINISHED();
 	END_CASE]]></ST>
       </Implementation>
     </Method>
-    <Method Name="testGeneratesThroughTheBaseReference" Id="{a7e90cf7-b6c3-4378-8d51-261590d6651d}">
-      <Declaration><![CDATA[(* The provider holds the generator as REFERENCE TO FB_IdGenerator_Base, so the abstract
-   methods must dispatch to the concrete implementation. *)
+    <Method Name="testGeneratesThroughTheBaseReference" Id="{368b4998-ac3d-460a-b25b-6f8821b1bb3e}">
+      <Declaration><![CDATA[(* Callers hold the generator as REFERENCE TO FB_IdGenerator_Base, so the abstract methods have
+   to dispatch to the concrete ring. *)
 METHOD testGeneratesThroughTheBaseReference : REFERENCE TO FB_Test
 
 VAR CONSTANT
@@ -220,6 +332,7 @@ VAR CONSTANT
 END_VAR
 
 VAR_INST
+	_generator: FB_IdGenerator(nTraceIds := 16, nSpanIds := 16);
 	_cycles: UDINT;
 	_state: USINT;
 END_VAR
@@ -229,23 +342,24 @@ VAR
 	traceId: FB_TraceId;
 	spanId: FB_SpanId;
 	failureReason: E_IdGenFailureReason;
-	callSucceeded: BOOL;
+	tickSucceeded: BOOL;
 	success: BOOL;
-END_VAR]]></Declaration>
+END_VAR
+]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testGeneratesThroughTheBaseReference');
-	base REF= _baseRefGen;
+	base REF= _generator;
 	CASE _state OF
 		0:
 			THIS^.AssertTrue(__ISVALIDREF(base), 'Expected the base reference to be valid');
 			_state := 10;
 			RETURN;
 
-		10: // pump through the base reference until the first buffer arrives
-			callSucceeded := base.call(failureReason=>failureReason);
+		10: // pump through the base reference until the first refill lands
+			tickSucceeded := base.tick(failureReason=>failureReason);
 			_cycles := _cycles + 1;
-			IF NOT callSucceeded THEN
-				THIS^.AssertTrue(FALSE, 'Expected call to dispatch to the concrete generator without error');
+			IF NOT tickSucceeded THEN
+				THIS^.AssertTrue(FALSE, 'Expected tick to dispatch to the concrete generator without error');
 				_state := 255;
 				TcUnit.TEST_FINISHED();
 				RETURN;
@@ -262,29 +376,34 @@ END_VAR]]></Declaration>
 			END_IF
 
 			THIS^.AssertFalse(
-				THIS^._isZero(pBytes:=ADR(traceId.bytes), nBytes:=SIZEOF(traceId.bytes)),
+				THIS^._isZero(pBytes:=ADR(traceId.bytes), nBytes:=TO_UDINT(SIZEOF(traceId.bytes))),
 				'Expected a non zero trace id through the base reference'
 			);
 
 			success := base.generateSpanId(spanId:=spanId, failureReason=>failureReason);
 			THIS^.AssertTrue(success, 'Expected generateSpanId to dispatch to the concrete generator');
 			THIS^.AssertFalse(
-				THIS^._isZero(pBytes:=ADR(spanId.bytes), nBytes:=SIZEOF(spanId.bytes)),
+				THIS^._isZero(pBytes:=ADR(spanId.bytes), nBytes:=TO_UDINT(SIZEOF(spanId.bytes))),
 				'Expected a non zero span id through the base reference'
 			);
+
 			_state := 255;
 			TcUnit.TEST_FINISHED();
+			RETURN;
 	END_CASE]]></ST>
       </Implementation>
     </Method>
-    <Method Name="testGeneratesUniqueSpanIds" Id="{34b9c889-2a88-4e38-b6ac-60308864eee6}">
-      <Declaration><![CDATA[METHOD testGeneratesUniqueSpanIds : REFERENCE TO FB_Test
+    <Method Name="testGeneratesUniqueSpanIds" Id="{e90fe6c4-350b-4279-9671-f4dbf9765e7e}">
+      <Declaration><![CDATA[(* The same requirement as for trace ids. A span id handed out twice makes two spans in the
+   same trace indistinguishable. *)
+METHOD testGeneratesUniqueSpanIds : REFERENCE TO FB_Test
 
 VAR CONSTANT
 	MAX_CYCLES: UDINT := 60000;
 END_VAR
 
 VAR_INST
+	_generator: FB_IdGenerator(nTraceIds := 16, nSpanIds := 16);  // 384 bytes, so eight samples come out of one fill
 	_cycles: UDINT;
 	_state: USINT;
 END_VAR
@@ -293,66 +412,73 @@ VAR
 	spanId: FB_SpanId;
 	samples: ARRAY [0..7, 0..7] OF BYTE;
 	failureReason: E_IdGenFailureReason;
-	callSucceeded: BOOL;
+	tickSucceeded: BOOL;
 	success: BOOL;
 	_i: UDINT;
 	_j: UDINT;
-END_VAR]]></Declaration>
+END_VAR
+]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testGeneratesUniqueSpanIds');
 	CASE _state OF
-		0: // wait for the first refill
-			callSucceeded := _uniqueSpanGen.call(failureReason=>failureReason);
+		0: // wait for the first refill before drawing the samples
+			tickSucceeded := _generator.tick(failureReason=>failureReason);
 			_cycles := _cycles + 1;
-			IF NOT callSucceeded THEN
-				THIS^.AssertTrue(FALSE, 'Expected the GUID service to refill the buffer without error');
+			IF NOT tickSucceeded THEN
+				THIS^.AssertTrue(FALSE, 'Expected the guid service to refill the ring without error');
 				_state := 255;
 				TcUnit.TEST_FINISHED();
 				RETURN;
 			END_IF
 
-			IF _uniqueSpanGen.generateSpanId(spanId:=spanId, failureReason=>failureReason) THEN
+			IF _generator.generateSpanId(spanId:=spanId, failureReason=>failureReason) THEN
 				_state := 10;
 			ELSIF _cycles > MAX_CYCLES THEN
-				THIS^.AssertTrue(FALSE, 'Timed out waiting for the first buffer of identifiers');
+				THIS^.AssertTrue(FALSE, 'Timed out waiting for the first ring of span ids');
 				_state := 255;
 				TcUnit.TEST_FINISHED();
 			END_IF
 			RETURN;
 
-		10: // one buffer holds far more than eight span ids, so every draw comes out of it
+		10: // a full ring holds forty eight span ids, so all eight samples come out of one fill
 			FOR _i := 0 TO 7 DO
-				success := _uniqueSpanGen.generateSpanId(spanId:=spanId, failureReason=>failureReason);
-				THIS^.AssertTrue(success, 'Expected every span id draw to succeed');
+				success := _generator.generateSpanId(spanId:=spanId, failureReason=>failureReason);
+				THIS^.AssertTrue(success, 'Expected every span id draw from a filled ring to succeed');
 				THIS^.AssertFalse(
-					THIS^._isZero(pBytes:=ADR(spanId.bytes), nBytes:=SIZEOF(spanId.bytes)),
-					'Expected no draw to be all zeroes'
+					THIS^._isZero(pBytes:=ADR(spanId.bytes), nBytes:=TO_UDINT(SIZEOF(spanId.bytes))),
+					'Expected no span id to be all zeroes'
 				);
 				MEMCPY(ADR(samples[_i, 0]), ADR(spanId.bytes), SIZEOF(spanId.bytes));
 			END_FOR
 
-			FOR _i := 0 TO 6 DO
-				FOR _j := _i + 1 TO 7 DO
-					THIS^.AssertTrue(
-						MEMCMP(ADR(samples[_i, 0]), ADR(samples[_j, 0]), SIZEOF(spanId.bytes)) <> 0,
-						'Expected distinct span id draws'
-					);
+			FOR _i := 0 TO 7 DO
+				FOR _j := 0 TO 7 DO
+					IF _i <> _j THEN
+						THIS^.AssertTrue(
+							MEMCMP(ADR(samples[_i, 0]), ADR(samples[_j, 0]), SIZEOF(spanId.bytes)) <> 0,
+							'Expected every span id to differ from every other'
+						);
+					END_IF
 				END_FOR
 			END_FOR
 
 			_state := 255;
 			TcUnit.TEST_FINISHED();
+			RETURN;
 	END_CASE]]></ST>
       </Implementation>
     </Method>
-    <Method Name="testGeneratesUniqueTraceIds" Id="{d82b59f9-4112-40d2-808d-22ff406da3f1}">
-      <Declaration><![CDATA[METHOD testGeneratesUniqueTraceIds : REFERENCE TO FB_Test
+    <Method Name="testGeneratesUniqueTraceIds" Id="{9de941f7-0da5-48b8-8337-8561a784824b}">
+      <Declaration><![CDATA[(* Every draw has to be its own bytes. A trace id handed out twice merges two unrelated traces
+   at the collector, which is worse than no trace at all. *)
+METHOD testGeneratesUniqueTraceIds : REFERENCE TO FB_Test
 
 VAR CONSTANT
 	MAX_CYCLES: UDINT := 60000;
 END_VAR
 
 VAR_INST
+	_generator: FB_IdGenerator(nTraceIds := 16, nSpanIds := 16);  // 384 bytes, so eight samples come out of one fill
 	_cycles: UDINT;
 	_state: USINT;
 END_VAR
@@ -361,241 +487,200 @@ VAR
 	traceId: FB_TraceId;
 	samples: ARRAY [0..7, 0..15] OF BYTE;
 	failureReason: E_IdGenFailureReason;
-	callSucceeded: BOOL;
+	tickSucceeded: BOOL;
 	success: BOOL;
 	_i: UDINT;
 	_j: UDINT;
-END_VAR]]></Declaration>
+END_VAR
+]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testGeneratesUniqueTraceIds');
 	CASE _state OF
-		0: // wait for the first refill
-			callSucceeded := _uniqueTraceGen.call(failureReason=>failureReason);
+		0: // wait for the first refill before drawing the samples
+			tickSucceeded := _generator.tick(failureReason=>failureReason);
 			_cycles := _cycles + 1;
-			IF NOT callSucceeded THEN
-				THIS^.AssertTrue(FALSE, 'Expected the GUID service to refill the buffer without error');
+			IF NOT tickSucceeded THEN
+				THIS^.AssertTrue(FALSE, 'Expected the guid service to refill the ring without error');
 				_state := 255;
 				TcUnit.TEST_FINISHED();
 				RETURN;
 			END_IF
 
-			IF _uniqueTraceGen.generateTraceId(traceId:=traceId, failureReason=>failureReason) THEN
+			IF _generator.generateTraceId(traceId:=traceId, failureReason=>failureReason) THEN
 				_state := 10;
 			ELSIF _cycles > MAX_CYCLES THEN
-				THIS^.AssertTrue(FALSE, 'Timed out waiting for the first buffer of identifiers');
+				THIS^.AssertTrue(FALSE, 'Timed out waiting for the first ring of trace ids');
 				_state := 255;
 				TcUnit.TEST_FINISHED();
 			END_IF
 			RETURN;
 
-		10: // one buffer holds far more than eight trace ids, so every draw comes out of it
+		10: // a full ring holds twenty four trace ids, so all eight samples come out of one fill
 			FOR _i := 0 TO 7 DO
-				success := _uniqueTraceGen.generateTraceId(traceId:=traceId, failureReason=>failureReason);
-				THIS^.AssertTrue(success, 'Expected every trace id draw to succeed');
+				success := _generator.generateTraceId(traceId:=traceId, failureReason=>failureReason);
+				THIS^.AssertTrue(success, 'Expected every trace id draw from a filled ring to succeed');
 				THIS^.AssertFalse(
-					THIS^._isZero(pBytes:=ADR(traceId.bytes), nBytes:=SIZEOF(traceId.bytes)),
-					'Expected no draw to be all zeroes'
+					THIS^._isZero(pBytes:=ADR(traceId.bytes), nBytes:=TO_UDINT(SIZEOF(traceId.bytes))),
+					'Expected no trace id to be all zeroes'
 				);
 				MEMCPY(ADR(samples[_i, 0]), ADR(traceId.bytes), SIZEOF(traceId.bytes));
 			END_FOR
 
-			FOR _i := 0 TO 6 DO
-				FOR _j := _i + 1 TO 7 DO
-					THIS^.AssertTrue(
-						MEMCMP(ADR(samples[_i, 0]), ADR(samples[_j, 0]), SIZEOF(traceId.bytes)) <> 0,
-						'Expected distinct trace id draws'
-					);
+			FOR _i := 0 TO 7 DO
+				FOR _j := 0 TO 7 DO
+					IF _i <> _j THEN
+						THIS^.AssertTrue(
+							MEMCMP(ADR(samples[_i, 0]), ADR(samples[_j, 0]), SIZEOF(traceId.bytes)) <> 0,
+							'Expected every trace id to differ from every other'
+						);
+					END_IF
 				END_FOR
 			END_FOR
 
 			_state := 255;
 			TcUnit.TEST_FINISHED();
+			RETURN;
 	END_CASE]]></ST>
       </Implementation>
     </Method>
-    <Method Name="testHonorsConfiguredCapacity" Id="{f4a17d60-8b25-4c93-a0e6-3d7192bc5e48}">
-      <Declaration><![CDATA[(* The list length is chosen where the generator is declared, so a short generator must grow
-   to exactly that many chunks and yield exactly that many chunks worth of identifiers. *)
+    <Method Name="testHonorsConfiguredCapacity" Id="{436d3595-2483-4d76-bfbf-a554ad7ac412}">
+      <Declaration><![CDATA[(* One trace id and one span id is twenty four bytes, which FB_Init rounds up to thirty two
+   because the guid service will not write anything narrower than a whole guid. A full ring is
+   therefore exactly two trace ids wide, and no amount of refilling grows it past that. *)
 METHOD testHonorsConfiguredCapacity : REFERENCE TO FB_Test
 
 VAR CONSTANT
 	MAX_CYCLES: UDINT := 60000;
-	EXPECTED_MAX_COUNT: UDINT := 4;  // the length _capacityGen is declared with
-	MAX_DRAWS: UDINT := 16;  // comfortably more than a four chunk list holds
+	MAX_DRAWS: UDINT := 16;  // comfortably more than a thirty two byte ring could ever serve
+	EXPECTED_TRACE_IDS: UDINT := 2;
 END_VAR
 
 VAR_INST
+	_generator: FB_IdGenerator(nTraceIds := 1, nSpanIds := 1);  // the shortest ring the configuration allows
 	_cycles: UDINT;
 	_state: USINT;
-	_overflowed: BOOL;
+	_best: UDINT;  // the most trace ids any single drain has yielded
 END_VAR
 
 VAR
 	traceId: FB_TraceId;
 	failureReason: E_IdGenFailureReason;
-	callSucceeded: BOOL;
+	tickSucceeded: BOOL;
 	drawn: UDINT;
 	_i: UDINT;
-END_VAR]]></Declaration>
+END_VAR
+]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testHonorsConfiguredCapacity');
 	CASE _state OF
-		0: // pump until the list has grown to the length FB_Init was given
-			callSucceeded := _capacityGen.call(failureReason=>failureReason);
+		0: // drain the ring dry every cycle, so the best any one drain manages is one full ring
+			tickSucceeded := _generator.tick(failureReason=>failureReason);
 			_cycles := _cycles + 1;
-			IF NOT callSucceeded THEN
-				THIS^.AssertTrue(FALSE, 'Expected the GUID service to fill the chunk list without error');
+			IF NOT tickSucceeded THEN
+				THIS^.AssertTrue(FALSE, 'Expected the guid service to refill the ring without error');
 				_state := 255;
 				TcUnit.TEST_FINISHED();
 				RETURN;
 			END_IF
 
-			IF _capacityGen.count > _capacityGen.maxCount THEN
-				_overflowed := TRUE;
-			END_IF
-
-			IF _capacityGen.count >= _capacityGen.maxCount THEN
-				_state := 10;
-			ELSIF _cycles > MAX_CYCLES THEN
-				THIS^.AssertTrue(FALSE, 'Timed out waiting for the chunk list to reach its configured length');
-				_state := 255;
-				TcUnit.TEST_FINISHED();
-			END_IF
-			RETURN;
-
-		10: // the declared length is the length, and refills stop there
-			THIS^.AssertEquals_UDINT(
-				EXPECTED_MAX_COUNT,
-				_capacityGen.maxCount,
-				'Expected FB_Init to set the chunk list length'
-			);
-			THIS^.AssertEquals_UDINT(
-				EXPECTED_MAX_COUNT,
-				_capacityGen.count,
-				'Expected a full list to hold exactly its configured length'
-			);
-			THIS^.AssertFalse(_overflowed, 'Expected refills never to grow the list past its configured length');
-
-			// a trace id is two chunks, so a four chunk list yields exactly two of them
 			drawn := 0;
 			FOR _i := 1 TO MAX_DRAWS DO
-				IF NOT _capacityGen.generateTraceId(traceId:=traceId, failureReason=>failureReason) THEN
+				IF NOT _generator.generateTraceId(traceId:=traceId, failureReason=>failureReason) THEN
 					EXIT;
 				END_IF
 				drawn := drawn + 1;
 			END_FOR
 
-			THIS^.AssertEquals_UDINT(
-				EXPECTED_MAX_COUNT / 2,
-				drawn,
-				'Expected a four chunk list to yield exactly two trace ids'
+			THIS^.AssertTrue(
+				drawn <= EXPECTED_TRACE_IDS,
+				'Expected a refill never to serve more than the configured ring holds'
 			);
 			THIS^.AssertEquals_UDINT(
 				TO_UDINT(E_IdGenFailureReason.NO_IDENTIFIERS_AVAILABLE),
 				TO_UDINT(failureReason),
-				'Expected an emptied list to report NO_IDENTIFIERS_AVAILABLE'
+				'Expected the draw that emptied the ring to report NO_IDENTIFIERS_AVAILABLE'
 			);
 
+			IF drawn > _best THEN
+				_best := drawn;
+			END_IF
+
+			IF _best >= EXPECTED_TRACE_IDS THEN
+				_state := 10;
+			ELSIF _cycles > MAX_CYCLES THEN
+				THIS^.AssertTrue(FALSE, 'Timed out waiting for the ring to fill to its configured length');
+				_state := 255;
+				TcUnit.TEST_FINISHED();
+			END_IF
+			RETURN;
+
+		10:
+			THIS^.AssertEquals_UDINT(
+				EXPECTED_TRACE_IDS,
+				_best,
+				'Expected a twenty four byte request to become a thirty two byte ring'
+			);
 			_state := 255;
 			TcUnit.TEST_FINISHED();
 			RETURN;
 	END_CASE]]></ST>
       </Implementation>
     </Method>
-    <Method Name="testRefillsAfterTheBufferIsDrained" Id="{b99e9e58-c553-468d-a584-237a9ad5b1cb}">
-      <Declaration><![CDATA[(* Draining the served buffer must report an empty buffer rather than emit an invalid id, and
-   the generator must recover once call hands the refilled spare over. *)
-METHOD testRefillsAfterTheBufferIsDrained : REFERENCE TO FB_Test
-
-VAR CONSTANT
-	MAX_CYCLES: UDINT := 60000;
-	MAX_DRAWS: UDINT := 512;  // comfortably more than one buffer holds
-END_VAR
+    <Method Name="testRejectsInvalidConfiguration" Id="{7bd81400-5827-4199-b8a2-f5efaa1ca167}">
+      <Declaration><![CDATA[(* A generator asked for no identifiers never allocates a ring, so every entry point has to say
+   so rather than read through a null pointer. *)
+METHOD testRejectsInvalidConfiguration : REFERENCE TO FB_Test
 
 VAR_INST
-	_cycles: UDINT;
+	_generator: FB_IdGenerator(nTraceIds := 0, nSpanIds := 0);  // asks for nothing, so no ring is allocated
 	_state: USINT;
 END_VAR
 
 VAR
 	traceId: FB_TraceId;
+	spanId: FB_SpanId;
 	failureReason: E_IdGenFailureReason;
-	callSucceeded: BOOL;
-	drawn: UDINT;
-	_i: UDINT;
-END_VAR]]></Declaration>
+	success: BOOL;
+END_VAR
+]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('testRefillsAfterTheBufferIsDrained');
+        <ST><![CDATA[TcUnit.TEST('testRejectsInvalidConfiguration');
 	CASE _state OF
-		0: // wait for the first refill
-			callSucceeded := _drainGen.call(failureReason=>failureReason);
-			_cycles := _cycles + 1;
-			IF NOT callSucceeded THEN
-				THIS^.AssertTrue(FALSE, 'Expected the GUID service to refill the buffer without error');
-				_state := 255;
-				TcUnit.TEST_FINISHED();
-				RETURN;
-			END_IF
+		0:
+			THIS^.AssertFalse(_generator.configValid, 'Expected a generator with no ring to report an invalid configuration');
 
-			IF _drainGen.generateTraceId(traceId:=traceId, failureReason=>failureReason) THEN
-				_state := 10;
-			ELSIF _cycles > MAX_CYCLES THEN
-				THIS^.AssertTrue(FALSE, 'Timed out waiting for the first buffer of identifiers');
-				_state := 255;
-				TcUnit.TEST_FINISHED();
-			END_IF
-			RETURN;
-
-		10: // drain the served buffer without pumping call, so no hand over can happen
-			drawn := 0;
-			FOR _i := 1 TO MAX_DRAWS DO
-				IF NOT _drainGen.generateTraceId(traceId:=traceId, failureReason=>failureReason) THEN
-					EXIT;
-				END_IF
-				drawn := drawn + 1;
-			END_FOR
-
-			THIS^.AssertTrue(drawn > 0, 'Expected the served buffer to hand out several trace ids');
-			THIS^.AssertTrue(drawn < MAX_DRAWS, 'Expected the served buffer to run out within the draw budget');
+			success := _generator.tick(failureReason=>failureReason);
+			THIS^.AssertFalse(success, 'Expected tick to fail when no ring was allocated');
 			THIS^.AssertEquals_UDINT(
-				TO_UDINT(E_IdGenFailureReason.NO_IDENTIFIERS_AVAILABLE),
+				TO_UDINT(E_IdGenFailureReason.INVALID_CONFIGUATION),
 				TO_UDINT(failureReason),
-				'Expected a drained buffer to report NO_IDENTIFIERS_AVAILABLE'
+				'Expected tick to report INVALID_CONFIGUATION'
 			);
 
-			_cycles := 0;
-			_state := 20;
-			RETURN;
+			success := _generator.generateTraceId(traceId:=traceId, failureReason=>failureReason);
+			THIS^.AssertFalse(success, 'Expected trace id generation to fail when no ring was allocated');
+			THIS^.AssertEquals_UDINT(
+				TO_UDINT(E_IdGenFailureReason.INVALID_CONFIGUATION),
+				TO_UDINT(failureReason),
+				'Expected a missing ring to be reported as a configuration mistake, not an empty ring'
+			);
 
-		20: // call hands the spare over, so generation recovers without any caller change
-			callSucceeded := _drainGen.call(failureReason=>failureReason);
-			_cycles := _cycles + 1;
-			IF NOT callSucceeded THEN
-				THIS^.AssertTrue(FALSE, 'Expected the GUID service to refill the spare buffer without error');
-				_state := 255;
-				TcUnit.TEST_FINISHED();
-				RETURN;
-			END_IF
+			success := _generator.generateSpanId(spanId:=spanId, failureReason=>failureReason);
+			THIS^.AssertFalse(success, 'Expected span id generation to fail when no ring was allocated');
+			THIS^.AssertEquals_UDINT(
+				TO_UDINT(E_IdGenFailureReason.INVALID_CONFIGUATION),
+				TO_UDINT(failureReason),
+				'Expected a missing ring to be reported as a configuration mistake, not an empty ring'
+			);
 
-			IF _drainGen.generateTraceId(traceId:=traceId, failureReason=>failureReason) THEN
-				THIS^.AssertFalse(
-					THIS^._isZero(pBytes:=ADR(traceId.bytes), nBytes:=SIZEOF(traceId.bytes)),
-					'Expected a non zero trace id once the buffer was refilled'
-				);
-				_state := 255;
-				TcUnit.TEST_FINISHED();
-			ELSIF _cycles > MAX_CYCLES THEN
-				THIS^.AssertTrue(FALSE, 'Timed out waiting for the drained generator to refill');
-				_state := 255;
-				TcUnit.TEST_FINISHED();
-			END_IF
-			RETURN;
+			_state := 255;
+			TcUnit.TEST_FINISHED();
 	END_CASE]]></ST>
       </Implementation>
     </Method>
-    <Method Name="testSeparateGeneratorsDoNotCollide" Id="{13bc9a35-5583-44ad-8447-e2110526fa25}">
-      <Declaration><![CDATA[(* Two generators constructed in the same cycle must not emit the same identifiers,
-   otherwise two providers on one PLC would produce colliding traces. *)
+    <Method Name="testSeparateGeneratorsDoNotCollide" Id="{d1410e95-1088-446d-9d92-44e00dfb0300}">
+      <Declaration><![CDATA[(* Two generators built in the same cycle must not emit the same identifiers, or two providers
+   on one PLC would report traces the collector cannot tell apart. *)
 METHOD testSeparateGeneratorsDoNotCollide : REFERENCE TO FB_Test
 
 VAR CONSTANT
@@ -603,6 +688,8 @@ VAR CONSTANT
 END_VAR
 
 VAR_INST
+	_generatorA: FB_IdGenerator(nTraceIds := 16, nSpanIds := 16);
+	_generatorB: FB_IdGenerator(nTraceIds := 16, nSpanIds := 16);
 	_cycles: UDINT;
 	_state: USINT;
 END_VAR
@@ -613,26 +700,31 @@ VAR
 	spanIdA: FB_SpanId;
 	spanIdB: FB_SpanId;
 	failureReason: E_IdGenFailureReason;
-	callSucceededA: BOOL;
-	callSucceededB: BOOL;
+	tickSucceededA: BOOL;
+	tickSucceededB: BOOL;
+	drewA: BOOL;
+	drewB: BOOL;
 	success: BOOL;
-END_VAR]]></Declaration>
+END_VAR
+]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testSeparateGeneratorsDoNotCollide');
 	CASE _state OF
-		0: // pump both until they can serve in the same cycle
-			callSucceededA := _collisionGenA.call(failureReason=>failureReason);
-			callSucceededB := _collisionGenB.call(failureReason=>failureReason);
+		0: // pump both rings until they can each serve in the same cycle
+			tickSucceededA := _generatorA.tick(failureReason=>failureReason);
+			tickSucceededB := _generatorB.tick(failureReason=>failureReason);
 			_cycles := _cycles + 1;
-			IF NOT (callSucceededA AND_THEN callSucceededB) THEN
+			IF NOT (tickSucceededA AND tickSucceededB) THEN
 				THIS^.AssertTrue(FALSE, 'Expected both generators to refill without error');
 				_state := 255;
 				TcUnit.TEST_FINISHED();
 				RETURN;
 			END_IF
 
-			IF NOT _collisionGenA.generateTraceId(traceId:=traceIdA, failureReason=>failureReason)
-				OR_ELSE NOT _collisionGenB.generateTraceId(traceId:=traceIdB, failureReason=>failureReason) THEN
+			// both are drawn unconditionally, so neither ring is drained ahead of the other
+			drewA := _generatorA.generateTraceId(traceId:=traceIdA, failureReason=>failureReason);
+			drewB := _generatorB.generateTraceId(traceId:=traceIdB, failureReason=>failureReason);
+			IF NOT (drewA AND drewB) THEN
 				IF _cycles > MAX_CYCLES THEN
 					THIS^.AssertTrue(FALSE, 'Timed out waiting for both generators to fill');
 					_state := 255;
@@ -646,10 +738,10 @@ END_VAR]]></Declaration>
 				'Expected two generators to produce different trace ids'
 			);
 
-			success := _collisionGenA.generateSpanId(spanId:=spanIdA, failureReason=>failureReason);
-			THIS^.AssertTrue(success, 'Expected the first generator to produce a span id');
-			success := _collisionGenB.generateSpanId(spanId:=spanIdB, failureReason=>failureReason);
-			THIS^.AssertTrue(success, 'Expected the second generator to produce a span id');
+			success := _generatorA.generateSpanId(spanId:=spanIdA, failureReason=>failureReason);
+			THIS^.AssertTrue(success, 'Expected the first generator to serve a span id from a filled ring');
+			success := _generatorB.generateSpanId(spanId:=spanIdB, failureReason=>failureReason);
+			THIS^.AssertTrue(success, 'Expected the second generator to serve a span id from a filled ring');
 			THIS^.AssertTrue(
 				MEMCMP(ADR(spanIdA.bytes), ADR(spanIdB.bytes), SIZEOF(spanIdA.bytes)) <> 0,
 				'Expected two generators to produce different span ids'
@@ -657,6 +749,7 @@ END_VAR]]></Declaration>
 
 			_state := 255;
 			TcUnit.TEST_FINISHED();
+			RETURN;
 	END_CASE]]></ST>
       </Implementation>
     </Method>

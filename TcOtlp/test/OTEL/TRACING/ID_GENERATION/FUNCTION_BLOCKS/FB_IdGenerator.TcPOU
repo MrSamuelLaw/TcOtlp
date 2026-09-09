@@ -1,389 +1,156 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_IdGenerator" Id="{247755bf-2c54-4ce4-86df-471d347cd20b}" SpecialFunc="None">
-    <Declaration><![CDATA[(* Default id generator.
-
-   The generator is a linked list of eight byte chunks plus the utilities needed to cut
-   identifiers out of it. Eight bytes is the width of a span id and half the width of a
-   trace id, so every identifier is a whole number of chunks: generateSpanId takes one
-   node off the head of the list, generateTraceId takes two. Trace ids and span ids draw
-   from the same list because they are only different slice widths of the same random
-   bytes, so one list tracks the combined consumption rate without anyone having to guess
-   the ratio between root spans and spans.
-
-   Nothing here is a fixed size buffer. The list length is chosen where the generator is
-   declared, through FB_Init, and nodes are allocated on demand up to it:
-
-       _idGen: FB_IdGenerator(maxCount := 128, guidsPerRefill := 32);
-
-   Chunks are filled from Tc2_System.FB_CreateGUID, the operating system random generator
-   reached over ADS. That request is asynchronous and spans several cycles, which is
-   exactly why identifier generation is separated from span creation: `call` drives the
-   request and appends the chunks it returns, while generateTraceId and generateSpanId
-   take a constant time slice off a list that is already populated.
-
-   FB_CreateGUID writes into one contiguous region, so it cannot fill the nodes in place.
-   A single staging block is allocated on the first `call` and each returned guid is split
-   into its two chunks and appended. Sizing that block from guidsPerRefill keeps a refill
-   to one ADS round trip instead of one per chunk.
-
-   Drained nodes are not freed. They move to a spare list and are refilled in place, so
-   the generator stops allocating entirely once it has grown to its configured length.
-   When the list is too short to serve a request the generator fails with
-   NO_IDENTIFIERS_AVAILABLE rather than blocking the cycle or re-issuing a stale
-   identifier. *)
-FUNCTION_BLOCK FB_IdGenerator EXTENDS FB_IdGenerator_Base
+    <Declaration><![CDATA[FUNCTION_BLOCK FB_IdGenerator EXTENDS FB_IdGenerator_Base
 VAR CONSTANT
-	CHUNK_BYTES: UDINT := 8;  // the width of a span id, and half the width of a trace id
-	SPAN_ID_CHUNKS: UDINT := 1;
-	TRACE_ID_CHUNKS: UDINT := 2;
-	CHUNKS_PER_GUID: UDINT := 2;  // a guid is sixteen bytes
-	MAX_ID_CHUNKS: UDINT := 2;  // the widest identifier, a trace id
-	MAX_DRAW_ATTEMPTS: UDINT := 8;  // bounded retry budget for skipping an all zero identifier
+	GUID_BYTES: UDINT := 16;  // one guid, which is also the width of a trace id
 END_VAR
 VAR
-	_creator: FB_CreateGUID;  // Tc2_System, ADS backed and therefore asynchronous
-	_head: POINTER TO ST_IdChunkNode;  // filled chunks, oldest first
-	_tail: POINTER TO ST_IdChunkNode;
-	_spare: POINTER TO ST_IdChunkNode;  // drained nodes waiting to be refilled
-	_pStaging: POINTER TO GUID;  // contiguous, because FB_CreateGUID demands it
-	_nodeCount: UDINT;  // nodes allocated so far, filled and spare together
-	_requested: UDINT;  // guids asked for by the request currently in flight
-	_refilling: BOOL;  // a refill request is in flight
-	_edgeHeld: BOOL;  // bExecute has been held for a full cycle, so bBusy is meaningful
-	_errorId: UDINT;  // last ADS error reported by the GUID service
+	_creator: Tc2_System.FB_CreateGUID;
+	_pBuffer: POINTER TO BYTE;
+	_bufferLen: UDINT;
+	_head: POINTER TO BYTE;
+	_tail: POINTER TO BYTE;
+	_count: UDINT;  // unread bytes, starting at _head
+	_headRoom: UDINT;  // bytes from _head to the end of the ring, never zero
+	_tailRoom: UDINT;  // bytes from _tail to the end of the ring, never zero
+	_inFlight: UDINT;  // bytes the refill in flight will write at _tail, 0 when none is out
+	_edgeHeld: BOOL;  // bExecute has been high for a cycle, so bBusy describes this request
 END_VAR
 VAR_OUTPUT
-	count: UDINT;  // chunks the list currently holds
-	maxCount: UDINT;  // chunks the list holds when full
-	guidsPerRefill: UDINT;  // guids per ADS round trip, so twice this many chunks
-END_VAR
-]]></Declaration>
+	errorId: UDINT;  // last ADS error reported by the guid service, 0 when healthy
+END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="_acquireNode" Id="{3d5a71c8-4e62-4b09-9a37-1f80c6d5e412}">
-      <Declaration><![CDATA[(* Returns a node ready to be filled, or 0 when the list is at its configured length. *)
-METHOD _acquireNode : POINTER TO ST_IdChunkNode
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[_acquireNode := 0;
-
-// recycle a drained node before growing the list, so a warm generator never allocates
-IF THIS^._spare <> 0 THEN
-	_acquireNode := THIS^._spare;
-	THIS^._spare := _acquireNode^.nxt;
-	_acquireNode^.nxt := 0;
-	RETURN;
-END_IF
-
-IF THIS^._nodeCount >= THIS^.maxCount THEN
-	RETURN;
-END_IF
-
-_acquireNode := __NEW(ST_IdChunkNode);
-IF _acquireNode = 0 THEN
-	RETURN;
-END_IF
-
-_acquireNode^.nxt := 0;
-THIS^._nodeCount := THIS^._nodeCount + 1;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="_appendChunk" Id="{6f21b0d4-7c58-4e13-b6a9-0d94e2f7c185}">
-      <Declaration><![CDATA[(* Copies one chunk worth of bytes onto the tail of the list. *)
-METHOD _appendChunk : BOOL
-VAR_INPUT
-	pSrc: POINTER TO BYTE;
-END_VAR
-VAR
-	_node: POINTER TO ST_IdChunkNode;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[_appendChunk := FALSE;
-
-IF pSrc = 0 THEN
-	RETURN;
-END_IF
-
-_node := THIS^._acquireNode();
-IF _node = 0 THEN
-	RETURN;
-END_IF
-
-MEMCPY(ADR(_node^.bytes), pSrc, CHUNK_BYTES);
-_node^.nxt := 0;
-
-IF THIS^._tail = 0 THEN
-	THIS^._head := _node;
-ELSE
-	THIS^._tail^.nxt := _node;
-END_IF
-THIS^._tail := _node;
-THIS^.count := THIS^.count + 1;
-_appendChunk := TRUE;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="_isZero" Id="{c2f8a1d4-8b3e-4e7a-9f16-6c0d2a5b74e1}">
-      <Declaration><![CDATA[(* TRUE when every byte in the range is zero, which is the OTLP invalid identifier. *)
-METHOD _isZero : BOOL
-VAR_INPUT
-	pBytes: POINTER TO BYTE;
-	nBytes: UDINT;
-END_VAR
-VAR
-	_idx: UDINT;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[_isZero := TRUE;
-
-IF (pBytes = 0) OR_ELSE (nBytes = 0) THEN
-	RETURN;
-END_IF
-
-FOR _idx := 0 TO (nBytes - 1) DO
-	IF pBytes[_idx] <> 0 THEN
-		_isZero := FALSE;
-		RETURN;
-	END_IF
-END_FOR]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="_recycle" Id="{9e40c3a7-2b16-4f85-8c72-51ad3e06b9f4}">
-      <Declaration><![CDATA[(* Returns a drained node to the spare list so it can be refilled in place. *)
-METHOD _recycle
-VAR_INPUT
-	pNode: POINTER TO ST_IdChunkNode;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[IF pNode = 0 THEN
-	RETURN;
-END_IF
-
-// the bytes have been handed out, so do not leave a copy of them in the pool
-MEMSET(ADR(pNode^.bytes), 0, CHUNK_BYTES);
-pNode^.nxt := THIS^._spare;
-THIS^._spare := pNode;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="_take" Id="{5a90c3fb-1d47-45c8-b2e0-9e7f4a06d3aa}">
-      <Declaration><![CDATA[(* Cuts nChunks off the head of the list into pDest, which must have room for them.
-   Assembles into a local first so a failed draw leaves the caller's identifier alone. *)
+    <Method Name="_take" Id="{b4e523c2-a600-4b42-96b8-2fe42af6e104}">
+      <Declaration><![CDATA[(* Cuts nBytes off the head of the ring into pDest, which must have room for them.
+   pDest is borrowed for the duration of the call and never taken. *)
 METHOD _take : BOOL
 VAR_INPUT
 	pDest: POINTER TO BYTE;
-	nChunks: UDINT;
+	nBytes: UDINT;
 END_VAR
-VAR
-	_staged: ARRAY [0..15] OF BYTE;  // MAX_ID_CHUNKS * CHUNK_BYTES
-	_attempt: UDINT;
-	_idx: UDINT;
-	_node: POINTER TO ST_IdChunkNode;
-	_pWrite: POINTER TO BYTE;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[_take := FALSE;
-
-IF (pDest = 0) OR_ELSE (nChunks = 0) OR_ELSE (nChunks > MAX_ID_CHUNKS) THEN
-	RETURN;
-END_IF
-
-// an all zero identifier is the OTLP invalid value, so discard that draw and cut another
-FOR _attempt := 1 TO MAX_DRAW_ATTEMPTS DO
-	IF THIS^.count < nChunks THEN
-		RETURN;
-	END_IF
-
-	_pWrite := ADR(_staged);
-	FOR _idx := 1 TO nChunks DO
-		_node := THIS^._head;
-		THIS^._head := _node^.nxt;
-		IF THIS^._head = 0 THEN
-			THIS^._tail := 0;
-		END_IF
-		THIS^.count := THIS^.count - 1;
-
-		MEMCPY(_pWrite, ADR(_node^.bytes), CHUNK_BYTES);
-		_pWrite := _pWrite + CHUNK_BYTES;
-		THIS^._recycle(pNode:=_node);
-	END_FOR
-
-	IF NOT THIS^._isZero(pBytes:=ADR(_staged), nBytes:=(nChunks * CHUNK_BYTES)) THEN
-		MEMCPY(pDest, ADR(_staged), (nChunks * CHUNK_BYTES));
-		_take := TRUE;
-		RETURN;
-	END_IF
-END_FOR]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="call" Id="{e53be0b2-b8ae-4045-9151-b17dfae83dad}">
-      <Declaration><![CDATA[METHOD call : BOOL
 VAR_OUTPUT
 	failureReason: E_IdGenFailureReason;
 END_VAR
 VAR
-	_room: UDINT;
-	_wanted: UDINT;
-	_idx: UDINT;
-	_pChunk: POINTER TO BYTE;
-	_pBytes: POINTER TO BYTE;
+	_first: UDINT;  // bytes of the draw that lie ahead of _head, before the ring wraps
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[call := FALSE;
+        <ST><![CDATA[_take := FALSE;
 failureReason := E_IdGenFailureReason.NA;
 
-// the staging block is the one contiguous region FB_CreateGUID insists on; it is sized
-// once, on first use, and reused for the life of the generator
-IF THIS^._pStaging = 0 THEN
-	// __NEW cannot build an array of a structured type, so the block is claimed as plain
-	// bytes and then read as guids; a guid has no padding, so the layouts agree
-	_pBytes := __NEW(BYTE, (THIS^.guidsPerRefill * SIZEOF(GUID)));
-	IF _pBytes = 0 THEN
-		failureReason := E_IdGenFailureReason.MEMORY_ALLOCATION_FAILURE;
-		RETURN;
-	END_IF
-	THIS^._pStaging := _pBytes;
+IF NOT THIS^.configValid THEN
+	failureReason := E_IdGenFailureReason.INVALID_CONFIGUATION;
+	RETURN;
 END_IF
 
-// the block is only read once a request completes and only written while one is in
-// flight, so its address is stable for the whole life of a request
-THIS^._creator(
-	bExecute:=THIS^._refilling,
-	pGuidBuffer:=THIS^._pStaging,
-	nGuidBufferSize:=(THIS^._requested * SIZEOF(GUID))
-);
+// a draw wider than the ring itself can never be served, however long the caller waits,
+// so it is reported as the configuration mistake it is rather than as an empty ring
+IF (pDest = 0) OR_ELSE (nBytes = 0) OR_ELSE (nBytes > THIS^._bufferLen) THEN
+	failureReason := E_IdGenFailureReason.INVALID_CONFIGUATION;
+	RETURN;
+END_IF
 
-IF THIS^._refilling THEN
-	IF NOT THIS^._edgeHeld THEN
-		// bBusy only reports this request once the block has actually seen bExecute
-		THIS^._edgeHeld := TRUE;
-	ELSIF THIS^._creator.bError THEN
-		THIS^._errorId := THIS^._creator.nErrorId;
-		THIS^._refilling := FALSE;
-		THIS^._edgeHeld := FALSE;
-		THIS^._requested := 0;
-		failureReason := E_IdGenFailureReason.GUID_SERVICE_FAILED;
-		RETURN;
-	ELSIF NOT THIS^._creator.bBusy THEN
-		THIS^._errorId := 0;
-		_pChunk := THIS^._pStaging;
-		FOR _idx := 1 TO (THIS^._requested * CHUNKS_PER_GUID) DO
-			IF NOT THIS^._appendChunk(pSrc:=_pChunk) THEN
-				failureReason := E_IdGenFailureReason.MEMORY_ALLOCATION_FAILURE;
-				EXIT;
-			END_IF
-			_pChunk := _pChunk + CHUNK_BYTES;
-		END_FOR
-		THIS^._refilling := FALSE;
-		THIS^._edgeHeld := FALSE;
-		THIS^._requested := 0;
-		IF failureReason <> E_IdGenFailureReason.NA THEN
-			RETURN;
-		END_IF
-	END_IF
+// nothing is written until the draw is known to be servable, which is what leaves the
+// caller's identifier untouched on failure
+IF THIS^._count < nBytes THEN
+	failureReason := E_IdGenFailureReason.NO_IDENTIFIERS_AVAILABLE;
+	RETURN;
+END_IF
+
+// a draw may straddle the wrap, so it is stitched from the bytes ahead of _head and, once
+// those run out, the bytes at the start of the ring. A refill is never stitched this way,
+// which is why only this side of the ring has to know about the seam.
+_first := THIS^._headRoom;
+IF _first > nBytes THEN
+	_first := nBytes;
+END_IF
+
+MEMCPY(pDest, THIS^._head, _first);
+IF _first < nBytes THEN
+	MEMCPY(pDest + _first, THIS^._pBuffer, nBytes - _first);
+END_IF
+
+// Advance the read point over what was taken. _tail is deliberately left alone: that is
+// what keeps the destination of a refill in flight from moving out from under it.
+IF _first < THIS^._headRoom THEN
+	THIS^._head := THIS^._head + nBytes;
+	THIS^._headRoom := THIS^._headRoom - nBytes;
 ELSE
-	// top the list up once a whole guid's worth of room has opened, never asking for
-	// more than the staging block can hold
-	_room := THIS^.maxCount - THIS^.count;
-	_wanted := _room / CHUNKS_PER_GUID;
-	IF _wanted > THIS^.guidsPerRefill THEN
-		_wanted := THIS^.guidsPerRefill;
-	END_IF
-	IF _wanted > 0 THEN
-		// bExecute is asserted on the next call, which leaves a low cycle for the edge
-		THIS^._requested := _wanted;
-		THIS^._refilling := TRUE;
-	END_IF
+	// the draw reached the end of the ring, so reading resumes at its start
+	THIS^._head := THIS^._pBuffer + (nBytes - _first);
+	THIS^._headRoom := THIS^._bufferLen - (nBytes - _first);
 END_IF
 
-call := TRUE;]]></ST>
+THIS^._count := THIS^._count - nBytes;
+_take := TRUE;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="FB_Exit" Id="{b7c14e29-8d63-40f7-a512-6e0938bc4d7a}">
-      <Declaration><![CDATA[METHOD FB_Exit : BOOL
+    <Property Name="configValid" Id="{57923c4f-63e4-49ec-a270-e59223c02484}">
+      <Declaration><![CDATA[PROPERTY configValid : BOOL]]></Declaration>
+      <Get Name="Get" Id="{f6e9c601-59e8-44cf-95ac-d13b9ba383c0}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[configValid := THIS^._pBuffer <> 0;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="FB_Exit" Id="{3f101495-c416-4f2c-8d67-4492979c7da2}">
+      <Declaration><![CDATA[//FB_Exit must be implemented explicitly. If there is an implementation, then the
+//method is called before the controller removes the code of the function block instance
+//(implicit call). The return value is not evaluated.
+METHOD FB_Exit: BOOL
 VAR_INPUT
-	bInCopyCode: BOOL;
-END_VAR
-]]></Declaration>
+    bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).  
+END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF NOT bInCopyCode THEN
 	THIS^.free();
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="FB_Init" Id="{24e8f5b1-93c7-4a06-bd48-7f21c5e0a936}">
-      <Declaration><![CDATA[METHOD FB_Init : BOOL
+    <Method Name="FB_Init" Id="{3766ca50-80c3-4bab-8f00-1d53888f0851}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
 VAR_INPUT
-	bInitRetains: BOOL;
-	bInCopyCode: BOOL;
-	maxCount: UDINT;  // chunks the list holds when full
-	guidsPerRefill: UDINT;  // guids per ADS round trip, so twice this many chunks
-END_VAR
-]]></Declaration>
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	nTraceIds: UDINT;
+	nSpanIds: UDINT;
+END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[FB_Init := TRUE;
+        <ST><![CDATA[IF (NOT bInCopyCode) AND nTraceIds > 0 AND nSpanIds > 0 THEN
+	THIS^._bufferLen := ((nTraceIds*16) + (nSpanIds*8));
 
-// a trace id is two chunks, so a list shorter than that could never serve one
-THIS^.maxCount := maxCount;
-IF THIS^.maxCount < TRACE_ID_CHUNKS THEN
-	THIS^.maxCount := TRACE_ID_CHUNKS;
-END_IF
+	// the ring grows up to a whole number of guids. The guid service writes nothing smaller
+	// than one, so a remainder shorter than a guid could never be filled, and because the
+	// fill point cannot skip over a hole the ring would strand at the wrap.
+	IF (THIS^._bufferLen MOD GUID_BYTES) <> 0 THEN
+		THIS^._bufferLen := THIS^._bufferLen + (GUID_BYTES - (THIS^._bufferLen MOD GUID_BYTES));
+	END_IF
 
-// staging more guids than the list can ever hold would only waste the request
-THIS^.guidsPerRefill := guidsPerRefill;
-IF THIS^.guidsPerRefill = 0 THEN
-	THIS^.guidsPerRefill := 1;
+	THIS^._pBuffer := __NEW(BYTE, THIS^._bufferLen);
+	THIS^._head := THIS^._pBuffer;
+	THIS^._tail := THIS^._pBuffer;
+	THIS^._headRoom := THIS^._bufferLen;
+	THIS^._tailRoom := THIS^._bufferLen;
 END_IF
-IF THIS^.guidsPerRefill > (THIS^.maxCount / CHUNKS_PER_GUID) THEN
-	THIS^.guidsPerRefill := THIS^.maxCount / CHUNKS_PER_GUID;
-END_IF]]></ST>
+]]></ST>
       </Implementation>
     </Method>
-    <Method Name="free" Id="{08a6d3f7-51b2-4c9e-8437-e29b1f60d5c8}">
-      <Declaration><![CDATA[(* Releases every node and the staging block. *)
-METHOD free
-VAR
-	_idx: UDINT;
-	_node: POINTER TO ST_IdChunkNode;
-	_pBytes: POINTER TO BYTE;
-END_VAR
+    <Method Name="free" Id="{6a89e62b-508d-4218-a6b2-3062ce1cd402}">
+      <Declaration><![CDATA[METHOD free
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
-	IF THIS^._head = 0 THEN
-		EXIT;
-	END_IF
-	_node := THIS^._head;
-	THIS^._head := _node^.nxt;
-	__DELETE(_node);
-END_FOR
-
-FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
-	IF THIS^._spare = 0 THEN
-		EXIT;
-	END_IF
-	_node := THIS^._spare;
-	THIS^._spare := _node^.nxt;
-	__DELETE(_node);
-END_FOR
-
-IF THIS^._pStaging <> 0 THEN
-	// released as the bytes it was claimed as
-	_pBytes := THIS^._pStaging;
-	THIS^._pStaging := 0;
-	__DELETE(_pBytes);
-END_IF
-
-THIS^._head := 0;
-THIS^._tail := 0;
-THIS^._spare := 0;
-THIS^._nodeCount := 0;
-THIS^.count := 0;]]></ST>
+        <ST><![CDATA[IF THIS^._pBuffer <> 0 THEN
+	__DELETE(THIS^._pBuffer);
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="generateSpanId" Id="{a1649896-d9b4-41a0-a667-cd16105ad130}">
@@ -396,15 +163,13 @@ VAR_OUTPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[generateSpanId := FALSE;
-failureReason := E_IdGenFailureReason.NA;
-
-IF NOT THIS^._take(pDest:=ADR(spanId.bytes), nChunks:=SPAN_ID_CHUNKS) THEN
-	failureReason := E_IdGenFailureReason.NO_IDENTIFIERS_AVAILABLE;
-	RETURN;
-END_IF
-
-generateSpanId := TRUE;]]></ST>
+        <ST><![CDATA[// the identifier states its own width, so the draw is eight bytes without anyone here
+// having to name the number
+generateSpanId := THIS^._take(
+	pDest:=ADR(spanId.bytes),
+	nBytes:=TO_UDINT(SIZEOF(spanId.bytes)),
+	failureReason=>failureReason
+);]]></ST>
       </Implementation>
     </Method>
     <Method Name="generateTraceId" Id="{374e4c73-f033-4ea3-98a7-72d6561ec040}">
@@ -417,15 +182,87 @@ VAR_OUTPUT
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[generateTraceId := FALSE;
+        <ST><![CDATA[// sixteen bytes, taken from the same ring as a span id, because the two identifiers are
+// only different widths of the same random bytes
+generateTraceId := THIS^._take(
+	pDest:=ADR(traceId.bytes),
+	nBytes:=TO_UDINT(SIZEOF(traceId.bytes)),
+	failureReason=>failureReason
+);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="tick" Id="{e53be0b2-b8ae-4045-9151-b17dfae83dad}">
+      <Declaration><![CDATA[(* Drives the refill request that keeps the ring populated. *)
+METHOD tick : BOOL
+VAR_OUTPUT
+	failureReason: E_IdGenFailureReason;
+END_VAR
+VAR
+	_room: UDINT;  // bytes the next refill may claim, before it is cut to whole guids
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[tick := FALSE;
 failureReason := E_IdGenFailureReason.NA;
 
-IF NOT THIS^._take(pDest:=ADR(traceId.bytes), nChunks:=TRACE_ID_CHUNKS) THEN
-	failureReason := E_IdGenFailureReason.NO_IDENTIFIERS_AVAILABLE;
+IF NOT THIS^.configValid THEN
+	failureReason := E_IdGenFailureReason.INVALID_CONFIGUATION;
 	RETURN;
 END_IF
 
-generateTraceId := TRUE;]]></ST>
+// The service writes one contiguous region, so a refill starts at _tail and stops at the
+// end of the ring. Free space on the far side of the wrap is left to the refill after this
+// one, because filling that side first would leave a hole at _tail and a ring has no way
+// to describe a hole.
+//
+// The service is only ever handed the region _inFlight claims, which is what proves the
+// region lies inside the allocation, and its length is remembered rather than recomputed
+// because takes move _head while the request is out. A take never moves _tail, so the
+// destination cannot shift out from under a request in flight.
+THIS^._creator(
+	bExecute := (THIS^._inFlight > 0),
+	pGuidBuffer := THIS^._tail,
+	nGuidBufferSize := THIS^._inFlight
+);
+
+IF THIS^._inFlight = 0 THEN
+	// Nothing is out, so claim the room from _tail to the end of the ring, bounded by the
+	// free space when that runs out first and cut to whole guids. bExecute is only raised by
+	// the call above on the next cycle, which leaves the service a low cycle to see the edge.
+	_room := THIS^._bufferLen - THIS^._count;
+	IF _room > THIS^._tailRoom THEN
+		_room := THIS^._tailRoom;
+	END_IF
+	THIS^._inFlight := (_room / GUID_BYTES) * GUID_BYTES;
+
+ELSIF NOT THIS^._edgeHeld THEN
+	// bBusy does not describe this request until the service has seen bExecute high
+	THIS^._edgeHeld := TRUE;
+
+ELSIF THIS^._creator.bError THEN
+	// a failed request never advances _count, so the bytes it did not write are never
+	// handed out as identifiers
+	THIS^.errorId := THIS^._creator.nErrorId;
+	THIS^._inFlight := 0;
+	THIS^._edgeHeld := FALSE;
+	failureReason := E_IdGenFailureReason.GUID_SERVICE_FAILED;
+	RETURN;
+
+ELSIF NOT THIS^._creator.bBusy THEN
+	// the bytes are written, so publish them by advancing the fill point over them
+	THIS^.errorId := 0;
+	THIS^._count := THIS^._count + THIS^._inFlight;
+	THIS^._tail := THIS^._tail + THIS^._inFlight;
+	THIS^._tailRoom := THIS^._tailRoom - THIS^._inFlight;
+	IF THIS^._tailRoom = 0 THEN
+		THIS^._tail := THIS^._pBuffer;
+		THIS^._tailRoom := THIS^._bufferLen;
+	END_IF
+	THIS^._inFlight := 0;
+	THIS^._edgeHeld := FALSE;
+END_IF
+
+tick := TRUE;]]></ST>
       </Implementation>
     </Method>
   </POU>
