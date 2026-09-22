@@ -18,7 +18,7 @@ Both identifier types are owned by the Value Creation domain (`FB_TraceId`, `FB_
 
 - A trace ID is 16 bytes and MUST NOT be all zeroes.
 - A span ID is 8 bytes and MUST NOT be all zeroes.
-- An all-zero identifier is the OTLP representation of "invalid/absent", so the generator must never emit one.
+- An all-zero identifier is the OTLP representation of "invalid/absent", so the generator must never emit one. No logic is required in the generator to enforce this, this invariant is fulfilled by the entropy source so that it can be dis-regarded by test classes that mock ids.
 
 ## Methods
 
