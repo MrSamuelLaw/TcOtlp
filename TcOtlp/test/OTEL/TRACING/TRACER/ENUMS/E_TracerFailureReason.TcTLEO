@@ -1,0 +1,127 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <EnumerationTextList Name="E_TracerFailureReason" Id="{ce4006ec-8370-412c-bd90-7e50ec8bff83}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_TracerFailureReason :
+(
+	NA := 0,  // No failure occurred.
+	SPAN_ALREADY_STARTED,  // startSpan was called while a span was still being built.
+	SPAN_NOT_STARTED,  // No span is being built to modify or hand over.
+	SPAN_NAME_EMPTY,  // The span name is empty.
+	SPAN_KIND_UNSPECIFIED,  // SPAN_KIND_UNSPECIFIED was given; OTLP says not to use it.
+	PARENT_CONTEXT_POINTER_NULL,  // The parent context pointer is null.
+	PARENT_CONTEXT_INVALID,  // The parent context has an all zero trace id or span id.
+	ATTRIBUTE_VALUE_INVALID,  // An attribute could not be created from the supplied value.
+	ATTRIBUTE_VALUE_TYPE_UNSUPPORTED,  // The supplied attribute value type is not supported.
+	ATTRIBUTE_COUNT_LIMIT_REACHED,  // The span cannot own another attribute.
+	DESTINATION_ALREADY_ASSIGNED,  // The destination pointer was already assigned when build began.
+	IDENTIFIERS_UNAVAILABLE,  // The id generator had no identifiers ready; retry on a later cycle.
+	ID_GENERATION_FAILURE,  // The id generator failed for another reason.
+	SNAPSHOT_COPY_FAILURE,  // The resource or instrumentation-scope snapshot could not be copied.
+	MEMORY_ALLOCATION_FAILURE  // Dynamic memory allocation failed.
+) UDINT;
+END_TYPE
+]]></Declaration>
+    <XmlArchive>
+      <Data>
+        <o xml:space="preserve" t="TextListEnumerationTextListObject">
+          <l n="TextList" t="ArrayList" cet="TextListRow">
+            <o>
+              <v n="TextID">"NA"</v>
+              <v n="TextDefault">"0"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SPAN_ALREADY_STARTED"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SPAN_NOT_STARTED"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SPAN_NAME_EMPTY"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SPAN_KIND_UNSPECIFIED"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"PARENT_CONTEXT_POINTER_NULL"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"PARENT_CONTEXT_INVALID"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"ATTRIBUTE_VALUE_INVALID"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"ATTRIBUTE_VALUE_TYPE_UNSUPPORTED"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"ATTRIBUTE_COUNT_LIMIT_REACHED"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"DESTINATION_ALREADY_ASSIGNED"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"IDENTIFIERS_UNAVAILABLE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"ID_GENERATION_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SNAPSHOT_COPY_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"MEMORY_ALLOCATION_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">""</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+          </l>
+          <l n="Languages" t="ArrayList" />
+          <v n="GuidInit">{b26d51c7-c6e4-4822-90ed-e9b2a05459df}</v>
+          <v n="GuidReInit">{d6679476-9608-4949-a1f4-79fc837ecd10}</v>
+          <v n="GuidExitX">{c4b47dd9-af1c-4460-9bcd-58a6fdf50561}</v>
+        </o>
+      </Data>
+      <TypeList>
+        <Type n="ArrayList">System.Collections.ArrayList</Type>
+        <Type n="Guid">System.Guid</Type>
+        <Type n="String">System.String</Type>
+        <Type n="TextListEnumerationTextListObject">{4b60233c-f940-4beb-b331-82133b520151}</Type>
+        <Type n="TextListRow">{53da1be7-ad25-47c3-b0e8-e26286dad2e0}</Type>
+      </TypeList>
+    </XmlArchive>
+  </EnumerationTextList>
+</TcPlcObject>

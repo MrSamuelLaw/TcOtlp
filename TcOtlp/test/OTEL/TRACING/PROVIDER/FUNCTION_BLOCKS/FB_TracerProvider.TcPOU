@@ -20,16 +20,27 @@ VAR_INPUT
     bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
     bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
 	resource: REFERENCE TO FB_Resource;
-END_VAR]]></Declaration>
+	idGenerator: REFERENCE TO FB_IdGenerator_Base;  // the source of identifiers for every tracer of this provider
+END_VAR
+]]></Declaration>
       <Implementation>
-        <ST><![CDATA[THIS^._resource REF= resource;]]></ST>
+        <ST><![CDATA[THIS^._resource REF= resource;
+THIS^._idGenerator REF= idGenerator;]]></ST>
       </Implementation>
     </Method>
+    <Property Name="idGenerator" Id="{a262f1da-df4d-43ee-84b6-b44c18153b89}">
+      <Declaration><![CDATA[PROPERTY idGenerator : REFERENCE TO FB_IdGenerator_Base]]></Declaration>
+      <Get Name="Get" Id="{29c6ea03-2912-4ac7-b025-35809fb995cf}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[idGenerator REF= THIS^._idGenerator;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
     <Property Name="resource" Id="{fdb15dde-91d3-4ead-9c92-52fca49b1d49}">
       <Declaration><![CDATA[PROPERTY resource : REFERENCE TO FB_Resource]]></Declaration>
       <Get Name="Get" Id="{bbfec233-bb62-41c1-94c6-632763a36ebc}">
-        <Declaration><![CDATA[
-]]></Declaration>
+        <Declaration><![CDATA[]]></Declaration>
         <Implementation>
           <ST><![CDATA[resource REF= THIS^._resource;]]></ST>
         </Implementation>

@@ -1,0 +1,491 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestTracer" Id="{35fe2dda-8b84-4218-ae76-39ef68e243e6}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Tests the FB_Tracer fluent chain: validation at each step, identifier and flag assignment,
+   and the hand-over of the built span to the caller. Each test builds its own provider and
+   tracer around a deterministic id generator. *)
+FUNCTION_BLOCK FB_TestTracer EXTENDS FB_TestSuite
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testBuildsRootSpan();
+THIS^.testBuildsChildOfLocalParent();
+THIS^.testChildOfRemoteParent();
+THIS^.testRejectsInvalidParent();
+THIS^.testKeepsFirstFailure();
+THIS^.testRejectsEmptyName();
+THIS^.testRejectsUnspecifiedKind();
+THIS^.testBuildWithoutStartFails();
+THIS^.testStartingSecondSpanFails();
+THIS^.testBuildIntoAssignedDestinationFails();
+THIS^.testNoIdentifiersAvailable();
+THIS^.testSetsAttributes();]]></ST>
+    </Implementation>
+    <Method Name="testBuildsRootSpan" Id="{00bf1eb6-c0c9-43b1-a36c-e82587fffac9}">
+      <Declaration><![CDATA[(* A span without a parent starts a new trace: it gets fresh identifiers, no parent, root flags,
+   and snapshots of the resource and scope. The tracer gives up ownership. *)
+METHOD testBuildsRootSpan : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	pSpan: POINTER TO FB_Span;
+	success: BOOL;
+	reason: E_TracerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testBuildsRootSpan');
+	success := tracer.startSpan(name:='root').build(pDest:=pSpan, failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected a root span to build');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_TracerFailureReason.NA),
+		TO_UDINT(reason),
+		'Expected no failure reason on success'
+	);
+	THIS^.AssertTrue(pSpan <> 0, 'Expected build to assign the destination');
+	THIS^.AssertTrue(tracer.pSpan = 0, 'Expected the tracer to hand over the span');
+
+	IF pSpan <> 0 THEN
+		THIS^.AssertTrue(pSpan^.traceId <> 0, 'Expected a trace id');
+		THIS^.AssertTrue(pSpan^.spanId <> 0, 'Expected a span id');
+		THIS^.AssertTrue(pSpan^.parentSpanId = 0, 'Expected a root span to have no parent');
+		THIS^.AssertTrue(pSpan^.traceState = 0, 'Expected a root span to have no trace state');
+		THIS^.AssertTrue(pSpan^.name <> 0, 'Expected a name');
+		IF pSpan^.name <> 0 THEN
+			THIS^.AssertEquals_STRING('root', pSpan^.name^.pString^, 'Expected the name to be copied');
+		END_IF
+		THIS^.AssertEquals_UDINT(
+			TO_UDINT(E_SpanKind.SPAN_KIND_INTERNAL),
+			TO_UDINT(pSpan^.kind),
+			'Expected the default kind to be INTERNAL'
+		);
+		THIS^.AssertTrue(pSpan^.startTimestamp > 0, 'Expected a start timestamp');
+		THIS^.AssertEquals_UDINT(16#101, pSpan^.flags, 'Expected a root span to be sampled with remoteness known');
+		THIS^.AssertEquals_STRING('tracer.test', pSpan^.scope.name, 'Expected the scope to be snapshotted');
+		pSpan := pSpan^.delete();
+	END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testBuildsChildOfLocalParent" Id="{d767c00c-eda9-4be4-85f9-90a9cbc2e617}">
+      <Declaration><![CDATA[(* A child of a local span continues its trace, records the parent's span id, and takes its
+   own span id. *)
+METHOD testBuildsChildOfLocalParent : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	pRoot: POINTER TO FB_Span;
+	pChild: POINTER TO FB_Span;
+	pContext: POINTER TO FB_SpanContext;
+	success: BOOL;
+	reason: E_TracerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testBuildsChildOfLocalParent');
+	tracer.startSpan(name:='root').build(pDest:=pRoot);
+	IF pRoot <> 0 THEN
+		pRoot^.getContext(pDest:=pContext);
+	END_IF
+
+	success := tracer
+		.startSpan(name:='child', kind:=E_SpanKind.SPAN_KIND_CLIENT)
+		.setParent(pContext:=pContext)
+		.build(pDest:=pChild, failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected a child span to build');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_TracerFailureReason.NA),
+		TO_UDINT(reason),
+		'Expected no failure reason on success'
+	);
+
+	IF pRoot <> 0 AND_THEN pChild <> 0 THEN
+		THIS^.AssertTrue(
+			MEMCMP(ADR(pChild^.traceId^.bytes), ADR(pRoot^.traceId^.bytes), SIZEOF(pRoot^.traceId^.bytes)) = 0,
+			'Expected the child to continue the parent$'s trace'
+		);
+		THIS^.AssertTrue(pChild^.parentSpanId <> 0, 'Expected the child to record its parent');
+		IF pChild^.parentSpanId <> 0 THEN
+			THIS^.AssertTrue(
+				MEMCMP(ADR(pChild^.parentSpanId^.bytes), ADR(pRoot^.spanId^.bytes), SIZEOF(pRoot^.spanId^.bytes)) = 0,
+				'Expected the parent span id to be the root$'s span id'
+			);
+		END_IF
+		THIS^.AssertTrue(
+			MEMCMP(ADR(pChild^.spanId^.bytes), ADR(pRoot^.spanId^.bytes), SIZEOF(pRoot^.spanId^.bytes)) <> 0,
+			'Expected the child to have its own span id'
+		);
+		THIS^.AssertEquals_UDINT(16#101, pChild^.flags, 'Expected a local parent to set bit 8 but not bit 9');
+		THIS^.AssertEquals_UDINT(
+			TO_UDINT(E_SpanKind.SPAN_KIND_CLIENT),
+			TO_UDINT(pChild^.kind),
+			'Expected the kind to be kept'
+		);
+	END_IF
+
+	IF pContext <> 0 THEN pContext := pContext^.delete(); END_IF
+	IF pChild <> 0 THEN pChild := pChild^.delete(); END_IF
+	IF pRoot <> 0 THEN pRoot := pRoot^.delete(); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testChildOfRemoteParent" Id="{daaa2fcb-0ec4-4a92-b2ad-c80f47ed2436}">
+      <Declaration><![CDATA[(* A remote parent sets bits 8 and 9 on the child and its trace state is copied. The child's
+   own context is still local. *)
+METHOD testChildOfRemoteParent : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	pChild: POINTER TO FB_Span;
+	pRemote: POINTER TO FB_SpanContext;
+	pChildContext: POINTER TO FB_SpanContext;
+	traceId: FB_TraceId;
+	spanId: FB_SpanId;
+	traceStateText: T_MaxString := 'vendor=abc';
+	success: BOOL;
+	reason: E_TracerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testChildOfRemoteParent');
+	MEMSET(ADR(traceId.bytes), 16#AA, SIZEOF(traceId.bytes));
+	MEMSET(ADR(spanId.bytes), 16#BB, SIZEOF(spanId.bytes));
+	ContextFactory.buildContext(
+		pDest:=pRemote,
+		pTraceId:=ADR(traceId),
+		pSpanId:=ADR(spanId),
+		pTraceState:=ADR(traceStateText),
+		traceFlags:=16#301
+	);
+
+	success := tracer
+		.startSpan(name:='remote.child', kind:=E_SpanKind.SPAN_KIND_CONSUMER)
+		.setParent(pContext:=pRemote)
+		.build(pDest:=pChild, failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected a child of a remote parent to build');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_TracerFailureReason.NA),
+		TO_UDINT(reason),
+		'Expected no failure reason on success'
+	);
+
+	// the context is borrowed, so it can be released before the span
+	IF pRemote <> 0 THEN pRemote := pRemote^.delete(); END_IF
+
+	IF pChild <> 0 THEN
+		THIS^.AssertEquals_UDINT(16#301, pChild^.flags, 'Expected a remote parent to set bits 8 and 9');
+		THIS^.AssertTrue(
+			MEMCMP(ADR(pChild^.traceId^.bytes), ADR(traceId.bytes), SIZEOF(traceId.bytes)) = 0,
+			'Expected the child to continue the remote trace'
+		);
+		THIS^.AssertTrue(pChild^.traceState <> 0, 'Expected the trace state to be copied');
+		IF pChild^.traceState <> 0 THEN
+			THIS^.AssertEquals_STRING('vendor=abc', pChild^.traceState^.pString^, 'Expected the trace state text to be copied');
+		END_IF
+
+		pChild^.getContext(pDest:=pChildContext);
+		THIS^.AssertTrue(pChildContext <> 0, 'Expected a context from the child');
+		IF pChildContext <> 0 THEN
+			THIS^.AssertFalse(pChildContext^.isRemote(), 'Expected the child$'s own context to be local');
+			THIS^.AssertEquals_UDINT(16#101, pChildContext^.traceFlags, 'Expected the sampled bit and bit 8 only');
+			pChildContext := pChildContext^.delete();
+		END_IF
+		pChild := pChild^.delete();
+	END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testRejectsInvalidParent" Id="{f4d6796d-d0a7-4167-a603-97aeb6cb3922}">
+      <Declaration><![CDATA[(* A parent context with all zero identifiers is rejected and nothing is handed over. *)
+METHOD testRejectsInvalidParent : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	pSpan: POINTER TO FB_Span;
+	pContext: POINTER TO FB_SpanContext;
+	traceId: FB_TraceId;
+	spanId: FB_SpanId;
+	success: BOOL;
+	reason: E_TracerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testRejectsInvalidParent');
+	ContextFactory.buildContext(pDest:=pContext, pTraceId:=ADR(traceId), pSpanId:=ADR(spanId), pTraceState:=0, traceFlags:=16#101);
+
+	success := tracer.startSpan(name:='child').setParent(pContext:=pContext).build(pDest:=pSpan, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected an invalid parent to fail the chain');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_TracerFailureReason.PARENT_CONTEXT_INVALID),
+		TO_UDINT(reason),
+		'Expected PARENT_CONTEXT_INVALID'
+	);
+	THIS^.AssertTrue(pSpan = 0, 'Expected the destination to stay unassigned');
+	THIS^.AssertTrue(tracer.pSpan = 0, 'Expected the incomplete span to be released');
+
+	IF pContext <> 0 THEN pContext := pContext^.delete(); END_IF
+	IF pSpan <> 0 THEN pSpan := pSpan^.delete(); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testKeepsFirstFailure" Id="{b89ccf9f-0932-4580-aefb-9e45bff4b52e}">
+      <Declaration><![CDATA[(* Later steps in a failed chain do not replace the first failure. *)
+METHOD testKeepsFirstFailure : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	pSpan: POINTER TO FB_Span;
+	success: BOOL;
+	reason: E_TracerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testKeepsFirstFailure');
+	success := tracer
+		.startSpan(name:='child')
+		.setParent(pContext:=0)
+		.setStringAttribute('key', 'value')
+		.build(pDest:=pSpan, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected a null parent to fail the chain');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_TracerFailureReason.PARENT_CONTEXT_POINTER_NULL),
+		TO_UDINT(reason),
+		'Expected the first failure to be reported'
+	);
+	THIS^.AssertTrue(pSpan = 0, 'Expected the destination to stay unassigned');
+
+	// the failure does not carry over to the next chain
+	success := tracer.startSpan(name:='next').build(pDest:=pSpan, failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected the next chain to start clean');
+	IF pSpan <> 0 THEN pSpan := pSpan^.delete(); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testRejectsEmptyName" Id="{2400d061-57ca-4f8f-9be1-3b95d682e723}">
+      <Declaration><![CDATA[(* OTLP requires a span name. *)
+METHOD testRejectsEmptyName : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	pSpan: POINTER TO FB_Span;
+	success: BOOL;
+	reason: E_TracerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testRejectsEmptyName');
+	success := tracer.startSpan(name:='').build(pDest:=pSpan, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected an empty name to fail');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_TracerFailureReason.SPAN_NAME_EMPTY),
+		TO_UDINT(reason),
+		'Expected SPAN_NAME_EMPTY'
+	);
+	THIS^.AssertTrue(pSpan = 0, 'Expected the destination to stay unassigned');
+	IF pSpan <> 0 THEN pSpan := pSpan^.delete(); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testRejectsUnspecifiedKind" Id="{64da90a2-55f6-4549-8d5c-eaf89d9b57aa}">
+      <Declaration><![CDATA[(* OTLP says SPAN_KIND_UNSPECIFIED must not be used. *)
+METHOD testRejectsUnspecifiedKind : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	pSpan: POINTER TO FB_Span;
+	success: BOOL;
+	reason: E_TracerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testRejectsUnspecifiedKind');
+	success := tracer.startSpan(name:='span', kind:=E_SpanKind.SPAN_KIND_UNSPECIFIED).build(pDest:=pSpan, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected an unspecified kind to fail');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_TracerFailureReason.SPAN_KIND_UNSPECIFIED),
+		TO_UDINT(reason),
+		'Expected SPAN_KIND_UNSPECIFIED'
+	);
+	THIS^.AssertTrue(pSpan = 0, 'Expected the destination to stay unassigned');
+	IF pSpan <> 0 THEN pSpan := pSpan^.delete(); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testBuildWithoutStartFails" Id="{279511f0-c0c1-45c8-9c40-d00d8d236c88}">
+      <Declaration><![CDATA[(* build and the setters need a span that startSpan created. *)
+METHOD testBuildWithoutStartFails : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	pSpan: POINTER TO FB_Span;
+	success: BOOL;
+	reason: E_TracerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testBuildWithoutStartFails');
+	success := tracer.setStringAttribute('key', 'value').build(pDest:=pSpan, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected build without startSpan to fail');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_TracerFailureReason.SPAN_NOT_STARTED),
+		TO_UDINT(reason),
+		'Expected SPAN_NOT_STARTED'
+	);
+	THIS^.AssertTrue(pSpan = 0, 'Expected the destination to stay unassigned');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testStartingSecondSpanFails" Id="{7e64b337-c8c2-491d-8486-f4f3b1298ea6}">
+      <Declaration><![CDATA[(* The tracer builds one span at a time. A second startSpan fails the chain, and build
+   releases the span that was already building. *)
+METHOD testStartingSecondSpanFails : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	pSpan: POINTER TO FB_Span;
+	success: BOOL;
+	reason: E_TracerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testStartingSecondSpanFails');
+	tracer.startSpan(name:='first');
+	success := tracer.startSpan(name:='second').build(pDest:=pSpan, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected a second startSpan to fail');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_TracerFailureReason.SPAN_ALREADY_STARTED),
+		TO_UDINT(reason),
+		'Expected SPAN_ALREADY_STARTED'
+	);
+	THIS^.AssertTrue(pSpan = 0, 'Expected the destination to stay unassigned');
+	THIS^.AssertTrue(tracer.pSpan = 0, 'Expected build to release the building span');
+	IF pSpan <> 0 THEN pSpan := pSpan^.delete(); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testBuildIntoAssignedDestinationFails" Id="{d90dd246-7dc1-47bd-8626-63dae40a029f}">
+      <Declaration><![CDATA[(* build follows the VAR_IN_OUT pointer pattern: it never overwrites a span the caller owns. *)
+METHOD testBuildIntoAssignedDestinationFails : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	pSpan: POINTER TO FB_Span;
+	pFirst: POINTER TO FB_Span;
+	success: BOOL;
+	reason: E_TracerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testBuildIntoAssignedDestinationFails');
+	tracer.startSpan(name:='first').build(pDest:=pSpan);
+	pFirst := pSpan;
+
+	success := tracer.startSpan(name:='second').build(pDest:=pSpan, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected build into an assigned destination to fail');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_TracerFailureReason.DESTINATION_ALREADY_ASSIGNED),
+		TO_UDINT(reason),
+		'Expected DESTINATION_ALREADY_ASSIGNED'
+	);
+	THIS^.AssertTrue(pSpan = pFirst, 'Expected the destination pointer to be left alone');
+	THIS^.AssertTrue(tracer.pSpan = 0, 'Expected the second span to be released');
+	IF pSpan <> 0 THEN pSpan := pSpan^.delete(); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testNoIdentifiersAvailable" Id="{eba5995f-b038-410d-a7ef-a528e3f7072c}">
+      <Declaration><![CDATA[(* A generator with nothing ready fails the build with a retryable reason. *)
+METHOD testNoIdentifiersAvailable : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	pSpan: POINTER TO FB_Span;
+	success: BOOL;
+	reason: E_TracerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testNoIdentifiersAvailable');
+	idGenerator.available := FALSE;
+	success := tracer.startSpan(name:='root').build(pDest:=pSpan, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected build to fail without identifiers');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_TracerFailureReason.IDENTIFIERS_UNAVAILABLE),
+		TO_UDINT(reason),
+		'Expected IDENTIFIERS_UNAVAILABLE'
+	);
+	THIS^.AssertTrue(pSpan = 0, 'Expected the destination to stay unassigned');
+	THIS^.AssertTrue(tracer.pSpan = 0, 'Expected the incomplete span to be released');
+	IF pSpan <> 0 THEN pSpan := pSpan^.delete(); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testSetsAttributes" Id="{bba65c61-8c5d-4bd4-8cbd-a52de5244730}">
+      <Declaration><![CDATA[(* Attributes set during the chain are owned by the built span. *)
+METHOD testSetsAttributes : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	pSpan: POINTER TO FB_Span;
+	setpoint: DINT := 42;
+	success: BOOL;
+	reason: E_TracerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testSetsAttributes');
+	success := tracer
+		.startSpan(name:='span')
+		.setStringAttribute('skid', 'A')
+		.setNumberAttribute('setpoint', setpoint)
+		.build(pDest:=pSpan, failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected a span with attributes to build');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_TracerFailureReason.NA),
+		TO_UDINT(reason),
+		'Expected no failure reason on success'
+	);
+	IF pSpan <> 0 THEN
+		THIS^.AssertEquals_UDINT(2, pSpan^.attributes.count, 'Expected both attributes on the span');
+		pSpan := pSpan^.delete();
+	END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

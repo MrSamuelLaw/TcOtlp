@@ -1,0 +1,84 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_MockIdGenerator" Id="{cbf36e18-0d4c-4480-a9e4-98b6e08c5414}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Deterministic id generator for tests. Every identifier is filled with one counter byte,
+   so no two identifiers in a test are equal and none is all zero. Set available to FALSE to
+   simulate a generator that has nothing ready. *)
+FUNCTION_BLOCK FB_MockIdGenerator EXTENDS FB_IdGenerator_Base
+VAR_INPUT
+	available: BOOL := TRUE;
+END_VAR
+VAR
+	_counter: BYTE;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="generateSpanId" Id="{8e4633f1-f80a-46f0-ac6b-8d19f25a2e48}">
+      <Declaration><![CDATA[METHOD generateSpanId : BOOL
+VAR_IN_OUT
+	spanId: FB_SpanId;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_IdGenFailureReason;
+END_VAR
+VAR
+	_bytes: ARRAY [0..7] OF BYTE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[generateSpanId := FALSE;
+failureReason := E_IdGenFailureReason.NA;
+
+IF NOT THIS^.available THEN
+	failureReason := E_IdGenFailureReason.NO_IDENTIFIERS_AVAILABLE;
+	RETURN;
+END_IF
+
+_counter := (_counter MOD 255) + 1;
+MEMSET(ADR(_bytes), _counter, SIZEOF(_bytes));
+MEMCPY(ADR(spanId.bytes), ADR(_bytes), SIZEOF(spanId.bytes));
+generateSpanId := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="generateTraceId" Id="{70535393-10f8-40df-894e-05157c345e4e}">
+      <Declaration><![CDATA[METHOD generateTraceId : BOOL
+VAR_IN_OUT
+	traceId: FB_TraceId;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_IdGenFailureReason;
+END_VAR
+VAR
+	_bytes: ARRAY [0..15] OF BYTE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[generateTraceId := FALSE;
+failureReason := E_IdGenFailureReason.NA;
+
+IF NOT THIS^.available THEN
+	failureReason := E_IdGenFailureReason.NO_IDENTIFIERS_AVAILABLE;
+	RETURN;
+END_IF
+
+_counter := (_counter MOD 255) + 1;
+MEMSET(ADR(_bytes), _counter, SIZEOF(_bytes));
+MEMCPY(ADR(traceId.bytes), ADR(_bytes), SIZEOF(traceId.bytes));
+generateTraceId := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="tick" Id="{0ec7ea32-b0a6-49c5-9fb7-42e07fd9e77f}">
+      <Declaration><![CDATA[METHOD tick : BOOL
+VAR_OUTPUT
+	failureReason: E_IdGenFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[tick := TRUE;
+failureReason := E_IdGenFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

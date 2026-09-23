@@ -4,8 +4,8 @@
     <Declaration><![CDATA[(* Tests FB_Span.getContext: that it snapshots the span's identity into a caller-owned context,
    marks it local, and follows the factory's pointer contract.
 
-   FB_Span has no setters yet, so the tests write its pointer outputs through their address,
-   and clear them again before returning. *)
+   The tests point the span's identity at local values instead of going through FB_Tracer,
+   and clear them again before returning so the span's free does not release them. *)
 FUNCTION_BLOCK FB_TestSpan EXTENDS FB_TestSuite
 ]]></Declaration>
     <Implementation>
@@ -25,20 +25,11 @@ VAR_INPUT
 	pSpanId: POINTER TO FB_SpanId;
 	pTraceState: POINTER TO FB_String;
 END_VAR
-VAR
-	_ppTraceId: POINTER TO POINTER TO FB_TraceId;
-	_ppSpanId: POINTER TO POINTER TO FB_SpanId;
-	_ppTraceState: POINTER TO POINTER TO FB_String;
-END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[// the span's members are outputs, so they are written through their address
-_ppTraceId := ADR(span.traceId);
-_ppTraceId^ := pTraceId;
-_ppSpanId := ADR(span.spanId);
-_ppSpanId^ := pSpanId;
-_ppTraceState := ADR(span.traceState);
-_ppTraceState^ := pTraceState;]]></ST>
+        <ST><![CDATA[span.traceId := pTraceId;
+span.spanId := pSpanId;
+span.traceState := pTraceState;]]></ST>
       </Implementation>
     </Method>
     <Method Name="_fillIds" Id="{c5e71285-5a84-4514-a9d9-5eefa08686b1}">

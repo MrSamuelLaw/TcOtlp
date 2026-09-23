@@ -1,15 +1,204 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_Tracer" Id="{630c4506-e919-4bcb-bc32-932a851a5f73}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_Tracer
+    <Declaration><![CDATA[(*
+	Builds spans with the same fluent chain FB_Logger uses for log records, validating each
+	step as it runs. The first failure is kept for the rest of the chain.
+
+	The difference from the logger is the end of the chain: emit pushes a log record to the
+	provider, but build hands the span to the caller, because a span starts running when it is
+	built and ends later.
+
+	Example:
+	IF NOT tracer
+		.startSpan(name := 'chiller.startup', kind := E_SpanKind.SPAN_KIND_CONSUMER)
+		.setParent(pContext := pParentContext)
+		.setStringAttribute('skid', 'A')
+		.build(pDest := pSpan, failureReason => reason) THEN
+		// CASE reason OF ...
+	END_IF
+*)
+FUNCTION_BLOCK FB_Tracer
+VAR_OUTPUT
+	pSpan: POINTER TO FB_Span;  // the span being built; owned by the tracer until build
+END_VAR
 VAR
 	_scope: REFERENCE TO FB_InstrumentationScope;
 	_provider: REFERENCE TO FB_TracerProvider;
+	_failed: BOOL;
+	_failureReason: E_TracerFailureReason;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="_assignIdentity" Id="{5d981575-a270-4c40-aadd-46952ff6e8ac}">
+      <Declaration><![CDATA[(* Takes the span's identifiers from the provider's generator. A root span also gets a new
+   trace id and root flags; a child already has both from setParent. *)
+METHOD _assignIdentity : BOOL
+VAR_OUTPUT
+	failureReason: E_TracerFailureReason;
+END_VAR
+VAR
+	_traceId: FB_TraceId;
+	_spanId: FB_SpanId;
+	_pTraceId: POINTER TO FB_TraceId;
+	_pSpanId: POINTER TO FB_SpanId;
+	_idGenFailureReason: E_IdGenFailureReason;
+	_factoryFailureReason: E_ValueFactoryFailureReason;
+END_VAR
+VAR CONSTANT
+	TRACE_FLAG_SAMPLED: UDINT := 16#01;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_assignIdentity := FALSE;
+failureReason := E_TracerFailureReason.NA;
+
+// a root span starts a new trace; a child already carries its parent's trace id
+IF THIS^.pSpan^.traceId = 0 THEN
+	IF NOT THIS^._provider.idGenerator.generateTraceId(traceId:=_traceId, failureReason=>_idGenFailureReason) THEN
+		failureReason := THIS^._mapIdGenFailure(_idGenFailureReason);
+		RETURN;
+	END_IF
+	IF NOT ValueFactory.createTraceId(
+		pDest:=_pTraceId,
+		pBytes:=ADR(_traceId.bytes),
+		nSize:=SIZEOF(_traceId.bytes),
+		failureReason=>_factoryFailureReason
+		) THEN
+		failureReason := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
+		RETURN;
+	END_IF
+END_IF
+
+IF NOT THIS^._provider.idGenerator.generateSpanId(spanId:=_spanId, failureReason=>_idGenFailureReason) THEN
+	IF _pTraceId <> 0 THEN _pTraceId := _pTraceId^.delete(); END_IF
+	failureReason := THIS^._mapIdGenFailure(_idGenFailureReason);
+	RETURN;
+END_IF
+IF NOT ValueFactory.createSpanId(
+	pDest:=_pSpanId,
+	pBytes:=ADR(_spanId.bytes),
+	nSize:=SIZEOF(_spanId.bytes),
+	failureReason=>_factoryFailureReason
+	) THEN
+	IF _pTraceId <> 0 THEN _pTraceId := _pTraceId^.delete(); END_IF
+	failureReason := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+
+// transfer ownership of the identifiers to the span
+IF _pTraceId <> 0 THEN
+	THIS^.pSpan^.traceId := _pTraceId;
+	_pTraceId := 0;
+	// a root span has no parent, so remoteness is known and not remote; every span is
+	// sampled until there is a sampler
+	THIS^.pSpan^.flags := TRACE_FLAG_SAMPLED OR TO_UDINT(E_SpanFlags.SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK);
+END_IF
+THIS^.pSpan^.spanId := _pSpanId;
+_pSpanId := 0;
+_assignIdentity := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_mapIdGenFailure" Id="{3ca36015-f2e6-4b32-a77c-317ea2398a78}">
+      <Declaration><![CDATA[METHOD _mapIdGenFailure : E_TracerFailureReason
+VAR_INPUT
+	reason: E_IdGenFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF reason = E_IdGenFailureReason.NO_IDENTIFIERS_AVAILABLE THEN
+	_mapIdGenFailure := E_TracerFailureReason.IDENTIFIERS_UNAVAILABLE;
+ELSIF reason = E_IdGenFailureReason.MEMORY_ALLOCATION_FAILURE THEN
+	_mapIdGenFailure := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
+ELSE
+	_mapIdGenFailure := E_TracerFailureReason.ID_GENERATION_FAILURE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_shouldReturnEarly" Id="{88de3424-ad60-4c95-878e-159ca24c8617}">
+      <Declaration><![CDATA[METHOD _shouldReturnEarly : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_shouldReturnEarly := TRUE;
+
+// Preserve the first failure in the active fluent chain.
+IF THIS^._failed THEN
+	RETURN;
+END_IF
+
+// fail early if the span hasn't been started
+IF THIS^.pSpan = 0 THEN
+	THIS^._failed := TRUE;
+	THIS^._failureReason := E_TracerFailureReason.SPAN_NOT_STARTED;
+	RETURN;
+END_IF
+
+_shouldReturnEarly := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="build" Id="{3c8e8a79-eb89-4c0f-8f0e-dcaaee758df5}">
+      <Declaration><![CDATA[(*
+	Ends the chain. On success the span is running and owned by the caller: it moves to pDest,
+	which must be 0, and pSpan is cleared. On failure the incomplete span is released, pDest is
+	left alone, and the first failure in the chain is reported. Identifiers are only taken once
+	everything before them has succeeded.
+*)
+METHOD build : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_Span;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_TracerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[build := FALSE;
+failureReason := E_TracerFailureReason.NA;
+
+IF NOT THIS^._failed THEN
+	IF THIS^.pSpan = 0 THEN
+		THIS^._failed := TRUE;
+		THIS^._failureReason := E_TracerFailureReason.SPAN_NOT_STARTED;
+	ELSIF pDest <> 0 THEN
+		THIS^._failed := TRUE;
+		THIS^._failureReason := E_TracerFailureReason.DESTINATION_ALREADY_ASSIGNED;
+	ELSIF NOT THIS^._assignIdentity(failureReason=>THIS^._failureReason) THEN
+		THIS^._failed := TRUE;
+	END_IF
+END_IF
+
+IF THIS^._failed THEN
+	// the chain ends here either way, so the incomplete span is released
+	IF THIS^.pSpan <> 0 THEN THIS^.pSpan := THIS^.pSpan^.delete(); END_IF
+	failureReason := THIS^._failureReason;
+ELSE
+	// transfer ownership to the caller; the span is now running
+	pDest := THIS^.pSpan;
+	THIS^.pSpan := 0;
+	build := TRUE;
+END_IF
+
+THIS^._failed := FALSE;
+THIS^._failureReason := E_TracerFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Exit" Id="{4beadf6b-53d7-4962-ba17-97fdf954b3a9}">
+      <Declaration><![CDATA[//FB_Exit must be implemented explicitly. If there is an implementation, then the
+//method is called before the controller removes the code of the function block instance
+//(implicit call). The return value is not evaluated.
+METHOD FB_Exit: BOOL
+VAR_INPUT
+    bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bInCopyCode THEN
+	THIS^.free();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="FB_Init" Id="{cf4de8a7-906c-49aa-9013-3b2e55322a5d}">
       <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
 //The return value is not evaluated. For a specific influence, you can also declare the
@@ -21,10 +210,23 @@ VAR_INPUT
     bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
 	scope: REFERENCE TO FB_InstrumentationScope;
 	provider: REFERENCE TO FB_TracerProvider;
-END_VAR]]></Declaration>
+END_VAR
+]]></Declaration>
       <Implementation>
         <ST><![CDATA[THIS^._scope REF= scope;
 THIS^._provider REF= provider;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{71317019-8ed8-47bf-a058-83317e44977d}">
+      <Declaration><![CDATA[(* Releases a span that is still being built and clears the chain's failure. *)
+METHOD free
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^.pSpan <> 0 THEN
+	THIS^.pSpan := THIS^.pSpan^.delete();
+END_IF
+THIS^._failed := FALSE;
+THIS^._failureReason := E_TracerFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Property Name="resource" Id="{d5da383f-f0b1-448b-8274-9168134ffb5e}">
@@ -45,13 +247,251 @@ THIS^._provider REF= provider;]]></ST>
         </Implementation>
       </Get>
     </Property>
-    <Method Name="startSpan" Id="{49c360a8-a66a-4002-bb96-57eea3b71419}">
-      <Declaration><![CDATA[METHOD startSpan : BOOL
+    <Method Name="setNumberAttribute" Id="{29ef0315-92a8-46d7-aa7d-02fe8142dfe3}">
+      <Declaration><![CDATA[METHOD setNumberAttribute: REFERENCE TO FB_Tracer
 VAR_INPUT
+	key: T_MaxString;
+	value: ANY_NUM;
+END_VAR
+VAR
+	_attributesSuccess: BOOL;
+	_attributesFailureReason: E_AttributesFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[setNumberAttribute REF= THIS^;
+
+IF THIS^._shouldReturnEarly() THEN
+	RETURN;
+END_IF
+
+_attributesSuccess := THIS^.pSpan^.attributes.setNumberAttribute_AnyType(
+	key:=key,
+	value:=value,
+	failureReason=>_attributesFailureReason
+);
+IF NOT _attributesSuccess THEN
+	THIS^._failed := TRUE;
+	CASE _attributesFailureReason OF
+		E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE:
+			THIS^._failureReason := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
+		E_AttributesFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED:
+			THIS^._failureReason := E_TracerFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED;
+		E_AttributesFailureReason.KV_VALUE_TYPE_UNSUPPORTED:
+			THIS^._failureReason := E_TracerFailureReason.ATTRIBUTE_VALUE_TYPE_UNSUPPORTED;
+	ELSE
+		THIS^._failureReason := E_TracerFailureReason.ATTRIBUTE_VALUE_INVALID;
+	END_CASE
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setParent" Id="{a1b891cf-e895-4bb2-84a9-3cc0d638a94e}">
+      <Declaration><![CDATA[(*
+	Makes the span a child of the given context. The context is borrowed: the span keeps its
+	own copies of the trace id, parent span id and trace state. The tracer is the producer of
+	spans, so this is where the parent is validated. Calling it again replaces the parent.
+*)
+METHOD setParent : REFERENCE TO FB_Tracer
+VAR_INPUT
+	pContext: POINTER TO FB_SpanContext;
+END_VAR
+VAR
+	_ctxTraceId: REFERENCE TO FB_TraceId;
+	_ctxSpanId: REFERENCE TO FB_SpanId;
+	_pTraceId: POINTER TO FB_TraceId;
+	_pParentSpanId: POINTER TO FB_SpanId;
+	_pTraceState: POINTER TO FB_String;
+	_copied: BOOL;
+	_flags: UDINT;
+	_factoryFailureReason: E_ValueFactoryFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setParent REF= THIS^;
+
+IF THIS^._shouldReturnEarly() THEN
+	RETURN;
+END_IF
+
+IF pContext = 0 THEN
+	THIS^._failed := TRUE;
+	THIS^._failureReason := E_TracerFailureReason.PARENT_CONTEXT_POINTER_NULL;
+	RETURN;
+END_IF
+
+IF NOT pContext^.isValid() THEN
+	THIS^._failed := TRUE;
+	THIS^._failureReason := E_TracerFailureReason.PARENT_CONTEXT_INVALID;
+	RETURN;
+END_IF
+
+// copy everything before touching the span, so a failure leaves it unchanged
+_ctxTraceId REF= pContext^.traceId;
+_ctxSpanId REF= pContext^.spanId;
+_copied := ValueFactory.createTraceId(
+		pDest:=_pTraceId,
+		pBytes:=ADR(_ctxTraceId.bytes),
+		nSize:=SIZEOF(_ctxTraceId.bytes),
+		failureReason=>_factoryFailureReason)
+	AND_THEN ValueFactory.createSpanId(
+		pDest:=_pParentSpanId,
+		pBytes:=ADR(_ctxSpanId.bytes),
+		nSize:=SIZEOF(_ctxSpanId.bytes),
+		failureReason=>_factoryFailureReason)
+	AND_THEN (pContext^.traceState = 0 OR_ELSE ValueFactory.cloneString(
+		pDest:=_pTraceState,
+		pSrc:=pContext^.traceState,
+		failureReason=>_factoryFailureReason));
+
+IF NOT _copied THEN
+	IF _pTraceId <> 0 THEN _pTraceId := _pTraceId^.delete(); END_IF
+	IF _pParentSpanId <> 0 THEN _pParentSpanId := _pParentSpanId^.delete(); END_IF
+	IF _pTraceState <> 0 THEN _pTraceState := _pTraceState^.delete(); END_IF
+	THIS^._failed := TRUE;
+	IF _factoryFailureReason = E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE THEN
+		THIS^._failureReason := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
+	ELSE
+		THIS^._failureReason := E_TracerFailureReason.PARENT_CONTEXT_INVALID;
+	END_IF
+	RETURN;
+END_IF
+
+// replace any earlier parent
+IF THIS^.pSpan^.traceId <> 0 THEN THIS^.pSpan^.traceId := THIS^.pSpan^.traceId^.delete(); END_IF
+IF THIS^.pSpan^.parentSpanId <> 0 THEN THIS^.pSpan^.parentSpanId := THIS^.pSpan^.parentSpanId^.delete(); END_IF
+IF THIS^.pSpan^.traceState <> 0 THEN THIS^.pSpan^.traceState := THIS^.pSpan^.traceState^.delete(); END_IF
+
+// transfer ownership of the copies to the span
+THIS^.pSpan^.traceId := _pTraceId;
+THIS^.pSpan^.parentSpanId := _pParentSpanId;
+THIS^.pSpan^.traceState := _pTraceState;
+_pTraceId := 0;
+_pParentSpanId := 0;
+_pTraceState := 0;
+
+// a span's flags describe its parent: keep the parent's trace flags and record where it came from
+_flags := (pContext^.traceFlags AND TO_UDINT(E_SpanFlags.SPAN_FLAGS_TRACE_FLAGS_MASK))
+	OR TO_UDINT(E_SpanFlags.SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK);
+IF pContext^.isRemote() THEN
+	_flags := _flags OR TO_UDINT(E_SpanFlags.SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK);
+END_IF
+THIS^.pSpan^.flags := _flags;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setStringAttribute" Id="{99f75826-e10b-4b72-90de-ece62d760792}">
+      <Declaration><![CDATA[METHOD setStringAttribute: REFERENCE TO FB_Tracer
+VAR_INPUT
+	key: T_MaxString;
+	value: T_MaxString;
+END_VAR
+VAR
+	_attributesSuccess: BOOL;
+	_attributesFailureReason: E_AttributesFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setStringAttribute REF= THIS^;
+
+IF THIS^._shouldReturnEarly() THEN
+	RETURN;
+END_IF
+
+_attributesSuccess := THIS^.pSpan^.attributes.setStringAttribute(
+	key:=key,
+	value:=value,
+	failureReason=>_attributesFailureReason
+);
+IF NOT _attributesSuccess THEN
+	THIS^._failed := TRUE;
+	CASE _attributesFailureReason OF
+		E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE:
+			THIS^._failureReason := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
+		E_AttributesFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED:
+			THIS^._failureReason := E_TracerFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED;
+		E_AttributesFailureReason.KV_VALUE_TYPE_UNSUPPORTED:
+			THIS^._failureReason := E_TracerFailureReason.ATTRIBUTE_VALUE_TYPE_UNSUPPORTED;
+	ELSE
+		THIS^._failureReason := E_TracerFailureReason.ATTRIBUTE_VALUE_INVALID;
+	END_CASE
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="startSpan" Id="{49c360a8-a66a-4002-bb96-57eea3b71419}">
+      <Declaration><![CDATA[(*
+	Starts building a span with its required fields: it allocates the span, stamps its start
+	time, copies the name, and snapshots the resource and scope, so processors may keep the
+	span after this tracer or its provider is gone. Finish the chain with build.
+*)
+METHOD startSpan : REFERENCE TO FB_Tracer
+VAR_INPUT
+	name: T_MaxString;
+	kind: E_SpanKind := E_SpanKind.SPAN_KIND_INTERNAL;
+END_VAR
+VAR
+	_factoryFailureReason: E_ValueFactoryFailureReason;
+	_attributesFailureReason: E_AttributesFailureReason;
+END_VAR
+VAR CONSTANT
+	UNIX_EPOCH_DIFF: ULINT := 116444736000000000;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[startSpan REF= THIS^;
+
+// do not replace the first failure in an active fluent chain
+IF THIS^.pSpan <> 0 THEN
+	IF NOT THIS^._failed THEN
+		THIS^._failed := TRUE;
+		THIS^._failureReason := E_TracerFailureReason.SPAN_ALREADY_STARTED;
+	END_IF
+	RETURN;
+END_IF
+
+THIS^._failed := FALSE;
+THIS^._failureReason := E_TracerFailureReason.NA;
+
+IF LEN(name) = 0 THEN
+	THIS^._failed := TRUE;
+	THIS^._failureReason := E_TracerFailureReason.SPAN_NAME_EMPTY;
+	RETURN;
+END_IF
+
+IF kind = E_SpanKind.SPAN_KIND_UNSPECIFIED THEN
+	THIS^._failed := TRUE;
+	THIS^._failureReason := E_TracerFailureReason.SPAN_KIND_UNSPECIFIED;
+	RETURN;
+END_IF
+
+// the tracer owns the span from here, so every later failure is released by build or free
+THIS^.pSpan := __NEW(FB_Span);
+IF THIS^.pSpan = 0 THEN
+	THIS^._failed := TRUE;
+	THIS^._failureReason := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+
+THIS^.pSpan^.kind := kind;
+THIS^.pSpan^.startTimestamp := (F_GetSystemTime() - UNIX_EPOCH_DIFF) * 100;  // 100ns ticks since 1601 -> ns since 1970
+
+IF NOT ValueFactory.createString(
+	pDest:=THIS^.pSpan^.name,
+	pString:=ADR(name),
+	failureReason=>_factoryFailureReason
+	) THEN
+	THIS^._failed := TRUE;
+	THIS^._failureReason := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+
+IF NOT THIS^.pSpan^.resource.copyFrom(src:=THIS^.resource, failureResult=>_attributesFailureReason)
+	OR_ELSE NOT THIS^.pSpan^.scope.copyFrom(src:=THIS^.scope, failureResult=>_attributesFailureReason) THEN
+	THIS^._failed := TRUE;
+	IF _attributesFailureReason = E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE THEN
+		THIS^._failureReason := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
+	ELSE
+		THIS^._failureReason := E_TracerFailureReason.SNAPSHOT_COPY_FAILURE;
+	END_IF
+END_IF]]></ST>
       </Implementation>
     </Method>
   </POU>

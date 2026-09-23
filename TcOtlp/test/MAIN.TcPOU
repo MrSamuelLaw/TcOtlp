@@ -17,6 +17,7 @@ VAR
 	{attribute 'analysis' := '-33'}fbTestIdGenerator: FB_TestIdGenerator();
 	{attribute 'analysis' := '-33'}fbTestSpanContext: FB_TestSpanContext();
 	{attribute 'analysis' := '-33'}fbTestSpan: FB_TestSpan();
+	{attribute 'analysis' := '-33'}fbTestTracer: FB_TestTracer();
 END_VAR
 ]]></Declaration>
     <Implementation>

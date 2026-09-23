@@ -158,6 +158,9 @@
     <Compile Include="OTEL\TRACING\SPAN\FUNCTION_BLOCKS\FB_Status.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\TRACING\TRACER\ENUMS\E_TracerFailureReason.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\TRACING\TRACER\FB_Tracer.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -269,6 +272,12 @@
     <Compile Include="TEST\TRACING\PROVIDER\FB_TestTracerProvider.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TEST\TRACING\TRACER\FB_MockIdGenerator.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="TEST\TRACING\TRACER\FB_TestTracer.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="TEST\TRACING\SPAN\FB_TestSpan.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -312,6 +321,7 @@
     <Folder Include="OTEL\TRACING\LINK\ENUM" />
     <Folder Include="OTEL\TRACING\ID_GENERATION" />
     <Folder Include="OTEL\TRACING\TRACER" />
+    <Folder Include="OTEL\TRACING\TRACER\ENUMS" />
     <Folder Include="OTEL\TRACING\SAMPLING" />
     <Folder Include="OTEL\TRACING\PROCESSORS" />
     <Folder Include="OTEL\TRACING\SPAN" />
@@ -350,6 +360,7 @@
     <Folder Include="TEST\TRACING\ID_GENERATOR" />
     <Folder Include="TEST\TRACING\PROVIDER" />
     <Folder Include="TEST\TRACING\SPAN" />
+    <Folder Include="TEST\TRACING\TRACER" />
     <Folder Include="TEST\VALUES" />
   </ItemGroup>
   <ItemGroup>
