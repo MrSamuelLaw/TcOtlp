@@ -82,7 +82,7 @@ The RPC call is short and bounded, so it *can* legitimately be its own `SERVER` 
 
 - **`inject(context: FB_SpanContext, traceparent: STRING(55), tracestate: T_MaxString, failureReason: E_PropagationFailureReason) -> BOOL`** — Formats a local context for an outbound call, for when the PLC is the caller.
 
-Span contexts are always dynamically allocated, so `extract` builds its result through `ContextFactory.buildContext` like every other producer. On success the caller owns the context and releases it exactly once with `pContext := pContext^.delete();`, typically right after building the link from it. See [[FB_SpanContext]].
+Span contexts are always dynamically allocated, so `extract` builds its result through `ContextFactory.buildContext` like every other producer. On success the caller owns the context and releases it exactly once with `pContext^.delete(pSelf:=pContext);`, typically right after building the link from it. See [[FB_SpanContext]].
 
 ### Parsing rules
 

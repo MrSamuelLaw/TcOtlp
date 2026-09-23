@@ -132,14 +132,14 @@ END_VAR
 IF __ISVALIDREF(THIS^._exporter) THEN
 	_pRecord := 0;
 	IF NOT logRecord.cloneTo(pDest:=_pRecord, failureReason=>_cloneFailureResult) THEN
-		IF _pRecord <> 0 THEN _pRecord := _pRecord^.delete(); END_IF
+		IF _pRecord <> 0 THEN _pRecord^.delete(pSelf:=_pRecord); END_IF
 		THIS^.lastOperationSucceeded := FALSE;
 		THIS^.failureResult := E_LogRecordProcessorFailureReason.RECORD_CLONE_FAILURE;
 		RETURN;
 	END_IF
 	
 	IF NOT THIS^._records.push(pValue:=_pRecord, failureReason=>_queueFailureReason) THEN
-		_pRecord := _pRecord^.delete();
+		_pRecord^.delete(pSelf:=_pRecord);
 		THIS^.lastOperationSucceeded := FALSE;
 		THIS^.failureResult := E_LogRecordProcessorFailureReason.QUEUE_PUSH_FAILURE;
 		RETURN;

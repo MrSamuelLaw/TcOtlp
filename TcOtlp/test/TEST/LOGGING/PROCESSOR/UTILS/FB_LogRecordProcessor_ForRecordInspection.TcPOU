@@ -16,7 +16,7 @@ END_VAR]]></Declaration>
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF THIS^.record <> 0 THEN
-	THIS^.record := THIS^.record^.delete();
+	THIS^.record^.delete(pSelf:=THIS^.record);
 END_IF]]></ST>
       </Implementation>
     </Method>

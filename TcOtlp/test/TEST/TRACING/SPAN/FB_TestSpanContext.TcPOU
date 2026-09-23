@@ -15,7 +15,9 @@ THIS^.testBuildsFromZeroIdentifiers();
 THIS^.testRejectsAssignedDestination();
 THIS^.testRejectsNullIdentifiers();
 THIS^.testIsRemoteNeedsBothBits();
-THIS^.testFreeClearsTheContext();]]></ST>
+THIS^.testFreeClearsTheContext();
+THIS^.testDeleteClearsTheCallersPointer();
+THIS^.testDeleteRefusesAnotherPointer();]]></ST>
     </Implementation>
     <Method Name="_fillIds" Id="{0c0dab80-02ae-4db4-b411-1fd7648cdb94}">
       <Declaration><![CDATA[(* Writes distinct non-zero bytes into both identifiers, offset by seed so two calls with
@@ -55,7 +57,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF pContext <> 0 THEN
-	pContext := pContext^.delete();
+	pContext^.delete(pSelf:=pContext);
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -192,6 +194,78 @@ END_VAR
 	END_IF
 
 	THIS^._release(pContext:=pContext);
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testDeleteClearsTheCallersPointer" Id="{770eeca3-50de-4d26-a1e7-be5a5b44831a}">
+      <Declaration><![CDATA[(* delete takes the caller's pointer by reference and clears it, so a released context can
+   never be reached through the pointer that owned it. *)
+METHOD testDeleteClearsTheCallersPointer : REFERENCE TO FB_Test
+VAR
+	pContext: POINTER TO FB_SpanContext;
+	traceId: FB_TraceId;
+	spanId: FB_SpanId;
+	traceState: T_MaxString := 'vendor=abc';
+	deleted: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testDeleteClearsTheCallersPointer');
+	THIS^._fillIds(traceId:=traceId, spanId:=spanId, seed:=0);
+	ContextFactory.buildContext(
+		pDest:=pContext,
+		pTraceId:=ADR(traceId),
+		pSpanId:=ADR(spanId),
+		pTraceState:=ADR(traceState),
+		traceFlags:=0
+	);
+	IF pContext = 0 THEN
+		THIS^.AssertTrue(FALSE, 'Expected buildContext to succeed');
+		TcUnit.TEST_FINISHED();
+		RETURN;
+	END_IF
+
+	deleted := pContext^.delete(pSelf:=pContext);
+	THIS^.AssertTrue(deleted, 'Expected delete to report that the context was released');
+	THIS^.AssertTrue(pContext = 0, 'Expected delete to clear the pointer of the caller');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testDeleteRefusesAnotherPointer" Id="{07d052b1-10d2-40f8-8b8b-f170f352dd42}">
+      <Declaration><![CDATA[(* delete only clears a pointer to the context it is called on. Handed a pointer to a different
+   context, it must release nothing and leave both contexts and both pointers untouched. *)
+METHOD testDeleteRefusesAnotherPointer : REFERENCE TO FB_Test
+VAR
+	pFirst: POINTER TO FB_SpanContext;
+	pSecond: POINTER TO FB_SpanContext;
+	pSecondBefore: POINTER TO FB_SpanContext;
+	traceId: FB_TraceId;
+	spanId: FB_SpanId;
+	deleted: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testDeleteRefusesAnotherPointer');
+	THIS^._fillIds(traceId:=traceId, spanId:=spanId, seed:=0);
+	ContextFactory.buildContext(pDest:=pFirst, pTraceId:=ADR(traceId), pSpanId:=ADR(spanId), pTraceState:=0, traceFlags:=0);
+	ContextFactory.buildContext(pDest:=pSecond, pTraceId:=ADR(traceId), pSpanId:=ADR(spanId), pTraceState:=0, traceFlags:=0);
+	IF pFirst = 0 OR pSecond = 0 THEN
+		THIS^.AssertTrue(FALSE, 'Expected both builds to succeed');
+		THIS^._release(pContext:=pFirst);
+		THIS^._release(pContext:=pSecond);
+		TcUnit.TEST_FINISHED();
+		RETURN;
+	END_IF
+	pSecondBefore := pSecond;
+
+	deleted := pFirst^.delete(pSelf:=pSecond);
+	THIS^.AssertFalse(deleted, 'Expected delete to refuse a pointer to another context');
+	THIS^.AssertTrue(pSecond = pSecondBefore, 'Expected the other pointer to be left untouched');
+	THIS^.AssertTrue(pFirst^.isValid(), 'Expected the context not to be released');
+	THIS^.AssertTrue(pSecond^.isValid(), 'Expected the other context not to be released');
+
+	THIS^._release(pContext:=pFirst);
+	THIS^._release(pContext:=pSecond);
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

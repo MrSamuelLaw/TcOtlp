@@ -1,7 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_Link" Id="{2b4ea221-4624-41d5-872a-acc0a6aeb214}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_Link
+    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_Link
 VAR_OUTPUT
 	// required values
 	traceId: POINTER TO FB_TraceId;
@@ -15,12 +16,27 @@ END_VAR
       <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="delete" Id="{31d78f9e-1537-48a0-a000-9b2a00d6fa65}">
-      <Declaration><![CDATA[METHOD delete : ULINT
-VAR_INPUT
+      <Declaration><![CDATA[(*
+	Releases this link and clears the caller's pointer to it: call it as p^.delete(pSelf:=p).
+	pSelf is cleared before the link is freed, so the caller never keeps a dangling pointer.
+	A pointer to any other object is refused and left untouched, and nothing is released.
+*)
+METHOD delete : BOOL
+VAR_IN_OUT
+	pSelf: POINTER TO FB_Link;
 END_VAR
-]]></Declaration>
+VAR
+	_pThis: POINTER TO FB_Link;
+END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[_pThis := THIS;
+IF pSelf <> _pThis THEN
+	RETURN;
+END_IF
+
+pSelf := 0;
+__DELETE(_pThis);
+delete := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Exit" Id="{918fed15-79e0-4368-9d4e-943bcbac7927}">

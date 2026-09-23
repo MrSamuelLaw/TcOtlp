@@ -2,11 +2,6 @@
 <TcPlcObject Version="1.1.0.1">
   <Itf Name="I_OtlpValue" Id="{fc55bdb3-176f-48d0-b16b-8f81387d6392}">
     <Declaration><![CDATA[INTERFACE I_OtlpValue]]></Declaration>
-    <Method Name="delete" Id="{ca464e23-6694-4db7-b1ae-3a14ba19c61b}">
-      <Declaration><![CDATA[// method used to delete all data held by the value and then delete the object itself.
-METHOD delete: ULINT
-]]></Declaration>
-    </Method>
     <Property Name="eType" Id="{f215879f-eadf-4cab-a2f7-31f77a67d6d2}">
       <Declaration><![CDATA[PROPERTY eType : E_ValueType]]></Declaration>
       <Get Name="Get" Id="{bdc18bae-f138-4217-a020-1f99bbb64531}">

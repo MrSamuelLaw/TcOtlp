@@ -172,7 +172,7 @@ END_VAR
 		THIS^.AssertTrue(serializer.parser.IsDouble(value) AND_THEN serializer.parser.GetDouble(value) = 21.5, 'Expected floating attribute AnyValue');
 	END_IF
 	
-	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+	IF pRecord <> 0 THEN pRecord^.delete(pSelf:=pRecord); END_IF
 	processor.free();
 	logger.free();
 
@@ -265,7 +265,7 @@ END_VAR
 			failureReason=>queueFailureReason
 		);
 		THIS^.AssertTrue(pushSucceeded AND_THEN pRecord = 0, 'Expected queue to take record ownership');
-		IF NOT pushSucceeded AND_THEN pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+		IF NOT pushSucceeded AND_THEN pRecord <> 0 THEN pRecord^.delete(pSelf:=pRecord); END_IF
 	END_FOR
 	THIS^.AssertEquals_UDINT(8, queue.count, 'Expected eight records at the serializer boundary');
 
@@ -364,7 +364,7 @@ END_VAR
 	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(scopeLogs, 1) = 0, 'Expected one scope for resource C');
 
 	queue.free();
-	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+	IF pRecord <> 0 THEN pRecord^.delete(pSelf:=pRecord); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

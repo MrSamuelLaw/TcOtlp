@@ -236,7 +236,7 @@ MEMCPY(_pKey, pKey, _len);
 createKeyValue := ValueFactory.cloneAnyValue(pDest:=_pVal, pSrc:=pVal, failureReason=>failureReason);
 IF NOT createKeyValue THEN
 	__DELETE(_pKey);
-	IF _pVal <> 0 THEN _pVal := _pVal^.delete(); END_IF
+	IF _pVal <> 0 THEN _pVal^.delete(pSelf:=_pVal); END_IF
 	RETURN;
 END_IF
 
@@ -245,7 +245,7 @@ IF _pNew = 0 THEN
 	createKeyValue := FALSE;
 	failureReason := E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE;
 	__DELETE(_pKey);
-	_pVal := _pVal^.delete();
+	_pVal^.delete(pSelf:=_pVal);
 	RETURN;
 END_IF
 pDest := _pNew;

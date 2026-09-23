@@ -75,7 +75,7 @@ FOR _idx := 0 TO THIS^.maxCount DO
 	END_IF
 	IF NOT THIS^.setAttribute(pValue:=_pDest, failureReason=>failureReason) THEN
 		IF _pDest <> 0 THEN
-			_pDest := _pDest^.delete();
+			_pDest^.delete(pSelf:=_pDest);
 		END_IF
 		RETURN;
 	END_IF
@@ -132,7 +132,7 @@ END_VAR
 	IF _node^.val <> 0 THEN
 		_kv := _node^.val;
 		_node^.val := 0;
-		_kv := _kv^.delete();
+		_kv^.delete(pSelf:=_kv);
 	END_IF
 	__DELETE(_node);
 END_FOR
@@ -204,7 +204,7 @@ FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
 	_pVal := _node^.val;
 	IF _pVal^.pKey^ = pValue^.pKey^ THEN
 		// replace the value currently at the index
-		_pVal := _pVal^.delete();
+		_pVal^.delete(pSelf:=_pVal);
 		_node^.val := pValue;
 		setAttribute := failureReason = E_AttributesFailureReason.NA;
 		pValue := 0;
@@ -278,15 +278,15 @@ IF NOT ValueFactory.createKeyValue(
 	failureReason=>_factoryFailureReason
 ) THEN
 	failureReason := THIS^._mapValueFactoryFailure(_factoryFailureReason);
-	_pNum^.delete();
+	_pNum^.delete(pSelf:=_pNum);
 	RETURN;
 END_IF
-_pNum^.delete();  // clean up the _pNum as its cloned in createKeyValue
+_pNum^.delete(pSelf:=_pNum);  // clean up the _pNum as its cloned in createKeyValue
 
 setNumberAttribute := THIS^.setAttribute(pValue:=_pKv, failureReason=>failureReason);
 // append only takes ownership on success; release a rejected value
 IF _pKv <> 0 THEN
-	_pKv := _pKv^.delete();
+	_pKv^.delete(pSelf:=_pKv);
 END_IF
 ]]></ST>
       </Implementation>
@@ -325,15 +325,15 @@ IF NOT ValueFactory.createKeyValue(
 	failureReason=>_factoryFailureReason
 ) THEN
 	failureReason := THIS^._mapValueFactoryFailure(_factoryFailureReason);
-	_pNum^.delete();
+	_pNum^.delete(pSelf:=_pNum);
 	RETURN;
 END_IF
-_pNum^.delete();  // clean up the _pNum as its cloned in createKeyValue
+_pNum^.delete(pSelf:=_pNum);  // clean up the _pNum as its cloned in createKeyValue
 
 setNumberAttribute_AnyType := THIS^.setAttribute(pValue:=_pKv, failureReason=>failureReason);
 // append only takes ownership on success; release a rejected value
 IF _pKv <> 0 THEN
-	_pKv := _pKv^.delete();
+	_pKv^.delete(pSelf:=_pKv);
 END_IF
 ]]></ST>
       </Implementation>
@@ -372,15 +372,15 @@ IF NOT ValueFactory.createKeyValue(
 	failureReason=>_factoryFailureReason
 ) THEN
 	failureReason := THIS^._mapValueFactoryFailure(_factoryFailureReason);
-	_pStr^.delete();
+	_pStr^.delete(pSelf:=_pStr);
 	RETURN;
 END_IF
-_pStr^.delete();  // clean up the _pStr as its cloned in createKeyValue
+_pStr^.delete(pSelf:=_pStr);  // clean up the _pStr as its cloned in createKeyValue
 
 setStringAttribute := THIS^.setAttribute(pValue:=_pKv, failureReason=>failureReason);
 // append only takes ownership on success; release a rejected value
 IF _pKv <> 0 THEN
-	_pKv := _pKv^.delete();
+	_pKv^.delete(pSelf:=_pKv);
 END_IF
 ]]></ST>
       </Implementation>

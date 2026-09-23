@@ -38,7 +38,7 @@ While the span runs, the caller owns it. The caller can take a context from it f
 
 `tracer.endSpan(pSpan)` stamps the end timestamp, hands the span to [[FB_TracerProvider]] for the processors' `onEnd`, and clears the caller's pointer. From then on the span is immutable. The provider releases it once every processor has returned (see [[FB_SpanProcessor_Simple]]). **Not implemented yet.**
 
-A caller that abandons a running span releases it with `pSpan := pSpan^.delete();`, for example when the PLC program resets. An abandoned span is never exported.
+A caller that abandons a running span releases it with `pSpan^.delete(pSelf:=pSpan);`, for example when the PLC program resets. An abandoned span is never exported.
 
 ## Members
 
@@ -58,7 +58,7 @@ The fields the tracer writes during building are `VAR_INPUT`, as on `FB_LogRecor
 | `status: POINTER TO FB_Status` | yes | not implemented |
 | `attributes`, `links`, `resource`, `scope` | yes | setters; `startSpan` snapshots the resource and scope |
 
-`free` releases everything the span owns, and `FB_Exit` calls it. `delete` releases the span itself and returns `0`.
+`free` releases everything the span owns, and `FB_Exit` calls it. `delete` releases the span itself and clears the caller's pointer; it is called as `pSpan^.delete(pSelf:=pSpan)` and refuses any pointer other than one to the span itself.
 
 ## Flags
 
@@ -80,7 +80,7 @@ The context is dynamically allocated through `ContextFactory.buildContext`, foll
 getContext(pDest: POINTER TO FB_SpanContext, failureReason) : BOOL
 ```
 
-`pDest` is `VAR_IN_OUT` and must be `0` on entry. On success the caller owns the context and releases it exactly once with `pContext := pContext^.delete();`.
+`pDest` is `VAR_IN_OUT` and must be `0` on entry. On success the caller owns the context and releases it exactly once with `pContext^.delete(pSelf:=pContext);`.
 
 The span is the producer, so it is responsible for its identifiers being valid. They come from [[FB_IdGenerator]], which only hands out valid ones, so `getContext` does not check them again.
 

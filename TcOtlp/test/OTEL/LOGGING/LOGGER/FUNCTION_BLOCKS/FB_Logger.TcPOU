@@ -58,7 +58,7 @@ IF NOT _logRecord^.resource.copyFrom(src:=THIS^.resource, failureResult=>_attrib
 	ELSE
 		failureReason := E_LoggerFailureReason.SNAPSHOT_COPY_FAILURE;
 	END_IF
-	_logRecord := _logRecord^.delete();
+	_logRecord^.delete(pSelf:=_logRecord);
 	RETURN;
 END_IF
 
@@ -68,7 +68,7 @@ IF NOT _logRecord^.scope.copyFrom(src:=THIS^.scope, failureResult=>_attributesFa
 	ELSE
 		failureReason := E_LoggerFailureReason.SNAPSHOT_COPY_FAILURE;
 	END_IF
-	_logRecord := _logRecord^.delete();
+	_logRecord^.delete(pSelf:=_logRecord);
 	RETURN;
 END_IF
 
@@ -117,7 +117,7 @@ failureResult := E_LoggerFailureReason.NA;
 
 // Preserve the first fluent method failure while releasing the incomplete record.
 IF THIS^._failed THEN
-	IF THIS^.pLogRecord <> 0 THEN THIS^.pLogRecord := THIS^.pLogRecord^.delete(); END_IF
+	IF THIS^.pLogRecord <> 0 THEN THIS^.pLogRecord^.delete(pSelf:=THIS^.pLogRecord); END_IF
 	failureResult := THIS^._failureReason;
 	RETURN;
 END_IF
@@ -131,7 +131,7 @@ END_IF
 
 // Push the record to the provider's queue for cyclical processing.
 IF NOT THIS^._provider.onEmit(THIS^.pLogRecord) THEN
-	THIS^.pLogRecord := THIS^.pLogRecord^.delete();
+	THIS^.pLogRecord^.delete(pSelf:=THIS^.pLogRecord);
 	THIS^._failed := TRUE;
 	THIS^._failureReason := E_LoggerFailureReason.TRANSFER_TO_PROVIDER_FAILURE;
 	failureResult := THIS^._failureReason;
@@ -169,7 +169,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF THIS^.pLogRecord <> 0 THEN
-	THIS^.pLogRecord := THIS^.pLogRecord^.delete();
+	THIS^.pLogRecord^.delete(pSelf:=THIS^.pLogRecord);
 END_IF
 THIS^._failed := TRUE;
 THIS^._failureReason := E_LoggerFailureReason.LOG_RECORD_NOT_STARTED;]]></ST>
@@ -237,7 +237,7 @@ END_IF
 
 // Replace the body only after the new value has been created successfully.
 IF THIS^.pLogRecord^.body <> 0 THEN
-	THIS^.pLogRecord^.body := THIS^.pLogRecord^.body^.delete();
+	THIS^.pLogRecord^.body^.delete(pSelf:=THIS^.pLogRecord^.body);
 END_IF
 THIS^.pLogRecord^.body := _pDest;
 _pDest := 0;]]></ST>
@@ -286,7 +286,7 @@ END_IF
 
 // clean up the prior record if it existed
 IF THIS^.pLogRecord^.body <> 0 THEN
-	THIS^.pLogRecord^.body := THIS^.pLogRecord^.body^.delete();
+	THIS^.pLogRecord^.body^.delete(pSelf:=THIS^.pLogRecord^.body);
 END_IF
 // transfer ownership
 THIS^.pLogRecord^.body := _pDest;
@@ -328,7 +328,7 @@ END_IF
 // assign to record event name
 // delete old event name if it exists
 IF THIS^.pLogRecord^.eventName <> 0 THEN
-	THIS^.pLogRecord^.eventName := THIS^.pLogRecord^.eventName^.delete();
+	THIS^.pLogRecord^.eventName^.delete(pSelf:=THIS^.pLogRecord^.eventName);
 END_IF
 // transfer ownership of the pointer
 THIS^.pLogRecord^.eventName := _pDest;
@@ -415,7 +415,7 @@ END_IF
 // assign to the record
 // delete the prior record if it exists
 IF THIS^.pLogRecord^.spanId <> 0 THEN
-	THIS^.pLogRecord^.spanId := THIS^.pLogRecord^.spanId^.delete();
+	THIS^.pLogRecord^.spanId^.delete(pSelf:=THIS^.pLogRecord^.spanId);
 END_IF
 // transfer owneship of the data
 THIS^.pLogRecord^.spanId := _pDest;
@@ -518,7 +518,7 @@ END_IF
 // assign to the log record
 // delete trace id if it's already set.
 IF THIS^.pLogRecord^.traceId <> 0 THEN
-	THIS^.pLogRecord^.traceId := THIS^.pLogRecord^.traceId^.delete();
+	THIS^.pLogRecord^.traceId^.delete(pSelf:=THIS^.pLogRecord^.traceId);
 END_IF
 // transfer ownership of the data
 THIS^.pLogRecord^.traceId := _pDest;

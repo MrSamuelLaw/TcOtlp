@@ -94,7 +94,7 @@ END_IF
 
 // If the exporter did not accept the buffer, the simple processor drops it.
 THIS^.free();
-IF _pLogRecord <> 0 THEN _pLogRecord := _pLogRecord^.delete(); END_IF
+IF _pLogRecord <> 0 THEN _pLogRecord^.delete(pSelf:=_pLogRecord); END_IF
 ]]></ST>
       </Implementation>
     </Method>

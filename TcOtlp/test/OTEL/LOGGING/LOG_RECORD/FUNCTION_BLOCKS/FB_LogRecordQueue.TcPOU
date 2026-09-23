@@ -65,7 +65,7 @@ END_VAR
 	IF _node^.val <> 0 THEN
 		_record := _node^.val;
 		_node^.val := 0;
-		_record := _record^.delete();
+		_record^.delete(pSelf:=_record);
 	END_IF
 	__DELETE(_node);
 END_FOR
@@ -172,7 +172,7 @@ IF THIS^.maxCount > 0 THEN
 			failureReason := _popFailureReason;
 			RETURN;
 		END_IF
-		_droppedRecord := _droppedRecord^.delete();
+		_droppedRecord^.delete(pSelf:=_droppedRecord);
 		THIS^.droppedCount := THIS^.droppedCount + 1;
 	END_FOR
 	IF THIS^.count >= THIS^.maxCount THEN

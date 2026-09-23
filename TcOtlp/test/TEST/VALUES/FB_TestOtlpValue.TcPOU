@@ -9,8 +9,61 @@ THIS^.TestTraceId();
 THIS^.TestSpanId();
 THIS^.TestKeyValue();
 THIS^.TestNumber();
-THIS^.TestCloning();]]></ST>
+THIS^.TestCloning();
+THIS^.TestDeleteClearsPointer();]]></ST>
     </Implementation>
+    <Method Name="TestDeleteClearsPointer" Id="{3c9e1f64-2b7a-4d85-a0c3-6e1d9b4f7a28}">
+      <Declaration><![CDATA[METHOD TestDeleteClearsPointer : REFERENCE TO FB_Test
+VAR
+	pStr: POINTER TO FB_String;
+	pOther: POINTER TO FB_String;
+	pAny: POINTER TO FB_AnyValue;
+	pOtherBefore: POINTER TO FB_String;
+	deleted: BOOL;
+	failureReason: E_ValueFactoryFailureReason;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('Test Value Delete Clears Pointer');
+
+	// through the concrete pointer type
+	IF ValueFactory.createString(pDest:=pStr, pString:=ADR('value'), failureReason=>failureReason) THEN
+		deleted := pStr^.delete(pSelf:=pStr);
+		THIS^.AssertTrue(deleted, 'Expected delete through an FB_String pointer to succeed');
+		THIS^.AssertTrue(pStr = 0, 'Expected delete to clear the FB_String pointer');
+	ELSE
+		THIS^.AssertTrue(FALSE, 'Failed to create the string');
+	END_IF
+
+	// through the abstract base pointer, dispatched to FB_String
+	IF ValueFactory.createString(pDest:=pStr, pString:=ADR('value'), failureReason=>failureReason) THEN
+		pAny := pStr;
+		pStr := 0;
+		deleted := pAny^.delete(pSelf:=pAny);
+		THIS^.AssertTrue(deleted, 'Expected delete through an FB_AnyValue pointer to succeed');
+		THIS^.AssertTrue(pAny = 0, 'Expected delete to clear the FB_AnyValue pointer');
+	ELSE
+		THIS^.AssertTrue(FALSE, 'Failed to create the string');
+	END_IF
+
+	// a pointer to another value is refused and left untouched
+	IF ValueFactory.createString(pDest:=pStr, pString:=ADR('first'), failureReason=>failureReason)
+		AND_THEN ValueFactory.createString(pDest:=pOther, pString:=ADR('second'), failureReason=>failureReason)
+	THEN
+		pOtherBefore := pOther;
+		deleted := pStr^.delete(pSelf:=pOther);
+		THIS^.AssertFalse(deleted, 'Expected delete with another value$'s pointer to be refused');
+		THIS^.AssertTrue(pOther = pOtherBefore, 'Expected a refused delete to leave the pointer unchanged');
+		THIS^.AssertEquals_STRING(Expected:='first', Actual:=pStr^.pString^, Message:='Expected the first value to survive a refused delete');
+		THIS^.AssertEquals_STRING(Expected:='second', Actual:=pOther^.pString^, Message:='Expected the second value to survive a refused delete');
+	ELSE
+		THIS^.AssertTrue(FALSE, 'Failed to create the strings');
+	END_IF
+	IF pStr <> 0 THEN pStr^.delete(pSelf:=pStr); END_IF
+	IF pOther <> 0 THEN pOther^.delete(pSelf:=pOther); END_IF
+
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="TestCloning" Id="{7f0d1204-0a48-46d1-bf7e-5c592c06c617}">
       <Declaration><![CDATA[METHOD TestCloning : REFERENCE TO FB_Test
 VAR
@@ -39,7 +92,7 @@ END_VAR]]></Declaration>
 	THIS^.AssertTrue(success AND_THEN failureReason=noFailure AND_THEN pStringClone<>0, 'cloneString failed');
 	IF pStringClone <> 0 THEN
 		THIS^.AssertEquals_STRING('source', pStringClone^.pString^, 'cloneString did not copy the source value');
-		pStringClone := pStringClone^.delete();
+		pStringClone^.delete(pSelf:=pStringClone);
 	END_IF
 	
 	success := ValueFactory.createNumber(pDest:=pNumberSource, value:=number, failureReason=>failureReason);
@@ -49,7 +102,7 @@ END_VAR]]></Declaration>
 	THIS^.AssertTrue(success AND_THEN failureReason=noFailure AND_THEN pNumberClone<>0, 'cloneNumber failed');
 	IF pNumberClone <> 0 THEN
 		THIS^.AssertTrue(MEMCMP(pNumberClone^.value.pValue, ADR(number), SIZEOF(number))=0, 'cloneNumber did not copy the source value');
-		pNumberClone := pNumberClone^.delete();
+		pNumberClone^.delete(pSelf:=pNumberClone);
 	END_IF
 	
 	pAnySource := pNumberSource;
@@ -57,7 +110,7 @@ END_VAR]]></Declaration>
 	THIS^.AssertTrue(success AND_THEN failureReason=noFailure AND_THEN pAnyClone<>0, 'cloneAnyValue did not forward a successful number clone');
 	IF pAnyClone <> 0 THEN
 		THIS^.AssertTrue(pAnyClone^.eType=E_ValueType.E_Number, 'cloneAnyValue created the wrong value type');
-		pAnyClone := pAnyClone^.delete();
+		pAnyClone^.delete(pSelf:=pAnyClone);
 	END_IF
 	
 	success := ValueFactory.createKeyValue(pDest:=pKeyValueSource, pKey:=ADR('key'), pVal:=pStringSource, failureReason=>failureReason);
@@ -67,7 +120,7 @@ END_VAR]]></Declaration>
 	THIS^.AssertTrue(success AND_THEN failureReason=noFailure AND_THEN pKeyValueClone<>0, 'cloneKeyValue failed');
 	IF pKeyValueClone <> 0 THEN
 		THIS^.AssertEquals_STRING('key', pKeyValueClone^.pKey^, 'cloneKeyValue did not copy the source key');
-		pKeyValueClone := pKeyValueClone^.delete();
+		pKeyValueClone^.delete(pSelf:=pKeyValueClone);
 	END_IF
 	
 	// cloneAnyValue must forward a nested cloneString failure without assigning the destination.
@@ -85,9 +138,9 @@ END_VAR]]></Declaration>
 	THIS^.AssertTrue(failureReason=E_ValueFactoryFailureReason.KEY_POINTER_NULL, 'cloneKeyValue did not forward the createKeyValue failure reason');
 	THIS^.AssertTrue(pKeyValueClone=0, 'Failed cloneKeyValue assigned the destination');
 	
-	IF pStringSource <> 0 THEN pStringSource := pStringSource^.delete(); END_IF
-	IF pNumberSource <> 0 THEN pNumberSource := pNumberSource^.delete(); END_IF
-	IF pKeyValueSource <> 0 THEN pKeyValueSource := pKeyValueSource^.delete(); END_IF
+	IF pStringSource <> 0 THEN pStringSource^.delete(pSelf:=pStringSource); END_IF
+	IF pNumberSource <> 0 THEN pNumberSource^.delete(pSelf:=pNumberSource); END_IF
+	IF pKeyValueSource <> 0 THEN pKeyValueSource^.delete(pSelf:=pKeyValueSource); END_IF
 
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
@@ -154,7 +207,7 @@ END_VAR]]></Declaration>
 			Message:='Unexpected Key Value'
 		);
 		// assert that it is being passed by value and not reference.
-		pVal^.delete();
+		pVal^.delete(pSelf:=pVal);
 		pVal := pKeyVal^.pVal;
 		THIS^.AssertEquals_STRING(
 			Actual:=pVal^.pString^,
@@ -163,8 +216,8 @@ END_VAR]]></Declaration>
 		);
 	END_IF
 	// cleanup data
-	IF pKeyVal <> 0 THEN pKeyVal := pKeyVal^.delete();
-	ELSIF pVal <> 0 THEN pVal := pVal^.delete(); END_IF
+	IF pKeyVal <> 0 THEN pKeyVal^.delete(pSelf:=pKeyVal);
+	ELSIF pVal <> 0 THEN pVal^.delete(pSelf:=pVal); END_IF
 
 
 TcUnit.TEST_FINISHED();]]></ST>
@@ -202,7 +255,7 @@ THIS^.AssertTrue(success AND_THEN failureReason=noFailure AND_THEN pValue<>0, 'F
 IF pValue <> 0 THEN
 	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_SINT, 'FB_Number lost the SINT type');
 	THIS^.AssertTrue(pValue^.value.diSize=SIZEOF(nSInt) AND_THEN MEMCMP(pValue^.value.pValue, ADR(nSInt), SIZEOF(nSInt))=0, 'FB_Number did not copy the SINT value');
-	pValue := pValue^.delete();
+	pValue^.delete(pSelf:=pValue);
 END_IF
 
 success := ValueFactory.createNumber(pDest:=pValue, value:=nInt, failureReason=>failureReason);
@@ -210,7 +263,7 @@ THIS^.AssertTrue(success AND_THEN failureReason=noFailure AND_THEN pValue<>0, 'F
 IF pValue <> 0 THEN
 	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_INT, 'FB_Number lost the INT type');
 	THIS^.AssertTrue(pValue^.value.diSize=SIZEOF(nInt) AND_THEN MEMCMP(pValue^.value.pValue, ADR(nInt), SIZEOF(nInt))=0, 'FB_Number did not copy the INT value');
-	pValue := pValue^.delete();
+	pValue^.delete(pSelf:=pValue);
 END_IF
 
 success := ValueFactory.createNumber(pDest:=pValue, value:=nDInt, failureReason=>failureReason);
@@ -228,7 +281,7 @@ IF pValue <> 0 THEN
 	THIS^.AssertFalse(success, 'Expected createNumber to reject an allocated destination');
 	THIS^.AssertTrue(failureReason=E_ValueFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED, 'Expected the assigned number destination failure reason');
 	THIS^.AssertTrue(pValue=pOriginal, 'createNumber replaced an allocated destination');
-	pValue := pValue^.delete();
+	pValue^.delete(pSelf:=pValue);
 END_IF
 
 success := ValueFactory.createNumber(pDest:=pValue, value:=nLInt, failureReason=>failureReason);
@@ -236,7 +289,7 @@ THIS^.AssertTrue(success AND_THEN failureReason=noFailure AND_THEN pValue<>0, 'F
 IF pValue <> 0 THEN
 	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_LINT, 'FB_Number lost the LINT type');
 	THIS^.AssertTrue(pValue^.value.diSize=SIZEOF(nLInt) AND_THEN MEMCMP(pValue^.value.pValue, ADR(nLInt), SIZEOF(nLInt))=0, 'FB_Number did not copy the LINT value');
-	pValue := pValue^.delete();
+	pValue^.delete(pSelf:=pValue);
 END_IF
 
 success := ValueFactory.createNumber(pDest:=pValue, value:=nUSInt, failureReason=>failureReason);
@@ -244,7 +297,7 @@ THIS^.AssertTrue(success AND_THEN failureReason=noFailure AND_THEN pValue<>0, 'F
 IF pValue <> 0 THEN
 	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_USINT, 'FB_Number lost the USINT type');
 	THIS^.AssertTrue(pValue^.value.diSize=SIZEOF(nUSInt) AND_THEN MEMCMP(pValue^.value.pValue, ADR(nUSInt), SIZEOF(nUSInt))=0, 'FB_Number did not copy the USINT value');
-	pValue := pValue^.delete();
+	pValue^.delete(pSelf:=pValue);
 END_IF
 
 success := ValueFactory.createNumber(pDest:=pValue, value:=nUInt, failureReason=>failureReason);
@@ -252,7 +305,7 @@ THIS^.AssertTrue(success AND_THEN failureReason=noFailure AND_THEN pValue<>0, 'F
 IF pValue <> 0 THEN
 	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_UINT, 'FB_Number lost the UINT type');
 	THIS^.AssertTrue(pValue^.value.diSize=SIZEOF(nUInt) AND_THEN MEMCMP(pValue^.value.pValue, ADR(nUInt), SIZEOF(nUInt))=0, 'FB_Number did not copy the UINT value');
-	pValue := pValue^.delete();
+	pValue^.delete(pSelf:=pValue);
 END_IF
 
 success := ValueFactory.createNumber(pDest:=pValue, value:=nUDInt, failureReason=>failureReason);
@@ -260,7 +313,7 @@ THIS^.AssertTrue(success AND_THEN failureReason=noFailure AND_THEN pValue<>0, 'F
 IF pValue <> 0 THEN
 	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_UDINT, 'FB_Number lost the UDINT type');
 	THIS^.AssertTrue(pValue^.value.diSize=SIZEOF(nUDInt) AND_THEN MEMCMP(pValue^.value.pValue, ADR(nUDInt), SIZEOF(nUDInt))=0, 'FB_Number did not copy the UDINT value');
-	pValue := pValue^.delete();
+	pValue^.delete(pSelf:=pValue);
 END_IF
 
 success := ValueFactory.createNumber(pDest:=pValue, value:=nULInt, failureReason=>failureReason);
@@ -268,7 +321,7 @@ THIS^.AssertTrue(success AND_THEN failureReason=noFailure AND_THEN pValue<>0, 'F
 IF pValue <> 0 THEN
 	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_ULINT, 'FB_Number lost the ULINT type');
 	THIS^.AssertTrue(pValue^.value.diSize=SIZEOF(nULInt) AND_THEN MEMCMP(pValue^.value.pValue, ADR(nULInt), SIZEOF(nULInt))=0, 'FB_Number did not copy the ULINT value');
-	pValue := pValue^.delete();
+	pValue^.delete(pSelf:=pValue);
 END_IF
 
 success := ValueFactory.createNumber(pDest:=pValue, value:=fReal, failureReason=>failureReason);
@@ -276,7 +329,7 @@ THIS^.AssertTrue(success AND_THEN failureReason=noFailure AND_THEN pValue<>0, 'F
 IF pValue <> 0 THEN
 	THIS^.AssertTrue(pValue^.value.typeclass=__SYSTEM.TYPE_CLASS.TYPE_REAL, 'FB_Number lost the REAL type');
 	THIS^.AssertTrue(pValue^.value.diSize=SIZEOF(fReal) AND_THEN MEMCMP(pValue^.value.pValue, ADR(fReal), SIZEOF(fReal))=0, 'FB_Number did not copy the REAL value');
-	pValue := pValue^.delete();
+	pValue^.delete(pSelf:=pValue);
 END_IF
 
 success := ValueFactory.createNumber(pDest:=pValue, value:=fLReal, failureReason=>failureReason);
@@ -289,7 +342,7 @@ IF pValue <> 0 THEN
 	THIS^.AssertTrue(anyValue^.eType=E_ValueType.E_Number, 'FB_Number is not a Number AnyValue');
 	anyValue^.free();
 	THIS^.AssertTrue(pValue^.value.pValue=0 AND pValue^.value.diSize=0, 'Expected free to clear the owned number data');
-	pValue := pValue^.delete();
+	pValue^.delete(pSelf:=pValue);
 END_IF
 
 TcUnit.TEST_FINISHED();]]></ST>
@@ -374,7 +427,7 @@ END_VAR]]></Declaration>
 			'span ids match when they shoudldn$'t'
 		);
 		
-		pValue^.delete();
+		pValue^.delete(pSelf:=pValue);
  END_IF
 
 TcUnit.TEST_FINISHED();]]></ST>
@@ -434,7 +487,7 @@ END_VAR
 		// test the tear down behavior
 		value.free();
 		THIS^.AssertTrue(pValue^.pString = 0, 'Expected free to clear the string pointer');
-		pValue^.delete();
+		pValue^.delete(pSelf:=pValue);
  END_IF
 
 TcUnit.TEST_FINISHED();]]></ST>
@@ -520,7 +573,7 @@ END_VAR
 			'trace ids match when they shoudldn$'t'
 		);
 		pValue^.free();
-		pValue^.delete();
+		pValue^.delete(pSelf:=pValue);
  END_IF
 
 TcUnit.TEST_FINISHED();]]></ST>

@@ -193,7 +193,7 @@ FOR _i := 1 TO _ownedRecordCount DO
 		_processor^.onEmit(_record^);
 		_node := _node^.nxt;
 	END_FOR
-	_record := _record^.delete();
+	_record^.delete(pSelf:=_record);
 END_FOR
 
 // tick each processor
@@ -218,7 +218,7 @@ END_FOR
 _endLabel:
 THIS^._records.free();
 THIS^._freeProcessors();
-IF _record <> 0 THEN _record := _record^.delete(); END_IF
+IF _record <> 0 THEN _record^.delete(pSelf:=_record); END_IF
 tick := failureReason = E_LoggerProviderFailureReason.NA;]]></ST>
       </Implementation>
     </Method>

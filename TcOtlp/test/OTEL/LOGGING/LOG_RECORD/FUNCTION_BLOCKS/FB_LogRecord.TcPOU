@@ -69,7 +69,7 @@ IF THIS^.eventName <> 0 THEN
 		ELSE
 			failureReason := E_LogRecordCloneFailureReason.EVENT_NAME_INVALID;
 		END_IF
-		_pClone := _pClone^.delete();
+		_pClone^.delete(pSelf:=_pClone);
 		RETURN;
 	END_IF
 END_IF
@@ -86,7 +86,7 @@ IF THIS^.traceId <> 0 THEN
 		ELSE
 			failureReason := E_LogRecordCloneFailureReason.TRACE_ID_INVALID;
 		END_IF
-		_pClone := _pClone^.delete();
+		_pClone^.delete(pSelf:=_pClone);
 		RETURN;
 	END_IF
 END_IF
@@ -103,7 +103,7 @@ IF THIS^.spanId <> 0 THEN
 		ELSE
 			failureReason := E_LogRecordCloneFailureReason.SPAN_ID_INVALID;
 		END_IF
-		_pClone := _pClone^.delete();
+		_pClone^.delete(pSelf:=_pClone);
 		RETURN;
 	END_IF
 END_IF
@@ -122,7 +122,7 @@ IF THIS^.body <> 0 THEN
 		ELSE
 			failureReason := E_LogRecordCloneFailureReason.BODY_VALUE_INVALID;
 		END_CASE
-		_pClone := _pClone^.delete();
+		_pClone^.delete(pSelf:=_pClone);
 		RETURN;
 	END_IF
 END_IF
@@ -133,7 +133,7 @@ IF NOT _pClone^.resource.copyFrom(src:=THIS^.resource, failureResult=>_attribute
 	ELSE
 		failureReason := E_LogRecordCloneFailureReason.RESOURCE_COPY_FAILURE;
 	END_IF
-	_pClone := _pClone^.delete();
+	_pClone^.delete(pSelf:=_pClone);
 	RETURN;
 END_IF
 
@@ -143,7 +143,7 @@ IF NOT _pClone^.scope.copyFrom(src:=THIS^.scope, failureResult=>_attributesFailu
 	ELSE
 		failureReason := E_LogRecordCloneFailureReason.SCOPE_COPY_FAILURE;
 	END_IF
-	_pClone := _pClone^.delete();
+	_pClone^.delete(pSelf:=_pClone);
 	RETURN;
 END_IF
 
@@ -156,7 +156,7 @@ IF NOT _pClone^.attributes.copyFrom(
 	ELSE
 		failureReason := E_LogRecordCloneFailureReason.ATTRIBUTE_COPY_FAILURE;
 	END_IF
-	_pClone := _pClone^.delete();
+	_pClone^.delete(pSelf:=_pClone);
 	RETURN;
 END_IF
 
@@ -166,15 +166,27 @@ cloneTo := failureReason = E_LogRecordCloneFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Method Name="delete" Id="{3cb201ad-0be2-4ce4-945f-e69f0fb01637}">
-      <Declaration><![CDATA[METHOD delete: ULINT
-VAR
+      <Declaration><![CDATA[(*
+	Releases this record and clears the caller's pointer to it: call it as p^.delete(pSelf:=p).
+	pSelf is cleared before the record is freed, so the caller never keeps a dangling pointer.
+	A pointer to any other object is refused and left untouched, and nothing is released.
+*)
+METHOD delete : BOOL
+VAR_IN_OUT
 	pSelf: POINTER TO FB_LogRecord;
 END_VAR
-]]></Declaration>
+VAR
+	_pThis: POINTER TO FB_LogRecord;
+END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[pSelf := THIS;
-__DELETE(pSelf);
-delete := 0;]]></ST>
+        <ST><![CDATA[_pThis := THIS;
+IF pSelf <> _pThis THEN
+	RETURN;
+END_IF
+
+pSelf := 0;
+__DELETE(_pThis);
+delete := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Exit" Id="{abe31f98-c1d5-4ef4-91e3-56059cf93707}">
@@ -236,10 +248,10 @@ VAR
 	_pTraceFlags: POINTER TO UDINT;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF THIS^.eventName <> 0 THEN THIS^.eventName := THIS^.eventName^.delete(); END_IF
-IF THIS^.traceId <> 0 THEN THIS^.traceId := THIS^.traceId^.delete(); END_IF
-IF THIS^.spanId <> 0 THEN THIS^.spanId := THIS^.spanId^.delete(); END_IF
-IF THIS^.body <> 0 THEN THIS^.body := THIS^.body^.delete(); END_IF
+        <ST><![CDATA[IF THIS^.eventName <> 0 THEN THIS^.eventName^.delete(pSelf:=THIS^.eventName); END_IF
+IF THIS^.traceId <> 0 THEN THIS^.traceId^.delete(pSelf:=THIS^.traceId); END_IF
+IF THIS^.spanId <> 0 THEN THIS^.spanId^.delete(pSelf:=THIS^.spanId); END_IF
+IF THIS^.body <> 0 THEN THIS^.body^.delete(pSelf:=THIS^.body); END_IF
 THIS^.attributes.free();
 THIS^.scope.free();
 THIS^.resource.free();]]></ST>

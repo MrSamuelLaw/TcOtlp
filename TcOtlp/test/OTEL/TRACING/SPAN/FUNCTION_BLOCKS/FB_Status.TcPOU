@@ -12,14 +12,27 @@ END_VAR
       <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="delete" Id="{c4fd0a50-f9e8-441c-a9e5-5109c1bd765e}">
-      <Declaration><![CDATA[METHOD delete : ULINT
-VAR
+      <Declaration><![CDATA[(*
+	Releases this status and clears the caller's pointer to it: call it as p^.delete(pSelf:=p).
+	pSelf is cleared before the status is freed, so the caller never keeps a dangling pointer.
+	A pointer to any other object is refused and left untouched, and nothing is released.
+*)
+METHOD delete : BOOL
+VAR_IN_OUT
 	pSelf: POINTER TO FB_Status;
+END_VAR
+VAR
+	_pThis: POINTER TO FB_Status;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[pSelf := THIS;
-__DELETE(pSelf);
-delete := 0;]]></ST>
+        <ST><![CDATA[_pThis := THIS;
+IF pSelf <> _pThis THEN
+	RETURN;
+END_IF
+
+pSelf := 0;
+__DELETE(_pThis);
+delete := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Exit" Id="{3b724251-b82f-4054-a000-6e9b3e0640c5}">
@@ -55,7 +68,7 @@ THIS^.message := message;]]></ST>
       <Declaration><![CDATA[METHOD free
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF THIS^.message <> 0 THEN THIS^.message^.delete(); END_IF]]></ST>
+        <ST><![CDATA[IF THIS^.message <> 0 THEN THIS^.message^.delete(pSelf:=THIS^.message); END_IF]]></ST>
       </Implementation>
     </Method>
   </POU>

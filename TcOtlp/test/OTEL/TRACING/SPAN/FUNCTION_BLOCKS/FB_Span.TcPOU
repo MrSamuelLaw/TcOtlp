@@ -42,15 +42,27 @@ END_VAR
       <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="delete" Id="{6a97f055-36d8-4285-ad6e-08b9d3bfdaaf}">
-      <Declaration><![CDATA[METHOD delete : ULINT
-VAR
+      <Declaration><![CDATA[(*
+	Releases this span and clears the caller's pointer to it: call it as p^.delete(pSelf:=p).
+	pSelf is cleared before the span is freed, so the caller never keeps a dangling pointer.
+	A pointer to any other object is refused and left untouched, and nothing is released.
+*)
+METHOD delete : BOOL
+VAR_IN_OUT
 	pSelf: POINTER TO FB_Span;
 END_VAR
-]]></Declaration>
+VAR
+	_pThis: POINTER TO FB_Span;
+END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[pSelf := THIS;
-__DELETE(pSelf);
-delete := 0;]]></ST>
+        <ST><![CDATA[_pThis := THIS;
+IF pSelf <> _pThis THEN
+	RETURN;
+END_IF
+
+pSelf := 0;
+__DELETE(_pThis);
+delete := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Exit" Id="{fa780cfa-04fb-4c49-bd4c-b4e50dffd866}">
@@ -73,12 +85,12 @@ END_IF]]></ST>
 METHOD free
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF THIS^.name <> 0 THEN THIS^.name := THIS^.name^.delete(); END_IF
-IF THIS^.traceId <> 0 THEN THIS^.traceId := THIS^.traceId^.delete(); END_IF
-IF THIS^.spanId <> 0 THEN THIS^.spanId := THIS^.spanId^.delete(); END_IF
-IF THIS^.traceState <> 0 THEN THIS^.traceState := THIS^.traceState^.delete(); END_IF
-IF THIS^.parentSpanId <> 0 THEN THIS^.parentSpanId := THIS^.parentSpanId^.delete(); END_IF
-IF THIS^.status <> 0 THEN THIS^.status := THIS^.status^.delete(); END_IF
+        <ST><![CDATA[IF THIS^.name <> 0 THEN THIS^.name^.delete(pSelf:=THIS^.name); END_IF
+IF THIS^.traceId <> 0 THEN THIS^.traceId^.delete(pSelf:=THIS^.traceId); END_IF
+IF THIS^.spanId <> 0 THEN THIS^.spanId^.delete(pSelf:=THIS^.spanId); END_IF
+IF THIS^.traceState <> 0 THEN THIS^.traceState^.delete(pSelf:=THIS^.traceState); END_IF
+IF THIS^.parentSpanId <> 0 THEN THIS^.parentSpanId^.delete(pSelf:=THIS^.parentSpanId); END_IF
+IF THIS^.status <> 0 THEN THIS^.status^.delete(pSelf:=THIS^.status); END_IF
 THIS^.attributes.free();
 THIS^.scope.free();
 THIS^.resource.free();]]></ST>

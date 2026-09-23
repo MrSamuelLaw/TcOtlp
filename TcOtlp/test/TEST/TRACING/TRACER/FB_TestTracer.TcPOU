@@ -64,7 +64,7 @@ END_VAR
 		THIS^.AssertTrue(pSpan^.startTimestamp > 0, 'Expected a start timestamp');
 		THIS^.AssertEquals_UDINT(16#101, pSpan^.flags, 'Expected a root span to be sampled with remoteness known');
 		THIS^.AssertEquals_STRING('tracer.test', pSpan^.scope.name, 'Expected the scope to be snapshotted');
-		pSpan := pSpan^.delete();
+		pSpan^.delete(pSelf:=pSpan);
 	END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
@@ -128,9 +128,9 @@ END_VAR
 		);
 	END_IF
 
-	IF pContext <> 0 THEN pContext := pContext^.delete(); END_IF
-	IF pChild <> 0 THEN pChild := pChild^.delete(); END_IF
-	IF pRoot <> 0 THEN pRoot := pRoot^.delete(); END_IF
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
+	IF pChild <> 0 THEN pChild^.delete(pSelf:=pChild); END_IF
+	IF pRoot <> 0 THEN pRoot^.delete(pSelf:=pRoot); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -178,7 +178,7 @@ END_VAR
 	);
 
 	// the context is borrowed, so it can be released before the span
-	IF pRemote <> 0 THEN pRemote := pRemote^.delete(); END_IF
+	IF pRemote <> 0 THEN pRemote^.delete(pSelf:=pRemote); END_IF
 
 	IF pChild <> 0 THEN
 		THIS^.AssertEquals_UDINT(16#301, pChild^.flags, 'Expected a remote parent to set bits 8 and 9');
@@ -196,9 +196,9 @@ END_VAR
 		IF pChildContext <> 0 THEN
 			THIS^.AssertFalse(pChildContext^.isRemote(), 'Expected the child$'s own context to be local');
 			THIS^.AssertEquals_UDINT(16#101, pChildContext^.traceFlags, 'Expected the sampled bit and bit 8 only');
-			pChildContext := pChildContext^.delete();
+			pChildContext^.delete(pSelf:=pChildContext);
 		END_IF
-		pChild := pChild^.delete();
+		pChild^.delete(pSelf:=pChild);
 	END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
@@ -234,8 +234,8 @@ END_VAR
 	THIS^.AssertTrue(pSpan = 0, 'Expected the destination to stay unassigned');
 	THIS^.AssertTrue(tracer.pSpan = 0, 'Expected the incomplete span to be released');
 
-	IF pContext <> 0 THEN pContext := pContext^.delete(); END_IF
-	IF pSpan <> 0 THEN pSpan := pSpan^.delete(); END_IF
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
+	IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -271,7 +271,7 @@ END_VAR
 	// the failure does not carry over to the next chain
 	success := tracer.startSpan(name:='next').build(pDest:=pSpan, failureReason=>reason);
 	THIS^.AssertTrue(success, 'Expected the next chain to start clean');
-	IF pSpan <> 0 THEN pSpan := pSpan^.delete(); END_IF
+	IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -299,7 +299,7 @@ END_VAR
 		'Expected SPAN_NAME_EMPTY'
 	);
 	THIS^.AssertTrue(pSpan = 0, 'Expected the destination to stay unassigned');
-	IF pSpan <> 0 THEN pSpan := pSpan^.delete(); END_IF
+	IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -327,7 +327,7 @@ END_VAR
 		'Expected SPAN_KIND_UNSPECIFIED'
 	);
 	THIS^.AssertTrue(pSpan = 0, 'Expected the destination to stay unassigned');
-	IF pSpan <> 0 THEN pSpan := pSpan^.delete(); END_IF
+	IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -385,7 +385,7 @@ END_VAR
 	);
 	THIS^.AssertTrue(pSpan = 0, 'Expected the destination to stay unassigned');
 	THIS^.AssertTrue(tracer.pSpan = 0, 'Expected build to release the building span');
-	IF pSpan <> 0 THEN pSpan := pSpan^.delete(); END_IF
+	IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -418,7 +418,7 @@ END_VAR
 	);
 	THIS^.AssertTrue(pSpan = pFirst, 'Expected the destination pointer to be left alone');
 	THIS^.AssertTrue(tracer.pSpan = 0, 'Expected the second span to be released');
-	IF pSpan <> 0 THEN pSpan := pSpan^.delete(); END_IF
+	IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -448,7 +448,7 @@ END_VAR
 	);
 	THIS^.AssertTrue(pSpan = 0, 'Expected the destination to stay unassigned');
 	THIS^.AssertTrue(tracer.pSpan = 0, 'Expected the incomplete span to be released');
-	IF pSpan <> 0 THEN pSpan := pSpan^.delete(); END_IF
+	IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -482,7 +482,7 @@ END_VAR
 	);
 	IF pSpan <> 0 THEN
 		THIS^.AssertEquals_UDINT(2, pSpan^.attributes.count, 'Expected both attributes on the span');
-		pSpan := pSpan^.delete();
+		pSpan^.delete(pSelf:=pSpan);
 	END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>

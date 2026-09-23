@@ -10,14 +10,27 @@ END_VAR]]></Declaration>
       <ST><![CDATA[]]></ST>
     </Implementation>
     <Method Name="delete" Id="{e7cda35d-3a46-47f9-bedc-fb9f4eebf05c}">
-      <Declaration><![CDATA[METHOD delete: ULINT
-VAR
+      <Declaration><![CDATA[(*
+	Releases this value and clears the caller's pointer to it: call it as p^.delete(pSelf:=p).
+	pSelf is cleared before the value is freed, so the caller never keeps a dangling pointer.
+	A pointer to any other object is refused and left untouched, and nothing is released.
+*)
+METHOD delete : BOOL
+VAR_IN_OUT
 	pSelf: POINTER TO FB_SpanId;
+END_VAR
+VAR
+	_pThis: POINTER TO FB_SpanId;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[pSelf := THIS;
-__DELETE(pSelf);
-delete := 0;]]></ST>
+        <ST><![CDATA[_pThis := THIS;
+IF pSelf <> _pThis THEN
+	RETURN;
+END_IF
+
+pSelf := 0;
+__DELETE(_pThis);
+delete := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Property Name="eType" Id="{386b755d-4227-473a-8d9f-1dcee7cc6d49}">

@@ -48,7 +48,7 @@ The trace state is copied first, through `ValueFactory.createString`, and the co
 On success the caller owns the context and releases it exactly once:
 
 ```iec
-pContext := pContext^.delete();
+pContext^.delete(pSelf:=pContext);
 ```
 
 `delete` runs `FB_Exit`, which frees the trace state. `free` can also be called directly to release the trace state and clear the identity early; it is safe to call more than once. During an online change `FB_Exit` skips `free`, because the copied instance keeps the trace state pointer.
@@ -98,7 +98,7 @@ Releases the trace state and clears the identifiers and flags. Called by `FB_Exi
 
 ### delete
 
-Releases the context itself and returns `0`, so the caller clears its pointer in the same statement.
+Releases the context itself and clears the caller's pointer: `pContext^.delete(pSelf:=pContext)`. `pSelf` is `VAR_IN_OUT` and is cleared before the context is freed. A pointer to any other object is refused: `delete` returns `FALSE` and releases nothing.
 
 ## Creation paths
 

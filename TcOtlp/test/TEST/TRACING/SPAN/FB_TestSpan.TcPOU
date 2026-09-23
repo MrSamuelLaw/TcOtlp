@@ -105,12 +105,12 @@ END_VAR
 
 	// the span's trace state is released first; the context must not depend on it
 	THIS^._setIdentity(span:=span, pTraceId:=0, pSpanId:=0, pTraceState:=0);
-	pTraceState := pTraceState^.delete();
+	pTraceState^.delete(pSelf:=pTraceState);
 	IF pContext <> 0 AND_THEN pContext^.traceState <> 0 THEN
 		THIS^.AssertEquals_STRING('vendor=abc', pContext^.traceState^.pString^, 'Expected the context to outlive the span$'s trace state');
 	END_IF
 
-	IF pContext <> 0 THEN pContext := pContext^.delete(); END_IF
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -143,7 +143,7 @@ END_VAR
 			'Expected the remote bit to be clear'
 		);
 		THIS^.AssertTrue(pContext^.traceState = 0, 'Expected no trace state when the span has none');
-		pContext := pContext^.delete();
+		pContext^.delete(pSelf:=pContext);
 	END_IF
 
 	THIS^._setIdentity(span:=span, pTraceId:=0, pSpanId:=0, pTraceState:=0);
@@ -206,7 +206,7 @@ END_VAR
 	);
 	THIS^.AssertTrue(pContext = pFirst, 'Expected the destination pointer to be left alone');
 
-	IF pContext <> 0 THEN pContext := pContext^.delete(); END_IF
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
 	THIS^._setIdentity(span:=span, pTraceId:=0, pSpanId:=0, pTraceState:=0);
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>

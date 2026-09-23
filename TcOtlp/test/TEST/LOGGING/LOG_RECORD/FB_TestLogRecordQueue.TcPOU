@@ -56,10 +56,10 @@ END_VAR
 
 	success := queue.pop(pValue:=pRecord, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN pRecord <> 0 AND_THEN pRecord^.timestamp = 2, 'Expected timestamp 1 to be dropped first');
-	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+	IF pRecord <> 0 THEN pRecord^.delete(pSelf:=pRecord); END_IF
 	success := queue.pop(pValue:=pRecord, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN pRecord <> 0 AND_THEN pRecord^.timestamp = 3, 'Expected the newest record to remain at the tail');
-	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+	IF pRecord <> 0 THEN pRecord^.delete(pSelf:=pRecord); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -109,7 +109,7 @@ END_VAR
 	success := queue.pop(pValue:=pRecord, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN failureReason = noFailure, 'Expected pop to succeed without a failure reason');
 	THIS^.AssertTrue(pRecord = pOriginal AND_THEN queue.count = 0, 'Expected pop to transfer the same record back to the caller');
-	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+	IF pRecord <> 0 THEN pRecord^.delete(pSelf:=pRecord); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -139,7 +139,7 @@ END_VAR
 	success := queue.pop(pValue:=pAssigned, failureReason=>failureReason);
 	THIS^.AssertFalse(success, 'Expected pop into an assigned pointer to fail');
 	THIS^.AssertTrue(failureReason = E_LogRecordQueueFailureReason.DESTINATION_ALREADY_ASSIGNED, 'Expected the assigned destination failure reason');
-	IF pAssigned <> 0 THEN pAssigned := pAssigned^.delete(); END_IF
+	IF pAssigned <> 0 THEN pAssigned^.delete(pSelf:=pAssigned); END_IF
 
 	pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=5));
 	success := queue.push(pValue:=pRecord, failureReason=>failureReason);
@@ -181,10 +181,10 @@ END_VAR
 
 	success := destination.pop(pValue:=pRecord, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN pRecord = pFirstOriginal AND_THEN pRecord^.timestamp = 1, 'Expected transfer to preserve the first allocation and FIFO order');
-	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+	IF pRecord <> 0 THEN pRecord^.delete(pSelf:=pRecord); END_IF
 	success := destination.pop(pValue:=pRecord, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN pRecord = pSecondOriginal AND_THEN pRecord^.timestamp = 2, 'Expected destination to own the same tail allocation');
-	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+	IF pRecord <> 0 THEN pRecord^.delete(pSelf:=pRecord); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -215,13 +215,13 @@ END_VAR
 
 	success := destination.pop(pValue:=pRecord, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN pRecord <> 0 AND_THEN pRecord^.timestamp = 1, 'Expected the destination to receive the oldest record first');
-	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+	IF pRecord <> 0 THEN pRecord^.delete(pSelf:=pRecord); END_IF
 	success := destination.pop(pValue:=pRecord, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN pRecord <> 0 AND_THEN pRecord^.timestamp = 2, 'Expected the destination to receive a FIFO slice');
-	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+	IF pRecord <> 0 THEN pRecord^.delete(pSelf:=pRecord); END_IF
 	success := source.pop(pValue:=pRecord, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN pRecord <> 0 AND_THEN pRecord^.timestamp = 3, 'Expected the source to retain the untransferred tail');
-	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+	IF pRecord <> 0 THEN pRecord^.delete(pSelf:=pRecord); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

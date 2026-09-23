@@ -147,7 +147,7 @@ END_IF
 
 // clean up the last record if it's not cleaned up already
 IF _pOwnedRecord <> 0 THEN
-	_pOwnedRecord := _pOwnedRecord^.delete();
+	_pOwnedRecord^.delete(pSelf:=_pOwnedRecord);
 END_IF
 
 // set flag if log records didn't all get consumed
@@ -300,7 +300,7 @@ END_IF
 IF NOT THIS^.serializeLogRecord(_serializedRecords, pLogRecord, failureReason=>failureReason) THEN
 	RETURN;
 END_IF
-pLogRecord := pLogRecord^.delete();
+pLogRecord^.delete(pSelf:=pLogRecord);
 
 // Consume and release every remaining record in this resource/scope group.
 _recordsToScan := logRecords.count;
@@ -324,7 +324,7 @@ FOR _scanIdx := 1 TO _recordsToScan DO
 		IF NOT THIS^.serializeLogRecord(_serializedRecords, pLogRecord, failureReason=>failureReason) THEN
 			RETURN;
 		END_IF
-		pLogRecord := pLogRecord^.delete();
+		pLogRecord^.delete(pSelf:=pLogRecord);
 	ELSIF NOT logRecords.rotate(failureReason=>_queueFailureReason) THEN
 		failureReason := E_ProtoJsonSerializerFailureReason.QUEUE_ROTATE_FAILURE;
 		RETURN;

@@ -76,7 +76,7 @@ END_VAR
 				failureReason=>queueFailureReason
 			);
 			THIS^.AssertTrue(pushSucceeded, 'Expected exporter queue setup to succeed');
-			IF NOT pushSucceeded AND_THEN pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+			IF NOT pushSucceeded AND_THEN pRecord <> 0 THEN pRecord^.delete(pSelf:=pRecord); END_IF
 		END_FOR
 
 		exportSucceeded := exporter.export(
@@ -130,7 +130,7 @@ END_VAR
 
 	exporter.free();
 	batch.free();
-	IF pRecord <> 0 THEN pRecord := pRecord^.delete(); END_IF
+	IF pRecord <> 0 THEN pRecord^.delete(pSelf:=pRecord); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

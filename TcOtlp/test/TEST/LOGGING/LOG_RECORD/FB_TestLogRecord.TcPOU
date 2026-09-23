@@ -157,7 +157,7 @@ END_VAR
 		THIS^.AssertEquals_UDINT(1, pClone^.resource.attributes.count, 'Expected cloned resource attributes to survive source deletion');
 		THIS^.AssertEquals_UDINT(1, pClone^.scope.attributes.count, 'Expected cloned scope attributes to survive source deletion');
 		THIS^.AssertEquals_UDINT(1, pClone^.attributes.count, 'Expected cloned record attributes to survive source deletion');
-		pClone := pClone^.delete();
+		pClone^.delete(pSelf:=pClone);
 	END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>

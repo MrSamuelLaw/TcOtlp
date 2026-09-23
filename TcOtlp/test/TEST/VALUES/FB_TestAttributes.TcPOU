@@ -94,7 +94,7 @@ END_VAR
 			success := attributes.setAttribute(pValue:=pKv, failureReason=>failureReason);
 			THIS^.AssertFalse(success, 'Expected a key-value pair without a value to be rejected');
 			THIS^.AssertTrue(failureReason=E_AttributesFailureReason.KV_VALUE_POINTER_NULL, 'Expected the missing value failure reason');
-			pKv := pKv^.delete();
+			pKv^.delete(pSelf:=pKv);
 		ELSE
 			THIS^.AssertTrue(FALSE, 'Expected allocation of the invalid key-value test fixture to succeed');
 			__DELETE(pKey);

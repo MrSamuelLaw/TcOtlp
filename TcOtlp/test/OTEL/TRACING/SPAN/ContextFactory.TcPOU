@@ -66,7 +66,7 @@ _pNew := __NEW(FB_SpanContext(
 ));
 IF _pNew = 0 THEN
 	failureReason := E_ContextFactoryFailureReason.MEMORY_ALLOCATION_FAILURE;
-	IF _pTraceState <> 0 THEN _pTraceState := _pTraceState^.delete(); END_IF
+	IF _pTraceState <> 0 THEN _pTraceState^.delete(pSelf:=_pTraceState); END_IF
 	RETURN;
 END_IF
 pDest := _pNew;

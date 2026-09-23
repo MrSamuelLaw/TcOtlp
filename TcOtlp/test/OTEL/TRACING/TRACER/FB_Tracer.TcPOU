@@ -73,7 +73,7 @@ IF THIS^.pSpan^.traceId = 0 THEN
 END_IF
 
 IF NOT THIS^._provider.idGenerator.generateSpanId(spanId:=_spanId, failureReason=>_idGenFailureReason) THEN
-	IF _pTraceId <> 0 THEN _pTraceId := _pTraceId^.delete(); END_IF
+	IF _pTraceId <> 0 THEN _pTraceId^.delete(pSelf:=_pTraceId); END_IF
 	failureReason := THIS^._mapIdGenFailure(_idGenFailureReason);
 	RETURN;
 END_IF
@@ -83,7 +83,7 @@ IF NOT ValueFactory.createSpanId(
 	nSize:=SIZEOF(_spanId.bytes),
 	failureReason=>_factoryFailureReason
 	) THEN
-	IF _pTraceId <> 0 THEN _pTraceId := _pTraceId^.delete(); END_IF
+	IF _pTraceId <> 0 THEN _pTraceId^.delete(pSelf:=_pTraceId); END_IF
 	failureReason := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
 	RETURN;
 END_IF
@@ -171,7 +171,7 @@ END_IF
 
 IF THIS^._failed THEN
 	// the chain ends here either way, so the incomplete span is released
-	IF THIS^.pSpan <> 0 THEN THIS^.pSpan := THIS^.pSpan^.delete(); END_IF
+	IF THIS^.pSpan <> 0 THEN THIS^.pSpan^.delete(pSelf:=THIS^.pSpan); END_IF
 	failureReason := THIS^._failureReason;
 ELSE
 	// transfer ownership to the caller; the span is now running
@@ -223,7 +223,7 @@ METHOD free
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF THIS^.pSpan <> 0 THEN
-	THIS^.pSpan := THIS^.pSpan^.delete();
+	THIS^.pSpan^.delete(pSelf:=THIS^.pSpan);
 END_IF
 THIS^._failed := FALSE;
 THIS^._failureReason := E_TracerFailureReason.NA;]]></ST>
@@ -344,9 +344,9 @@ _copied := ValueFactory.createTraceId(
 		failureReason=>_factoryFailureReason));
 
 IF NOT _copied THEN
-	IF _pTraceId <> 0 THEN _pTraceId := _pTraceId^.delete(); END_IF
-	IF _pParentSpanId <> 0 THEN _pParentSpanId := _pParentSpanId^.delete(); END_IF
-	IF _pTraceState <> 0 THEN _pTraceState := _pTraceState^.delete(); END_IF
+	IF _pTraceId <> 0 THEN _pTraceId^.delete(pSelf:=_pTraceId); END_IF
+	IF _pParentSpanId <> 0 THEN _pParentSpanId^.delete(pSelf:=_pParentSpanId); END_IF
+	IF _pTraceState <> 0 THEN _pTraceState^.delete(pSelf:=_pTraceState); END_IF
 	THIS^._failed := TRUE;
 	IF _factoryFailureReason = E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE THEN
 		THIS^._failureReason := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
@@ -357,9 +357,9 @@ IF NOT _copied THEN
 END_IF
 
 // replace any earlier parent
-IF THIS^.pSpan^.traceId <> 0 THEN THIS^.pSpan^.traceId := THIS^.pSpan^.traceId^.delete(); END_IF
-IF THIS^.pSpan^.parentSpanId <> 0 THEN THIS^.pSpan^.parentSpanId := THIS^.pSpan^.parentSpanId^.delete(); END_IF
-IF THIS^.pSpan^.traceState <> 0 THEN THIS^.pSpan^.traceState := THIS^.pSpan^.traceState^.delete(); END_IF
+IF THIS^.pSpan^.traceId <> 0 THEN THIS^.pSpan^.traceId^.delete(pSelf:=THIS^.pSpan^.traceId); END_IF
+IF THIS^.pSpan^.parentSpanId <> 0 THEN THIS^.pSpan^.parentSpanId^.delete(pSelf:=THIS^.pSpan^.parentSpanId); END_IF
+IF THIS^.pSpan^.traceState <> 0 THEN THIS^.pSpan^.traceState^.delete(pSelf:=THIS^.pSpan^.traceState); END_IF
 
 // transfer ownership of the copies to the span
 THIS^.pSpan^.traceId := _pTraceId;
