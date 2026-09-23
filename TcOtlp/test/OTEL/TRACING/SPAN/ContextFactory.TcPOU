@@ -1,0 +1,78 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="ContextFactory" Id="{63c02e55-2619-431c-a44a-88f22902c2e9}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM ContextFactory
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="buildContext" Id="{d94b6c45-a4ff-4e52-afe3-b7fcb8bb8c8f}">
+      <Declaration><![CDATA[(*
+	Allocates a span context holding copies of the given identity. The caller owns pDest.
+	The identifiers are not validated; producers are responsible for what they build,
+	and a context built from all-zero identifiers is simply not valid.
+	pTraceState is optional; 0 means no trace state.
+*)
+METHOD buildContext : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_SpanContext;
+END_VAR
+VAR_INPUT
+	pTraceId: POINTER TO FB_TraceId;
+	pSpanId: POINTER TO FB_SpanId;
+	pTraceState: POINTER TO STRING;
+	traceFlags: UDINT;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ContextFactoryFailureReason;
+END_VAR
+VAR
+	_pTraceState: POINTER TO FB_String;
+	_pNew: POINTER TO FB_SpanContext;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[buildContext := FALSE;
+failureReason := E_ContextFactoryFailureReason.NA;
+
+IF pDest <> 0 THEN
+	failureReason := E_ContextFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED;
+	RETURN;
+END_IF
+
+IF pTraceId = 0 THEN
+	failureReason := E_ContextFactoryFailureReason.TRACE_ID_POINTER_NULL;
+	RETURN;
+END_IF
+
+IF pSpanId = 0 THEN
+	failureReason := E_ContextFactoryFailureReason.SPAN_ID_POINTER_NULL;
+	RETURN;
+END_IF
+
+// clone all owned data before allocating the context itself
+IF pTraceState <> 0 THEN
+	IF NOT ValueFactory.createString(pDest:=_pTraceState, pString:=pTraceState) THEN
+		failureReason := E_ContextFactoryFailureReason.MEMORY_ALLOCATION_FAILURE;
+		RETURN;
+	END_IF
+END_IF
+
+_pNew := __NEW(FB_SpanContext(
+	pTraceId:=pTraceId,
+	pSpanId:=pSpanId,
+	pTraceState:=_pTraceState,
+	traceFlags:=traceFlags
+));
+IF _pNew = 0 THEN
+	failureReason := E_ContextFactoryFailureReason.MEMORY_ALLOCATION_FAILURE;
+	IF _pTraceState <> 0 THEN _pTraceState := _pTraceState^.delete(); END_IF
+	RETURN;
+END_IF
+pDest := _pNew;
+buildContext := failureReason = E_ContextFactoryFailureReason.NA;
+]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

@@ -78,16 +78,17 @@ The RPC call is short and bounded, so it *can* legitimately be its own `SERVER` 
 
 `TraceContextPropagator` follows the existing factory idiom — a `PROGRAM`, `BOOL` return, `VAR_IN_OUT` destination, failure reason on an output — matching `ValueFactory` and `LinkFactory`.
 
-- **`extract(context: FB_SpanContext, traceparent: STRING(55), tracestate: T_MaxString, failureReason: E_PropagationFailureReason) -> BOOL`** — Parses a carrier into a context. Returns `FALSE` and leaves the destination untouched on failure.
+- **`extract(pDest: POINTER TO FB_SpanContext, traceparent: STRING(55), tracestate: T_MaxString, failureReason: E_PropagationFailureReason) -> BOOL`** — Parses a carrier into a newly allocated context. `pDest` is `VAR_IN_OUT` and must be `0` on entry. Returns `FALSE` and leaves `pDest` at `0` on failure.
 
 - **`inject(context: FB_SpanContext, traceparent: STRING(55), tracestate: T_MaxString, failureReason: E_PropagationFailureReason) -> BOOL`** — Formats a local context for an outbound call, for when the PLC is the caller.
 
-Unlike `ValueFactory`, `extract` fills a caller-owned `FB_SpanContext` instead of allocating one. The extracted context lives only long enough to build a link, so its lifetime is bounded by the call and there is nothing for an allocation to buy. The ownership contract for `FB_Span.getContext`, which is a different path, remains open — see [[FB_SpanContext]].
+Span contexts are always dynamically allocated, so `extract` builds its result through `ContextFactory.buildContext` like every other producer. On success the caller owns the context and releases it exactly once with `pContext := pContext^.delete();`, typically right after building the link from it. See [[FB_SpanContext]].
 
 ### Parsing rules
 
-- The length is fixed and the field offsets are constant, so parsing is 24 bytes of hex decode with no loop bound to discover and no allocation. This stays inside the bounded-execution rule without needing a cycle budget.
-- Validation follows the OTLP validity rules in [[FB_IdGenerator]]: an all-zero trace ID or span ID is the encoding of "absent" and is rejected. Version `ff` is invalid. An unknown future version is parsed as its first 55 characters rather than rejected.
+- The length is fixed and the field offsets are constant, so parsing is 24 bytes of hex decode with no loop bound to discover. This stays inside the bounded-execution rule without needing a cycle budget.
+- Parsing and validation run before anything is allocated. The context, and the copy of the trace state, are allocated once, only after the carrier is known to be good.
+- Validation follows the OTLP validity rules in [[FB_IdGenerator]]: an all-zero trace ID or span ID is the encoding of "absent" and is rejected. This check belongs here, in the producer; `ContextFactory` does not validate identities. Version `ff` is invalid. An unknown future version is parsed as its first 55 characters rather than rejected.
 - **A malformed carrier must not fail the process.** It is treated as though no context arrived: the PLC starts an unlinked root trace and reports the failure reason. Refusing to start a chiller because a trace header was mangled would make observability a source of downtime.
 - On success, both `SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK` and `SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK` are set, so `isRemote` reports `TRUE` for an extracted context and `FALSE` for anything a local [[FB_Tracer]] produced. This is the case that bit pair exists for.
 

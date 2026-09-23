@@ -1,0 +1,186 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_SpanContext" Id="{cb3780ad-42f4-466e-beb9-8fb650ce5375}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Immutable snapshot of the identity of one span, created through ContextFactory.buildContext.
+	The identifiers are copies, so a context stays valid after the span it came from has ended.
+*)
+{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_SpanContext
+VAR
+	_traceId: FB_TraceId;
+	_spanId: FB_SpanId;
+	_traceState: POINTER TO FB_String;
+	_traceFlags: UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="_isZero" Id="{ba7fa559-df6e-42aa-a334-d206d09748cb}">
+      <Declaration><![CDATA[METHOD _isZero : BOOL
+VAR_INPUT
+	pBytes: POINTER TO BYTE;
+	size: UDINT;
+END_VAR
+VAR
+	i: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// bounded by the width of an identifier, at most 16 bytes
+_isZero := TRUE;
+WHILE i < size DO
+	IF pBytes[i] <> 0 THEN
+		_isZero := FALSE;
+		RETURN;
+	END_IF
+	i := i + 1;
+END_WHILE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="delete" Id="{091fc591-8b0e-413b-bd89-1ac90e00a59c}">
+      <Declaration><![CDATA[METHOD delete: ULINT
+VAR
+	pSelf: POINTER TO FB_SpanContext;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[pSelf := THIS;
+__DELETE(pSelf);
+delete := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Exit" Id="{bd5ef56d-2d7a-4740-8b81-5bb55127c6a7}">
+      <Declaration><![CDATA[//FB_Exit must be implemented explicitly. If there is an implementation, then the
+//method is called before the controller removes the code of the function block instance
+//(implicit call). The return value is not evaluated.
+METHOD FB_Exit: BOOL
+VAR_INPUT
+    bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// during an online change the copy keeps the trace state pointer, so it must not be released here
+IF NOT bInCopyCode THEN
+	THIS^.free();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{9cd3ddcd-9701-47d5-891f-b3d3b0d18b1c}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	pTraceId: POINTER TO FB_TraceId;  // copied
+	pSpanId: POINTER TO FB_SpanId;  // copied
+	pTraceState: POINTER TO FB_String;  // ownership transfers to the context; 0 means none
+	traceFlags: UDINT;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+Allocation and argument checks are done by ContextFactory and not the context itself,
+that way a new context never gets allocated if building it fails.
+The identity is not validated; producers are responsible for what they build.
+*)
+IF pTraceId <> 0 THEN
+	MEMCPY(ADR(THIS^._traceId.bytes), ADR(pTraceId^.bytes), SIZEOF(THIS^._traceId.bytes));
+END_IF
+IF pSpanId <> 0 THEN
+	MEMCPY(ADR(THIS^._spanId.bytes), ADR(pSpanId^.bytes), SIZEOF(THIS^._spanId.bytes));
+END_IF
+THIS^._traceState := pTraceState;
+THIS^._traceFlags := traceFlags;
+FB_Init := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Reinit" Id="{27b958f9-35d6-4d2e-b40f-bc7f83136759}">
+      <Declaration><![CDATA[//FB_Reinit is called after the instance has been copied during an online change.
+//The return value is not evaluated.
+METHOD FB_Reinit: BOOL]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// nothing to fix up: the trace state lives on the heap and does not move with the instance,
+// and no member points back into this instance
+FB_Reinit := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{12adc99d-389b-4fc1-8440-eecf17b8fe3b}">
+      <Declaration><![CDATA[(*
+	Releases the trace state and clears the identity. Safe to call more than once.
+*)
+METHOD free
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._traceState <> 0 THEN
+	THIS^._traceState := THIS^._traceState^.delete();
+END_IF
+THIS^._traceId.free();
+THIS^._spanId.free();
+THIS^._traceFlags := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="isRemote" Id="{c2cb054f-a30e-4b73-affe-ebe12a7607ce}">
+      <Declaration><![CDATA[(*
+	TRUE only when remoteness is known and the span is remote, meaning the context was
+	extracted from a carrier rather than produced by a local tracer.
+	FALSE covers both "known local" and "not known".
+*)
+METHOD isRemote : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[isRemote := (THIS^._traceFlags AND TO_UDINT(E_SpanFlags.SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK)) <> 0
+	AND (THIS^._traceFlags AND TO_UDINT(E_SpanFlags.SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK)) <> 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="isValid" Id="{467f115c-472e-426d-89cb-b2ff80cda960}">
+      <Declaration><![CDATA[(*
+	TRUE if and only if both the trace ID and the span ID are non-zero.
+*)
+METHOD isValid : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[isValid := NOT THIS^._isZero(pBytes := ADR(THIS^._traceId.bytes), size := SIZEOF(THIS^._traceId.bytes))
+	AND NOT THIS^._isZero(pBytes := ADR(THIS^._spanId.bytes), size := SIZEOF(THIS^._spanId.bytes));]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="spanId" Id="{a28cd319-5be4-48bd-881a-0d2ddbc180b1}">
+      <Declaration><![CDATA[PROPERTY spanId : REFERENCE TO FB_SpanId]]></Declaration>
+      <Get Name="Get" Id="{1bfe45b3-fd8c-4c30-8c82-2291a189b428}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[spanId REF= THIS^._spanId;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="traceFlags" Id="{2bc93955-48b9-47fb-b0b8-96e6e5f5550a}">
+      <Declaration><![CDATA[PROPERTY traceFlags : UDINT]]></Declaration>
+      <Get Name="Get" Id="{ee7720d6-e477-45e8-9c31-d91a133f6889}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[traceFlags := THIS^._traceFlags;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="traceId" Id="{656b1a0e-13e9-4281-a9d1-ceb9792387a5}">
+      <Declaration><![CDATA[PROPERTY traceId : REFERENCE TO FB_TraceId]]></Declaration>
+      <Get Name="Get" Id="{02d984f9-7cf1-42ca-854c-98c4361f860d}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[traceId REF= THIS^._traceId;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="traceState" Id="{c41eee4f-4355-47a1-8e2c-83ab681255ff}">
+      <Declaration><![CDATA[// borrowed; 0 when the context carries no trace state. The context owns and releases it.
+PROPERTY traceState : POINTER TO FB_String]]></Declaration>
+      <Get Name="Get" Id="{2bdadfbd-495f-4b25-b861-a6f5573bba15}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[traceState := THIS^._traceState;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+  </POU>
+</TcPlcObject>

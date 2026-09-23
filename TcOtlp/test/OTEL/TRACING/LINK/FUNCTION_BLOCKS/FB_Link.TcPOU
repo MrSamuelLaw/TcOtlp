@@ -7,7 +7,7 @@ VAR_OUTPUT
 	traceId: POINTER TO FB_TraceId;
 	spanId: POINTER TO FB_SpanId;
 	traceState: POINTER TO FB_String;
-	attributes: FB_Attributes;
+	attributes: FB_Attributes(maxCount := TcOtlp_GVL.DEFAULT_MAX_ATTRIBUTE_COUNT);
 	flags: UDINT;
 END_VAR
 ]]></Declaration>

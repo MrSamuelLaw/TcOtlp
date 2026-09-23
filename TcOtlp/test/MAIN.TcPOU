@@ -15,6 +15,7 @@ VAR
 	{attribute 'analysis' := '-33'}fbTestFileExporter: FB_TestFileExporter();
 	{attribute 'analysis' := '-33'}fbTestHttpExporter: FB_TestHttpExporter();
 	{attribute 'analysis' := '-33'}fbTestIdGenerator: FB_TestIdGenerator();
+	{attribute 'analysis' := '-33'}fbTestSpanContext: FB_TestSpanContext();
 END_VAR
 ]]></Declaration>
     <Implementation>

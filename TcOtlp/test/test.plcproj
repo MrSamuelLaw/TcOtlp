@@ -134,13 +134,22 @@
     <Compile Include="OTEL\TRACING\SPAN\ENUMS\E_SpanFlags.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\TRACING\SPAN\ENUMS\E_ContextFactoryFailureReason.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\TRACING\SPAN\ENUMS\E_SpanKind.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\TRACING\SPAN\ENUMS\E_StatusCode.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\TRACING\SPAN\ContextFactory.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\TRACING\SPAN\FUNCTION_BLOCKS\FB_Span.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\TRACING\SPAN\FUNCTION_BLOCKS\FB_SpanContext.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\TRACING\SPAN\FUNCTION_BLOCKS\FB_SpanQueue.TcPOU">
@@ -260,6 +269,9 @@
     <Compile Include="TEST\TRACING\PROVIDER\FB_TestTracerProvider.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TEST\TRACING\SPAN\FB_TestSpanContext.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="TEST\VALUES\FB_TestAttributes.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -334,6 +346,7 @@
     <Folder Include="TEST\TRACING" />
     <Folder Include="TEST\TRACING\ID_GENERATOR" />
     <Folder Include="TEST\TRACING\PROVIDER" />
+    <Folder Include="TEST\TRACING\SPAN" />
     <Folder Include="TEST\VALUES" />
   </ItemGroup>
   <ItemGroup>

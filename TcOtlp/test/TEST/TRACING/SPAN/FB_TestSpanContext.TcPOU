@@ -1,0 +1,400 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestSpanContext" Id="{2260e012-71c8-4553-a96c-039e0b4a8e23}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Tests the span context value object and ContextFactory.buildContext: that a context holds
+   copies of what it is built from, does not validate its identity, decodes remoteness from both
+   flag bits, and releases its trace state.
+
+   Every test deletes the contexts it builds before returning. *)
+FUNCTION_BLOCK FB_TestSpanContext EXTENDS FB_TestSuite
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testBuildsCopiesOfItsInputs();
+THIS^.testBuildsWithoutTraceState();
+THIS^.testBuildsFromZeroIdentifiers();
+THIS^.testRejectsAssignedDestination();
+THIS^.testRejectsNullIdentifiers();
+THIS^.testIsRemoteNeedsBothBits();
+THIS^.testFreeClearsTheContext();]]></ST>
+    </Implementation>
+    <Method Name="_fillIds" Id="{0c0dab80-02ae-4db4-b411-1fd7648cdb94}">
+      <Declaration><![CDATA[(* Writes distinct non-zero bytes into both identifiers, offset by seed so two calls with
+   different seeds produce identifiers that can be told apart. *)
+METHOD _fillIds
+VAR_IN_OUT
+	traceId: FB_TraceId;
+	spanId: FB_SpanId;
+END_VAR
+VAR_INPUT
+	seed: BYTE;
+END_VAR
+VAR
+	_idx: UDINT;
+	_bytes: ARRAY [0..15] OF BYTE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// the identifier bytes are outputs, so they are written through their address
+FOR _idx := 0 TO SIZEOF(_bytes) - 1 DO
+	_bytes[_idx] := seed + TO_BYTE(_idx) + 1;
+END_FOR
+MEMCPY(ADR(traceId.bytes), ADR(_bytes), SIZEOF(traceId.bytes));
+
+FOR _idx := 0 TO SIZEOF(_bytes) - 1 DO
+	_bytes[_idx] := seed + TO_BYTE(_idx) + 16#40;
+END_FOR
+MEMCPY(ADR(spanId.bytes), ADR(_bytes), SIZEOF(spanId.bytes));]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_release" Id="{6ce07fb8-41d4-4d04-8be3-da1ba246b661}">
+      <Declaration><![CDATA[(* Deletes a context built by a test and clears the pointer. *)
+METHOD _release
+VAR_IN_OUT
+	pContext: POINTER TO FB_SpanContext;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pContext <> 0 THEN
+	pContext := pContext^.delete();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testBuildsCopiesOfItsInputs" Id="{152c725c-48c2-4eb0-8aec-5234e0d096cc}">
+      <Declaration><![CDATA[(* A context outlives the span it came from, so it must hold copies. Changing the source
+   identifiers or trace state after building must not change the context. *)
+METHOD testBuildsCopiesOfItsInputs : REFERENCE TO FB_Test
+VAR
+	pContext: POINTER TO FB_SpanContext;
+	traceId: FB_TraceId;
+	spanId: FB_SpanId;
+	expectedTraceId: FB_TraceId;
+	expectedSpanId: FB_SpanId;
+	traceState: T_MaxString := 'vendor=abc';
+	success: BOOL;
+	failureReason: E_ContextFactoryFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testBuildsCopiesOfItsInputs');
+	THIS^._fillIds(traceId:=traceId, spanId:=spanId, seed:=0);
+	THIS^._fillIds(traceId:=expectedTraceId, spanId:=expectedSpanId, seed:=0);
+
+	success := ContextFactory.buildContext(
+		pDest:=pContext,
+		pTraceId:=ADR(traceId),
+		pSpanId:=ADR(spanId),
+		pTraceState:=ADR(traceState),
+		traceFlags:=1,
+		failureReason=>failureReason
+	);
+	THIS^.AssertTrue(success, 'Expected buildContext to succeed');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_ContextFactoryFailureReason.NA),
+		TO_UDINT(failureReason),
+		'Expected no failure reason on success'
+	);
+	THIS^.AssertTrue(pContext <> 0, 'Expected buildContext to assign the destination');
+	IF pContext = 0 THEN
+		TcUnit.TEST_FINISHED();
+		RETURN;
+	END_IF
+	THIS^.AssertTrue(pContext^.isValid(), 'Expected a context built from non-zero identifiers to be valid');
+	THIS^.AssertEquals_UDINT(1, pContext^.traceFlags, 'Expected the trace flags to be stored as given');
+
+	// change every source after the fact
+	THIS^._fillIds(traceId:=traceId, spanId:=spanId, seed:=16#80);
+	traceState := 'changed=1';
+
+	THIS^.AssertTrue(
+		MEMCMP(ADR(pContext^.traceId.bytes), ADR(expectedTraceId.bytes), SIZEOF(expectedTraceId.bytes)) = 0,
+		'Expected the trace id to be a copy that does not follow its source'
+	);
+	THIS^.AssertTrue(
+		MEMCMP(ADR(pContext^.spanId.bytes), ADR(expectedSpanId.bytes), SIZEOF(expectedSpanId.bytes)) = 0,
+		'Expected the span id to be a copy that does not follow its source'
+	);
+	THIS^.AssertTrue(pContext^.traceState <> 0, 'Expected the trace state to be stored');
+	IF pContext^.traceState <> 0 THEN
+		THIS^.AssertTrue(pContext^.traceState^.pString <> ADR(traceState), 'Expected the trace state to be copied, not borrowed');
+		THIS^.AssertEquals_STRING('vendor=abc', pContext^.traceState^.pString^, 'Expected the trace state to keep its original value');
+	END_IF
+
+	THIS^._release(pContext:=pContext);
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testBuildsFromZeroIdentifiers" Id="{835908cf-85cb-43fb-b180-1b3c1ec92380}">
+      <Declaration><![CDATA[(* Validation belongs to the producers of a context, not to the factory. All-zero identifiers
+   build a context that exists but reports itself as not valid. *)
+METHOD testBuildsFromZeroIdentifiers : REFERENCE TO FB_Test
+VAR
+	pContext: POINTER TO FB_SpanContext;
+	zeroTraceId: FB_TraceId;
+	zeroSpanId: FB_SpanId;
+	success: BOOL;
+	failureReason: E_ContextFactoryFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testBuildsFromZeroIdentifiers');
+	success := ContextFactory.buildContext(
+		pDest:=pContext,
+		pTraceId:=ADR(zeroTraceId),
+		pSpanId:=ADR(zeroSpanId),
+		pTraceState:=0,
+		traceFlags:=0,
+		failureReason=>failureReason
+	);
+	THIS^.AssertTrue(success, 'Expected buildContext not to validate the identifiers');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_ContextFactoryFailureReason.NA),
+		TO_UDINT(failureReason),
+		'Expected no failure reason for all-zero identifiers'
+	);
+	THIS^.AssertTrue(pContext <> 0, 'Expected buildContext to assign the destination');
+	IF pContext <> 0 THEN
+		THIS^.AssertFalse(pContext^.isValid(), 'Expected a context with all-zero identifiers to be invalid');
+		THIS^.AssertFalse(pContext^.isRemote(), 'Expected a context without remote bits not to report remote');
+	END_IF
+
+	THIS^._release(pContext:=pContext);
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testBuildsWithoutTraceState" Id="{65a230be-7dd3-49bf-a3b9-6f5e5d44c96c}">
+      <Declaration><![CDATA[(* Trace state is optional; a null pointer means the context carries none. *)
+METHOD testBuildsWithoutTraceState : REFERENCE TO FB_Test
+VAR
+	pContext: POINTER TO FB_SpanContext;
+	traceId: FB_TraceId;
+	spanId: FB_SpanId;
+	success: BOOL;
+	failureReason: E_ContextFactoryFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testBuildsWithoutTraceState');
+	THIS^._fillIds(traceId:=traceId, spanId:=spanId, seed:=0);
+
+	success := ContextFactory.buildContext(
+		pDest:=pContext,
+		pTraceId:=ADR(traceId),
+		pSpanId:=ADR(spanId),
+		pTraceState:=0,
+		traceFlags:=0,
+		failureReason=>failureReason
+	);
+	THIS^.AssertTrue(success, 'Expected buildContext to succeed without a trace state');
+	THIS^.AssertTrue(pContext <> 0, 'Expected buildContext to assign the destination');
+	IF pContext <> 0 THEN
+		THIS^.AssertTrue(pContext^.isValid(), 'Expected the context to be valid');
+		THIS^.AssertTrue(pContext^.traceState = 0, 'Expected no trace state to be stored');
+	END_IF
+
+	THIS^._release(pContext:=pContext);
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testFreeClearsTheContext" Id="{42e057d5-c04a-4903-8cd0-c6ce781aad83}">
+      <Declaration><![CDATA[(* free releases the trace state and clears the identity. Freeing twice must be harmless,
+   and delete must still release a freed context. *)
+METHOD testFreeClearsTheContext : REFERENCE TO FB_Test
+VAR
+	pContext: POINTER TO FB_SpanContext;
+	traceId: FB_TraceId;
+	spanId: FB_SpanId;
+	traceState: T_MaxString := 'vendor=abc';
+	success: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testFreeClearsTheContext');
+	THIS^._fillIds(traceId:=traceId, spanId:=spanId, seed:=0);
+	success := ContextFactory.buildContext(
+		pDest:=pContext,
+		pTraceId:=ADR(traceId),
+		pSpanId:=ADR(spanId),
+		pTraceState:=ADR(traceState),
+		traceFlags:=16#301
+	);
+	THIS^.AssertTrue(success, 'Expected buildContext to succeed');
+	IF pContext = 0 THEN
+		TcUnit.TEST_FINISHED();
+		RETURN;
+	END_IF
+
+	pContext^.free();
+	THIS^.AssertFalse(pContext^.isValid(), 'Expected a freed context to be invalid');
+	THIS^.AssertFalse(pContext^.isRemote(), 'Expected a freed context not to report remote');
+	THIS^.AssertTrue(pContext^.traceState = 0, 'Expected free to release the trace state');
+	THIS^.AssertEquals_UDINT(0, pContext^.traceFlags, 'Expected free to clear the flags');
+
+	pContext^.free();
+	THIS^.AssertFalse(pContext^.isValid(), 'Expected a second free to leave the context empty');
+
+	THIS^._release(pContext:=pContext);
+	THIS^.AssertTrue(pContext = 0, 'Expected delete to clear the pointer');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testIsRemoteNeedsBothBits" Id="{8393a7ed-59a4-4040-b3bc-1b9a490ffce6}">
+      <Declaration><![CDATA[(* Bit 8 says remoteness is known and bit 9 says the span is remote; only both together mean
+   remote. The W3C trace flags in bits 0-7 must not affect the answer. *)
+METHOD testIsRemoteNeedsBothBits : REFERENCE TO FB_Test
+VAR
+	pContext: POINTER TO FB_SpanContext;
+	traceId: FB_TraceId;
+	spanId: FB_SpanId;
+	hasIsRemote: UDINT;
+	isRemote: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testIsRemoteNeedsBothBits');
+	THIS^._fillIds(traceId:=traceId, spanId:=spanId, seed:=0);
+	hasIsRemote := TO_UDINT(E_SpanFlags.SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK);
+	isRemote := TO_UDINT(E_SpanFlags.SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK);
+
+	ContextFactory.buildContext(pDest:=pContext, pTraceId:=ADR(traceId), pSpanId:=ADR(spanId), pTraceState:=0, traceFlags:=0);
+	THIS^.AssertTrue(pContext <> 0 AND_THEN NOT pContext^.isRemote(), 'Expected no remoteness bits to mean not remote');
+	THIS^._release(pContext:=pContext);
+
+	ContextFactory.buildContext(pDest:=pContext, pTraceId:=ADR(traceId), pSpanId:=ADR(spanId), pTraceState:=0, traceFlags:=hasIsRemote);
+	THIS^.AssertTrue(pContext <> 0 AND_THEN NOT pContext^.isRemote(), 'Expected known-and-local to mean not remote');
+	THIS^._release(pContext:=pContext);
+
+	ContextFactory.buildContext(pDest:=pContext, pTraceId:=ADR(traceId), pSpanId:=ADR(spanId), pTraceState:=0, traceFlags:=isRemote);
+	THIS^.AssertTrue(pContext <> 0 AND_THEN NOT pContext^.isRemote(), 'Expected the remote bit without the known bit to mean not remote');
+	THIS^._release(pContext:=pContext);
+
+	ContextFactory.buildContext(pDest:=pContext, pTraceId:=ADR(traceId), pSpanId:=ADR(spanId), pTraceState:=0, traceFlags:=hasIsRemote OR isRemote);
+	THIS^.AssertTrue(pContext <> 0 AND_THEN pContext^.isRemote(), 'Expected known-and-remote to mean remote');
+	THIS^._release(pContext:=pContext);
+
+	ContextFactory.buildContext(pDest:=pContext, pTraceId:=ADR(traceId), pSpanId:=ADR(spanId), pTraceState:=0, traceFlags:=hasIsRemote OR isRemote OR 16#FF);
+	THIS^.AssertTrue(pContext <> 0 AND_THEN pContext^.isRemote(), 'Expected the W3C trace flags not to change the remote answer');
+	THIS^._release(pContext:=pContext);
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testRejectsAssignedDestination" Id="{c8f6d022-fb05-46eb-8a35-b16b82595863}">
+      <Declaration><![CDATA[(* Like ValueFactory, buildContext never overwrites a pointer the caller already owns.
+   A second build into the same destination must fail and leave the first context untouched. *)
+METHOD testRejectsAssignedDestination : REFERENCE TO FB_Test
+VAR
+	pContext: POINTER TO FB_SpanContext;
+	pFirst: POINTER TO FB_SpanContext;
+	traceId: FB_TraceId;
+	spanId: FB_SpanId;
+	otherTraceId: FB_TraceId;
+	otherSpanId: FB_SpanId;
+	traceState: T_MaxString := 'vendor=abc';
+	otherTraceState: T_MaxString := 'vendor=xyz';
+	success: BOOL;
+	failureReason: E_ContextFactoryFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testRejectsAssignedDestination');
+	THIS^._fillIds(traceId:=traceId, spanId:=spanId, seed:=0);
+	THIS^._fillIds(traceId:=otherTraceId, spanId:=otherSpanId, seed:=16#80);
+
+	success := ContextFactory.buildContext(
+		pDest:=pContext,
+		pTraceId:=ADR(traceId),
+		pSpanId:=ADR(spanId),
+		pTraceState:=ADR(traceState),
+		traceFlags:=1
+	);
+	THIS^.AssertTrue(success, 'Expected the first build to succeed');
+	IF pContext = 0 THEN
+		TcUnit.TEST_FINISHED();
+		RETURN;
+	END_IF
+	pFirst := pContext;
+
+	success := ContextFactory.buildContext(
+		pDest:=pContext,
+		pTraceId:=ADR(otherTraceId),
+		pSpanId:=ADR(otherSpanId),
+		pTraceState:=ADR(otherTraceState),
+		traceFlags:=0,
+		failureReason=>failureReason
+	);
+	THIS^.AssertFalse(success, 'Expected a build into an assigned destination to fail');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_ContextFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED),
+		TO_UDINT(failureReason),
+		'Expected an assigned destination to report DESTINATION_ALREADY_ASSIGNED'
+	);
+	THIS^.AssertTrue(pContext = pFirst, 'Expected the destination pointer to be left alone');
+	THIS^.AssertTrue(
+		MEMCMP(ADR(pContext^.spanId.bytes), ADR(spanId.bytes), SIZEOF(spanId.bytes)) = 0,
+		'Expected the original span id to be kept'
+	);
+	THIS^.AssertEquals_UDINT(1, pContext^.traceFlags, 'Expected the original flags to be kept');
+	IF pContext^.traceState <> 0 THEN
+		THIS^.AssertEquals_STRING('vendor=abc', pContext^.traceState^.pString^, 'Expected the original trace state to be kept');
+	ELSE
+		THIS^.AssertTrue(FALSE, 'Expected the original trace state to be kept');
+	END_IF
+
+	THIS^._release(pContext:=pContext);
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testRejectsNullIdentifiers" Id="{acc79c9f-0c7c-4717-933b-ba4bc2a6d020}">
+      <Declaration><![CDATA[(* A null identifier pointer is a caller error, not an invalid identity. buildContext must
+   refuse it without allocating anything. *)
+METHOD testRejectsNullIdentifiers : REFERENCE TO FB_Test
+VAR
+	pContext: POINTER TO FB_SpanContext;
+	traceId: FB_TraceId;
+	spanId: FB_SpanId;
+	traceState: T_MaxString := 'vendor=abc';
+	success: BOOL;
+	failureReason: E_ContextFactoryFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testRejectsNullIdentifiers');
+	THIS^._fillIds(traceId:=traceId, spanId:=spanId, seed:=0);
+
+	success := ContextFactory.buildContext(
+		pDest:=pContext,
+		pTraceId:=0,
+		pSpanId:=ADR(spanId),
+		pTraceState:=ADR(traceState),
+		traceFlags:=1,
+		failureReason=>failureReason
+	);
+	THIS^.AssertFalse(success, 'Expected buildContext to reject a null trace id pointer');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_ContextFactoryFailureReason.TRACE_ID_POINTER_NULL),
+		TO_UDINT(failureReason),
+		'Expected a null trace id pointer to report TRACE_ID_POINTER_NULL'
+	);
+	THIS^.AssertTrue(pContext = 0, 'Expected a rejected build to leave the destination unassigned');
+
+	success := ContextFactory.buildContext(
+		pDest:=pContext,
+		pTraceId:=ADR(traceId),
+		pSpanId:=0,
+		pTraceState:=ADR(traceState),
+		traceFlags:=1,
+		failureReason=>failureReason
+	);
+	THIS^.AssertFalse(success, 'Expected buildContext to reject a null span id pointer');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_ContextFactoryFailureReason.SPAN_ID_POINTER_NULL),
+		TO_UDINT(failureReason),
+		'Expected a null span id pointer to report SPAN_ID_POINTER_NULL'
+	);
+	THIS^.AssertTrue(pContext = 0, 'Expected a rejected build to leave the destination unassigned');
+
+	THIS^._release(pContext:=pContext);
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
