@@ -10,14 +10,14 @@ VAR_OUTPUT
 	name: POINTER TO FB_String;
 	startTimestamp: ULINT;
 	endTimestamp: ULINT;
-	attributes: FB_Attributes;
-	
+	attributes: FB_Attributes(maxCount := TcOtlp_GVL.DEFAULT_MAX_ATTRIBUTE_COUNT);
+
 	// required if child span, must be omitted if root span
-	parentSpanId: POINTER TO FB_SpanId;	
+	parentSpanId: POINTER TO FB_SpanId;
 	status: POINTER TO FB_Status;
 	links: FB_Links;
 	kind: E_SpanKind;
-	
+
 	// span events have been deprecated, instead logs should be emitted with span context for correlation
 	// events
 	// droppedEventCount
@@ -25,6 +25,44 @@ END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="getContext" Id="{c5876f4b-23a6-45db-a39c-b8f6e2695806}">
+      <Declaration><![CDATA[(*
+	Allocates a snapshot of this span's identity through ContextFactory. The caller owns pDest.
+	The span is the producer, and its identifiers come from the id generator, which only hands
+	out valid ones, so they are not checked again here.
+*)
+METHOD getContext : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_SpanContext;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ContextFactoryFailureReason;
+END_VAR
+VAR
+	_pTraceState: POINTER TO STRING;
+	_traceFlags: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^.traceState <> 0 THEN
+	_pTraceState := THIS^.traceState^.pString;
+END_IF
+
+// a span's own flags describe its parent's remoteness; its context is local, so keep only
+// the W3C trace flags and mark remoteness as known and not remote
+_traceFlags := (THIS^.flags AND TO_UDINT(E_SpanFlags.SPAN_FLAGS_TRACE_FLAGS_MASK))
+	OR TO_UDINT(E_SpanFlags.SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK);
+
+getContext := ContextFactory.buildContext(
+	pDest:=pDest,
+	pTraceId:=THIS^.traceId,
+	pSpanId:=THIS^.spanId,
+	pTraceState:=_pTraceState,
+	traceFlags:=_traceFlags,
+	failureReason=>failureReason
+);]]></ST>
+      </Implementation>
+    </Method>
     <Property Name="flags" Id="{137dd82b-00cb-4635-988f-dcdef800cd46}">
       <Declaration><![CDATA[PROPERTY flags : UDINT]]></Declaration>
       <Get Name="Get" Id="{3665a6ba-0b31-43b1-9658-363b8500b852}">

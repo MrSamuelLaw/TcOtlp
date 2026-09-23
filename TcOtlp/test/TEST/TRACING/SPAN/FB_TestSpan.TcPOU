@@ -1,0 +1,224 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestSpan" Id="{db2f10cc-3e6d-4621-b34d-b5ee61137998}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Tests FB_Span.getContext: that it snapshots the span's identity into a caller-owned context,
+   marks it local, and follows the factory's pointer contract.
+
+   FB_Span has no setters yet, so the tests write its pointer outputs through their address,
+   and clear them again before returning. *)
+FUNCTION_BLOCK FB_TestSpan EXTENDS FB_TestSuite
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testGetContextCopiesIdentity();
+THIS^.testGetContextIsLocal();
+THIS^.testGetContextRejectsAssignedDestination();
+THIS^.testGetContextOnUnstartedSpan();]]></ST>
+    </Implementation>
+    <Method Name="_setIdentity" Id="{b85f5bb5-bb70-4b48-812a-1abcdb4179c1}">
+      <Declaration><![CDATA[(* Points the span's identity outputs at the given values; pass 0 to clear them. *)
+METHOD _setIdentity
+VAR_IN_OUT
+	span: FB_Span;
+END_VAR
+VAR_INPUT
+	pTraceId: POINTER TO FB_TraceId;
+	pSpanId: POINTER TO FB_SpanId;
+	pTraceState: POINTER TO FB_String;
+END_VAR
+VAR
+	_ppTraceId: POINTER TO POINTER TO FB_TraceId;
+	_ppSpanId: POINTER TO POINTER TO FB_SpanId;
+	_ppTraceState: POINTER TO POINTER TO FB_String;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// the span's members are outputs, so they are written through their address
+_ppTraceId := ADR(span.traceId);
+_ppTraceId^ := pTraceId;
+_ppSpanId := ADR(span.spanId);
+_ppSpanId^ := pSpanId;
+_ppTraceState := ADR(span.traceState);
+_ppTraceState^ := pTraceState;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_fillIds" Id="{c5e71285-5a84-4514-a9d9-5eefa08686b1}">
+      <Declaration><![CDATA[(* Writes distinct non-zero bytes into both identifiers. *)
+METHOD _fillIds
+VAR_IN_OUT
+	traceId: FB_TraceId;
+	spanId: FB_SpanId;
+END_VAR
+VAR
+	_idx: UDINT;
+	_bytes: ARRAY [0..15] OF BYTE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR _idx := 0 TO SIZEOF(_bytes) - 1 DO
+	_bytes[_idx] := TO_BYTE(_idx) + 1;
+END_FOR
+MEMCPY(ADR(traceId.bytes), ADR(_bytes), SIZEOF(traceId.bytes));
+
+FOR _idx := 0 TO SIZEOF(_bytes) - 1 DO
+	_bytes[_idx] := TO_BYTE(_idx) + 16#40;
+END_FOR
+MEMCPY(ADR(spanId.bytes), ADR(_bytes), SIZEOF(spanId.bytes));]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testGetContextCopiesIdentity" Id="{69477041-558c-409d-b196-18c985b145b4}">
+      <Declaration><![CDATA[(* The context holds copies of the span's identifiers and trace state, so it stays intact
+   after the span changes or ends. *)
+METHOD testGetContextCopiesIdentity : REFERENCE TO FB_Test
+VAR
+	span: FB_Span;
+	pContext: POINTER TO FB_SpanContext;
+	traceId: FB_TraceId;
+	spanId: FB_SpanId;
+	pTraceState: POINTER TO FB_String;
+	traceStateText: T_MaxString := 'vendor=abc';
+	success: BOOL;
+	failureReason: E_ContextFactoryFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testGetContextCopiesIdentity');
+	THIS^._fillIds(traceId:=traceId, spanId:=spanId);
+	ValueFactory.createString(pDest:=pTraceState, pString:=ADR(traceStateText));
+	THIS^._setIdentity(span:=span, pTraceId:=ADR(traceId), pSpanId:=ADR(spanId), pTraceState:=pTraceState);
+
+	success := span.getContext(pDest:=pContext, failureReason=>failureReason);
+	THIS^.AssertTrue(success, 'Expected getContext to succeed for a span with an identity');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_ContextFactoryFailureReason.NA),
+		TO_UDINT(failureReason),
+		'Expected no failure reason on success'
+	);
+	THIS^.AssertTrue(pContext <> 0, 'Expected getContext to assign the destination');
+
+	IF pContext <> 0 THEN
+		THIS^.AssertTrue(pContext^.isValid(), 'Expected the context to be valid');
+		THIS^.AssertTrue(
+			MEMCMP(ADR(pContext^.traceId.bytes), ADR(traceId.bytes), SIZEOF(traceId.bytes)) = 0,
+			'Expected the context to hold the span$'s trace id'
+		);
+		THIS^.AssertTrue(
+			MEMCMP(ADR(pContext^.spanId.bytes), ADR(spanId.bytes), SIZEOF(spanId.bytes)) = 0,
+			'Expected the context to hold the span$'s span id'
+		);
+		THIS^.AssertTrue(pContext^.traceState <> 0 AND_THEN pContext^.traceState <> pTraceState,
+			'Expected the context to hold its own copy of the trace state');
+		IF pContext^.traceState <> 0 THEN
+			THIS^.AssertEquals_STRING('vendor=abc', pContext^.traceState^.pString^, 'Expected the trace state text to be copied');
+		END_IF
+	END_IF
+
+	// the span's trace state is released first; the context must not depend on it
+	THIS^._setIdentity(span:=span, pTraceId:=0, pSpanId:=0, pTraceState:=0);
+	pTraceState := pTraceState^.delete();
+	IF pContext <> 0 AND_THEN pContext^.traceState <> 0 THEN
+		THIS^.AssertEquals_STRING('vendor=abc', pContext^.traceState^.pString^, 'Expected the context to outlive the span$'s trace state');
+	END_IF
+
+	IF pContext <> 0 THEN pContext := pContext^.delete(); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testGetContextIsLocal" Id="{d701d3a7-968f-4cca-99fe-54ffb2dc56c6}">
+      <Declaration><![CDATA[(* A context taken from a local span is known to be local: bit 8 is set and bit 9 is clear.
+   A span without trace state gives a context without trace state. *)
+METHOD testGetContextIsLocal : REFERENCE TO FB_Test
+VAR
+	span: FB_Span;
+	pContext: POINTER TO FB_SpanContext;
+	traceId: FB_TraceId;
+	spanId: FB_SpanId;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testGetContextIsLocal');
+	THIS^._fillIds(traceId:=traceId, spanId:=spanId);
+	THIS^._setIdentity(span:=span, pTraceId:=ADR(traceId), pSpanId:=ADR(spanId), pTraceState:=0);
+
+	span.getContext(pDest:=pContext);
+	THIS^.AssertTrue(pContext <> 0, 'Expected getContext to assign the destination');
+	IF pContext <> 0 THEN
+		THIS^.AssertFalse(pContext^.isRemote(), 'Expected a local span$'s context not to be remote');
+		THIS^.AssertTrue(
+			(pContext^.traceFlags AND TO_UDINT(E_SpanFlags.SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK)) <> 0,
+			'Expected remoteness to be marked as known'
+		);
+		THIS^.AssertTrue(
+			(pContext^.traceFlags AND TO_UDINT(E_SpanFlags.SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK)) = 0,
+			'Expected the remote bit to be clear'
+		);
+		THIS^.AssertTrue(pContext^.traceState = 0, 'Expected no trace state when the span has none');
+		pContext := pContext^.delete();
+	END_IF
+
+	THIS^._setIdentity(span:=span, pTraceId:=0, pSpanId:=0, pTraceState:=0);
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testGetContextOnUnstartedSpan" Id="{a22a4ee9-b068-410b-a35c-2d6a30d8634f}">
+      <Declaration><![CDATA[(* A span with no identity yet has nothing to snapshot. The factory's argument check reports
+   it, and nothing is allocated. *)
+METHOD testGetContextOnUnstartedSpan : REFERENCE TO FB_Test
+VAR
+	span: FB_Span;
+	pContext: POINTER TO FB_SpanContext;
+	success: BOOL;
+	failureReason: E_ContextFactoryFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testGetContextOnUnstartedSpan');
+	success := span.getContext(pDest:=pContext, failureReason=>failureReason);
+	THIS^.AssertFalse(success, 'Expected getContext to fail for a span without an identity');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_ContextFactoryFailureReason.TRACE_ID_POINTER_NULL),
+		TO_UDINT(failureReason),
+		'Expected a span without a trace id to report TRACE_ID_POINTER_NULL'
+	);
+	THIS^.AssertTrue(pContext = 0, 'Expected the destination to stay unassigned');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testGetContextRejectsAssignedDestination" Id="{d4cb9563-457f-4413-b2db-147f88924d5a}">
+      <Declaration><![CDATA[(* getContext follows the VAR_IN_OUT pointer pattern: it never overwrites a context the
+   caller already owns. *)
+METHOD testGetContextRejectsAssignedDestination : REFERENCE TO FB_Test
+VAR
+	span: FB_Span;
+	pContext: POINTER TO FB_SpanContext;
+	pFirst: POINTER TO FB_SpanContext;
+	traceId: FB_TraceId;
+	spanId: FB_SpanId;
+	success: BOOL;
+	failureReason: E_ContextFactoryFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testGetContextRejectsAssignedDestination');
+	THIS^._fillIds(traceId:=traceId, spanId:=spanId);
+	THIS^._setIdentity(span:=span, pTraceId:=ADR(traceId), pSpanId:=ADR(spanId), pTraceState:=0);
+
+	success := span.getContext(pDest:=pContext);
+	THIS^.AssertTrue(success, 'Expected the first getContext to succeed');
+	pFirst := pContext;
+
+	success := span.getContext(pDest:=pContext, failureReason=>failureReason);
+	THIS^.AssertFalse(success, 'Expected getContext into an assigned destination to fail');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_ContextFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED),
+		TO_UDINT(failureReason),
+		'Expected an assigned destination to report DESTINATION_ALREADY_ASSIGNED'
+	);
+	THIS^.AssertTrue(pContext = pFirst, 'Expected the destination pointer to be left alone');
+
+	IF pContext <> 0 THEN pContext := pContext^.delete(); END_IF
+	THIS^._setIdentity(span:=span, pTraceId:=0, pSpanId:=0, pTraceState:=0);
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

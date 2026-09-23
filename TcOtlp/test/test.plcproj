@@ -269,6 +269,9 @@
     <Compile Include="TEST\TRACING\PROVIDER\FB_TestTracerProvider.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TEST\TRACING\SPAN\FB_TestSpan.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="TEST\TRACING\SPAN\FB_TestSpanContext.TcPOU">
       <SubType>Code</SubType>
     </Compile>
