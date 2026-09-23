@@ -118,6 +118,25 @@ IF export THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
+    <Method Name="FB_Exit" Id="{5bddf7d2-c571-4f61-a937-216ec416b501}">
+      <Declaration><![CDATA[(*
+	Releases a payload buffer that is still in flight. The FB_IotHttpRequest reading it is
+	destroyed with this instance, so nothing uses the buffer afterwards. TwinCAT then
+	runs FB_LogRecordExporter_Base.FB_Exit, which releases the queued records.
+*)
+METHOD FB_Exit : BOOL
+VAR_INPUT
+	bInCopyCode: BOOL;  // TRUE: the instance is being copied during an online change
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// during an online change the copy keeps the buffer, so it must not be released here
+IF NOT bInCopyCode AND _pString <> 0 THEN
+	__DELETE(_pString);
+	_pString := 0;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="FB_Init" Id="{62b2e312-9bed-4019-8a5b-4e0d487d8a0a}">
       <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
 //The return value is not evaluated. For a specific influence, you can also declare the
