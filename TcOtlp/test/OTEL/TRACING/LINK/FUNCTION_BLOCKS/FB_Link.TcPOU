@@ -48,7 +48,9 @@ VAR_INPUT
     bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).  
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[IF NOT bInCopyCode THEN
+	THIS^.free();
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Init" Id="{f5aa2f49-f8d9-4589-8716-ac7d6ea660b4}">
@@ -66,14 +68,17 @@ END_VAR]]></Declaration>
       </Implementation>
     </Method>
     <Method Name="free" Id="{8006ee28-e9aa-4c16-bbd4-cd0d64f09b32}">
-      <Declaration><![CDATA[METHOD free
-
+      <Declaration><![CDATA[(*
+	Releases every value the link owns and clears the pointers. Safe to call more than once.
+*)
+METHOD free
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF THIS^.traceId <> 0 THEN THIS^.traceId^.free(); END_IF
-IF THIS^.spanId <> 0 THEN THIS^.spanId^.free(); END_IF
-IF THIS^.traceId <> 0 THEN THIS^.traceId^.free(); END_IF
-THIS^.attributes.free();]]></ST>
+        <ST><![CDATA[IF THIS^.traceId <> 0 THEN THIS^.traceId^.delete(pSelf:=THIS^.traceId); END_IF
+IF THIS^.spanId <> 0 THEN THIS^.spanId^.delete(pSelf:=THIS^.spanId); END_IF
+IF THIS^.traceState <> 0 THEN THIS^.traceState^.delete(pSelf:=THIS^.traceState); END_IF
+THIS^.attributes.free();
+THIS^.flags := 0;]]></ST>
       </Implementation>
     </Method>
   </POU>
