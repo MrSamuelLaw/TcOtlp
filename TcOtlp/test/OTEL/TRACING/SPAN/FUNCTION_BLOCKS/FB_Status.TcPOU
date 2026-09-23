@@ -4,7 +4,7 @@
     <Declaration><![CDATA[FUNCTION_BLOCK FB_Status
 VAR_OUTPUT
 	code: E_StatusCode;
-	// optional and only set when status is an error
+	// optional and only set when status is an error. Owned by the status and released with it.
 	message: POINTER TO FB_String;
 END_VAR
 ]]></Declaration>
@@ -57,7 +57,7 @@ VAR_INPUT
     bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
     bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
 	code: E_StatusCode;
-	message: POINTER TO FB_String;
+	message: POINTER TO FB_String;  // ownership transfers to the status; the creator clears its copy. 0 means none
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[THIS^.code := code;

@@ -142,6 +142,7 @@ IF _pNew = 0 THEN
 	__DELETE(_value.pValue);
 	RETURN;
 END_IF
+_value.pValue := 0;  // moved into FB_Number
 pDest := _pNew;
 cloneNumber := failureReason = E_ValueFactoryFailureReason.NA;
 
@@ -248,6 +249,8 @@ IF _pNew = 0 THEN
 	_pVal^.delete(pSelf:=_pVal);
 	RETURN;
 END_IF
+_pKey := 0;  // moved into FB_KeyValue
+_pVal := 0;
 pDest := _pNew;
 createKeyValue := failureReason = E_ValueFactoryFailureReason.NA;
 ]]></ST>
@@ -334,6 +337,7 @@ IF _pNew = 0 THEN
 	__DELETE(_value.pValue);
 	RETURN;
 END_IF
+_value.pValue := 0;  // moved into FB_Number
 pDest := _pNew;
 createNumber_AnyType := failureReason = E_ValueFactoryFailureReason.NA;]]></ST>
       </Implementation>
@@ -433,6 +437,7 @@ IF _pNew = 0 THEN
 	__DELETE(_pString);
 	RETURN;
 END_IF
+_pString := 0;  // moved into FB_String
 pDest := _pNew;
 createString := failureReason = E_ValueFactoryFailureReason.NA;
 ]]></ST>

@@ -69,6 +69,7 @@ IF _pNew = 0 THEN
 	IF _pTraceState <> 0 THEN _pTraceState^.delete(pSelf:=_pTraceState); END_IF
 	RETURN;
 END_IF
+_pTraceState := 0;  // moved into FB_SpanContext
 pDest := _pNew;
 buildContext := failureReason = E_ContextFactoryFailureReason.NA;
 ]]></ST>
