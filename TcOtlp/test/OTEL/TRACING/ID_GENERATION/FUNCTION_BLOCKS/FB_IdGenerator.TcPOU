@@ -145,12 +145,26 @@ END_IF
       </Implementation>
     </Method>
     <Method Name="free" Id="{6a89e62b-508d-4218-a6b2-3062ce1cd402}">
-      <Declaration><![CDATA[METHOD free
+      <Declaration><![CDATA[(*
+	Releases the ring and resets every cursor into it. Safe to call more than once.
+	A refill still in flight is abandoned: tick stops calling the guid service once
+	configValid is FALSE, so the service is never handed the released buffer again.
+*)
+METHOD free
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF THIS^._pBuffer <> 0 THEN
 	__DELETE(THIS^._pBuffer);
-END_IF]]></ST>
+	THIS^._pBuffer := 0;
+END_IF
+THIS^._bufferLen := 0;
+THIS^._head := 0;
+THIS^._tail := 0;
+THIS^._count := 0;
+THIS^._headRoom := 0;
+THIS^._tailRoom := 0;
+THIS^._inFlight := 0;
+THIS^._edgeHeld := FALSE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="generateSpanId" Id="{a1649896-d9b4-41a0-a667-cd16105ad130}">

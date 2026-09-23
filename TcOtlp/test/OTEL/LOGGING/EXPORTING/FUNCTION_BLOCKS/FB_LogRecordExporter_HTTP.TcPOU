@@ -225,7 +225,7 @@ CASE currentState OF
 			) THEN
 				_computedState := E_HttpExporterState.waiting;
 			ELSE
-				IF _pString <> 0 THEN __DELETE(_pString); END_IF
+				IF _pString <> 0 THEN __DELETE(_pString); _pString := 0; END_IF
 				_failureReason := E_LogRecordExporterFailureReason.HTTP_REQUEST_FAILURE;
 				_computedState := E_HttpExporterState.error;
 			END_IF
@@ -238,17 +238,17 @@ CASE currentState OF
 
 	E_HttpExporterState.processing:
 		IF _request.bError THEN
-			IF _pString <> 0 THEN __DELETE(_pString); END_IF
+			IF _pString <> 0 THEN __DELETE(_pString); _pString := 0; END_IF
 			_failureReason := E_LogRecordExporterFailureReason.HTTP_REQUEST_FAILURE;
 			_computedState := E_HttpExporterState.error;
 		ELSE
 			statusCode := _request.nStatusCode;
 			IF statusCode < 200 OR_ELSE statusCode >= 300 THEN
-				IF _pString <> 0 THEN __DELETE(_pString); END_IF
+				IF _pString <> 0 THEN __DELETE(_pString); _pString := 0; END_IF
 				_failureReason := E_LogRecordExporterFailureReason.HTTP_STATUS_FAILURE;
 				_computedState := E_HttpExporterState.error;
 			ELSE
-				IF _pString <> 0 THEN __DELETE(_pString); END_IF
+				IF _pString <> 0 THEN __DELETE(_pString); _pString := 0; END_IF
 				_computedState := E_HttpExporterState.done;
 			END_IF
 		END_IF

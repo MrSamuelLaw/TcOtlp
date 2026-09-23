@@ -156,11 +156,11 @@ CASE currentState OF
 
 	E_FileExporterState.writing:
 		IF _fileWriter.bError THEN
-			IF _pString <> 0 THEN __DELETE(_pString); END_IF
+			IF _pString <> 0 THEN __DELETE(_pString); _pString := 0; END_IF
 			_failureReason := E_LogRecordExporterFailureReason.FILE_WRITE_FAILURE;
 			_computedState := E_FileExporterState.closing;
 		ELSIF NOT _fileWriter.bBusy THEN
-			IF _pString <> 0 THEN __DELETE(_pString); END_IF
+			IF _pString <> 0 THEN __DELETE(_pString); _pString := 0; END_IF
 			_computedState := E_FileExporterState.closing;
 		END_IF
 
