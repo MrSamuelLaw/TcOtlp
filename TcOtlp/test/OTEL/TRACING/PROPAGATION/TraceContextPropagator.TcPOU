@@ -2,9 +2,12 @@
 <TcPlcObject Version="1.1.0.1">
   <POU Name="TraceContextPropagator" Id="{9c5ef736-0160-4416-a3a1-fe86c83d8b9e}" SpecialFunc="None">
     <Declaration><![CDATA[(*
-	Decodes W3C Trace Context carriers into span contexts. Propagation is the caller's job: the
-	application owns the carrier strings and the span it starts, and this program only turns a
-	traceparent and tracestate into a context. See "Trace Context Propagation" in the docs.
+	Decodes W3C Trace Context carriers into span contexts, and encodes span contexts into them.
+	Propagation is the caller's job: the application owns the carrier, the transport and the span
+	it starts, and this program only converts between a context and an ST_TraceContextCarrier.
+	It knows nothing about how a carrier travels, so each transport (ADS, OPC UA, HTTP) is a
+	separate block that moves the carrier and calls inject or extract. See "Trace Context
+	Propagation" in the docs.
 *)
 PROGRAM TraceContextPropagator
 VAR CONSTANT
@@ -13,6 +16,7 @@ VAR CONSTANT
 	SPAN_ID_OFFSET: UDINT := 36;
 	FLAGS_OFFSET: UDINT := 53;
 	DELIMITER: BYTE := 16#2D;  // '-'
+	MAX_TRACESTATE_LENGTH: UDINT := 512;  // the W3C floor for propagating a tracestate; the size of ST_TraceContextCarrier.tracestate
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -39,7 +43,7 @@ VAR_IN_OUT
 	pDest: POINTER TO FB_SpanContext;
 END_VAR
 VAR_IN_OUT CONSTANT
-	traceparent: STRING;  // any length
+	traceparent: STRING;  // any length: pass carrier.traceparent, or a longer header as received
 	tracestate: STRING;  // any length; '' when the header is absent
 END_VAR
 VAR_OUTPUT
@@ -205,6 +209,122 @@ ELSIF c >= 16#61 AND c <= 16#66 THEN  // 'a'..'f'
 	_hexValue := c - 16#61 + 10;
 ELSE
 	_hexValue := 16#FF;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="inject" Id="{8b2bbc06-6d33-4c8c-8788-77aa1bb5c77a}">
+      <Declaration><![CDATA[(*
+	Writes a span context into a carrier, for an outbound call. The context is borrowed and not
+	changed. The traceparent is version 00 with the low 8 bits of the trace
+	flags, which are the W3C trace flags; the OTLP remote bits are not propagated. A trace state
+	longer than MAX_TRACESTATE_LENGTH is shortened with TraceStateFactory.truncate, which drops
+	whole entries as W3C requires, and a context without one writes ''. On failure both headers
+	are left empty, so a caller never sends half a carrier.
+*)
+METHOD inject : BOOL
+VAR_INPUT
+	pContext: POINTER TO FB_SpanContext;
+END_VAR
+VAR_IN_OUT
+	carrier: ST_TraceContextCarrier;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_PropagationFailureReason;
+END_VAR
+VAR
+	_p: POINTER TO BYTE;
+	_flags: BYTE;
+	_pSource: POINTER TO FB_TraceState;
+	_pShort: POINTER TO FB_TraceState;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[inject := FALSE;
+failureReason := E_PropagationFailureReason.NA;
+carrier.traceparent := '';
+carrier.tracestate := '';
+
+IF pContext = 0 THEN
+	failureReason := E_PropagationFailureReason.CONTEXT_POINTER_NULL;
+	RETURN;
+END_IF
+
+IF NOT pContext^.isValid() THEN
+	failureReason := E_PropagationFailureReason.CONTEXT_INVALID;
+	RETURN;
+END_IF
+
+// the trace state first: it is the only step that can fail after validation
+_pSource := pContext^.traceState;
+IF _pSource <> 0 AND_THEN _pSource^.length > MAX_TRACESTATE_LENGTH THEN
+	// the context's trace state was validated when it was parsed, so only allocation can fail
+	IF NOT TraceStateFactory.truncate(pDest:=_pShort, pSrc:=_pSource, maxLength:=MAX_TRACESTATE_LENGTH) THEN
+		failureReason := E_PropagationFailureReason.MEMORY_ALLOCATION_FAILURE;
+		RETURN;
+	END_IF
+	_pSource := _pShort;  // 0 when no entry fits, which writes ''
+END_IF
+IF _pSource <> 0 THEN
+	MEMCPY(destAddr:=ADR(carrier.tracestate), srcAddr:=_pSource^.pString, n:=_pSource^.length);
+	_p := ADR(carrier.tracestate);
+	_p[_pSource^.length] := 0;
+END_IF
+IF _pShort <> 0 THEN _pShort^.delete(pSelf:=_pShort); END_IF
+
+// every field sits at a fixed offset: 00-<trace id>-<span id>-<flags>
+_p := ADR(carrier.traceparent);
+_p[0] := 16#30;  // '0'
+_p[1] := 16#30;
+_p[TRACE_ID_OFFSET - 1] := DELIMITER;
+_encodeHex(pBytes:=ADR(pContext^.traceId.bytes), nBytes:=SIZEOF(pContext^.traceId.bytes), pText:=_p + TRACE_ID_OFFSET);
+_p[SPAN_ID_OFFSET - 1] := DELIMITER;
+_encodeHex(pBytes:=ADR(pContext^.spanId.bytes), nBytes:=SIZEOF(pContext^.spanId.bytes), pText:=_p + SPAN_ID_OFFSET);
+_p[FLAGS_OFFSET - 1] := DELIMITER;
+_flags := TO_BYTE(pContext^.traceFlags AND 16#FF);
+_encodeHex(pBytes:=ADR(_flags), nBytes:=1, pText:=_p + FLAGS_OFFSET);
+_p[TRACEPARENT_LENGTH] := 0;
+
+inject := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_encodeHex" Id="{04d38baf-d8f3-43a7-a9b3-ca34ffd73f4a}">
+      <Declaration><![CDATA[(*
+	Writes nBytes bytes from pBytes as 2 * nBytes lowercase hex characters at pText, the only
+	case W3C allows. nBytes comes from the fixed traceparent fields, so it is at most 16.
+*)
+METHOD _encodeHex
+VAR_INPUT
+	pBytes: POINTER TO BYTE;
+	nBytes: UDINT;
+	pText: POINTER TO BYTE;
+END_VAR
+VAR
+	_i: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pBytes = 0 OR pText = 0 OR nBytes = 0 THEN
+	RETURN;
+END_IF
+
+FOR _i := 0 TO nBytes - 1 DO
+	pText[2 * _i] := _hexDigit(SHR(pBytes[_i], 4));
+	pText[2 * _i + 1] := _hexDigit(pBytes[_i] AND 16#0F);
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_hexDigit" Id="{b74ca361-04cf-41ac-9add-3846f11c8a04}">
+      <Declaration><![CDATA[(* Returns the lowercase hex character for a value from 0 to 15. *)
+METHOD _hexDigit : BYTE
+VAR_INPUT
+	value: BYTE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF value < 10 THEN
+	_hexDigit := 16#30 + value;  // '0'..'9'
+ELSE
+	_hexDigit := 16#57 + value;  // 'a'..'f': 16#61 - 10
 END_IF]]></ST>
       </Implementation>
     </Method>

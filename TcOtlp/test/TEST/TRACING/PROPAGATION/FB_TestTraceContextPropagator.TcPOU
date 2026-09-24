@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_TestTraceContextPropagator" Id="{b080860f-9706-4e46-acbd-334ef305f4ac}" SpecialFunc="None">
-    <Declaration><![CDATA[(* Tests TraceContextPropagator.extract against the W3C traceparent and tracestate rules. *)
+    <Declaration><![CDATA[(* Tests TraceContextPropagator.extract and inject against the W3C traceparent and tracestate rules. *)
 FUNCTION_BLOCK FB_TestTraceContextPropagator EXTENDS FB_TestSuite
 ]]></Declaration>
     <Implementation>
@@ -12,7 +12,10 @@ THIS^.testMeasuresTraceparentBeyond255();
 THIS^.testTracestateIsOptional();
 THIS^.testKeepsLongTracestateWhole();
 THIS^.testRejectsMalformedTraceparent();
-THIS^.testRejectsAssignedDestination();]]></ST>
+THIS^.testRejectsAssignedDestination();
+THIS^.testInjectWritesExtractedCarrier();
+THIS^.testInjectDropsWholeTracestateEntries();
+THIS^.testInjectRejectsMissingOrInvalidContext();]]></ST>
     </Implementation>
     <Method Name="_expectRejected" Id="{cd372c58-e4ed-4f55-b628-013a0c357240}">
       <Declaration><![CDATA[(*
@@ -375,6 +378,96 @@ FOR _i := 56 TO 299 DO
 	_p[_i] := 16#61;  // 'a'
 END_FOR
 _p[300] := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testInjectWritesExtractedCarrier" Id="{f7c01538-559f-42a5-ae4b-e492e413afd0}">
+      <Declaration><![CDATA[(*
+	inject is the inverse of extract: a context extracted from the W3C example carrier writes the
+	same traceparent and tracestate back out, so a context forwarded by the PLC reaches the next
+	service unchanged. The remote bits stay behind, because they are OTLP flags, not W3C flags.
+*)
+METHOD testInjectWritesExtractedCarrier : REFERENCE TO FB_Test
+VAR
+	traceparentIn: STRING(55) := '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01';
+	tracestateIn: STRING(512) := 'congo=t61rcWkgMzE,rojo=00f067aa0ba902b7';
+	carrier: ST_TraceContextCarrier;
+	pContext: POINTER TO FB_SpanContext;
+	success: BOOL;
+	reason: E_PropagationFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testInjectWritesExtractedCarrier');
+	TraceContextPropagator.extract(pDest:=pContext, traceparent:=traceparentIn, tracestate:=tracestateIn);
+	success := TraceContextPropagator.inject(pContext:=pContext, carrier:=carrier, failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected a valid context to be injected');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_PropagationFailureReason.NA), TO_UDINT(reason), 'Expected no failure reason for a valid context');
+	THIS^.AssertEquals_STRING(traceparentIn, carrier.traceparent, 'Expected the traceparent that was extracted');
+	THIS^.AssertEquals_STRING(tracestateIn, carrier.tracestate, 'Expected the tracestate that was extracted');
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testInjectDropsWholeTracestateEntries" Id="{29a0ff9d-d2d6-40dc-9c5d-8a2842db4044}">
+      <Declaration><![CDATA[(*
+	The inject carrier holds 512 characters, the W3C floor. A longer trace state is shortened by
+	dropping whole entries from the right, never by cutting one, so every vendor entry that is
+	sent on is still intact.
+*)
+METHOD testInjectDropsWholeTracestateEntries : REFERENCE TO FB_Test
+VAR
+	traceparentIn: STRING(55) := '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01';
+	tracestateIn: STRING(600);
+	carrier: ST_TraceContextCarrier;
+	pContext: POINTER TO FB_SpanContext;
+	success: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testInjectDropsWholeTracestateEntries');
+	// four 128 character entries k0..k3: 515 characters
+	THIS^._fillLongHeader(header:=tracestateIn);
+	TraceContextPropagator.extract(pDest:=pContext, traceparent:=traceparentIn, tracestate:=tracestateIn);
+	success := TraceContextPropagator.inject(pContext:=pContext, carrier:=carrier);
+	THIS^.AssertTrue(success, 'Expected a context with a long trace state to be injected');
+	// three whole entries and two commas: 3 * 128 + 2
+	THIS^.AssertEquals_UDINT(386, TO_UDINT(LEN2(ADR(carrier.tracestate))), 'Expected k3 to be dropped whole, leaving 386 characters');
+	THIS^.AssertTrue(MEMCMP(ADR(carrier.tracestate), ADR(tracestateIn), 386) = 0, 'Expected the first three entries unchanged');
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testInjectRejectsMissingOrInvalidContext" Id="{a47b72a2-df8f-43bf-8d9a-278751db5593}">
+      <Declaration><![CDATA[(*
+	There is nothing to propagate without a valid identity. inject fails and leaves both headers
+	empty, so the caller sends no header rather than a malformed one.
+*)
+METHOD testInjectRejectsMissingOrInvalidContext : REFERENCE TO FB_Test
+VAR
+	traceId: FB_TraceId;  // all zero: the encoding of "absent"
+	spanId: FB_SpanId;
+	carrier: ST_TraceContextCarrier := (traceparent:='stale', tracestate:='stale=1');
+	pContext: POINTER TO FB_SpanContext;
+	success: BOOL;
+	reason: E_PropagationFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testInjectRejectsMissingOrInvalidContext');
+	success := TraceContextPropagator.inject(pContext:=0, carrier:=carrier, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected inject to reject a null context');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_PropagationFailureReason.CONTEXT_POINTER_NULL), TO_UDINT(reason), 'Expected CONTEXT_POINTER_NULL for a null context');
+	THIS^.AssertEquals_STRING('', carrier.traceparent, 'Expected an empty traceparent after a null context');
+	THIS^.AssertEquals_STRING('', carrier.tracestate, 'Expected an empty tracestate after a null context');
+
+	// ContextFactory does not validate identities, so it can build the invalid context
+	ContextFactory.buildContext(pDest:=pContext, pTraceId:=ADR(traceId), pSpanId:=ADR(spanId), pTraceState:=0, traceFlags:=1);
+	success := TraceContextPropagator.inject(pContext:=pContext, carrier:=carrier, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected inject to reject a context with all-zero ids');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_PropagationFailureReason.CONTEXT_INVALID), TO_UDINT(reason), 'Expected CONTEXT_INVALID for all-zero ids');
+	THIS^.AssertEquals_STRING('', carrier.traceparent, 'Expected an empty traceparent after an invalid context');
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
   </POU>

@@ -1,0 +1,166 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestAdsLoopbackPropagation" Id="{3683e528-f620-49c9-8126-dac00cd23325}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Sends a span context to this PLC over ADS and extracts it on arrival, the way an upstream
+	gateway would deliver a carrier. It proves inject, an ADS transport and extract agree end to
+	end, and shows that ST_TraceContextCarrier can travel as one ADS write. The test writes to its own _received symbol through a handle on this PLC's ADS port.
+*)
+FUNCTION_BLOCK FB_TestAdsLoopbackPropagation EXTENDS FB_TestSuite
+VAR CONSTANT
+	ADSIGRP_SYM_HNDBYNAME: UDINT := 16#F003;  // get a handle for a symbol name
+	ADSIGRP_SYM_VALBYHND: UDINT := 16#F005;  // read or write a symbol through its handle
+	ADSIGRP_SYM_RELEASEHND: UDINT := 16#F006;  // release a handle
+	ADS_TIMEOUT: TIME := T#2S;  // each ADS request gives up after this, so every wait below is bounded
+	EXCHANGE_TIMEOUT: TIME := T#5S;  // longer than ADS_TIMEOUT, so an ADS request in flight can still finish
+END_VAR
+VAR
+	// the MAIN instance path of this suite; change it if the instance is renamed
+	_symbol: T_MaxString := 'MAIN.fbTestAdsLoopbackPropagation._received';
+	_sent: ST_TraceContextCarrier;
+	_received: ST_TraceContextCarrier;
+	_handle: UDINT;
+	_hasHandle: BOOL;
+	_getHandle: ADSRDWRT;
+	_write: ADSWRITE;
+	_releaseHandle: ADSWRITE;
+	_state: USINT;
+	_exchangeTimer: TON;
+	_timedOut: BOOL;  // no new request starts once set; requests in flight still finish
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testCarrierSurvivesAdsLoopback();]]></ST>
+    </Implementation>
+    <Method Name="testCarrierSurvivesAdsLoopback" Id="{306bae3f-49c5-4346-aaf2-62ed37c04c5f}">
+      <Declaration><![CDATA[(*
+	A context injected into a carrier, written to this PLC over ADS and extracted on arrival has
+	the same ids, sampled bit and trace state, and is marked remote. This is the path a gateway
+	command takes, so a mismatch here would split the caller's trace from the PLC's.
+*)
+METHOD testCarrierSurvivesAdsLoopback : REFERENCE TO FB_Test
+VAR
+	source: STRING(55) := '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01';
+	sourceState: STRING(512) := 'congo=t61rcWkgMzE,rojo=00f067aa0ba902b7';
+	pSent: POINTER TO FB_SpanContext;
+	pReceived: POINTER TO FB_SpanContext;
+	reason: E_PropagationFailureReason;
+	pTraceState: POINTER TO FB_TraceState;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testCarrierSurvivesAdsLoopback');
+	// the timeout never abandons a request in flight: each state still waits for its ADS block,
+	// which gives up after ADS_TIMEOUT, and then releases the handle if one was granted
+	_exchangeTimer(IN:=_state > 0 AND _state < 50, PT:=EXCHANGE_TIMEOUT);
+	IF _exchangeTimer.Q AND NOT _timedOut THEN
+		THIS^.AssertTrue(FALSE, 'Expected the ADS loopback to finish within EXCHANGE_TIMEOUT');
+		_timedOut := TRUE;
+	END_IF
+
+	CASE _state OF
+		0: // the source context comes from the W3C example carrier; inject writes it back out
+			IF NOT TraceContextPropagator.extract(pDest:=pSent, traceparent:=source, tracestate:=sourceState) THEN
+				THIS^.AssertTrue(FALSE, 'Expected the source carrier to extract');
+				_state := 50;
+				RETURN;
+			END_IF
+			TraceContextPropagator.inject(pContext:=pSent, carrier:=_sent, failureReason=>reason);
+			pSent^.delete(pSelf:=pSent);
+			THIS^.AssertEquals_UDINT(TO_UDINT(E_PropagationFailureReason.NA), TO_UDINT(reason), 'Expected the source context to inject');
+			MEMSET(ADR(_received), 0, SIZEOF(_received));
+			// NETID '' is this machine; the port is this PLC's own ADS port
+			_getHandle(
+				NETID:='',
+				PORT:=TwinCAT_SystemInfoVarList._AppInfo.AdsPort,
+				IDXGRP:=ADSIGRP_SYM_HNDBYNAME,
+				IDXOFFS:=0,
+				WRITELEN:=TO_UDINT(LEN(_symbol)),
+				READLEN:=SIZEOF(_handle),
+				SRCADDR:=ADR(_symbol),
+				DESTADDR:=ADR(_handle),
+				WRTRD:=TRUE,
+				TMOUT:=ADS_TIMEOUT);
+			_state := 10;
+
+		10: // wait for the symbol handle
+			_getHandle(WRTRD:=FALSE);
+			IF NOT _getHandle.BUSY THEN
+				IF _getHandle.ERR THEN
+					THIS^.AssertTrue(FALSE, CONCAT('Expected a handle for _received, ADS error ', UDINT_TO_STRING(_getHandle.ERRID)));
+					_state := 50;
+				ELSIF _timedOut THEN
+					_hasHandle := TRUE;  // granted late: skip the write, but still release it
+					_state := 40;
+				ELSE
+					_hasHandle := TRUE;
+					// both headers in one write, as a gateway's single method call would deliver them
+					_write(
+						NETID:='',
+						PORT:=TwinCAT_SystemInfoVarList._AppInfo.AdsPort,
+						IDXGRP:=ADSIGRP_SYM_VALBYHND,
+						IDXOFFS:=_handle,
+						LEN:=SIZEOF(_sent),
+						SRCADDR:=ADR(_sent),
+						WRITE:=TRUE,
+						TMOUT:=ADS_TIMEOUT);
+					_state := 20;
+				END_IF
+			END_IF
+
+		20: // wait for the write, then extract what arrived
+			_write(WRITE:=FALSE);
+			IF NOT _write.BUSY THEN
+				IF _write.ERR THEN
+					THIS^.AssertTrue(FALSE, CONCAT('Expected the carrier write to succeed, ADS error ', UDINT_TO_STRING(_write.ERRID)));
+				ELSE
+					THIS^.AssertEquals_STRING(_sent.traceparent, _received.traceparent, 'Expected the traceparent to arrive unchanged');
+					THIS^.AssertEquals_STRING(_sent.tracestate, _received.tracestate, 'Expected the tracestate to arrive unchanged');
+					IF TraceContextPropagator.extract(pDest:=pReceived, traceparent:=_received.traceparent, tracestate:=_received.tracestate, failureReason=>reason) THEN
+						// 16#301: sampled, remoteness known, remote
+						THIS^.AssertEquals_UDINT(16#301, pReceived^.traceFlags, 'Expected the sampled bit and both remote bits on arrival');
+						THIS^.AssertEquals_STRING(source, _received.traceparent, 'Expected the ids and flags of the source carrier');
+						pTraceState := pReceived^.traceState;
+						THIS^.AssertTrue(pTraceState <> 0, 'Expected the trace state to arrive');
+						IF pTraceState <> 0 THEN
+							THIS^.AssertEquals_UDINT(2, pTraceState^.count, 'Expected both trace state entries to arrive');
+						END_IF
+						pReceived^.delete(pSelf:=pReceived);
+					ELSE
+						THIS^.AssertTrue(FALSE, CONCAT('Expected the received carrier to extract, reason ', TO_STRING(reason)));
+					END_IF
+				END_IF
+				_state := 40;
+			END_IF
+
+		40: // release the handle whether or not the exchange succeeded
+			IF _hasHandle THEN
+				_releaseHandle(
+					NETID:='',
+					PORT:=TwinCAT_SystemInfoVarList._AppInfo.AdsPort,
+					IDXGRP:=ADSIGRP_SYM_RELEASEHND,
+					IDXOFFS:=0,
+					LEN:=SIZEOF(_handle),
+					SRCADDR:=ADR(_handle),
+					WRITE:=TRUE,
+					TMOUT:=ADS_TIMEOUT);
+				_state := 45;
+			ELSE
+				_state := 50;
+			END_IF
+
+		45: // wait for the release
+			_releaseHandle(WRITE:=FALSE);
+			IF NOT _releaseHandle.BUSY THEN
+				THIS^.AssertFalse(_releaseHandle.ERR, 'Expected the symbol handle to be released');
+				_hasHandle := FALSE;
+				_state := 50;
+			END_IF
+
+		50: // done
+			TcUnit.TEST_FINISHED();
+	END_CASE]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

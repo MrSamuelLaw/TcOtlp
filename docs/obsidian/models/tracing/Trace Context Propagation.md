@@ -1,11 +1,11 @@
 ---
 type: model
 domain: tracing
-status: partial
+status: implemented
 implements:
   - TraceContextPropagator
   - E_PropagationFailureReason
-gap: extract is implemented in OTEL/TRACING/PROPAGATION; inject is not.
+gap: extract and inject are implemented in OTEL/TRACING/PROPAGATION; FB_TestAdsLoopbackPropagation sends a carrier to the PLC's own ADS port and extracts it. The RPC-method delivery below is not yet exercised.
 ---
 
 When an external system triggers work in the PLC, something has to decide where one trace ends and the next begins. This document fixes that boundary for the case that motivates it: an Ignition gateway starts a long-running process on the controller.
@@ -132,7 +132,13 @@ The RPC call is short and bounded, so it *can* legitimately be its own `SERVER` 
 
 - **`extract(pDest: POINTER TO FB_SpanContext, traceparent: STRING, tracestate: STRING, failureReason: E_PropagationFailureReason) -> BOOL`** — Parses a carrier into a newly allocated context. `pDest` is `VAR_IN_OUT` and must be `0` on entry. Both headers are `VAR_IN_OUT CONSTANT`, so they are read in place at their full length. Returns `FALSE` and leaves `pDest` at `0` on failure.
 
-- **`inject(context: FB_SpanContext, traceparent: STRING(55), tracestate: STRING(512), failureReason: E_PropagationFailureReason) -> BOOL`** — Formats a local context for an outbound call, for when the PLC is the caller. A trace state longer than the carrier is shortened with `TraceStateFactory.truncate`, which drops whole entries as W3C requires.
+- **`inject(pContext: POINTER TO FB_SpanContext, carrier: ST_TraceContextCarrier, failureReason: E_PropagationFailureReason) -> BOOL`** — Formats a context into a carrier for an outbound call, for when the PLC is the caller. The context is borrowed. The traceparent is version `00` with the low 8 bits of the trace flags; the OTLP remote bits are not sent. A trace state longer than 512 characters is shortened with `TraceStateFactory.truncate`, which drops whole entries as W3C requires. A null context or one with all-zero ids fails with both headers left empty.
+
+- **`ST_TraceContextCarrier`** (`traceparent: STRING(55)`, `tracestate: STRING(512)`) — The contract between the propagator and a transport. `inject` fills it; a transport receiving one passes `carrier.traceparent` and `carrier.tracestate` to `extract`. `extract` keeps plain `STRING` inputs of any length, because a header received by another transport, such as HTTP, may be longer than the carrier.
+
+### Transports are separate
+
+Following the OpenTelemetry Propagators API, the propagator does not know how a carrier travels; OpenTelemetry leaves that to the request interceptors of each instrumentation library. A transport is a separate block in `OTEL/TRACING/PROPAGATION/TRANSPORTS/` that moves an `ST_TraceContextCarrier` over one mechanism (ADS, OPC UA, HTTP) and calls `inject` or `extract`. None exists yet; `FB_TestAdsLoopbackPropagation` shows the ADS shape: one symbol write of the whole carrier, so both headers arrive together. Unlike a telemetry exporter, a transport sends the carrier inside the application's own call, so it owns no batching or retry policy.
 
 Span contexts are always dynamically allocated, so `extract` builds its result through `ContextFactory.buildContext` like every other producer. On success the caller owns the context and releases it exactly once with `pContext^.delete(pSelf:=pContext);`, typically right after building the link from it. See [[FB_SpanContext]].
 

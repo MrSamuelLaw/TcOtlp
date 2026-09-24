@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_TraceContextCarrier" Id="{c44e8a0b-5b1d-4c73-97fa-0a91334c3c96}">
+    <Declaration><![CDATA[(*
+	The W3C Trace Context headers of one call, written by TraceContextPropagator.inject and read
+	by extract. It is the contract between the propagator and a transport: a transport moves the
+	whole block, so the receiver never sees a traceparent beside a stale tracestate, and it knows
+	nothing about the headers' format. The traceparent fits version 00, and the tracestate fits
+	the 512 characters W3C asks every vendor to propagate.
+*)
+TYPE ST_TraceContextCarrier :
+STRUCT
+	traceparent: STRING(55);
+	tracestate: STRING(512);  // '' when the context has no trace state
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

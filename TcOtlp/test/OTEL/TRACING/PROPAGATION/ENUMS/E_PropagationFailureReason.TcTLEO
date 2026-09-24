@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <EnumerationTextList Name="E_PropagationFailureReason" Id="{929a8e3b-ca0d-41fc-bce6-d0ae2c7832f7}">
-    <Declaration><![CDATA[(* Why TraceContextPropagator could not extract a span context from a carrier. *)
+    <Declaration><![CDATA[(* Why TraceContextPropagator could not extract a span context from a carrier, or inject one into it. *)
 {attribute 'qualified_only'}
 {attribute 'strict'}
 {attribute 'to_string'}
@@ -16,7 +16,9 @@ TYPE E_PropagationFailureReason :
 	TRACE_ID_INVALID,  // The trace id is not 32 lowercase hex digits, or is all zero.
 	SPAN_ID_INVALID,  // The parent span id is not 16 lowercase hex digits, or is all zero.
 	TRACE_FLAGS_INVALID,  // The trace flags are not two lowercase hex digits.
-	MEMORY_ALLOCATION_FAILURE  // The span context could not be allocated.
+	MEMORY_ALLOCATION_FAILURE,  // The span context, or a shortened trace state, could not be allocated.
+	CONTEXT_POINTER_NULL,  // inject was given no span context.
+	CONTEXT_INVALID  // The span context has an all-zero trace id or span id, so there is nothing to propagate.
 ) UDINT;
 END_TYPE
 ]]></Declaration>
@@ -71,6 +73,16 @@ END_TYPE
             </o>
             <o>
               <v n="TextID">"MEMORY_ALLOCATION_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"CONTEXT_POINTER_NULL"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"CONTEXT_INVALID"</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>

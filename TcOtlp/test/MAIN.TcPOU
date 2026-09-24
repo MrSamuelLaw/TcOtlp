@@ -18,6 +18,7 @@ VAR
 	{attribute 'analysis' := '-33'}fbTestSpanContext: FB_TestSpanContext();
 	{attribute 'analysis' := '-33'}fbTestTraceState: FB_TestTraceState();
 	{attribute 'analysis' := '-33'}fbTestTraceContextPropagator: FB_TestTraceContextPropagator();
+	{attribute 'analysis' := '-33'}fbTestAdsLoopbackPropagation: FB_TestAdsLoopbackPropagation();
 	{attribute 'analysis' := '-33'}fbTestSpan: FB_TestSpan();
 	{attribute 'analysis' := '-33'}fbTestTracer: FB_TestTracer();
 	{attribute 'analysis' := '-33'}fbTestSpanQueue: FB_TestSpanQueue();
