@@ -5,8 +5,7 @@
 FUNCTION_BLOCK FB_TestAttributes EXTENDS FB_TestSuite
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[THIS^.testSetBehavior();
-THIS^.testCopyValues();
+      <ST><![CDATA[THIS^.testCopyValues();
 THIS^.testFailureReasons();]]></ST>
     </Implementation>
     <Method Name="testCopyValues" Id="{23900586-864d-4e56-8db4-89d06b3a65a9}">
@@ -136,37 +135,6 @@ END_VAR
 	attributes.free();
 	copySource.free();
 	limitedCopyTarget.free();
-TcUnit.TEST_FINISHED();]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="testSetBehavior" Id="{ba5afccb-3e5f-42c4-96a6-ce199c7009d2}">
-      <Declaration><![CDATA[METHOD testSetBehavior : REFERENCE TO FB_Test
-VAR
-	attributes: FB_Attributes(maxCount:=TcOtlp_GVL.DEFAULT_MAX_ATTRIBUTE_COUNT);
-	strVal: T_MaxString;
-	numVal: REAL;
-	success: BOOL;
-	failureReason: E_AttributesFailureReason;
-	noFailure: E_AttributesFailureReason;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[TcUnit.TEST('testSetBehavior');
-	noFailure := E_AttributesFailureReason.NA;
-
-	// test that a string and number can be inserted
-	strVal := 'strValue';
-	success := attributes.setStringAttribute(key:='strKey', value:=strVal, failureReason=>failureReason);
-	THIS^.AssertTrue(success AND_THEN failureReason=noFailure, 'Expected string attribute creation to succeed');
-	THIS^.AssertTrue(attributes.count = 1, 'Expected attribute count to be 1');
-	
-	numVal := 10.0;
-	success := attributes.setNumberAttribute(key:='numKey', value:=numVal, failureReason=>failureReason);
-	THIS^.AssertTrue(success AND_THEN failureReason=noFailure, 'Expected number attribute creation to succeed');
-	THIS^.AssertTrue(attributes.count = 2, 'Expected attribute count to be 2');
-	
-	attributes.free();
-	THIS^.AssertTrue(attributes.count = 0, 'Expected attribute count to be 0');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

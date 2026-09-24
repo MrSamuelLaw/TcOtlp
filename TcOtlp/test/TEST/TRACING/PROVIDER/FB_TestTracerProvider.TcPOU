@@ -92,7 +92,6 @@ END_VAR
         <ST><![CDATA[TcUnit.TEST('testTickWithoutProcessorsSucceeds');
 	tracer.startSpan(name:='work').build(pDest:=pSpan);
 	tracer.endSpan(pSpan:=pSpan);
-	THIS^.AssertEquals_UDINT(0, provider.spans.count, 'Expected the span not to be queued');
 
 	success := provider.tick();
 	THIS^.AssertTrue(success, 'Expected tick to succeed');

@@ -156,25 +156,19 @@ TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
     <Method Name="testGetContextOnUnstartedSpan" Id="{a22a4ee9-b068-410b-a35c-2d6a30d8634f}">
-      <Declaration><![CDATA[(* A span with no identity yet has nothing to snapshot. The factory's argument check reports
-   it, and nothing is allocated. *)
+      <Declaration><![CDATA[(* A span with no identity yet has nothing to snapshot, so getContext fails and allocates
+   nothing. The failure reasons belong to ContextFactory and are tested in FB_TestSpanContext. *)
 METHOD testGetContextOnUnstartedSpan : REFERENCE TO FB_Test
 VAR
 	span: FB_Span;
 	pContext: POINTER TO FB_SpanContext;
 	success: BOOL;
-	failureReason: E_ContextFactoryFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testGetContextOnUnstartedSpan');
-	success := span.getContext(pDest:=pContext, failureReason=>failureReason);
+	success := span.getContext(pDest:=pContext);
 	THIS^.AssertFalse(success, 'Expected getContext to fail for a span without an identity');
-	THIS^.AssertEquals_UDINT(
-		TO_UDINT(E_ContextFactoryFailureReason.TRACE_ID_POINTER_NULL),
-		TO_UDINT(failureReason),
-		'Expected a span without a trace id to report TRACE_ID_POINTER_NULL'
-	);
 	THIS^.AssertTrue(pContext = 0, 'Expected the destination to stay unassigned');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
@@ -190,7 +184,6 @@ VAR
 	traceId: FB_TraceId;
 	spanId: FB_SpanId;
 	success: BOOL;
-	failureReason: E_ContextFactoryFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -202,13 +195,8 @@ END_VAR
 	THIS^.AssertTrue(success, 'Expected the first getContext to succeed');
 	pFirst := pContext;
 
-	success := span.getContext(pDest:=pContext, failureReason=>failureReason);
+	success := span.getContext(pDest:=pContext);
 	THIS^.AssertFalse(success, 'Expected getContext into an assigned destination to fail');
-	THIS^.AssertEquals_UDINT(
-		TO_UDINT(E_ContextFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED),
-		TO_UDINT(failureReason),
-		'Expected an assigned destination to report DESTINATION_ALREADY_ASSIGNED'
-	);
 	THIS^.AssertTrue(pContext = pFirst, 'Expected the destination pointer to be left alone');
 
 	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF

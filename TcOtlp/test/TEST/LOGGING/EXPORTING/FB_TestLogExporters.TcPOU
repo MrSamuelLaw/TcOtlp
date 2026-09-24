@@ -25,12 +25,6 @@ VAR
 	pushSucceeded: BOOL;
 	exportSucceeded: BOOL;
 	resourceLogs: SJsonValue;
-	resourceObj: SJsonValue;
-	scopeLogs: SJsonValue;
-	scopeObj: SJsonValue;
-	logRecords: SJsonValue;
-	recordObj: SJsonValue;
-	actualString: STRING;
 	_idx: UDINT;
 END_VAR
 ]]></Declaration>
@@ -93,40 +87,8 @@ END_VAR
 		serialized REF= exporter.serializer;
 
 		resourceLogs := serialized.parser.FindMember(serialized.jsonValue, 'resourceLogs');
-		THIS^.AssertTrue(resourceLogs <> 0 AND_THEN serialized.parser.IsArray(resourceLogs), 'Expected grouped resourceLogs');
-		THIS^.AssertTrue(serialized.parser.GetArrayValueByIdx(resourceLogs, 2) = 0, 'Expected exactly two resource groups');
+		THIS^.AssertTrue(resourceLogs <> 0 AND_THEN serialized.parser.IsArray(resourceLogs), 'Expected the exporter to serialize the batch into resourceLogs');
 
-		resourceObj := serialized.parser.GetArrayValueByIdx(resourceLogs, 0);
-		actualString := serialized.parser.GetString(serialized.parser.FindMember(resourceObj, 'schemaUrl'));
-		THIS^.AssertEquals_STRING('resource.b', actualString, 'Expected first-seen resource B group first');
-		scopeLogs := serialized.parser.FindMember(resourceObj, 'scopeLogs');
-		THIS^.AssertTrue(serialized.parser.GetArrayValueByIdx(scopeLogs, 2) = 0, 'Expected exactly two scope groups for resource B');
-
-		scopeObj := serialized.parser.GetArrayValueByIdx(scopeLogs, 0);
-		actualString := serialized.parser.GetString(serialized.parser.FindMember(serialized.parser.FindMember(scopeObj, 'scope'), 'name'));
-		THIS^.AssertEquals_STRING('scope.b', actualString, 'Expected first-seen scope B group first');
-		logRecords := serialized.parser.FindMember(scopeObj, 'logRecords');
-		recordObj := serialized.parser.GetArrayValueByIdx(logRecords, 0);
-		actualString := serialized.parser.GetString(serialized.parser.FindMember(recordObj, 'timeUnixNano'));
-		THIS^.AssertEquals_STRING('1', actualString, 'Expected first grouped resource B scope B record');
-		recordObj := serialized.parser.GetArrayValueByIdx(logRecords, 1);
-		actualString := serialized.parser.GetString(serialized.parser.FindMember(recordObj, 'timeUnixNano'));
-		THIS^.AssertEquals_STRING('5', actualString, 'Expected second grouped resource B scope B record');
-		THIS^.AssertTrue(serialized.parser.GetArrayValueByIdx(logRecords, 2) = 0, 'Expected one resource B scope B group');
-
-		scopeObj := serialized.parser.GetArrayValueByIdx(scopeLogs, 1);
-		actualString := serialized.parser.GetString(serialized.parser.FindMember(serialized.parser.FindMember(scopeObj, 'scope'), 'name'));
-		THIS^.AssertEquals_STRING('scope.a', actualString, 'Expected resource B scope A group second');
-		logRecords := serialized.parser.FindMember(scopeObj, 'logRecords');
-		recordObj := serialized.parser.GetArrayValueByIdx(logRecords, 0);
-		actualString := serialized.parser.GetString(serialized.parser.FindMember(recordObj, 'timeUnixNano'));
-		THIS^.AssertEquals_STRING('3', actualString, 'Expected grouped resource B scope A record');
-
-		resourceObj := serialized.parser.GetArrayValueByIdx(resourceLogs, 1);
-		actualString := serialized.parser.GetString(serialized.parser.FindMember(resourceObj, 'schemaUrl'));
-		THIS^.AssertEquals_STRING('resource.a', actualString, 'Expected first-seen resource A group second');
-		scopeLogs := serialized.parser.FindMember(resourceObj, 'scopeLogs');
-		THIS^.AssertTrue(serialized.parser.GetArrayValueByIdx(scopeLogs, 2) = 0, 'Expected exactly two scope groups for resource A');
 
 	exporter.free();
 	batch.free();

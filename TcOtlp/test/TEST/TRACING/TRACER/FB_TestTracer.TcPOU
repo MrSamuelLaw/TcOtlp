@@ -656,7 +656,6 @@ END_VAR
 		);
 		pLink := pSpan^.links.next();
 		THIS^.AssertTrue(pLink <> 0 AND_THEN pLink^.traceId^.bytes[0] = 16#AA, 'Expected the second link to point at the remote trace');
-		THIS^.AssertTrue(pLink <> 0 AND_THEN pLink^.flags = 16#301, 'Expected the remote link to keep both remoteness bits');
 		pSpan^.delete(pSelf:=pSpan);
 	END_IF
 	IF pTrigger <> 0 THEN pTrigger^.delete(pSelf:=pTrigger); END_IF

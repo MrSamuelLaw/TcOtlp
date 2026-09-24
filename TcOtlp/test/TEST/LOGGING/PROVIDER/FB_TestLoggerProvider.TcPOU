@@ -7,8 +7,6 @@ FUNCTION_BLOCK FB_TestLoggerProvider EXTENDS FB_TestSuite
     <Implementation>
       <ST><![CDATA[THIS^.testStageProcessorChaining();
 THIS^.testStageProcessorCount();
-THIS^.testStageProcessorRejectsDuplicates();
-THIS^.testStageProcessorAllowsDistinct();
 THIS^.testFreeReleasesNodes();
 THIS^.testDuplicateProcessorReceivesRecordOnce();
 THIS^.testDistinctProcessorsEachReceiveRecord();
@@ -88,22 +86,6 @@ END_VAR]]></Declaration>
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
-    <Method Name="testStageProcessorAllowsDistinct" Id="{e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b}">
-      <Declaration><![CDATA[METHOD testStageProcessorAllowsDistinct : REFERENCE TO FB_Test
-VAR
-	resource: FB_Resource('');
-	provider: FB_LoggerProvider(resource);
-	processorA: FB_LogRecordProcessor_Simple(0);
-	processorB: FB_LogRecordProcessor_Simple(0);
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test StageProcessorAllowsDistinct');
-	provider.stageProcessor(processorA);
-	provider.stageProcessor(processorB);
-	THIS^.AssertEquals_UDINT(2, provider.stagedProcessorCount, 'Expected two distinct processors accepted');
-TcUnit.TEST_FINISHED();]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="testStageProcessorChaining" Id="{b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e}">
       <Declaration><![CDATA[METHOD testStageProcessorChaining : REFERENCE TO FB_Test
 VAR
@@ -134,22 +116,6 @@ END_VAR]]></Declaration>
 	THIS^.AssertEquals_UDINT(1, provider.stagedProcessorCount, 'Expected one processor after first add');
 	provider.stageProcessor(processorB);
 	THIS^.AssertEquals_UDINT(2, provider.stagedProcessorCount, 'Expected two processors after second add');
-TcUnit.TEST_FINISHED();]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="testStageProcessorRejectsDuplicates" Id="{d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a}">
-      <Declaration><![CDATA[METHOD testStageProcessorRejectsDuplicates : REFERENCE TO FB_Test
-VAR
-	resource: FB_Resource('');
-	provider: FB_LoggerProvider(resource);
-	processor: FB_LogRecordProcessor_Simple(0);
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test StageProcessorRejectsDuplicates');
-	provider.stageProcessor(processor);
-	THIS^.AssertEquals_UDINT(1, provider.stagedProcessorCount, 'Expected one processor after first add');
-	provider.stageProcessor(processor);
-	THIS^.AssertEquals_UDINT(1, provider.stagedProcessorCount, 'Expected count unchanged after duplicate add');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

@@ -6,39 +6,12 @@ FUNCTION_BLOCK FB_TestLogger EXTENDS FB_TestSuite
 
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[THIS^.testCanBuildLogRecord();
-THIS^.testEmitWithoutRecordReturnsFailure();
+      <ST><![CDATA[THIS^.testEmitWithoutRecordReturnsFailure();
 THIS^.testEmitReturnsFirstFluentFailure();
 THIS^.testStartingSecondRecordReturnsFailure();
 THIS^.testStartLogRecordStampsUnixEpochNanos();
 ]]></ST>
     </Implementation>
-    <Method Name="testCanBuildLogRecord" Id="{2f018c08-67ca-4f4b-8614-26172af7e600}">
-      <Declaration><![CDATA[METHOD testCanBuildLogRecord : REFERENCE TO FB_Test
-VAR
-	resource: FB_Resource('');
-	provider: FB_LoggerProvider(resource);
-	scope: FB_InstrumentationScope('name', 'version', '');
-	logger: FB_Logger(scope, provider);
-	success: BOOL;
-	failureResult: E_LoggerFailureReason;
-END_VAR]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[TcUnit.TEST('testFluentAPI');
-	logger
-		.startLogRecord(
-			E_SeverityNumber.SEVERITY_NUMBER_DEBUG
-		)
-		.setBody('logger1 body')
-		.setEventName('logger1.event1');
-	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Unexpected null record');
-	
-	success := logger.emit(failureResult=>failureResult);
-	THIS^.AssertTrue(success, 'Unexpected emit failure');
-	THIS^.AssertTrue(logger.pLogRecord = 0, 'Unexpected not-null record');
-TcUnit.TEST_FINISHED();]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="testEmitReturnsFirstFluentFailure" Id="{22b29b23-959e-4f62-a5d9-51b7a540587f}">
       <Declaration><![CDATA[METHOD testEmitReturnsFirstFluentFailure : REFERENCE TO FB_Test
 VAR
