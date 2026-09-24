@@ -11,7 +11,18 @@ source: TcOtlp/test/OTEL/LOGGING/SERIALIZATION/FUNCTION_BLOCKS/FB_LogRecordProto
 
 ## Ownership
 
-`serializeLogsData` attempts to transfer every supplied record into an internal queue without cloning. After a successful transfer, the caller's queue is empty and the serializer deletes all transferred records on both serialization success and failure. Serialization is therefore a consuming operation once ownership transfer succeeds.
+`serializeLogsData` takes ownership of every record in the `FB_LogRecordQueue` it is given and drains it. It pops each record, writes it, and releases it. On failure, including a queue over `MAX_LOOP_COUNT`, it releases the record it holds and frees the rest of the queue. The queue is empty when the method returns, whatever the result.
+
+## Drain requirement
+
+A queue serializer must leave the queue it is given empty when it returns, whether it succeeds or fails. It pops each record and releases it once written, and on failure it releases the record it holds and every record still queued. Only the JSON document in `parser` and `jsonValue` is left behind.
+
+Two things depend on this:
+
+- **Ownership.** The exporter hands its own batch queue to the serializer. Draining is how that batch is released exactly once, and a failed serialization cannot leak records or leave a half-written batch behind to be sent again.
+- **The exporter's start trigger.** `FB_LogRecordExporter_File` and `FB_LogRecordExporter_HTTP` start a batch on the rising edge of "export active and the batch queue is not empty". The serializer empties the queue in the `serializing` state, so the trigger drops and re-arms before the batch finishes. A batch accepted in the same scan that the previous one reaches `done` or `error` then produces a new edge and starts. If the serializer left the queue full, the trigger would stay high across batches, the next batch would never start, and `isBusy()` would stay TRUE forever.
+
+A caller that still needs the records after serialization must clone them first. The serializer never changes the content of what it writes.
 
 ## Grouping and order
 

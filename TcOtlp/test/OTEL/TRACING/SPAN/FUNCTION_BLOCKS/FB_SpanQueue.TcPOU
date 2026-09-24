@@ -7,8 +7,8 @@
 	spans when the bound is reached. The bound is maxCount, but never more than
 	TcOtlp_GVL.MAX_LOOP_COUNT: a maxCount of zero, or one above that limit, is held to
 	MAX_LOOP_COUNT so that free always reaches the end.
-	reset and next walk the spans oldest first without taking ownership, for readers
-	such as serializers. transferTo moves the oldest spans into another queue, for handing
+	reset and next walk the spans oldest first without taking ownership. rotate moves the
+	oldest span to the back, so a consumer can skip it and keep arrival order. transferTo moves the oldest spans into another queue, for handing
 	a batch to an exporter.
 *)
 FUNCTION_BLOCK FB_SpanQueue
@@ -300,6 +300,37 @@ IF THIS^._head = 0 THEN
 	THIS^._tail := 0;
 END_IF
 transferTo := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="rotate" Id="{0c8cb412-eb9c-4663-8843-2fab019dc3cb}">
+      <Declaration><![CDATA[(* Moves the oldest span to the back without changing ownership, and resets the cursor. *)
+METHOD rotate : BOOL
+VAR_OUTPUT
+	failureReason: E_SpanQueueFailureReason;
+END_VAR
+VAR
+	_node: POINTER TO ST_LinkedListNode;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[rotate := FALSE;
+failureReason := E_SpanQueueFailureReason.NA;
+
+IF THIS^._head = 0 THEN
+	failureReason := E_SpanQueueFailureReason.QUEUE_EMPTY;
+	RETURN;
+END_IF
+
+IF THIS^._head <> THIS^._tail THEN
+	_node := THIS^._head;
+	THIS^._head := _node^.nxt;
+	_node^.nxt := 0;
+	THIS^._tail^.nxt := _node;
+	THIS^._tail := _node;
+END_IF
+
+THIS^._cursor := THIS^._head;
+rotate := failureReason = E_SpanQueueFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
   </POU>

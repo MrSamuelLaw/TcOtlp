@@ -17,6 +17,7 @@ VAR
 	_filepath: T_MaxString;
 	_hFile: UINT;
 	_len: UDINT;
+	_execRTrig: R_TRIG;
 	_pString: POINTER TO STRING;  // payload buffer, owned while a write is in flight
 	_jsonVal: SJsonValue;
 	_resourceSpansArray: SJsonValue;
@@ -110,11 +111,11 @@ END_VAR
 failureReason := E_SpanExporterFailureReason.NA;
 
 _execute := THIS^._exportActive;
+_execRTrig(CLK := _execute AND_THEN THIS^._spans.count > 0);
 
 CASE currentState OF
 	E_FileExporterState.idle:
-		// level triggered: a batch accepted the scan after the previous one finished must still start
-		IF _execute AND_THEN THIS^._spans.count > 0 THEN
+		IF _execRTrig.Q THEN
 			_failureReason := E_SpanExporterFailureReason.NA;
 			_serializationFailureReason := E_ProtoJsonSerializerFailureReason.NA;
 			_computedState := E_FileExporterState.serializing;

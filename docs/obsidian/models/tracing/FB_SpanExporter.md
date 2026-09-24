@@ -37,13 +37,13 @@ Concrete exporter function-block bodies invoke `tick()`.
 
 `FB_Init(filepath)` sets the target file. Each accepted batch is appended to the file as one line of JSON, a complete `TracesData` object, so the file is JSON Lines. The state machine runs `idle`, `serializing`, `opening`, `buffering`, `writing`, `closing`, then `done`, or `error` on a failure. The batch is released in `done` or `error`. In both states `export` accepts a new batch straight away.
 
-The exporter starts whenever it holds a batch, not on a rising edge. A batch accepted in the scan straight after the previous one finished therefore still starts. The rising-edge version left such a batch stuck, with `isBusy()` TRUE forever.
+The exporter starts a batch on the rising edge of "export active and the batch queue is not empty". This relies on the serializer draining the batch queue in the `serializing` state, which re-arms the edge before the batch ends; see the drain requirement in [[Spans ProtoJSON Serializer]].
 
 Use it with [[FB_SpanProcessor_Batch]]. The exporter stays busy for several scans, and [[FB_SpanProcessor_Simple]] drops every span that ends in that time.
 
 ## Serialization
 
-File and HTTP exporters serialize with [[Spans ProtoJSON Serializer]], which reads the batch without taking ownership, so the exporter keeps the batch until delivery finishes.
+File and HTTP exporters pass their batch queue to [[Spans ProtoJSON Serializer]], which takes ownership of the spans and drains the queue. After serializing, the exporter holds only the JSON document; the spans are already released. `free` in `done` or `error` releases whatever a failed or interrupted export left behind.
 
 ## Open questions
 

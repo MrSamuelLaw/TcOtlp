@@ -11,9 +11,20 @@ source: TcOtlp/test/OTEL/TRACING/SERIALIZATION/FUNCTION_BLOCKS/FB_SpanProtoJsonS
 
 ## Ownership
 
-Serialization only reads. The spans stay in the caller's `FB_SpanQueue`, owned by the caller, whether serialization succeeds or fails. Nothing is popped, rotated, cloned or released, so the same queue can be serialized again, or released by its owner after a failed attempt.
+`serializeTracesData` takes ownership of every span in the `FB_SpanQueue` it is given and drains the queue, like `serializeLogsData`. Each span is released as soon as it is written. On failure, the span being written and every span still queued are released too. So the queue is empty when the method returns, whatever the result. A caller that needs the spans afterwards must clone them first.
 
-This differs from `serializeLogsData`, which consumes its records.
+`serializeSpan` only reads the span it is given.
+
+## Drain requirement
+
+A queue serializer must leave the queue it is given empty when it returns, whether it succeeds or fails. It pops each span and releases it once written, and on failure it releases the span it holds and every span still queued. Only the JSON document in `parser` and `jsonValue` is left behind.
+
+Two things depend on this:
+
+- **Ownership.** The exporter hands its own batch queue to the serializer. Draining is how that batch is released exactly once, and a failed serialization cannot leak spans or leave a half-written batch behind to be sent again.
+- **The exporter's start trigger.** `FB_SpanExporter_File` starts a batch on the rising edge of "export active and the batch queue is not empty". The serializer empties the queue in the `serializing` state, so the trigger drops and re-arms before the batch finishes. A batch accepted in the same scan that the previous one reaches `done` or `error` then produces a new edge and starts. If the serializer left the queue full, the trigger would stay high across batches, the next batch would never start, and `isBusy()` would stay TRUE forever.
+
+A caller that still needs the spans after serialization must clone them first. The serializer never changes the content of what it writes.
 
 ## Grouping and order
 
@@ -26,13 +37,13 @@ The grouping keys are the same as for log records:
 
 When spans share keys but differ in other resource or scope metadata, the first span's metadata is written for the group.
 
-The log serializer groups by popping and rotating its queue. The span serializer cannot change the queue, so it uses the queue's borrow-only cursor (`reset` and `next`) together with a heap array holding one "written" flag per span:
+Grouping pops and rotates the queue, as the log serializer does:
 
-- A resource group starts at the oldest span that has not been written.
-- A scope group starts at the oldest unwritten span with that resource.
-- Each scope pass walks the queue once. It writes every unwritten span that matches the group's resource and scope, and marks those spans as written.
+- A resource group starts by popping the oldest queued span.
+- A scope pass writes its leading span, then walks the queue once. It pops, writes and releases each span with the same resource and scope, and uses `rotate` to move every other span to the back, which keeps their order.
+- The next scope of the resource starts from the first remaining span with that resource, which is popped the same way.
 
-Each group costs one walk of the queue, so the work is bounded by count². The flag array is released before the method returns.
+Each group costs one walk of the queue, so the work is bounded by count².
 
 ## Span fields
 
@@ -56,8 +67,8 @@ Each group costs one walk of the queue, so the work is bounded by count². The f
 | Failure reason | Cause |
 | --- | --- |
 | `LOOP_LIMIT_EXCEEDED` | The queue, or a span's links, hold more than `TcOtlp_GVL.MAX_LOOP_COUNT` entries. |
-| `MEMORY_ALLOCATION_FAILURE` | The written-flag array could not be allocated. |
 | `SPAN_COLLECTION_INCONSISTENT` | The queue's `count` and its linked spans disagree. |
+| `QUEUE_POP_FAILURE`, `QUEUE_ROTATE_FAILURE` | The queue could not pop or rotate a span while grouping. |
 | `SPAN_POINTER_NULL` | `serializeSpan` was given a null span. |
 | `JSON_VALUE_INVALID`, `JSON_OPERATION_FAILURE` | The JSON DOM could not be written. |
 

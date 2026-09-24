@@ -192,8 +192,8 @@ TcUnit.TEST_FINISHED();]]></ST>
     <Method Name="testSerializeTracesDataGroupsByResourceAndScope" Id="{9bcd3ce8-bfe8-48e7-ab1d-e1f108e0e7a3}">
       <Declaration><![CDATA[(*
 	Spans arrive with interleaved resources and scopes. Each resource is written once with
-	its scopes in first-seen order, and spans keep queue order inside a scope. The queue is
-	only read, so a second serialization gives the same document.
+	its scopes in first-seen order, and spans keep queue order inside a scope. The serializer
+	drains the queue, releasing every span.
 *)
 METHOD testSerializeTracesDataGroupsByResourceAndScope : REFERENCE TO FB_Test
 VAR
@@ -216,7 +216,6 @@ VAR
 	serializer: FB_SpanProtoJsonSerializer;
 	pSpan: POINTER TO FB_Span;
 	name: T_MaxString;
-	pass: UDINT;
 	idx: UDINT;
 	success: BOOL;
 	reason: E_ProtoJsonSerializerFailureReason;
@@ -247,68 +246,66 @@ END_VAR
 	END_FOR
 	THIS^.AssertEquals_UDINT(8, queue.count, 'Expected eight queued spans');
 
-	FOR pass := 1 TO 2 DO
-		success := serializer.serializeTracesData(spans:=queue, failureReason=>reason);
-		THIS^.AssertTrue(success, 'Expected TracesData to serialize');
-		THIS^.AssertEquals_UDINT(TO_UDINT(E_ProtoJsonSerializerFailureReason.NA), TO_UDINT(reason), 'Expected no failure reason');
-		THIS^.AssertEquals_UDINT(8, queue.count, 'Expected the queue to keep its spans');
-		resourceSpans := serializer.parser.FindMember(serializer.jsonValue, 'resourceSpans');
-		THIS^.AssertTrue(resourceSpans <> 0 AND_THEN serializer.parser.IsArray(resourceSpans), 'Expected a resourceSpans array');
-		THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(resourceSpans, 3) = 0, 'Expected exactly three ResourceSpans groups');
+	success := serializer.serializeTracesData(spans:=queue, failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected TracesData to serialize');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_ProtoJsonSerializerFailureReason.NA), TO_UDINT(reason), 'Expected no failure reason');
+	THIS^.AssertEquals_UDINT(0, queue.count, 'Expected the serializer to drain the queue');
+	resourceSpans := serializer.parser.FindMember(serializer.jsonValue, 'resourceSpans');
+	THIS^.AssertTrue(resourceSpans <> 0 AND_THEN serializer.parser.IsArray(resourceSpans), 'Expected a resourceSpans array');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(resourceSpans, 3) = 0, 'Expected exactly three ResourceSpans groups');
 
-		resourceObj := serializer.parser.GetArrayValueByIdx(resourceSpans, 0);
-		THIS^.AssertEquals_STRING('resource.b', serializer.parser.GetString(serializer.parser.FindMember(resourceObj, 'schemaUrl')), 'Expected resource.b at 0');
-		scopeSpans := serializer.parser.FindMember(resourceObj, 'scopeSpans');
-		scopeObj := serializer.parser.GetArrayValueByIdx(scopeSpans, 0);
-		THIS^.AssertEquals_STRING('scope.b', serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name')), 'Expected resource.b scope.b at 0');
-		spanArray := serializer.parser.FindMember(scopeObj, 'spans');
-		spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 0);
-		THIS^.AssertEquals_STRING('span1', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span1 in resource.b scope.b');
-		spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 1);
-		THIS^.AssertEquals_STRING('span7', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span7 in resource.b scope.b');
-		THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(spanArray, 2) = 0, 'Expected 2 span(s) in resource.b scope.b');
+	resourceObj := serializer.parser.GetArrayValueByIdx(resourceSpans, 0);
+	THIS^.AssertEquals_STRING('resource.b', serializer.parser.GetString(serializer.parser.FindMember(resourceObj, 'schemaUrl')), 'Expected resource.b at 0');
+	scopeSpans := serializer.parser.FindMember(resourceObj, 'scopeSpans');
+	scopeObj := serializer.parser.GetArrayValueByIdx(scopeSpans, 0);
+	THIS^.AssertEquals_STRING('scope.b', serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name')), 'Expected resource.b scope.b at 0');
+	spanArray := serializer.parser.FindMember(scopeObj, 'spans');
+	spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 0);
+	THIS^.AssertEquals_STRING('span1', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span1 in resource.b scope.b');
+	spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 1);
+	THIS^.AssertEquals_STRING('span7', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span7 in resource.b scope.b');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(spanArray, 2) = 0, 'Expected 2 span(s) in resource.b scope.b');
 
-		scopeObj := serializer.parser.GetArrayValueByIdx(scopeSpans, 1);
-		THIS^.AssertEquals_STRING('scope.a', serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name')), 'Expected resource.b scope.a at 1');
-		spanArray := serializer.parser.FindMember(scopeObj, 'spans');
-		spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 0);
-		THIS^.AssertEquals_STRING('span4', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span4 in resource.b scope.a');
-		THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(spanArray, 1) = 0, 'Expected 1 span(s) in resource.b scope.a');
-		THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(scopeSpans, 2) = 0, 'Expected 2 scope(s) in resource.b');
+	scopeObj := serializer.parser.GetArrayValueByIdx(scopeSpans, 1);
+	THIS^.AssertEquals_STRING('scope.a', serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name')), 'Expected resource.b scope.a at 1');
+	spanArray := serializer.parser.FindMember(scopeObj, 'spans');
+	spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 0);
+	THIS^.AssertEquals_STRING('span4', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span4 in resource.b scope.a');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(spanArray, 1) = 0, 'Expected 1 span(s) in resource.b scope.a');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(scopeSpans, 2) = 0, 'Expected 2 scope(s) in resource.b');
 
-		resourceObj := serializer.parser.GetArrayValueByIdx(resourceSpans, 1);
-		THIS^.AssertEquals_STRING('resource.a', serializer.parser.GetString(serializer.parser.FindMember(resourceObj, 'schemaUrl')), 'Expected resource.a at 1');
-		scopeSpans := serializer.parser.FindMember(resourceObj, 'scopeSpans');
-		scopeObj := serializer.parser.GetArrayValueByIdx(scopeSpans, 0);
-		THIS^.AssertEquals_STRING('scope.c', serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name')), 'Expected resource.a scope.c at 0');
-		spanArray := serializer.parser.FindMember(scopeObj, 'spans');
-		spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 0);
-		THIS^.AssertEquals_STRING('span2', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span2 in resource.a scope.c');
-		spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 1);
-		THIS^.AssertEquals_STRING('span8', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span8 in resource.a scope.c');
-		THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(spanArray, 2) = 0, 'Expected 2 span(s) in resource.a scope.c');
+	resourceObj := serializer.parser.GetArrayValueByIdx(resourceSpans, 1);
+	THIS^.AssertEquals_STRING('resource.a', serializer.parser.GetString(serializer.parser.FindMember(resourceObj, 'schemaUrl')), 'Expected resource.a at 1');
+	scopeSpans := serializer.parser.FindMember(resourceObj, 'scopeSpans');
+	scopeObj := serializer.parser.GetArrayValueByIdx(scopeSpans, 0);
+	THIS^.AssertEquals_STRING('scope.c', serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name')), 'Expected resource.a scope.c at 0');
+	spanArray := serializer.parser.FindMember(scopeObj, 'spans');
+	spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 0);
+	THIS^.AssertEquals_STRING('span2', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span2 in resource.a scope.c');
+	spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 1);
+	THIS^.AssertEquals_STRING('span8', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span8 in resource.a scope.c');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(spanArray, 2) = 0, 'Expected 2 span(s) in resource.a scope.c');
 
-		scopeObj := serializer.parser.GetArrayValueByIdx(scopeSpans, 1);
-		THIS^.AssertEquals_STRING('scope.b', serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name')), 'Expected resource.a scope.b at 1');
-		spanArray := serializer.parser.FindMember(scopeObj, 'spans');
-		spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 0);
-		THIS^.AssertEquals_STRING('span6', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span6 in resource.a scope.b');
-		THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(spanArray, 1) = 0, 'Expected 1 span(s) in resource.a scope.b');
-		THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(scopeSpans, 2) = 0, 'Expected 2 scope(s) in resource.a');
+	scopeObj := serializer.parser.GetArrayValueByIdx(scopeSpans, 1);
+	THIS^.AssertEquals_STRING('scope.b', serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name')), 'Expected resource.a scope.b at 1');
+	spanArray := serializer.parser.FindMember(scopeObj, 'spans');
+	spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 0);
+	THIS^.AssertEquals_STRING('span6', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span6 in resource.a scope.b');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(spanArray, 1) = 0, 'Expected 1 span(s) in resource.a scope.b');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(scopeSpans, 2) = 0, 'Expected 2 scope(s) in resource.a');
 
-		resourceObj := serializer.parser.GetArrayValueByIdx(resourceSpans, 2);
-		THIS^.AssertEquals_STRING('resource.c', serializer.parser.GetString(serializer.parser.FindMember(resourceObj, 'schemaUrl')), 'Expected resource.c at 2');
-		scopeSpans := serializer.parser.FindMember(resourceObj, 'scopeSpans');
-		scopeObj := serializer.parser.GetArrayValueByIdx(scopeSpans, 0);
-		THIS^.AssertEquals_STRING('scope.a', serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name')), 'Expected resource.c scope.a at 0');
-		spanArray := serializer.parser.FindMember(scopeObj, 'spans');
-		spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 0);
-		THIS^.AssertEquals_STRING('span3', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span3 in resource.c scope.a');
-		spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 1);
-		THIS^.AssertEquals_STRING('span5', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span5 in resource.c scope.a');
-		THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(spanArray, 2) = 0, 'Expected 2 span(s) in resource.c scope.a');
-		THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(scopeSpans, 1) = 0, 'Expected 1 scope(s) in resource.c');
-	END_FOR
+	resourceObj := serializer.parser.GetArrayValueByIdx(resourceSpans, 2);
+	THIS^.AssertEquals_STRING('resource.c', serializer.parser.GetString(serializer.parser.FindMember(resourceObj, 'schemaUrl')), 'Expected resource.c at 2');
+	scopeSpans := serializer.parser.FindMember(resourceObj, 'scopeSpans');
+	scopeObj := serializer.parser.GetArrayValueByIdx(scopeSpans, 0);
+	THIS^.AssertEquals_STRING('scope.a', serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name')), 'Expected resource.c scope.a at 0');
+	spanArray := serializer.parser.FindMember(scopeObj, 'spans');
+	spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 0);
+	THIS^.AssertEquals_STRING('span3', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span3 in resource.c scope.a');
+	spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 1);
+	THIS^.AssertEquals_STRING('span5', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span5 in resource.c scope.a');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(spanArray, 2) = 0, 'Expected 2 span(s) in resource.c scope.a');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(scopeSpans, 1) = 0, 'Expected 1 scope(s) in resource.c');
 
 	queue.free();
 TcUnit.TEST_FINISHED();]]></ST>

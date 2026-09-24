@@ -70,7 +70,7 @@ This is the flow of log data and responsibility, not a requirement that every im
 - OTLP field names, nesting, grouping, encoding, and omission rules
 - Conversion of values, resources, scopes, IDs, and numeric types to their wire forms
 
-**Boundary:** Serialization reads domain objects without taking ownership or changing their meaning. It does not decide when to flush records, open files, issue network requests, or retry delivery.
+**Boundary:** Serialization never changes what a record means. A queue serializer such as `serializeLogsData` or `serializeTracesData` takes ownership of the queue it is given and drains it: each item is released once written, and anything left is released on failure. It does not decide when to flush records, open files, issue network requests, or retry delivery.
 
 ### 5. Log Exporting
 
@@ -106,7 +106,7 @@ The physical layout is still evolving. Do not move code solely to make the folde
 - Keep Value Creation and Log Creation independent of processors, serializers, and destination infrastructure.
 - Keep processing policy out of exporters and transport behavior out of processors.
 - Processors check `isBusy()` and never call `export` on a busy exporter. What happens to the record or span then is processing policy: a simple processor drops it, and a batch processor keeps it queued. The exporter's own refusal while busy is a backstop, not the mechanism.
-- Keep serialization side-effect free with respect to the source records.
+- Serializers consume the queue they are given and never alter the content they write. A caller that still needs the items must clone them first.
 - Make pointer ownership transfer explicit. A callee owns a pointer only when the contract says so and the caller's pointer is cleared.
 - Clone records or values when their lifetime must outlast the caller; release every owned allocation exactly once.
 - Preserve bounded PLC execution: cyclic work and loops must have explicit limits.

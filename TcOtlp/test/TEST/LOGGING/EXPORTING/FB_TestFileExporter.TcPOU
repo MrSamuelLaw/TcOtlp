@@ -37,6 +37,7 @@ END_VAR
 VAR_INST
 	_cycles: 		UDINT;
 	_state:			USINT;
+	_redelivered:	BOOL;  // a second batch was exported in the scan the first finished
 	_fileFinder: 	FB_EnumFindFileEntry;
 	_fileDeleter:	FB_FileDelete;
 END_VAR
@@ -60,6 +61,7 @@ END_VAR]]></Declaration>
 	CASE _state OF
 		0: // initialization
 			_cycles := 0;
+			_redelivered := FALSE;
 			_processor.free();
 			_logger1.free();
 			// _resource persists across test re-runs; only add the attribute once
@@ -138,6 +140,23 @@ END_VAR]]></Declaration>
 			ELSIF _cycles > MAX_CYCLES THEN
 				THIS^.AssertTrue(FALSE, 'Timed out waiting for the OTLP pipeline to finish');
 				_state := 30;
+				RETURN;
+			ELSIF _exporter.currentState = E_FileExporterState.done AND NOT _redelivered THEN
+				// hand over the next batch in the same scan; the exporter must still start it
+				_redelivered := TRUE;
+				_logger2
+					.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO)
+					.setTimestamp(_timestamp)
+					.setBody('Batch exported the scan the previous one finished')
+					.emit(failureResult=>_loggerFailureResult);
+				_provider
+					.stageProcessor(_processor)
+					.tick();
+				_exportSucceeded := _processor.exportRecords(
+					exporter:=_exporter,
+					failureReason=>_exporterFailureReason
+				);
+				THIS^.AssertTrue(_exportSucceeded, 'Expected the finished exporter to accept the next batch');
 				RETURN;
 			ELSIF _exporter.currentState = E_FileExporterState.done THEN
 				THIS^.AssertFalse(_exporter.isBusy(), 'Expected exporter to release its completed records');

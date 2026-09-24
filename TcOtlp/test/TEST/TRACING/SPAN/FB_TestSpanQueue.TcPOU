@@ -10,7 +10,8 @@ THIS^.testPushDropsOldestWhenFull();
 THIS^.testPopIntoAssignedDestinationFails();
 THIS^.testCursorWalksWithoutTakingOwnership();
 THIS^.testTransferToMovesOldestSpans();
-THIS^.testTransferToRejectsInvalidDestination();]]></ST>
+THIS^.testTransferToRejectsInvalidDestination();
+THIS^.testRotateMovesOldestToBack();]]></ST>
     </Implementation>
     <Method Name="testPushPopIsFifo" Id="{124b3603-a899-43b7-87f1-fa3878fb6e21}">
       <Declaration><![CDATA[(* push takes ownership and clears the caller's pointer; pop returns spans oldest first. *)
@@ -227,6 +228,43 @@ END_VAR
 	THIS^.AssertTrue(source.count = 1 AND destination.count = 1, 'Expected both queues to be unchanged');
 	source.free();
 	destination.free();
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testRotateMovesOldestToBack" Id="{83bb3a4f-7cd2-470b-9244-81c37855d5e1}">
+      <Declaration><![CDATA[(* rotate moves the oldest span to the back without releasing it, and fails on an empty queue. *)
+METHOD testRotateMovesOldestToBack : REFERENCE TO FB_Test
+VAR
+	queue: FB_SpanQueue(maxCount:=0);
+	pSpan: POINTER TO FB_Span;
+	pFirst: POINTER TO FB_Span;
+	pSecond: POINTER TO FB_Span;
+	pPopped: POINTER TO FB_Span;
+	reason: E_SpanQueueFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testRotateMovesOldestToBack');
+	THIS^.AssertFalse(queue.rotate(failureReason=>reason), 'Expected rotate on an empty queue to fail');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_SpanQueueFailureReason.QUEUE_EMPTY), TO_UDINT(reason), 'Expected QUEUE_EMPTY');
+
+	pSpan := __NEW(FB_Span);
+	pFirst := pSpan;
+	queue.push(pValue:=pSpan);
+	pSpan := __NEW(FB_Span);
+	pSecond := pSpan;
+	queue.push(pValue:=pSpan);
+
+	THIS^.AssertTrue(queue.rotate(failureReason=>reason), 'Expected rotate to succeed');
+	THIS^.AssertEquals_UDINT(2, queue.count, 'Expected rotate to keep both spans');
+	THIS^.AssertTrue(queue.next() = pSecond, 'Expected the cursor at the new head');
+	queue.pop(pValue:=pPopped);
+	THIS^.AssertTrue(pPopped = pSecond, 'Expected the second span first after a rotate');
+	IF pPopped <> 0 THEN pPopped^.delete(pSelf:=pPopped); END_IF
+	queue.pop(pValue:=pPopped);
+	THIS^.AssertTrue(pPopped = pFirst, 'Expected the rotated span last');
+	IF pPopped <> 0 THEN pPopped^.delete(pSelf:=pPopped); END_IF
+	queue.free();
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

@@ -3,7 +3,8 @@
   <POU Name="FB_SpanProtoJsonSerializer" Id="{26cc97b2-23b3-421b-9277-0008576ec889}" SpecialFunc="None">
     <Declaration><![CDATA[(*
 	Writes ended spans as OTLP ProtoJSON: TracesData > ResourceSpans > ScopeSpans > Span.
-	Serialization only reads the spans; ownership stays with the caller.
+	serializeTracesData takes ownership of the queued spans and drains the queue: every span
+	is released once written, and whatever is left is released on failure.
 
 	Example:
 	IF serializer.serializeTracesData(spans:=queue, failureReason=>reason) THEN
@@ -15,76 +16,6 @@ FUNCTION_BLOCK FB_SpanProtoJsonSerializer EXTENDS FB_BaseProtoJsonSerializer
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="_inGroup" Id="{c33380da-e24c-4fa0-98bf-44b9d3c6d396}">
-      <Declaration><![CDATA[(*
-	TRUE when pSpan belongs to the group led by pLeader: the same resource, and the same
-	scope when matchScope is set. With no leader, every span belongs.
-*)
-METHOD _inGroup : BOOL
-VAR_INPUT
-	pSpan: POINTER TO FB_Span;
-	pLeader: POINTER TO FB_Span;
-	matchScope: BOOL;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[_inGroup := FALSE;
-IF pSpan = 0 THEN
-	RETURN;
-END_IF
-IF pLeader = 0 THEN
-	_inGroup := TRUE;
-	RETURN;
-END_IF
-IF pSpan^.resource.id <> pLeader^.resource.id THEN
-	RETURN;
-END_IF
-IF matchScope AND_THEN pSpan^.scope.name <> pLeader^.scope.name THEN
-	RETURN;
-END_IF
-_inGroup := TRUE;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="_nextPending" Id="{c1d3c8d4-0948-480b-ab33-a43c258b660b}">
-      <Declaration><![CDATA[(*
-	Returns the oldest span that is not written yet and belongs to the resource of pLeader,
-	or to any resource when pLeader is 0. Returns 0 when there is none. pDone holds one
-	flag per queued span, in queue order.
-*)
-METHOD _nextPending : POINTER TO FB_Span
-VAR_IN_OUT
-	spans: FB_SpanQueue;
-END_VAR
-VAR_INPUT
-	pDone: POINTER TO BOOL;
-	pLeader: POINTER TO FB_Span;
-END_VAR
-VAR_OUTPUT
-	failureReason: E_ProtoJsonSerializerFailureReason;
-END_VAR
-VAR
-	_idx: UDINT;
-	_pSpan: POINTER TO FB_Span;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[_nextPending := 0;
-failureReason := E_ProtoJsonSerializerFailureReason.NA;
-
-spans.reset();
-FOR _idx := 1 TO spans.count DO
-	_pSpan := spans.next();
-	IF _pSpan = 0 THEN
-		failureReason := E_ProtoJsonSerializerFailureReason.SPAN_COLLECTION_INCONSISTENT;
-		RETURN;
-	END_IF
-	IF NOT pDone[_idx - 1] AND_THEN THIS^._inGroup(pSpan:=_pSpan, pLeader:=pLeader, matchScope:=FALSE) THEN
-		_nextPending := _pSpan;
-		RETURN;
-	END_IF
-END_FOR]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="_serializeLinks" Id="{45aabacb-16c0-4a4f-99bf-c2b12725f22d}">
       <Declaration><![CDATA[(*
 	Writes the span's links as a 'links' array of Link objects, in the order they were added.
@@ -197,156 +128,6 @@ END_IF
 _serializeStatus := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="serializeResourceSpans" Id="{92429b2d-7ac8-4d08-bcba-0fbc071c5c43}">
-      <Declaration><![CDATA[(*
-	Writes one ResourceSpans group for the oldest span not written yet, with every pending
-	span of the same resource grouped by scope. Scopes keep first-seen order.
-*)
-METHOD serializeResourceSpans : BOOL
-VAR_IN_OUT
-	v: SJsonValue;
-	spans: FB_SpanQueue;
-	remaining: UDINT;  // spans not written yet; reduced by each span written
-END_VAR
-VAR_INPUT
-	pDone: POINTER TO BOOL;
-END_VAR
-VAR_OUTPUT
-	failureReason: E_ProtoJsonSerializerFailureReason;
-END_VAR
-VAR
-	_pLeader: POINTER TO FB_Span;
-	_pScopeLeader: POINTER TO FB_Span;
-	_scopeSpans: SJsonValue;
-	_scopeLimit: UDINT;
-	_scopeIdx: UDINT;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[serializeResourceSpans := FALSE;
-failureReason := E_ProtoJsonSerializerFailureReason.NA;
-IF v = 0 THEN
-	failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID;
-	RETURN;
-END_IF
-IF pDone = 0 THEN
-	failureReason := E_ProtoJsonSerializerFailureReason.VALUE_POINTER_NULL;
-	RETURN;
-END_IF
-
-_pLeader := THIS^._nextPending(spans:=spans, pDone:=pDone, pLeader:=0, failureReason=>failureReason);
-IF failureReason <> E_ProtoJsonSerializerFailureReason.NA THEN
-	RETURN;
-END_IF
-IF _pLeader = 0 THEN
-	failureReason := E_ProtoJsonSerializerFailureReason.SPAN_COLLECTION_INCONSISTENT;
-	RETURN;
-END_IF
-IF NOT THIS^.startNewResource(
-	v:=v,
-	resource:=_pLeader^.resource,
-	scopeSpans=>_scopeSpans,
-	failureReason=>failureReason
-) THEN
-	RETURN;
-END_IF
-
-// One scope per pass; the last pass finds no pending span of this resource.
-_scopeLimit := spans.count + 1;
-FOR _scopeIdx := 1 TO _scopeLimit DO
-	_pScopeLeader := THIS^._nextPending(spans:=spans, pDone:=pDone, pLeader:=_pLeader, failureReason=>failureReason);
-	IF failureReason <> E_ProtoJsonSerializerFailureReason.NA THEN
-		RETURN;
-	END_IF
-	IF _pScopeLeader = 0 THEN
-		serializeResourceSpans := TRUE;
-		RETURN;
-	END_IF
-	IF NOT THIS^.serializeScopeSpans(
-		v:=_scopeSpans,
-		spans:=spans,
-		remaining:=remaining,
-		pDone:=pDone,
-		pLeader:=_pScopeLeader,
-		failureReason=>failureReason
-	) THEN
-		RETURN;
-	END_IF
-END_FOR
-
-failureReason := E_ProtoJsonSerializerFailureReason.LOOP_LIMIT_EXCEEDED;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="serializeScopeSpans" Id="{1e8a37c8-2b49-42e7-82f8-dfd199c9e095}">
-      <Declaration><![CDATA[(*
-	Writes one ScopeSpans group holding every pending span with the resource and scope of
-	pLeader, in queue order, and marks them written.
-*)
-METHOD serializeScopeSpans : BOOL
-VAR_IN_OUT
-	v: SJsonValue;
-	spans: FB_SpanQueue;
-	remaining: UDINT;  // spans not written yet; reduced by each span written
-END_VAR
-VAR_INPUT
-	pDone: POINTER TO BOOL;
-	pLeader: POINTER TO FB_Span;
-END_VAR
-VAR_OUTPUT
-	failureReason: E_ProtoJsonSerializerFailureReason;
-END_VAR
-VAR
-	_serializedSpans: SJsonValue;
-	_pSpan: POINTER TO FB_Span;
-	_idx: UDINT;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[serializeScopeSpans := FALSE;
-failureReason := E_ProtoJsonSerializerFailureReason.NA;
-IF v = 0 THEN
-	failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID;
-	RETURN;
-END_IF
-IF pLeader = 0 THEN
-	failureReason := E_ProtoJsonSerializerFailureReason.SPAN_POINTER_NULL;
-	RETURN;
-END_IF
-IF pDone = 0 THEN
-	failureReason := E_ProtoJsonSerializerFailureReason.VALUE_POINTER_NULL;
-	RETURN;
-END_IF
-
-IF NOT THIS^.startNewScope(
-	v:=v,
-	scope:=pLeader^.scope,
-	serializedSpans=>_serializedSpans,
-	failureReason=>failureReason
-) THEN
-	RETURN;
-END_IF
-
-spans.reset();
-FOR _idx := 1 TO spans.count DO
-	_pSpan := spans.next();
-	IF _pSpan = 0 THEN
-		failureReason := E_ProtoJsonSerializerFailureReason.SPAN_COLLECTION_INCONSISTENT;
-		RETURN;
-	END_IF
-	IF NOT pDone[_idx - 1] AND_THEN THIS^._inGroup(pSpan:=_pSpan, pLeader:=pLeader, matchScope:=TRUE) THEN
-		IF NOT THIS^.serializeSpan(_serializedSpans, _pSpan, failureReason=>failureReason) THEN
-			RETURN;
-		END_IF
-		pDone[_idx - 1] := TRUE;
-		IF remaining > 0 THEN
-			remaining := remaining - 1;
-		END_IF
-	END_IF
-END_FOR
-
-serializeScopeSpans := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="serializeSpan" Id="{9db01843-179e-4f59-81af-712c3a873a2f}">
       <Declaration><![CDATA[(* Appends one Span object to the JSON array v. The span is only read. *)
 METHOD serializeSpan : BOOL
@@ -430,94 +211,6 @@ IF pSpan^.links.droppedCount > 0 AND_THEN NOT THIS^.serializeUint32Value(
 END_IF
 IF pSpan^.status <> 0 AND_THEN NOT THIS^._serializeStatus(_obj, pSpan^.status, failureReason=>failureReason) THEN RETURN; END_IF
 serializeSpan := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="serializeTracesData" Id="{a6b1074d-9a24-4749-a01e-8fd29e031da7}">
-      <Declaration><![CDATA[(*
-	Writes a TracesData document for every span in the queue to jsonValue. Spans are grouped
-	by resource and then by instrumentation scope, so each resource and scope is written once.
-	Groups keep first-seen order, and spans keep queue order within a group.
-
-	The queue and its spans are only read: the caller keeps ownership whatever the result.
-	Grouping walks the queue once per group, so the work is bounded by count squared.
-*)
-METHOD serializeTracesData : BOOL
-VAR_IN_OUT
-	spans: FB_SpanQueue;
-END_VAR
-VAR_OUTPUT
-	failureReason: E_ProtoJsonSerializerFailureReason;
-END_VAR
-VAR
-	_count: UDINT;
-	_pDone: POINTER TO BOOL;
-	_remaining: UDINT;
-	_resourceSpans: SJsonValue;
-	_resourceIdx: UDINT;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[serializeTracesData := FALSE;
-failureReason := E_ProtoJsonSerializerFailureReason.NA;
-
-_count := spans.count;
-IF _count > TcOtlp_GVL.MAX_LOOP_COUNT THEN
-	failureReason := E_ProtoJsonSerializerFailureReason.LOOP_LIMIT_EXCEEDED;
-	RETURN;
-END_IF
-
-// start a new document whose root is an object holding the resourceSpans array
-THIS^.jsonValue := THIS^.parser.NewDocument();
-IF THIS^.jsonValue = 0 THEN
-	failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
-	RETURN;
-END_IF
-THIS^.jsonValue := THIS^.parser.SetObject(THIS^.jsonValue);
-IF THIS^.jsonValue = 0 THEN
-	failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
-	RETURN;
-END_IF
-_resourceSpans := THIS^.parser.AddArrayMember(THIS^.jsonValue, 'resourceSpans', 0);
-IF _resourceSpans = 0 THEN
-	failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
-	RETURN;
-END_IF
-IF _count = 0 THEN
-	serializeTracesData := TRUE;
-	RETURN;
-END_IF
-
-// One flag per queued span, in queue order, set once the span is written. Marking spans
-// here instead of popping or rotating them keeps the queue unchanged.
-_pDone := __NEW(BOOL, _count);
-IF _pDone = 0 THEN
-	failureReason := E_ProtoJsonSerializerFailureReason.MEMORY_ALLOCATION_FAILURE;
-	RETURN;
-END_IF
-MEMSET(_pDone, 0, _count * SIZEOF(BOOL));
-
-// every group writes at least one span, so _count passes always suffice
-_remaining := _count;
-FOR _resourceIdx := 1 TO _count DO
-	IF _remaining = 0 THEN
-		EXIT;
-	END_IF
-	IF NOT THIS^.serializeResourceSpans(
-		v:=_resourceSpans,
-		spans:=spans,
-		remaining:=_remaining,
-		pDone:=_pDone,
-		failureReason=>failureReason
-	) THEN
-		EXIT;
-	END_IF
-END_FOR
-IF failureReason = E_ProtoJsonSerializerFailureReason.NA AND _remaining > 0 THEN
-	failureReason := E_ProtoJsonSerializerFailureReason.SPAN_COLLECTION_INCONSISTENT;
-END_IF
-
-__DELETE(_pDone);
-serializeTracesData := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Method Name="startNewResource" Id="{6467ee6b-76be-429b-8f02-a6f19ce859e0}">
@@ -614,6 +307,286 @@ IF serializedSpans = 0 THEN
 END_IF
 
 startNewScope := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="serializeResourceSpans" Id="{85eb32ea-9c8d-4db6-a04e-02ac413dbe66}">
+      <Declaration><![CDATA[(*
+	Writes one ResourceSpans group led by pSpan, which the caller has popped and owns. Every
+	queued span of the same resource is popped and written, grouped by scope in first-seen
+	order. Spans of other resources are rotated, so they keep their arrival order. pSpan is
+	0 on success; on failure it holds any span still owned, for the caller to release.
+*)
+METHOD serializeResourceSpans : BOOL
+VAR_IN_OUT
+	v: SJsonValue;
+	spans: FB_SpanQueue;
+	pSpan: POINTER TO FB_Span;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+VAR
+	_resourceId: UDINT;
+	_scopeSpans: SJsonValue;
+	_pHead: POINTER TO FB_Span;
+	_scopeLimit: UDINT;
+	_spansToScan: UDINT;
+	_scopeIdx: UDINT;
+	_scanIdx: UDINT;
+	_queueFailureReason: E_SpanQueueFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[serializeResourceSpans := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID;
+	RETURN;
+END_IF
+IF pSpan = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.SPAN_POINTER_NULL;
+	RETURN;
+END_IF
+
+_resourceId := pSpan^.resource.id;
+IF NOT THIS^.startNewResource(
+	v:=v,
+	resource:=pSpan^.resource,
+	scopeSpans=>_scopeSpans,
+	failureReason=>failureReason
+) THEN
+	RETURN;
+END_IF
+
+// One scope per pass. Each pass writes at least the leading span, so count + 1 passes suffice.
+_scopeLimit := spans.count + 1;
+FOR _scopeIdx := 1 TO _scopeLimit DO
+	IF NOT THIS^.serializeScopeSpans(
+		v:=_scopeSpans,
+		spans:=spans,
+		pSpan:=pSpan,
+		resourceId:=_resourceId,
+		failureReason=>failureReason
+	) THEN
+		RETURN;
+	END_IF
+
+	// Pop the first span of another scope of this resource. Rotating every other span
+	// preserves arrival order for later resource groups.
+	_spansToScan := spans.count;
+	FOR _scanIdx := 1 TO _spansToScan DO
+		spans.reset();
+		_pHead := spans.next();
+		IF _pHead = 0 THEN
+			failureReason := E_ProtoJsonSerializerFailureReason.SPAN_COLLECTION_INCONSISTENT;
+			RETURN;
+		END_IF
+		IF pSpan = 0 AND_THEN _pHead^.resource.id = _resourceId THEN
+			IF NOT spans.pop(pValue:=pSpan, failureReason=>_queueFailureReason) THEN
+				failureReason := E_ProtoJsonSerializerFailureReason.QUEUE_POP_FAILURE;
+				RETURN;
+			END_IF
+			IF pSpan = 0 THEN
+				failureReason := E_ProtoJsonSerializerFailureReason.SPAN_COLLECTION_INCONSISTENT;
+				RETURN;
+			END_IF
+		ELSIF NOT spans.rotate(failureReason=>_queueFailureReason) THEN
+			failureReason := E_ProtoJsonSerializerFailureReason.QUEUE_ROTATE_FAILURE;
+			RETURN;
+		END_IF
+	END_FOR
+
+	IF pSpan = 0 THEN
+		serializeResourceSpans := failureReason = E_ProtoJsonSerializerFailureReason.NA;
+		RETURN;
+	END_IF
+END_FOR
+
+failureReason := E_ProtoJsonSerializerFailureReason.LOOP_LIMIT_EXCEEDED;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="serializeScopeSpans" Id="{7cc34591-f552-4946-b26e-ea4aafe50603}">
+      <Declaration><![CDATA[(*
+	Writes one ScopeSpans group led by pSpan, which the caller has popped and owns. Every
+	queued span with the same resource and scope is popped and written in queue order;
+	other spans are rotated. Each span is released once written, so pSpan is 0 on success.
+	On failure it holds any span still owned, for the caller to release.
+*)
+METHOD serializeScopeSpans : BOOL
+VAR_IN_OUT
+	v: SJsonValue;
+	spans: FB_SpanQueue;
+	pSpan: POINTER TO FB_Span;
+END_VAR
+VAR_INPUT
+	resourceId: UDINT;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+VAR
+	_scopeName: T_MaxString;
+	_serializedSpans: SJsonValue;
+	_pHead: POINTER TO FB_Span;
+	_spansToScan: UDINT;
+	_scanIdx: UDINT;
+	_queueFailureReason: E_SpanQueueFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[serializeScopeSpans := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID;
+	RETURN;
+END_IF
+IF pSpan = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.SPAN_POINTER_NULL;
+	RETURN;
+END_IF
+IF pSpan^.resource.id <> resourceId THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.SPAN_COLLECTION_INCONSISTENT;
+	RETURN;
+END_IF
+
+_scopeName := pSpan^.scope.name;
+IF NOT THIS^.startNewScope(
+	v:=v,
+	scope:=pSpan^.scope,
+	serializedSpans=>_serializedSpans,
+	failureReason=>failureReason
+) THEN
+	RETURN;
+END_IF
+
+IF NOT THIS^.serializeSpan(_serializedSpans, pSpan, failureReason=>failureReason) THEN
+	RETURN;
+END_IF
+pSpan^.delete(pSelf:=pSpan);
+
+// Consume and release every remaining span in this resource/scope group.
+_spansToScan := spans.count;
+FOR _scanIdx := 1 TO _spansToScan DO
+	spans.reset();
+	_pHead := spans.next();
+	IF _pHead = 0 THEN
+		failureReason := E_ProtoJsonSerializerFailureReason.SPAN_COLLECTION_INCONSISTENT;
+		RETURN;
+	END_IF
+
+	IF _pHead^.resource.id = resourceId AND_THEN _pHead^.scope.name = _scopeName THEN
+		IF NOT spans.pop(pValue:=pSpan, failureReason=>_queueFailureReason) THEN
+			failureReason := E_ProtoJsonSerializerFailureReason.QUEUE_POP_FAILURE;
+			RETURN;
+		END_IF
+		IF pSpan = 0 THEN
+			failureReason := E_ProtoJsonSerializerFailureReason.SPAN_COLLECTION_INCONSISTENT;
+			RETURN;
+		END_IF
+		IF NOT THIS^.serializeSpan(_serializedSpans, pSpan, failureReason=>failureReason) THEN
+			RETURN;
+		END_IF
+		pSpan^.delete(pSelf:=pSpan);
+	ELSIF NOT spans.rotate(failureReason=>_queueFailureReason) THEN
+		failureReason := E_ProtoJsonSerializerFailureReason.QUEUE_ROTATE_FAILURE;
+		RETURN;
+	END_IF
+END_FOR
+
+serializeScopeSpans := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="serializeTracesData" Id="{fb93ca12-8023-45cc-94f5-d5d44fdd762a}">
+      <Declaration><![CDATA[(*
+	Writes a TracesData document for every span in the queue to jsonValue. Spans are grouped
+	by resource and then by instrumentation scope, so each resource and scope is written once.
+	Groups keep first-seen order, and spans keep queue order within a group.
+
+	Takes ownership of all queued spans and drains the queue. Written spans are released as
+	they are written, and any left over are released on failure, so the queue is empty
+	whatever the result. Grouping rotates the queue once per group, so the work is bounded
+	by count squared.
+*)
+METHOD serializeTracesData : BOOL
+VAR_IN_OUT
+	spans: FB_SpanQueue;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+VAR
+	_count: UDINT;
+	_pSpan: POINTER TO FB_Span;
+	_resourceSpans: SJsonValue;
+	_resourceIdx: UDINT;
+	_queueFailureReason: E_SpanQueueFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[serializeTracesData := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+
+_count := spans.count;
+IF _count > TcOtlp_GVL.MAX_LOOP_COUNT THEN
+	spans.free();
+	failureReason := E_ProtoJsonSerializerFailureReason.LOOP_LIMIT_EXCEEDED;
+	RETURN;
+END_IF
+
+// start a new document whose root is an object holding the resourceSpans array
+THIS^.jsonValue := THIS^.parser.NewDocument();
+IF THIS^.jsonValue = 0 THEN
+	spans.free();
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+	RETURN;
+END_IF
+THIS^.jsonValue := THIS^.parser.SetObject(THIS^.jsonValue);
+IF THIS^.jsonValue = 0 THEN
+	spans.free();
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+	RETURN;
+END_IF
+_resourceSpans := THIS^.parser.AddArrayMember(THIS^.jsonValue, 'resourceSpans', 0);
+IF _resourceSpans = 0 THEN
+	spans.free();
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+	RETURN;
+END_IF
+
+// each resource group pops at least its leading span, so _count passes always suffice
+_pSpan := 0;
+FOR _resourceIdx := 1 TO _count DO
+	IF spans.count = 0 THEN
+		EXIT;
+	END_IF
+	IF NOT spans.pop(pValue:=_pSpan, failureReason=>_queueFailureReason) THEN
+		failureReason := E_ProtoJsonSerializerFailureReason.QUEUE_POP_FAILURE;
+		EXIT;
+	END_IF
+	IF _pSpan = 0 THEN
+		failureReason := E_ProtoJsonSerializerFailureReason.SPAN_COLLECTION_INCONSISTENT;
+		EXIT;
+	END_IF
+	IF NOT THIS^.serializeResourceSpans(
+		v:=_resourceSpans,
+		spans:=spans,
+		pSpan:=_pSpan,
+		failureReason=>failureReason
+	) THEN
+		EXIT;
+	END_IF
+END_FOR
+
+// release a span a failed group still holds
+IF _pSpan <> 0 THEN
+	_pSpan^.delete(pSelf:=_pSpan);
+END_IF
+IF failureReason = E_ProtoJsonSerializerFailureReason.NA AND spans.count > 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.SPAN_COLLECTION_INCONSISTENT;
+END_IF
+
+spans.free();
+serializeTracesData := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
   </POU>
