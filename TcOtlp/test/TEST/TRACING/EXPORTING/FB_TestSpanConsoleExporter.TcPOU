@@ -114,7 +114,7 @@ END_VAR
 	END_FOR
 	THIS^.AssertEquals_UDINT(2, spans.count, 'Expected two queued spans');
 
-	THIS^.AssertTrue(exporter.export(spans:=spans, count:=10, failureReason=>exportReason), 'Expected the exporter to accept the batch');
+	THIS^.AssertTrue(exporter.export(spans:=spans, count:=spans.count, failureReason=>exportReason), 'Expected the exporter to accept the batch');
 	THIS^.AssertEquals_UDINT(0, TO_UDINT(exportReason), 'Expected no failure');
 	THIS^.AssertEquals_UDINT(0, spans.count, 'Expected the batch to move into the exporter');
 	THIS^.AssertFalse(exporter.isBusy(), 'Expected the exporter to release the batch before returning');

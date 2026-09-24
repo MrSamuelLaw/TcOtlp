@@ -17,13 +17,21 @@ VAR CONSTANT
 	RECORD_COUNT: UDINT := 2;  // more than one, so the whole batch has to move, not just its head
 END_VAR
 VAR
+	resource: FB_Resource(schemaUrl:='');
+	provider: FB_LoggerProvider(resource:=resource);
+	scope: FB_InstrumentationScope(name:='exporter.test', version:='1.0.0', schemaUrl:='');
+	logger: FB_Logger(scope:=scope, provider:=provider);
+	processor: FB_LogRecordProcessor_ForRecordsInspection(
+		maxQueueSize:=0,
+		scheduledDelayMillis:=1000,
+		maxExportBatchSize:=512,
+		exporter:=0
+	);
 	exporter: FB_LogRecordExporter_File_ForSerializationInspection;
 	serialized: REFERENCE TO FB_LogRecordProtoJsonSerializer;
-	batch: FB_LogRecordQueue(maxCount:=0);
-	pRecord: POINTER TO FB_LogRecord;
-	queueFailureReason: E_LogRecordQueueFailureReason;
+	emitSucceeded: BOOL;
+	emitFailureReason: E_LoggerFailureReason;
 	exporterFailureReason: E_LogRecordExporterFailureReason;
-	pushSucceeded: BOOL;
 	exportSucceeded: BOOL;
 	resourceLogs: SJsonValue;
 	_idx: UDINT;
@@ -31,35 +39,27 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testExportSerializesWholeBatch');
-	// arrange: a batch of bare records; their resource and scope do not matter here
+	// arrange: the processor collects a batch emitted through the logger; its resource and scope do not matter here
+	processor.free();
 	FOR _idx := 1 TO RECORD_COUNT DO
-		// no factory hands a test an owned FB_LogRecord
-		pRecord := __NEW(FB_LogRecord(
-			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
-			timestamp:=_idx
-		));
-		THIS^.AssertTrue(pRecord <> 0, 'Expected the record allocation to succeed');
-		IF pRecord = 0 THEN EXIT; END_IF
-
-		pushSucceeded := batch.push(
-			pValue:=pRecord,
-			failureReason=>queueFailureReason
-		);
-		THIS^.AssertTrue(pushSucceeded, 'Expected the batch to accept the record');
-		IF NOT pushSucceeded AND_THEN pRecord <> 0 THEN pRecord^.delete(pSelf:=pRecord); END_IF
+		emitSucceeded := logger
+			.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO)
+			.setTimestamp(TO_ULINT(_idx))
+			.emit(failureResult=>emitFailureReason);
+		THIS^.AssertTrue(emitSucceeded, 'Expected the logger to emit the record');
 	END_FOR
+	provider
+		.stageProcessor(processor)
+		.tick();
+	THIS^.AssertEquals_UDINT(RECORD_COUNT, processor.records.count, 'Expected the processor to collect every emitted record');
 
 	// act
-	exportSucceeded := exporter.export(
-		logRecords:=batch,
-		count:=batch.count,
-		failureReason=>exporterFailureReason
-	);
+	exportSucceeded := processor.exportRecords(exporter:=exporter, failureReason=>exporterFailureReason);
 
 	// assert: the exporter owns the whole batch and serialized it
 	THIS^.AssertTrue(
 		exportSucceeded
-		AND_THEN batch.count = 0
+		AND_THEN processor.records.count = 0
 		AND_THEN exporterFailureReason = E_LogRecordExporterFailureReason.NA,
 		'Expected export to succeed with no failure reason and take every record out of the batch'
 	);
@@ -68,8 +68,7 @@ END_VAR
 	THIS^.AssertTrue(resourceLogs <> 0 AND_THEN serialized.parser.IsArray(resourceLogs), 'Expected the exporter to serialize the batch into a resourceLogs array');
 
 	exporter.free();
-	batch.free();
-	IF pRecord <> 0 THEN pRecord^.delete(pSelf:=pRecord); END_IF
+	processor.free();
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

@@ -29,36 +29,18 @@ VAR_INST
 END_VAR
 
 VAR
-	batch: FB_LogRecordQueue(maxCount:=0);
-	pRecord: POINTER TO FB_LogRecord;
-	pushSucceeded: BOOL;
 	exportSucceeded: BOOL;
 	callSucceeded: BOOL;
 	failureReason: E_LogRecordExporterFailureReason;
-	queueFailureReason: E_LogRecordQueueFailureReason;
 END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testConnectionRefusedReportsFailure');
 	CASE _state OF
 		0: // export one batch to the unreachable endpoint
 			_cycles := 0;
-			batch.free();
-			// no factory hands a test an owned FB_LogRecord
-			pRecord := __NEW(FB_LogRecord(
-				severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
-				timestamp:=1
-			));
-			THIS^.AssertTrue(pRecord <> 0, 'Expected HTTP exporter record allocation to succeed');
-			pushSucceeded := batch.push(pValue:=pRecord, failureReason=>queueFailureReason);
-			THIS^.AssertTrue(pushSucceeded AND_THEN batch.count = 1, 'Expected the batch to accept the record');
-			exportSucceeded := _exporterRefused.export(
-				logRecords:=batch,
-				count:=batch.count,
-				failureReason=>failureReason
-			);
+			exportSucceeded := THIS^._exportOneRecord(exporter:=_exporterRefused, timestamp:=1, failureReason=>failureReason);
 			THIS^.AssertTrue(
 				exportSucceeded
-				AND_THEN batch.count = 0
 				AND_THEN failureReason = E_LogRecordExporterFailureReason.NA,
 				'Expected the HTTP exporter to accept the batch for an unreachable endpoint'
 			);
@@ -88,18 +70,7 @@ END_VAR]]></Declaration>
 			END_IF
 
 		15: // a failed export must not wedge the exporter; it accepts the next batch
-			pRecord := __NEW(FB_LogRecord(
-				severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
-				timestamp:=2
-			));
-			THIS^.AssertTrue(pRecord <> 0, 'Expected recovery record allocation to succeed');
-			pushSucceeded := batch.push(pValue:=pRecord, failureReason=>queueFailureReason);
-			THIS^.AssertTrue(pushSucceeded AND_THEN batch.count = 1, 'Expected the recovery batch to accept the record');
-			exportSucceeded := _exporterRefused.export(
-				logRecords:=batch,
-				count:=batch.count,
-				failureReason=>failureReason
-			);
+			exportSucceeded := THIS^._exportOneRecord(exporter:=_exporterRefused, timestamp:=2, failureReason=>failureReason);
 			THIS^.AssertTrue(
 				exportSucceeded
 				AND_THEN failureReason = E_LogRecordExporterFailureReason.NA
@@ -127,7 +98,6 @@ END_VAR]]></Declaration>
 
 		20: // cleanup
 			_exporterRefused.free();
-			batch.free();
 			THIS^.AssertFalse(_exporterRefused.isBusy(), 'Expected the HTTP exporter to release its records on cleanup');
 			_state := 0;
 			TcUnit.TEST_FINISHED();
@@ -141,34 +111,16 @@ END_VAR]]></Declaration>
 *)
 METHOD testInvalidUrlFailsFast : REFERENCE TO FB_Test
 VAR
-	batch: FB_LogRecordQueue(maxCount:=0);
-	pRecord: POINTER TO FB_LogRecord;
-	pushSucceeded: BOOL;
 	exportSucceeded: BOOL;
 	callSucceeded: BOOL;
 	failureReason: E_LogRecordExporterFailureReason;
-	queueFailureReason: E_LogRecordQueueFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testInvalidUrlFailsFast');
-	// no factory hands a test an owned FB_LogRecord
-	pRecord := __NEW(FB_LogRecord(
-		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
-		timestamp:=1
-	));
-	THIS^.AssertTrue(pRecord <> 0, 'Expected the record allocation to succeed');
-	pushSucceeded := batch.push(pValue:=pRecord, failureReason=>queueFailureReason);
-	THIS^.AssertTrue(pushSucceeded AND_THEN pRecord = 0, 'Expected the queue to take ownership of the pushed record');
-
-	exportSucceeded := _exporterBadUrl.export(
-		logRecords:=batch,
-		count:=batch.count,
-		failureReason=>failureReason
-	);
+	exportSucceeded := THIS^._exportOneRecord(exporter:=_exporterBadUrl, timestamp:=1, failureReason=>failureReason);
 	THIS^.AssertTrue(
 		exportSucceeded
-		AND_THEN batch.count = 0
 		AND_THEN failureReason = E_LogRecordExporterFailureReason.NA,
 		'Expected the exporter to accept the batch before validating the URL'
 	);
@@ -186,18 +138,7 @@ END_VAR
 	THIS^.AssertFalse(_exporterBadUrl.isBusy(), 'Expected the failed batch to be released');
 
 	// A failed exporter recovers when the next export is accepted.
-	pRecord := __NEW(FB_LogRecord(
-		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
-		timestamp:=2
-	));
-	THIS^.AssertTrue(pRecord <> 0, 'Expected recovery record allocation to succeed');
-	pushSucceeded := batch.push(pValue:=pRecord, failureReason=>queueFailureReason);
-	THIS^.AssertTrue(pushSucceeded AND_THEN pRecord = 0, 'Expected the recovery queue push to transfer ownership');
-	exportSucceeded := _exporterBadUrl.export(
-		logRecords:=batch,
-		count:=batch.count,
-		failureReason=>failureReason
-	);
+	exportSucceeded := THIS^._exportOneRecord(exporter:=_exporterBadUrl, timestamp:=2, failureReason=>failureReason);
 	THIS^.AssertTrue(
 		exportSucceeded
 		AND_THEN _exporterBadUrl.currentState = E_HttpExporterState.idle,
@@ -205,8 +146,52 @@ END_VAR
 	);
 
 	_exporterBadUrl.free();
-	batch.free();
 TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_exportOneRecord" Id="{3d41bbbb-badb-426e-ba77-fac83fecd583}">
+      <Declaration><![CDATA[(*
+	Emits one record through a logger and hands it to the exporter as a one-record batch,
+	asserting that the record reached the batch and that the exporter took it out.
+	Returns what export returned.
+*)
+METHOD _exportOneRecord : BOOL
+VAR_INPUT
+	exporter: REFERENCE TO FB_LogRecordExporter_Base;
+	timestamp: ULINT;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_LogRecordExporterFailureReason;
+END_VAR
+VAR
+	resource: FB_Resource(schemaUrl:='');
+	provider: FB_LoggerProvider(resource:=resource);
+	scope: FB_InstrumentationScope(name:='http.exporter.test', version:='1.0.0', schemaUrl:='');
+	logger: FB_Logger(scope:=scope, provider:=provider);
+	processor: FB_LogRecordProcessor_ForRecordsInspection(
+		maxQueueSize:=0,
+		scheduledDelayMillis:=1000,
+		maxExportBatchSize:=512,
+		exporter:=0
+	);
+	emitSucceeded: BOOL;
+	emitFailureReason: E_LoggerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_exportOneRecord := FALSE;
+emitSucceeded := logger
+	.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO)
+	.setTimestamp(timestamp)
+	.emit(failureResult=>emitFailureReason);
+provider
+	.stageProcessor(processor)
+	.tick();
+THIS^.AssertTrue(emitSucceeded AND_THEN processor.records.count = 1, 'Expected the logger to hand one record to the batch');
+
+_exportOneRecord := processor.exportRecords(exporter:=exporter, failureReason=>failureReason);
+THIS^.AssertEquals_UDINT(0, processor.records.count, 'Expected the exporter to take the record out of the batch');
+processor.free();]]></ST>
       </Implementation>
     </Method>
   </POU>

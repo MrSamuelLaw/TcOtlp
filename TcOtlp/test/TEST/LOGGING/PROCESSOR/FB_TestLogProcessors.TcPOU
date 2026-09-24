@@ -18,8 +18,7 @@ THIS^.testProcessorsSkipBusyExporter();]]></ST>
 	and memory stays bounded however fast the PLC logs.
 
 	FB_LoggerProvider.tick() unstages every processor, so a processor must be
-	staged again before each tick. tick() also currently returns FALSE once a
-	processor has been staged, so these tests call it as a statement.
+	staged again before each tick.
 *)
 METHOD testBatchProcessorQueuesAndFlushes : REFERENCE TO FB_Test
 VAR

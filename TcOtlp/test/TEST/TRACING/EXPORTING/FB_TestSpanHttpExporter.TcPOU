@@ -128,7 +128,7 @@ END_VAR
 				_cycles := 0;
 				_state := 20;
 			ELSIF _cycles > MAX_CYCLES THEN
-				THIS^.AssertTrue(FALSE, 'Timed out waiting for the refused connection to fail');
+				THIS^.AssertTrue(FALSE, 'Expected the refused connection to fail within MAX_CYCLES');
 				_state := 30;
 			END_IF
 
@@ -139,7 +139,7 @@ END_VAR
 				THIS^.AssertTrue(_exporterRefused.currentState = E_HttpExporterState.error, 'Expected the second batch to reach the error state');
 				_state := 30;
 			ELSIF _cycles > MAX_CYCLES THEN
-				THIS^.AssertTrue(FALSE, CONCAT('Timed out waiting for the second batch; state ', TO_STRING(_exporterRefused.currentState)));
+				THIS^.AssertTrue(FALSE, CONCAT('Expected the second batch to fail within MAX_CYCLES; state ', TO_STRING(_exporterRefused.currentState)));
 				_state := 30;
 			END_IF
 

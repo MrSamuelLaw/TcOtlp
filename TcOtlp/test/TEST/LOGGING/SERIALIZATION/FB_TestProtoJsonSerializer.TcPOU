@@ -198,16 +198,26 @@ VAR
 	resourceB: FB_Resource('resource.b');
 	resourceA: FB_Resource('resource.a');
 	resourceC: FB_Resource('resource.c');
+	providerB: FB_LoggerProvider(resource:=resourceB);
+	providerA: FB_LoggerProvider(resource:=resourceA);
+	providerC: FB_LoggerProvider(resource:=resourceC);
 	scopeB: FB_InstrumentationScope('scope.b', '1.0.0', 'scope.b.schema');
 	scopeA: FB_InstrumentationScope('scope.a', '1.0.0', 'scope.a.schema');
 	scopeC: FB_InstrumentationScope('scope.c', '1.0.0', 'scope.c.schema');
-	queue: FB_LogRecordQueue(maxCount:=0);
+	loggerBb: FB_Logger(scope:=scopeB, provider:=providerB);
+	loggerBa: FB_Logger(scope:=scopeA, provider:=providerB);
+	loggerAc: FB_Logger(scope:=scopeC, provider:=providerA);
+	loggerAb: FB_Logger(scope:=scopeB, provider:=providerA);
+	loggerCa: FB_Logger(scope:=scopeA, provider:=providerC);
+	processor: FB_LogRecordProcessor_ForRecordsInspection(
+		maxQueueSize:=0,
+		scheduledDelayMillis:=1000,
+		maxExportBatchSize:=512,
+		exporter:=0
+	);
+	queue: REFERENCE TO FB_LogRecordQueue;
 	serializer: FB_LogRecordProtoJsonSerializer;
-	pRecord: POINTER TO FB_LogRecord;
-	queueFailureReason: E_LogRecordQueueFailureReason;
-	attributesFailureReason: E_AttributesFailureReason;
-	copySucceeded: BOOL;
-	pushSucceeded: BOOL;
+	emitSucceeded: BOOL;
 	_idx: UDINT;
 	resourceLogs: SJsonValue;
 	resourceObj: SJsonValue;
@@ -222,68 +232,24 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testSerializeLogsDataGroupsByResourceAndScope');
-	queue.free();
+	processor.free();
+	queue REF= processor.records;
 
 	// ---- Arrange: eight records with interleaved resource/scope pairs ----
-	// Records are built with __NEW and their resource/scope snapshots faked with copyFrom because
-	// no factory hands a test an owned FB_LogRecord (the logger only hands records to a processor),
-	// and grouping can only be tested when every resource/scope pair is controlled exactly.
+	// Each logger is one resource/scope pair, named resource then scope (loggerBa is resource B, scope A).
 	// The timestamp is the record number, so each record can be identified in the output.
 	//   record:   1  2  3  4  5  6  7  8
 	//   resource: B  A  C  B  C  A  B  A
 	//   scope:    B  C  A  A  A  B  B  C
 	FOR _idx := 1 TO 8 DO
-		pRecord := __NEW(FB_LogRecord(
-			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
-			timestamp:=_idx
-		));
-		THIS^.AssertTrue(pRecord <> 0, 'Expected record allocation to succeed');
-		IF pRecord = 0 THEN EXIT; END_IF
-
 		CASE _idx OF
-			1, 4, 7:
-				copySucceeded := pRecord^.resource.copyFrom(
-					src:=resourceB,
-					failureResult=>attributesFailureReason
-				);
-			2, 6, 8:
-				copySucceeded := pRecord^.resource.copyFrom(
-					src:=resourceA,
-					failureResult=>attributesFailureReason
-				);
-			3, 5:
-				copySucceeded := pRecord^.resource.copyFrom(
-					src:=resourceC,
-					failureResult=>attributesFailureReason
-				);
+			1, 7: emitSucceeded := THIS^._emitRecord(logger:=loggerBb, provider:=providerB, processor:=processor, timestamp:=_idx);
+			4:    emitSucceeded := THIS^._emitRecord(logger:=loggerBa, provider:=providerB, processor:=processor, timestamp:=_idx);
+			2, 8: emitSucceeded := THIS^._emitRecord(logger:=loggerAc, provider:=providerA, processor:=processor, timestamp:=_idx);
+			6:    emitSucceeded := THIS^._emitRecord(logger:=loggerAb, provider:=providerA, processor:=processor, timestamp:=_idx);
+			3, 5: emitSucceeded := THIS^._emitRecord(logger:=loggerCa, provider:=providerC, processor:=processor, timestamp:=_idx);
 		END_CASE
-		THIS^.AssertTrue(copySucceeded, 'Expected resource snapshot copy to succeed');
-
-		CASE _idx OF
-			1, 7, 6:
-				copySucceeded := pRecord^.scope.copyFrom(
-					src:=scopeB,
-					failureResult=>attributesFailureReason
-				);
-			2, 8:
-				copySucceeded := pRecord^.scope.copyFrom(
-					src:=scopeC,
-					failureResult=>attributesFailureReason
-				);
-			3, 4, 5:
-				copySucceeded := pRecord^.scope.copyFrom(
-					src:=scopeA,
-					failureResult=>attributesFailureReason
-				);
-		END_CASE
-		THIS^.AssertTrue(copySucceeded, 'Expected scope snapshot copy to succeed');
-
-		pushSucceeded := queue.push(
-			pValue:=pRecord,
-			failureReason=>queueFailureReason
-		);
-		THIS^.AssertTrue(pushSucceeded AND_THEN pRecord = 0, 'Expected the queue to take record ownership');
-		IF NOT pushSucceeded AND_THEN pRecord <> 0 THEN pRecord^.delete(pSelf:=pRecord); END_IF
+		THIS^.AssertTrue(emitSucceeded, CONCAT('Expected record ', CONCAT(UDINT_TO_STRING(_idx), ' to reach the processor')));
 	END_FOR
 	THIS^.AssertEquals_UDINT(8, queue.count, 'Expected eight records queued before serialization');
 
@@ -383,8 +349,7 @@ END_VAR
 	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(logRecords, 2) = 0, 'Expected exactly two records in resource C scope A');
 	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(scopeLogs, 1) = 0, 'Expected exactly one scope for resource C');
 
-	queue.free();
-	IF pRecord <> 0 THEN pRecord^.delete(pSelf:=pRecord); END_IF
+	processor.free();
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -463,6 +428,33 @@ END_VAR
 	THIS^.AssertEquals_STRING('-Infinity', actualString, 'Expected negative infinity as the quoted string -Infinity');
 
 TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_emitRecord" Id="{8f74556f-15f5-4254-923d-1c6d25a6b693}">
+      <Declaration><![CDATA[(*
+	Emits one INFO record stamped with timestamp through logger, then ticks its provider with the
+	processor staged, so the record reaches the processor now and records keep their emit order
+	across providers.
+*)
+METHOD _emitRecord : BOOL
+VAR_INPUT
+	logger: REFERENCE TO FB_Logger;
+	provider: REFERENCE TO FB_LoggerProvider;
+	processor: REFERENCE TO FB_LogRecordProcessor_Base;
+	timestamp: ULINT;
+END_VAR
+VAR
+	emitFailureReason: E_LoggerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_emitRecord := logger
+	.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO)
+	.setTimestamp(timestamp)
+	.emit(failureResult=>emitFailureReason);
+_emitRecord := _emitRecord AND_THEN provider
+	.stageProcessor(processor)
+	.tick();]]></ST>
       </Implementation>
     </Method>
   </POU>

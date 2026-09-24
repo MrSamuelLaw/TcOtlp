@@ -235,7 +235,12 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testSerializeTracesDataGroupsByResourceAndScope');
-	// resource order B, A, C, B, C, A, B, A with interleaved scopes
+	// ---- Arrange: eight spans with interleaved resource/scope pairs ----
+	// Each tracer is one resource/scope pair, named resource then scope (tracerBa is resource B, scope A).
+	// The name holds the span number, so each span can be identified in the output.
+	//   span:     1  2  3  4  5  6  7  8
+	//   resource: B  A  C  B  C  A  B  A
+	//   scope:    B  C  A  A  A  B  B  C
 	FOR idx := 1 TO 8 DO
 		name := CONCAT('span', UDINT_TO_STRING(idx));
 		CASE idx OF
@@ -252,6 +257,7 @@ END_VAR
 	END_FOR
 	THIS^.AssertEquals_UDINT(8, queue.count, 'Expected eight queued spans');
 
+	// ---- Act ----
 	success := serializer.serializeTracesData(spans:=queue, failureReason=>reason);
 	THIS^.AssertTrue(success, 'Expected TracesData to serialize');
 	THIS^.AssertEquals_UDINT(TO_UDINT(E_ProtoJsonSerializerFailureReason.NA), TO_UDINT(reason), 'Expected no failure reason');
@@ -260,6 +266,7 @@ END_VAR
 	THIS^.AssertTrue(resourceSpans <> 0 AND_THEN serializer.parser.IsArray(resourceSpans), 'Expected a resourceSpans array');
 	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(resourceSpans, 3) = 0, 'Expected exactly three ResourceSpans groups');
 
+	// ---- Assert: resource B was seen first, with scope B (spans 1, 7) before scope A (span 4) ----
 	resourceObj := serializer.parser.GetArrayValueByIdx(resourceSpans, 0);
 	THIS^.AssertEquals_STRING('resource.b', serializer.parser.GetString(serializer.parser.FindMember(resourceObj, 'schemaUrl')), 'Expected resource.b at 0');
 	scopeSpans := serializer.parser.FindMember(resourceObj, 'scopeSpans');
@@ -280,6 +287,7 @@ END_VAR
 	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(spanArray, 1) = 0, 'Expected 1 span(s) in resource.b scope.a');
 	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(scopeSpans, 2) = 0, 'Expected 2 scope(s) in resource.b');
 
+	// resource A was seen second, with scope C (spans 2, 8) before scope B (span 6)
 	resourceObj := serializer.parser.GetArrayValueByIdx(resourceSpans, 1);
 	THIS^.AssertEquals_STRING('resource.a', serializer.parser.GetString(serializer.parser.FindMember(resourceObj, 'schemaUrl')), 'Expected resource.a at 1');
 	scopeSpans := serializer.parser.FindMember(resourceObj, 'scopeSpans');
@@ -300,6 +308,7 @@ END_VAR
 	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(spanArray, 1) = 0, 'Expected 1 span(s) in resource.a scope.b');
 	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(scopeSpans, 2) = 0, 'Expected 2 scope(s) in resource.a');
 
+	// resource C was seen third; its non-adjacent spans 3 and 5 share scope A
 	resourceObj := serializer.parser.GetArrayValueByIdx(resourceSpans, 2);
 	THIS^.AssertEquals_STRING('resource.c', serializer.parser.GetString(serializer.parser.FindMember(resourceObj, 'schemaUrl')), 'Expected resource.c at 2');
 	scopeSpans := serializer.parser.FindMember(resourceObj, 'scopeSpans');

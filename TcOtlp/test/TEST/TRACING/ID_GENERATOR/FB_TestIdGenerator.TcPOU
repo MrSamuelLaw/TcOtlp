@@ -113,7 +113,7 @@ END_VAR
 			IF (_traceIdx >= SAMPLES) AND (_spanIdx >= SAMPLES) THEN
 				_state := 10;
 			ELSIF _cycles > MAX_CYCLES THEN
-				THIS^.AssertTrue(FALSE, 'Timed out collecting identifiers from a ring small enough to wrap');
+				THIS^.AssertTrue(FALSE, 'Expected a ring small enough to wrap to hand out its identifiers within MAX_CYCLES');
 				_state := 255;
 				TcUnit.TEST_FINISHED();
 			END_IF
@@ -248,7 +248,7 @@ END_VAR
 			success := base.generateTraceId(traceId:=traceId, failureReason=>failureReason);
 			IF NOT success THEN
 				IF _cycles > MAX_CYCLES THEN
-					THIS^.AssertTrue(FALSE, 'Timed out waiting for identifiers through the base reference');
+					THIS^.AssertTrue(FALSE, 'Expected identifiers through the base reference within MAX_CYCLES');
 					_state := 255;
 					TcUnit.TEST_FINISHED();
 				END_IF
@@ -314,7 +314,7 @@ END_VAR
 			IF _generator.generateSpanId(spanId:=spanId, failureReason=>failureReason) THEN
 				_state := 10;
 			ELSIF _cycles > MAX_CYCLES THEN
-				THIS^.AssertTrue(FALSE, 'Timed out waiting for the first ring of span ids');
+				THIS^.AssertTrue(FALSE, 'Expected the first ring of span ids within MAX_CYCLES');
 				_state := 255;
 				TcUnit.TEST_FINISHED();
 			END_IF
@@ -394,7 +394,7 @@ END_VAR
 			IF _generator.generateTraceId(traceId:=traceId, failureReason=>failureReason) THEN
 				_state := 10;
 			ELSIF _cycles > MAX_CYCLES THEN
-				THIS^.AssertTrue(FALSE, 'Timed out waiting for the first ring of trace ids');
+				THIS^.AssertTrue(FALSE, 'Expected the first ring of trace ids within MAX_CYCLES');
 				_state := 255;
 				TcUnit.TEST_FINISHED();
 			END_IF
@@ -498,7 +498,7 @@ END_VAR
 			IF _best >= EXPECTED_TRACE_IDS THEN
 				_state := 10;
 			ELSIF _cycles > MAX_CYCLES THEN
-				THIS^.AssertTrue(FALSE, 'Timed out waiting for the ring to fill to its configured length');
+				THIS^.AssertTrue(FALSE, 'Expected the ring to fill to its configured length within MAX_CYCLES');
 				_state := 255;
 				TcUnit.TEST_FINISHED();
 			END_IF
@@ -616,7 +616,7 @@ END_VAR
 			drewB := _generatorB.generateTraceId(traceId:=traceIdB, failureReason=>failureReason);
 			IF NOT (drewA AND drewB) THEN
 				IF _cycles > MAX_CYCLES THEN
-					THIS^.AssertTrue(FALSE, 'Timed out waiting for both generators to fill');
+					THIS^.AssertTrue(FALSE, 'Expected both generators to fill within MAX_CYCLES');
 					_state := 255;
 					TcUnit.TEST_FINISHED();
 				END_IF
