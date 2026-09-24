@@ -5,7 +5,7 @@ status: partial
 implements:
   - FB_Span
 source: TcOtlp/test/OTEL/TRACING/SPAN/FUNCTION_BLOCKS/FB_Span.TcPOU
-gap: Building and starting are implemented through FB_Tracer; ending (tracer.endSpan and the processor hand-off), setStatusOk and setStatusError are not.
+gap: Building, starting and ending are implemented through FB_Tracer; the processors that consume ended spans, setStatusOk and setStatusError are not.
 ---
 
 `FB_Span` is one timed operation in a trace. A log record is complete the moment it is emitted. A span is different because it has a lifecycle: it is built, it runs while the work it measures is in progress, and then it ends. Only an ended span is complete, and only an ended span is exported.
@@ -36,7 +36,7 @@ While the span runs, the caller owns it. The caller can take a context from it f
 
 ### 3. Ended
 
-`tracer.endSpan(pSpan)` stamps the end timestamp, hands the span to [[FB_TracerProvider]] for the processors' `onEnd`, and clears the caller's pointer. From then on the span is immutable. The provider releases it once every processor has returned (see [[FB_SpanProcessor_Simple]]). **Not implemented yet.**
+`tracer.endSpan(pSpan)` stamps the end timestamp, hands the span to [[FB_TracerProvider]] for the processors' `onEnd`, and clears the caller's pointer. From then on the span is immutable. The provider queues it in an `FB_SpanQueue` and will release it once every processor has returned (see [[FB_SpanProcessor_Simple]]). The processors are **not implemented yet**, so ended spans wait in the queue until the provider is released.
 
 A caller that abandons a running span releases it with `pSpan^.delete(pSelf:=pSpan);`, for example when the PLC program resets. An abandoned span is never exported.
 
@@ -49,7 +49,7 @@ The fields the tracer writes during building are `VAR_INPUT`, as on `FB_LogRecor
 | `name: POINTER TO FB_String` | yes | `startSpan` |
 | `kind: E_SpanKind` | — | `startSpan` |
 | `startTimestamp: ULINT` | — | `startSpan`, in Unix-epoch nanoseconds |
-| `endTimestamp: ULINT` | — | `endSpan` (not implemented) |
+| `endTimestamp: ULINT` | — | `endSpan`, in Unix-epoch nanoseconds |
 | `traceId: POINTER TO FB_TraceId` | yes | `setParent`, or `build` for a root span |
 | `spanId: POINTER TO FB_SpanId` | yes | `build` |
 | `parentSpanId: POINTER TO FB_SpanId` | yes | `setParent`; `0` for a root span |
@@ -95,7 +95,7 @@ Fluent setters for a running span. Both are empty shells for now.
 - [x] Give `flags` backing storage. `flags` is now a field that the tracer sets from the parent.
 - [x] Test a span whose parent is remote. The span's flags have bits 8 and 9 set plus the sampled bit. `getContext` must keep the sampled bit, set bit 8 and clear bit 9, and the context's `isRemote()` must return `FALSE`. `FB_TestTracer` covers this.
 - [x] [[FB_Tracer]] sets bits 8 and 9 on a span whose parent is a remote context.
-- [ ] `tracer.endSpan(pSpan)`: stamp the end timestamp, hand the span to the provider, and clear the caller's pointer.
+- [x] `tracer.endSpan(pSpan)`: stamp the end timestamp, hand the span to the provider, and clear the caller's pointer.
 - [ ] `setStatusOk` and `setStatusError`.
 - [ ] Adding links to a building span. `FB_Links` is still a stub.
 

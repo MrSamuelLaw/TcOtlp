@@ -1,33 +1,213 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_SpanQueue" Id="{44d433c3-56a3-4e84-9cfe-16a801713247}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_SpanQueue
-VAR_INPUT
+    <Declaration><![CDATA[(*
+	FIFO queue that owns every FB_Span pointer it contains. push takes ownership and
+	clears the caller's pointer; pop hands ownership back. push drops the oldest owned
+	spans when the bound is reached. The bound is maxCount, but never more than
+	TcOtlp_GVL.MAX_LOOP_COUNT: a maxCount of zero, or one above that limit, is held to
+	MAX_LOOP_COUNT so that free always reaches the end.
+*)
+FUNCTION_BLOCK FB_SpanQueue
+VAR
+	_head: POINTER TO ST_LinkedListNode;
+	_tail: POINTER TO ST_LinkedListNode;
 END_VAR
 VAR_OUTPUT
-END_VAR
-VAR
+	count: UDINT;
+	maxCount: UDINT;
+	droppedCount: UDINT;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="pop" Id="{20f7cf69-8ba2-4d4e-b317-f36437396b59}">
-      <Declaration><![CDATA[METHOD pop : BOOL
+    <Method Name="_capacity" Id="{2a459e68-9b56-43c7-8f56-a277c5988310}">
+      <Declaration><![CDATA[(* The enforced bound: maxCount, held to MAX_LOOP_COUNT when it is zero or larger. *)
+METHOD _capacity : UDINT
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^.maxCount = 0 OR THIS^.maxCount > TcOtlp_GVL.MAX_LOOP_COUNT THEN
+	_capacity := TcOtlp_GVL.MAX_LOOP_COUNT;
+ELSE
+	_capacity := THIS^.maxCount;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Exit" Id="{fd842b4a-3627-42d8-8070-91340c2c3950}">
+      <Declaration><![CDATA[METHOD FB_Exit : BOOL
 VAR_INPUT
+	bInCopyCode: BOOL;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[IF NOT bInCopyCode THEN
+	THIS^.free();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{4af341fc-fbf6-4bc4-b594-12ef607990c4}">
+      <Declaration><![CDATA[METHOD FB_Init : BOOL
+VAR_INPUT
+	bInitRetains: BOOL;
+	bInCopyCode: BOOL;
+	maxCount: UDINT := 0;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.maxCount := maxCount;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{3ecf047c-8132-4a0d-bbdf-56e404d6aec4}">
+      <Declaration><![CDATA[(*
+	Releases every owned span. push holds count to MAX_LOOP_COUNT, so the loop always
+	reaches the end. If it ever stops early, the unreleased nodes stay in the queue and
+	free returns FALSE, so a later call can finish the job.
+*)
+METHOD free : BOOL
+VAR
+	_idx: UDINT;
+	_node: POINTER TO ST_LinkedListNode;
+	_span: POINTER TO FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
+	IF THIS^._head = 0 THEN
+		EXIT;
+	END_IF
+
+	_node := THIS^._head;
+	THIS^._head := _node^.nxt;
+	IF _node^.val <> 0 THEN
+		_span := _node^.val;
+		_node^.val := 0;
+		_span^.delete(pSelf:=_span);
+	END_IF
+	__DELETE(_node);
+	_node := 0;
+	IF THIS^.count > 0 THEN
+		THIS^.count := THIS^.count - 1;
+	END_IF
+END_FOR
+
+IF THIS^._head = 0 THEN
+	THIS^._tail := 0;
+	THIS^.count := 0;
+END_IF
+free := THIS^._head = 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="pop" Id="{20f7cf69-8ba2-4d4e-b317-f36437396b59}">
+      <Declaration><![CDATA[(* Moves the oldest span to pValue, which must be 0. The caller owns it on success. *)
+METHOD pop : BOOL
+VAR_IN_OUT
+	pValue: POINTER TO FB_Span;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_SpanQueueFailureReason;
+END_VAR
+VAR
+	_node: POINTER TO ST_LinkedListNode;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[pop := FALSE;
+failureReason := E_SpanQueueFailureReason.NA;
+
+IF pValue <> 0 THEN
+	failureReason := E_SpanQueueFailureReason.DESTINATION_ALREADY_ASSIGNED;
+	RETURN;
+END_IF
+IF THIS^._head = 0 THEN
+	failureReason := E_SpanQueueFailureReason.QUEUE_EMPTY;
+	RETURN;
+END_IF
+
+_node := THIS^._head;
+THIS^._head := _node^.nxt;
+IF THIS^._head = 0 THEN
+	THIS^._tail := 0;
+END_IF
+
+pValue := _node^.val;
+_node^.val := 0;
+_node^.nxt := 0;
+__DELETE(_node);
+_node := 0;
+THIS^.count := THIS^.count - 1;
+pop := failureReason = E_SpanQueueFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Method Name="push" Id="{b052437c-48a1-4966-8fb6-f6eefdfa3878}">
-      <Declaration><![CDATA[METHOD push : BOOL
-VAR_INPUT
+      <Declaration><![CDATA[(*
+	Takes ownership of the span and clears pValue. On failure pValue is left unchanged
+	and still owned by the caller.
+*)
+METHOD push : BOOL
+VAR_IN_OUT
+	pValue: POINTER TO FB_Span;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_SpanQueueFailureReason;
+END_VAR
+VAR
+	_node: POINTER TO ST_LinkedListNode;
+	_droppedSpan: POINTER TO FB_Span;
+	_popFailureReason: E_SpanQueueFailureReason;
+	_idx: UDINT;
+	_bound: UDINT;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[push := FALSE;
+failureReason := E_SpanQueueFailureReason.NA;
+
+IF pValue = 0 THEN
+	failureReason := E_SpanQueueFailureReason.SPAN_POINTER_NULL;
+	RETURN;
+END_IF
+
+// Allocate before evicting so an allocation failure leaves the queue unchanged.
+_node := __NEW(ST_LinkedListNode);
+IF _node = 0 THEN
+	failureReason := E_SpanQueueFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+
+// maxCount is writable, so also restore the bound after a runtime reduction.
+_bound := THIS^._capacity();
+FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
+	IF THIS^.count < _bound THEN
+		EXIT;
+	END_IF
+	IF NOT THIS^.pop(pValue:=_droppedSpan, failureReason=>_popFailureReason) THEN
+		__DELETE(_node);
+		_node := 0;
+		failureReason := _popFailureReason;
+		RETURN;
+	END_IF
+	_droppedSpan^.delete(pSelf:=_droppedSpan);
+	THIS^.droppedCount := THIS^.droppedCount + 1;
+END_FOR
+IF THIS^.count >= _bound THEN
+	__DELETE(_node);
+	_node := 0;
+	failureReason := E_SpanQueueFailureReason.MAX_SIZE_ENFORCEMENT_FAILURE;
+	RETURN;
+END_IF
+
+_node^.val := pValue;
+_node^.nxt := 0;
+IF THIS^._tail = 0 THEN
+	THIS^._head := _node;
+ELSE
+	THIS^._tail^.nxt := _node;
+END_IF
+THIS^._tail := _node;
+THIS^.count := THIS^.count + 1;
+pValue := 0;
+push := failureReason = E_SpanQueueFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
   </POU>

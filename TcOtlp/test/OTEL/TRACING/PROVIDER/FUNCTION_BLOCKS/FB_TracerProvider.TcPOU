@@ -3,8 +3,9 @@
   <POU Name="FB_TracerProvider" Id="{b48a75f0-4a41-4530-9577-d77afb3ee72b}" SpecialFunc="None">
     <Declaration><![CDATA[FUNCTION_BLOCK FB_TracerProvider
 VAR
-	_resource: REFERENCE TO FB_Resource;
-	_idGenerator: REFERENCE TO FB_IdGenerator_Base;
+	_resource: REFERENCE TO FB_Resource;  // borrowed; the declaring scope owns its lifetime
+	_idGenerator: REFERENCE TO FB_IdGenerator_Base;  // borrowed; the declaring scope owns its lifetime
+	_spans: FB_SpanQueue(TcOtlp_GVL.MAX_SPAN_RECORDS_PER_SCAN);  // ended spans waiting to be processed
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -26,6 +27,23 @@ END_VAR
       <Implementation>
         <ST><![CDATA[THIS^._resource REF= resource;
 THIS^._idGenerator REF= idGenerator;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="onEnd" Id="{0aaebea3-418a-4f50-b3b0-6f1a94c96d96}">
+      <Declaration><![CDATA[(*
+	Takes ownership of an ended span and queues it for processing. On success pSpan is
+	cleared; on failure it is left unchanged and still owned by the caller.
+*)
+METHOD onEnd : BOOL
+VAR_IN_OUT
+	pSpan: POINTER TO FB_Span;
+END_VAR
+VAR
+	_pushFailureReason: E_SpanQueueFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[onEnd := THIS^._spans.push(pValue:=pSpan, failureReason=>_pushFailureReason);]]></ST>
       </Implementation>
     </Method>
     <Property Name="idGenerator" Id="{a262f1da-df4d-43ee-84b6-b44c18153b89}">

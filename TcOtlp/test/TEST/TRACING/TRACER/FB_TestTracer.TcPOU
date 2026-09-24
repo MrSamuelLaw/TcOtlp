@@ -18,7 +18,9 @@ THIS^.testBuildWithoutStartFails();
 THIS^.testStartingSecondSpanFails();
 THIS^.testBuildIntoAssignedDestinationFails();
 THIS^.testNoIdentifiersAvailable();
-THIS^.testSetsAttributes();]]></ST>
+THIS^.testSetsAttributes();
+THIS^.testEndSpanQueuesSpan();
+THIS^.testEndSpanRejectsNull();]]></ST>
     </Implementation>
     <Method Name="testBuildsRootSpan" Id="{00bf1eb6-c0c9-43b1-a36c-e82587fffac9}">
       <Declaration><![CDATA[(* A span without a parent starts a new trace: it gets fresh identifiers, no parent, root flags,
@@ -484,6 +486,81 @@ END_VAR
 		THIS^.AssertEquals_UDINT(2, pSpan^.attributes.count, 'Expected both attributes on the span');
 		pSpan^.delete(pSelf:=pSpan);
 	END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testEndSpanQueuesSpan" Id="{46068d5d-1211-4df5-8b11-3c775b2aea59}">
+      <Declaration><![CDATA[(* endSpan stamps the end time, moves the span into the provider's queue, and clears the
+   caller's pointer. *)
+METHOD testEndSpanQueuesSpan : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	pSpan: POINTER TO FB_Span;
+	pExpected: POINTER TO FB_Span;
+	pEnded: POINTER TO FB_Span;
+	success: BOOL;
+	reason: E_TracerFailureReason;
+	queueReason: E_SpanQueueFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testEndSpanQueuesSpan');
+	success := tracer.startSpan(name:='work').build(pDest:=pSpan, failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected the span to build');
+	pExpected := pSpan;
+
+	success := tracer.endSpan(pSpan:=pSpan, failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected endSpan to succeed');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_TracerFailureReason.NA),
+		TO_UDINT(reason),
+		'Expected no failure reason on success'
+	);
+	THIS^.AssertTrue(pSpan = 0, 'Expected endSpan to clear the caller$'s pointer');
+	THIS^.AssertEquals_UDINT(1, provider.spans.count, 'Expected the provider to queue the span');
+
+	provider.spans.pop(pValue:=pEnded, failureReason=>queueReason);
+	THIS^.AssertTrue(pEnded = pExpected, 'Expected the queued span to be the one that was ended');
+	IF pEnded <> 0 THEN
+		THIS^.AssertTrue(pEnded^.endTimestamp <> 0, 'Expected an end timestamp');
+		THIS^.AssertTrue(
+			pEnded^.endTimestamp >= pEnded^.startTimestamp,
+			'Expected the span to end no earlier than it started'
+		);
+		pEnded^.delete(pSelf:=pEnded);
+	END_IF
+	IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testEndSpanRejectsNull" Id="{6afea609-d669-4157-ae42-9a7253ffd009}">
+      <Declaration><![CDATA[(* A null span pointer is refused and nothing is queued. *)
+METHOD testEndSpanRejectsNull : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	pSpan: POINTER TO FB_Span;
+	success: BOOL;
+	reason: E_TracerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testEndSpanRejectsNull');
+	success := tracer.endSpan(pSpan:=pSpan, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected endSpan to fail without a span');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_TracerFailureReason.SPAN_POINTER_NULL),
+		TO_UDINT(reason),
+		'Expected SPAN_POINTER_NULL'
+	);
+	THIS^.AssertEquals_UDINT(0, provider.spans.count, 'Expected nothing to be queued');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

@@ -5,7 +5,7 @@
 	One timed operation in a trace. Unlike a log record, a span has a lifecycle:
 	  building - FB_Tracer owns it while the fluent chain fills it in,
 	  running  - build hands it to the caller, who owns it while the work runs,
-	  ended    - endSpan hands it to the provider for processing (not implemented yet).
+	  ended    - FB_Tracer.endSpan hands it to the provider for processing.
 	The span owns every pointer member and releases them in free.
 *)
 {attribute 'enable_dynamic_creation'}

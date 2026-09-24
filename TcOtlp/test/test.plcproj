@@ -140,6 +140,9 @@
     <Compile Include="OTEL\TRACING\SPAN\ENUMS\E_SpanKind.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\TRACING\SPAN\ENUMS\E_SpanQueueFailureReason.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\TRACING\SPAN\ENUMS\E_StatusCode.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
@@ -272,6 +275,9 @@
     <Compile Include="TEST\TRACING\PROVIDER\FB_TestTracerProvider.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TEST\TRACING\PROVIDER\FB_TracerProvider_ForInspection.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="TEST\TRACING\TRACER\FB_MockIdGenerator.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -282,6 +288,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TEST\TRACING\SPAN\FB_TestSpanContext.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="TEST\TRACING\SPAN\FB_TestSpanQueue.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TEST\VALUES\FB_TestAttributes.TcPOU">

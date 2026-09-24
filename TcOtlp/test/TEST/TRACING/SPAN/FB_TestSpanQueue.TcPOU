@@ -1,0 +1,118 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestSpanQueue" Id="{eb50bf62-c8b0-4579-96a9-3de783520e6f}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Tests FB_SpanQueue ordering, its bound, and the ownership hand-off on push and pop. *)
+FUNCTION_BLOCK FB_TestSpanQueue EXTENDS FB_TestSuite
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testPushPopIsFifo();
+THIS^.testPushDropsOldestWhenFull();
+THIS^.testPopIntoAssignedDestinationFails();]]></ST>
+    </Implementation>
+    <Method Name="testPushPopIsFifo" Id="{124b3603-a899-43b7-87f1-fa3878fb6e21}">
+      <Declaration><![CDATA[(* push takes ownership and clears the caller's pointer; pop returns spans oldest first. *)
+METHOD testPushPopIsFifo : REFERENCE TO FB_Test
+VAR
+	queue: FB_SpanQueue(maxCount:=4);
+	pFirst: POINTER TO FB_Span;
+	pSecond: POINTER TO FB_Span;
+	pExpectedFirst: POINTER TO FB_Span;
+	pExpectedSecond: POINTER TO FB_Span;
+	pPopped: POINTER TO FB_Span;
+	reason: E_SpanQueueFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testPushPopIsFifo');
+	pFirst := __NEW(FB_Span);
+	pSecond := __NEW(FB_Span);
+	pExpectedFirst := pFirst;
+	pExpectedSecond := pSecond;
+
+	THIS^.AssertTrue(queue.push(pValue:=pFirst, failureReason=>reason), 'Expected the first push to succeed');
+	THIS^.AssertTrue(queue.push(pValue:=pSecond, failureReason=>reason), 'Expected the second push to succeed');
+	THIS^.AssertTrue(pFirst = 0 AND pSecond = 0, 'Expected push to clear the caller$'s pointers');
+	THIS^.AssertEquals_UDINT(2, queue.count, 'Expected two queued spans');
+
+	THIS^.AssertTrue(queue.pop(pValue:=pPopped, failureReason=>reason), 'Expected the first pop to succeed');
+	THIS^.AssertTrue(pPopped = pExpectedFirst, 'Expected the oldest span first');
+	IF pPopped <> 0 THEN pPopped^.delete(pSelf:=pPopped); END_IF
+
+	THIS^.AssertTrue(queue.pop(pValue:=pPopped, failureReason=>reason), 'Expected the second pop to succeed');
+	THIS^.AssertTrue(pPopped = pExpectedSecond, 'Expected the newer span second');
+	IF pPopped <> 0 THEN pPopped^.delete(pSelf:=pPopped); END_IF
+
+	THIS^.AssertFalse(queue.pop(pValue:=pPopped, failureReason=>reason), 'Expected pop on an empty queue to fail');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_SpanQueueFailureReason.QUEUE_EMPTY),
+		TO_UDINT(reason),
+		'Expected QUEUE_EMPTY'
+	);
+	THIS^.AssertEquals_UDINT(0, queue.count, 'Expected the queue to be empty');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testPushDropsOldestWhenFull" Id="{5d91003f-2ffc-4084-ba93-c9f38fdd28e7}">
+      <Declaration><![CDATA[(* A full queue releases its oldest span to make room and counts the drop. *)
+METHOD testPushDropsOldestWhenFull : REFERENCE TO FB_Test
+VAR
+	queue: FB_SpanQueue(maxCount:=1);
+	pOld: POINTER TO FB_Span;
+	pNew: POINTER TO FB_Span;
+	pExpected: POINTER TO FB_Span;
+	pPopped: POINTER TO FB_Span;
+	reason: E_SpanQueueFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testPushDropsOldestWhenFull');
+	pOld := __NEW(FB_Span);
+	pNew := __NEW(FB_Span);
+	pExpected := pNew;
+
+	queue.push(pValue:=pOld, failureReason=>reason);
+	THIS^.AssertTrue(queue.push(pValue:=pNew, failureReason=>reason), 'Expected push to a full queue to succeed');
+	THIS^.AssertEquals_UDINT(1, queue.count, 'Expected the bound to hold');
+	THIS^.AssertEquals_UDINT(1, queue.droppedCount, 'Expected one dropped span');
+
+	queue.pop(pValue:=pPopped, failureReason=>reason);
+	THIS^.AssertTrue(pPopped = pExpected, 'Expected the newest span to be kept');
+	IF pPopped <> 0 THEN pPopped^.delete(pSelf:=pPopped); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testPopIntoAssignedDestinationFails" Id="{0d4c2db5-724a-4514-8fbf-b7a83ddaab8c}">
+      <Declaration><![CDATA[(* pop never overwrites a pointer the caller already owns, and free releases what is left. *)
+METHOD testPopIntoAssignedDestinationFails : REFERENCE TO FB_Test
+VAR
+	queue: FB_SpanQueue(maxCount:=4);
+	pQueued: POINTER TO FB_Span;
+	pOwned: POINTER TO FB_Span;
+	pExpected: POINTER TO FB_Span;
+	reason: E_SpanQueueFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testPopIntoAssignedDestinationFails');
+	pQueued := __NEW(FB_Span);
+	pOwned := __NEW(FB_Span);
+	pExpected := pOwned;
+	queue.push(pValue:=pQueued, failureReason=>reason);
+
+	THIS^.AssertFalse(queue.pop(pValue:=pOwned, failureReason=>reason), 'Expected pop into an assigned pointer to fail');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_SpanQueueFailureReason.DESTINATION_ALREADY_ASSIGNED),
+		TO_UDINT(reason),
+		'Expected DESTINATION_ALREADY_ASSIGNED'
+	);
+	THIS^.AssertTrue(pOwned = pExpected, 'Expected the destination to be left alone');
+	THIS^.AssertEquals_UDINT(1, queue.count, 'Expected the span to stay queued');
+
+	THIS^.AssertTrue(queue.free(), 'Expected free to release every span');
+	THIS^.AssertEquals_UDINT(0, queue.count, 'Expected an empty queue after free');
+	IF pOwned <> 0 THEN pOwned^.delete(pSelf:=pOwned); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,73 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <EnumerationTextList Name="E_SpanQueueFailureReason" Id="{93cb79ea-577e-41d4-b09a-1fe007836e3a}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_SpanQueueFailureReason :
+(
+	NA := 0,  // No failure occurred.
+	SPAN_POINTER_NULL,  // The supplied span pointer is null.
+	DESTINATION_ALREADY_ASSIGNED,  // The pop destination pointer is already assigned.
+	QUEUE_EMPTY,  // The queue contains no span to pop.
+	MAX_SIZE_ENFORCEMENT_FAILURE,  // The bounded eviction loop could not restore the configured maximum size.
+	MEMORY_ALLOCATION_FAILURE  // Dynamic node allocation failed.
+) UDINT;
+END_TYPE
+]]></Declaration>
+    <XmlArchive>
+      <Data>
+        <o xml:space="preserve" t="TextListEnumerationTextListObject">
+          <l n="TextList" t="ArrayList" cet="TextListRow">
+            <o>
+              <v n="TextID">"NA"</v>
+              <v n="TextDefault">"0"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SPAN_POINTER_NULL"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"DESTINATION_ALREADY_ASSIGNED"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"QUEUE_EMPTY"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"MAX_SIZE_ENFORCEMENT_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"MEMORY_ALLOCATION_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">""</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+          </l>
+          <l n="Languages" t="ArrayList" />
+          <v n="GuidInit">{06a256d3-808b-4d0a-973f-35c908364b33}</v>
+          <v n="GuidReInit">{5c5491e4-e0b5-4e26-a47b-0ced1dd21682}</v>
+          <v n="GuidExitX">{cc9f9504-1fc2-408a-8457-0128d2527022}</v>
+        </o>
+      </Data>
+      <TypeList>
+        <Type n="ArrayList">System.Collections.ArrayList</Type>
+        <Type n="Guid">System.Guid</Type>
+        <Type n="String">System.String</Type>
+        <Type n="TextListEnumerationTextListObject">{4b60233c-f940-4beb-b331-82133b520151}</Type>
+        <Type n="TextListRow">{53da1be7-ad25-47c3-b0e8-e26286dad2e0}</Type>
+      </TypeList>
+    </XmlArchive>
+  </EnumerationTextList>
+</TcPlcObject>

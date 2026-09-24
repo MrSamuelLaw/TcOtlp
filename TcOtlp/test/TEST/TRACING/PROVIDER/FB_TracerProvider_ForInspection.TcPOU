@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TracerProvider_ForInspection" Id="{64e232fc-bd17-42ef-92ba-3f806a11e717}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Provider test double that exposes the queue of ended spans for assertions. *)
+FUNCTION_BLOCK FB_TracerProvider_ForInspection EXTENDS FB_TracerProvider
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Property Name="spans" Id="{63e5096e-8ae5-44e1-a146-fa4f821b1b01}">
+      <Declaration><![CDATA[PROPERTY spans : REFERENCE TO FB_SpanQueue]]></Declaration>
+      <Get Name="Get" Id="{2d64f5ed-f657-4729-8a80-d9896532b8d8}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[spans REF= THIS^._spans;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+  </POU>
+</TcPlcObject>

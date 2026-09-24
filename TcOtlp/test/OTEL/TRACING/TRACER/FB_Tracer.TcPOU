@@ -7,7 +7,7 @@
 
 	The difference from the logger is the end of the chain: emit pushes a log record to the
 	provider, but build hands the span to the caller, because a span starts running when it is
-	built and ends later.
+	built and ends later. endSpan then pushes the span to the provider.
 
 	Example:
 	IF NOT tracer
@@ -17,6 +17,8 @@
 		.build(pDest := pSpan, failureReason => reason) THEN
 		// CASE reason OF ...
 	END_IF
+	// ... the work the span measures ...
+	tracer.endSpan(pSpan := pSpan);
 *)
 FUNCTION_BLOCK FB_Tracer
 VAR_OUTPUT
@@ -117,6 +119,17 @@ ELSE
 END_IF]]></ST>
       </Implementation>
     </Method>
+    <Method Name="_now" Id="{da29f1f9-ee74-40a9-a16d-2bf3b2bd3607}">
+      <Declaration><![CDATA[(* The current time in nanoseconds since the Unix epoch, as OTLP timestamps expect. *)
+METHOD _now : ULINT
+VAR CONSTANT
+	UNIX_EPOCH_DIFF: ULINT := 116444736000000000;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_now := (F_GetSystemTime() - UNIX_EPOCH_DIFF) * 100;  // 100ns ticks since 1601 -> ns since 1970]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="_shouldReturnEarly" Id="{88de3424-ad60-4c95-878e-159ca24c8617}">
       <Declaration><![CDATA[METHOD _shouldReturnEarly : BOOL
 ]]></Declaration>
@@ -182,6 +195,42 @@ END_IF
 
 THIS^._failed := FALSE;
 THIS^._failureReason := E_TracerFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="endSpan" Id="{cb0a5ab4-6cec-411b-9a0a-a4cb42e8d8a6}">
+      <Declaration><![CDATA[(*
+	Ends a running span: stamps its end time and hands it to the provider for processing.
+	The caller's pointer is cleared whether or not the hand-off succeeds. If the provider
+	cannot queue the span, the span is released, because an ended span has no other owner.
+	endSpan is not part of the fluent chain and leaves a span being built untouched.
+*)
+METHOD endSpan : BOOL
+VAR_IN_OUT
+	pSpan: POINTER TO FB_Span;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_TracerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[endSpan := FALSE;
+failureReason := E_TracerFailureReason.NA;
+
+IF pSpan = 0 THEN
+	failureReason := E_TracerFailureReason.SPAN_POINTER_NULL;
+	RETURN;
+END_IF
+
+pSpan^.endTimestamp := THIS^._now();
+
+// transfer ownership to the provider, which clears pSpan on success
+IF NOT THIS^._provider.onEnd(pSpan:=pSpan) THEN
+	pSpan^.delete(pSelf:=pSpan);
+	failureReason := E_TracerFailureReason.TRANSFER_TO_PROVIDER_FAILURE;
+	RETURN;
+END_IF
+
+endSpan := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Exit" Id="{4beadf6b-53d7-4962-ba17-97fdf954b3a9}">
@@ -431,9 +480,6 @@ VAR
 	_factoryFailureReason: E_ValueFactoryFailureReason;
 	_attributesFailureReason: E_AttributesFailureReason;
 END_VAR
-VAR CONSTANT
-	UNIX_EPOCH_DIFF: ULINT := 116444736000000000;
-END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[startSpan REF= THIS^;
@@ -471,7 +517,7 @@ IF THIS^.pSpan = 0 THEN
 END_IF
 
 THIS^.pSpan^.kind := kind;
-THIS^.pSpan^.startTimestamp := (F_GetSystemTime() - UNIX_EPOCH_DIFF) * 100;  // 100ns ticks since 1601 -> ns since 1970
+THIS^.pSpan^.startTimestamp := THIS^._now();
 
 IF NOT ValueFactory.createString(
 	pDest:=THIS^.pSpan^.name,

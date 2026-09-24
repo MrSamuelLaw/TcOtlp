@@ -6,7 +6,7 @@ implements:
   - FB_Tracer
   - E_TracerFailureReason
 source: TcOtlp/test/OTEL/TRACING/TRACER/FB_Tracer.TcPOU
-gap: The fluent build chain (startSpan, setParent, attributes, build) is implemented; endSpan and replaceSpan are not.
+gap: The fluent build chain (startSpan, setParent, attributes, build) and endSpan are implemented; replaceSpan is not.
 ---
 
 `FB_Tracer` builds [[FB_Span]] instances with the same fluent chain that `FB_Logger` uses for log records. Each setter validates its input as the chain runs. The difference is at the end of the chain: the logger's `emit` pushes the record to its provider, but the tracer's `build` **hands the span to the caller**, because a span starts running when it is built and ends later. See the lifecycle in [[FB_Span]].
@@ -61,12 +61,20 @@ Processors are not notified when a span is built. The processor contract has an 
 | `ID_GENERATION_FAILURE` | The generator failed for another reason. |
 | `SNAPSHOT_COPY_FAILURE` | The resource or scope could not be copied. |
 | `MEMORY_ALLOCATION_FAILURE` | Dynamic memory allocation failed. |
+| `SPAN_POINTER_NULL` | `endSpan` was given a null pointer. |
+| `TRANSFER_TO_PROVIDER_FAILURE` | The provider could not queue the ended span, so it was released. |
+
+## endSpan
+
+```iec
+tracer.endSpan(pSpan := pSpan, failureReason => reason);
+```
+
+`endSpan` stamps the end timestamp and moves the span into [[FB_TracerProvider]]'s queue through `onEnd`. The caller's pointer is **always cleared**, whether or not the hand-off succeeds: an ended span has no other owner, so if the provider cannot queue it, `endSpan` releases it and reports `TRANSFER_TO_PROVIDER_FAILURE`. That only happens when a queue node cannot be allocated, because a full queue drops its oldest span instead of refusing the new one.
+
+`endSpan` is not part of the fluent chain. It does not read or reset the chain's failure, so it can be called while another span is being built.
 
 ## Methods not yet implemented
-
-### endSpan
-
-`endSpan(pSpan)` stamps the end timestamp, hands the span to [[FB_TracerProvider]] for processing, and clears the caller's pointer.
 
 ### replaceSpan
 
