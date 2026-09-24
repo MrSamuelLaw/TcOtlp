@@ -92,6 +92,7 @@ _pBuffer[_offset] := 0;
 _pNew := __NEW(FB_TraceState(pString:=_pBuffer, length:=_length, count:=_kept));
 IF _pNew = 0 THEN
 	__DELETE(_pBuffer);
+	_pBuffer := 0;
 	failureReason := E_TraceStateFailureReason.MEMORY_ALLOCATION_FAILURE;
 	RETURN;
 END_IF
@@ -240,6 +241,7 @@ MEMCPY(_pBuffer, pSrc^.pString, pSrc^.length + 1);
 _pNew := __NEW(FB_TraceState(pString:=_pBuffer, length:=pSrc^.length, count:=pSrc^.count));
 IF _pNew = 0 THEN
 	__DELETE(_pBuffer);
+	_pBuffer := 0;
 	failureReason := E_TraceStateFailureReason.MEMORY_ALLOCATION_FAILURE;
 	RETURN;
 END_IF

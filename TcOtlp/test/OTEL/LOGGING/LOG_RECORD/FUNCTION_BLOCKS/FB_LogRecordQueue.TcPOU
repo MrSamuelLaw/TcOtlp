@@ -150,6 +150,7 @@ pValue := _node^.val;
 _node^.val := 0;
 _node^.nxt := 0;
 __DELETE(_node);
+_node := 0;
 THIS^.count := THIS^.count - 1;
 pop := failureReason = E_LogRecordQueueFailureReason.NA;]]></ST>
       </Implementation>
@@ -194,6 +195,7 @@ FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
 	END_IF
 	IF NOT THIS^.pop(pValue:=_droppedRecord, failureReason=>_popFailureReason) THEN
 		__DELETE(_node);
+		_node := 0;
 		failureReason := _popFailureReason;
 		RETURN;
 	END_IF
@@ -202,6 +204,7 @@ FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
 END_FOR
 IF THIS^.count >= _bound THEN
 	__DELETE(_node);
+	_node := 0;
 	failureReason := E_LogRecordQueueFailureReason.MAX_SIZE_ENFORCEMENT_FAILURE;
 	RETURN;
 END_IF

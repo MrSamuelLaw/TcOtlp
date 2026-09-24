@@ -140,6 +140,7 @@ _pNew := __NEW(FB_Number(
 IF _pNew = 0 THEN
 	failureReason := E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE;
 	__DELETE(_value.pValue);
+	_value.pValue := 0;
 	RETURN;
 END_IF
 _value.pValue := 0;  // moved into FB_Number
@@ -237,6 +238,7 @@ MEMCPY(_pKey, pKey, _len);
 createKeyValue := ValueFactory.cloneAnyValue(pDest:=_pVal, pSrc:=pVal, failureReason=>failureReason);
 IF NOT createKeyValue THEN
 	__DELETE(_pKey);
+	_pKey := 0;
 	IF _pVal <> 0 THEN _pVal^.delete(pSelf:=_pVal); END_IF
 	RETURN;
 END_IF
@@ -246,6 +248,7 @@ IF _pNew = 0 THEN
 	createKeyValue := FALSE;
 	failureReason := E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE;
 	__DELETE(_pKey);
+	_pKey := 0;
 	_pVal^.delete(pSelf:=_pVal);
 	RETURN;
 END_IF
@@ -335,6 +338,7 @@ _pNew := __NEW(FB_Number(value:=_value));
 IF _pNew = 0 THEN
 	failureReason := E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE;
 	__DELETE(_value.pValue);
+	_value.pValue := 0;
 	RETURN;
 END_IF
 _value.pValue := 0;  // moved into FB_Number
@@ -435,6 +439,7 @@ _pNew := __NEW(FB_String(pString:=_pString));
 IF _pNew = 0 THEN
 	failureReason := E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE;
 	__DELETE(_pString);
+	_pString := 0;
 	RETURN;
 END_IF
 _pString := 0;  // moved into FB_String
