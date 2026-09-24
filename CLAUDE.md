@@ -137,3 +137,7 @@ Before changing implementation code:
 3. Prefer the smallest change within the owning domain.
 4. Update the TwinCAT `.plcproj` whenever source files are added, moved, or removed.
 5. Run the relevant TcUnit tests after changing Structured Text behavior.
+
+## Tooling notes
+
+- Don't pass scripts or file content through a shell heredoc (`cat > file <<'EOF'`). It is unreliable here: quotes inside the body, such as the ST escape `$'` or a single quote in a string literal, can break the shell command even when the delimiter is quoted. Write the script with the Write tool, then run it.

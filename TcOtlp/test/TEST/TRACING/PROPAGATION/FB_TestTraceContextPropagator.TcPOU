@@ -1,0 +1,381 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestTraceContextPropagator" Id="{b080860f-9706-4e46-acbd-334ef305f4ac}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Tests TraceContextPropagator.extract against the W3C traceparent and tracestate rules. *)
+FUNCTION_BLOCK FB_TestTraceContextPropagator EXTENDS FB_TestSuite
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testExtractsTraceparentAndTracestate();
+THIS^.testKeepsUnsampledFlag();
+THIS^.testAcceptsFutureVersion();
+THIS^.testMeasuresTraceparentBeyond255();
+THIS^.testTracestateIsOptional();
+THIS^.testKeepsLongTracestateWhole();
+THIS^.testRejectsMalformedTraceparent();
+THIS^.testRejectsAssignedDestination();]]></ST>
+    </Implementation>
+    <Method Name="_expectRejected" Id="{cd372c58-e4ed-4f55-b628-013a0c357240}">
+      <Declaration><![CDATA[(*
+	Asserts that extract rejects traceparent with the expected reason and leaves the destination
+	at 0. The tracestate beside it is valid, so this also shows a bad traceparent drops it.
+*)
+METHOD _expectRejected
+VAR_INPUT
+	traceparent: T_MaxString;  // longer than 55, so overlong headers reach extract whole
+	expected: E_PropagationFailureReason;
+END_VAR
+VAR
+	_pContext: POINTER TO FB_SpanContext;
+	_success: BOOL;
+	_reason: E_PropagationFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_success := TraceContextPropagator.extract(
+	pDest:=_pContext,
+	traceparent:=traceparent,
+	tracestate:='vendor=abc',
+	failureReason=>_reason
+);
+THIS^.AssertFalse(_success, CONCAT('Expected extract to reject: ', traceparent));
+THIS^.AssertEquals_UDINT(TO_UDINT(expected), TO_UDINT(_reason), CONCAT('Expected the failure reason for: ', traceparent));
+THIS^.AssertTrue(_pContext = 0, CONCAT('Expected no context for: ', traceparent));
+IF _pContext <> 0 THEN _pContext^.delete(pSelf:=_pContext); END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testExtractsTraceparentAndTracestate" Id="{5ad2a88c-90f7-4169-af15-f1e1fd9a7ac8}">
+      <Declaration><![CDATA[(*
+	The W3C example carrier becomes a remote context holding the caller's trace id, span id,
+	sampled bit and tracestate, so a PLC span can link back to the span that triggered it.
+*)
+METHOD testExtractsTraceparentAndTracestate : REFERENCE TO FB_Test
+VAR
+	traceparent: STRING(55) := '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01';
+	tracestate: STRING(512) := 'congo=t61rcWkgMzE,rojo=00f067aa0ba902b7';
+	expectedTraceId: ARRAY [0..15] OF BYTE := [
+		16#4B, 16#F9, 16#2F, 16#35, 16#77, 16#B3, 16#4D, 16#A6,
+		16#A3, 16#CE, 16#92, 16#9D, 16#0E, 16#0E, 16#47, 16#36];
+	expectedSpanId: ARRAY [0..7] OF BYTE := [16#00, 16#F0, 16#67, 16#AA, 16#0B, 16#A9, 16#02, 16#B7];
+	pContext: POINTER TO FB_SpanContext;
+	pTraceState: POINTER TO FB_TraceState;
+	traceId: REFERENCE TO FB_TraceId;
+	spanId: REFERENCE TO FB_SpanId;
+	success: BOOL;
+	reason: E_PropagationFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testExtractsTraceparentAndTracestate');
+	success := TraceContextPropagator.extract(
+		pDest:=pContext,
+		traceparent:=traceparent,
+		tracestate:=tracestate,
+		failureReason=>reason
+	);
+	THIS^.AssertTrue(success, 'Expected the W3C example carrier to be extracted');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_PropagationFailureReason.NA), TO_UDINT(reason), 'Expected no failure reason on success');
+	THIS^.AssertTrue(pContext <> 0, 'Expected extract to assign the destination');
+	IF pContext = 0 THEN
+		TcUnit.TEST_FINISHED();
+		RETURN;
+	END_IF
+
+	traceId REF= pContext^.traceId;
+	spanId REF= pContext^.spanId;
+	THIS^.AssertTrue(
+		MEMCMP(ADR(traceId.bytes), ADR(expectedTraceId), SIZEOF(expectedTraceId)) = 0,
+		'Expected the trace id decoded from the traceparent'
+	);
+	THIS^.AssertTrue(
+		MEMCMP(ADR(spanId.bytes), ADR(expectedSpanId), SIZEOF(expectedSpanId)) = 0,
+		'Expected the caller$'s span id decoded from the traceparent'
+	);
+	THIS^.AssertEquals_UDINT(16#301, pContext^.traceFlags, 'Expected the sampled bit and both remote bits');
+	THIS^.AssertTrue(pContext^.isRemote(), 'Expected an extracted context to be remote');
+
+	pTraceState := pContext^.traceState;
+	THIS^.AssertTrue(pTraceState <> 0, 'Expected the tracestate to be kept');
+	IF pTraceState <> 0 THEN
+		THIS^.AssertEquals_STRING('congo=t61rcWkgMzE,rojo=00f067aa0ba902b7', pTraceState^.pString^, 'Expected the tracestate entries in their original order');
+	END_IF
+	pContext^.delete(pSelf:=pContext);
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testKeepsUnsampledFlag" Id="{54948a8a-2037-43ae-b761-f4ecd54df969}">
+      <Declaration><![CDATA[(*
+	A caller that did not sample its own trace still produces a context: the sampled bit is
+	carried as sent and only advises the PLC, which decides its own sampling.
+*)
+METHOD testKeepsUnsampledFlag : REFERENCE TO FB_Test
+VAR
+	traceparent: STRING(55) := '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00';
+	pContext: POINTER TO FB_SpanContext;
+	success: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testKeepsUnsampledFlag');
+	success := TraceContextPropagator.extract(pDest:=pContext, traceparent:=traceparent, tracestate:='');
+	THIS^.AssertTrue(success, 'Expected an unsampled carrier to be extracted');
+	IF pContext <> 0 THEN
+		THIS^.AssertEquals_UDINT(16#300, pContext^.traceFlags, 'Expected both remote bits and no sampled bit');
+		THIS^.AssertTrue(pContext^.isRemote(), 'Expected an extracted context to be remote');
+		pContext^.delete(pSelf:=pContext);
+	END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testAcceptsFutureVersion" Id="{41c6b876-86a7-4a2a-b4d1-9092b1aad2e5}">
+      <Declaration><![CDATA[(*
+	W3C asks a parser to read a newer version as version 00 rather than reject it, ignoring any
+	fields after the flags, so a caller that upgrades its tracing library does not lose the link.
+	The flags may end the header or be followed by '-' and more fields.
+*)
+METHOD testAcceptsFutureVersion : REFERENCE TO FB_Test
+VAR
+	traceparent: STRING(80) := 'cc-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01-newfield';
+	traceparentWithoutFields: STRING(55) := 'cc-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01';
+	pContext: POINTER TO FB_SpanContext;
+	success: BOOL;
+	reason: E_PropagationFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testAcceptsFutureVersion');
+	success := TraceContextPropagator.extract(pDest:=pContext, traceparent:=traceparent, tracestate:='', failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected version cc with an extra field to be read as version 00');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_PropagationFailureReason.NA), TO_UDINT(reason), 'Expected no failure reason for a future version');
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
+
+	// the flags end the header
+	success := TraceContextPropagator.extract(pDest:=pContext, traceparent:=traceparentWithoutFields, tracestate:='', failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected version cc with no extra field to be read as version 00');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_PropagationFailureReason.NA), TO_UDINT(reason), 'Expected no failure reason for a 55 character future version');
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testTracestateIsOptional" Id="{d2fb5906-41c2-4ac5-b1ef-9896828324ef}">
+      <Declaration><![CDATA[(*
+	The traceparent alone identifies the caller's span. A missing tracestate, or one that breaks
+	the W3C grammar, leaves the context without a trace state instead of failing the extraction.
+*)
+METHOD testTracestateIsOptional : REFERENCE TO FB_Test
+VAR
+	traceparent: STRING(55) := '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01';
+	pContext: POINTER TO FB_SpanContext;
+	success: BOOL;
+	reason: E_PropagationFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testTracestateIsOptional');
+	// no tracestate header
+	success := TraceContextPropagator.extract(pDest:=pContext, traceparent:=traceparent, tracestate:='', failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected a carrier without tracestate to be extracted');
+	THIS^.AssertTrue(pContext <> 0 AND_THEN pContext^.traceState = 0, 'Expected no trace state without a tracestate header');
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
+
+	// an uppercase key breaks the tracestate grammar, so only the trace state is dropped
+	success := TraceContextPropagator.extract(pDest:=pContext, traceparent:=traceparent, tracestate:='Vendor=abc', failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected an invalid tracestate not to fail the extraction');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_PropagationFailureReason.NA), TO_UDINT(reason), 'Expected no failure reason for a dropped tracestate');
+	THIS^.AssertTrue(pContext <> 0 AND_THEN pContext^.traceState = 0, 'Expected an invalid tracestate to be dropped');
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testRejectsMalformedTraceparent" Id="{41512661-e958-4f23-a9e1-9fc8c20ee7fb}">
+      <Declaration><![CDATA[(*
+	Each way a traceparent can break the W3C format is reported by its own reason, and nothing
+	is allocated, so the caller can start an unlinked span and log why.
+*)
+METHOD testRejectsMalformedTraceparent : REFERENCE TO FB_Test
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testRejectsMalformedTraceparent');
+	// no header at all
+	THIS^._expectRejected(traceparent:='', expected:=E_PropagationFailureReason.TRACEPARENT_EMPTY);
+	// the flags are missing
+	THIS^._expectRejected(traceparent:='00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7', expected:=E_PropagationFailureReason.TRACEPARENT_LENGTH_INVALID);
+	// version ff is reserved as invalid
+	THIS^._expectRejected(traceparent:='ff-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01', expected:=E_PropagationFailureReason.VERSION_INVALID);
+	// the version is not hex
+	THIS^._expectRejected(traceparent:='0g-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01', expected:=E_PropagationFailureReason.VERSION_INVALID);
+	// the version is not followed by '-'
+	THIS^._expectRejected(traceparent:='00_4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01', expected:=E_PropagationFailureReason.DELIMITER_INVALID);
+	// W3C allows only lowercase hex
+	THIS^._expectRejected(traceparent:='00-4BF92F3577B34DA6A3CE929D0E0E4736-00f067aa0ba902b7-01', expected:=E_PropagationFailureReason.TRACE_ID_INVALID);
+	// an all-zero trace id means absent
+	THIS^._expectRejected(traceparent:='00-00000000000000000000000000000000-00f067aa0ba902b7-01', expected:=E_PropagationFailureReason.TRACE_ID_INVALID);
+	// the span id is not hex
+	THIS^._expectRejected(traceparent:='00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902bx-01', expected:=E_PropagationFailureReason.SPAN_ID_INVALID);
+	// an all-zero span id means absent
+	THIS^._expectRejected(traceparent:='00-4bf92f3577b34da6a3ce929d0e0e4736-0000000000000000-01', expected:=E_PropagationFailureReason.SPAN_ID_INVALID);
+	// the flags are not hex
+	THIS^._expectRejected(traceparent:='00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-0z', expected:=E_PropagationFailureReason.TRACE_FLAGS_INVALID);
+	// version 00 is exactly 55 characters, so nothing may follow the flags
+	THIS^._expectRejected(traceparent:='00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01-00', expected:=E_PropagationFailureReason.TRACEPARENT_LENGTH_INVALID);
+	// a future version's flags must be followed by '-' or the end of the header
+	THIS^._expectRejected(traceparent:='cc-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01x', expected:=E_PropagationFailureReason.DELIMITER_INVALID);
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testRejectsAssignedDestination" Id="{1cbe89fb-9afd-4019-ae24-eec61acf2049}">
+      <Declaration><![CDATA[(* extract never overwrites a context the caller already owns, which would leak it. *)
+METHOD testRejectsAssignedDestination : REFERENCE TO FB_Test
+VAR
+	traceparent: STRING(55) := '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01';
+	pContext: POINTER TO FB_SpanContext;
+	pFirst: POINTER TO FB_SpanContext;
+	success: BOOL;
+	reason: E_PropagationFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testRejectsAssignedDestination');
+	TraceContextPropagator.extract(pDest:=pContext, traceparent:=traceparent, tracestate:='');
+	pFirst := pContext;
+
+	success := TraceContextPropagator.extract(pDest:=pContext, traceparent:=traceparent, tracestate:='', failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected extract to refuse an assigned destination');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_PropagationFailureReason.DESTINATION_ALREADY_ASSIGNED),
+		TO_UDINT(reason),
+		'Expected DESTINATION_ALREADY_ASSIGNED'
+	);
+	THIS^.AssertTrue(pContext = pFirst, 'Expected the caller$'s context to be left in place');
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_fillLongHeader" Id="{33d8c1ad-12a7-440d-8a8b-12bf3729a388}">
+      <Declaration><![CDATA[(*
+	Writes a valid 515 character tracestate: four 128 character entries k0..k3 joined by ','.
+	It is built byte by byte because STRING functions stop at 255 characters.
+*)
+METHOD _fillLongHeader
+VAR_IN_OUT
+	header: STRING(600);
+END_VAR
+VAR
+	_p: POINTER TO BYTE;
+	_entry: UDINT;
+	_i: UDINT;
+	_n: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_p := ADR(header);
+FOR _entry := 0 TO 3 DO
+	IF _entry > 0 THEN
+		_p[_n] := 16#2C;  // ','
+		_n := _n + 1;
+	END_IF
+	_p[_n] := 16#6B;  // 'k'
+	_p[_n + 1] := 16#30 + TO_BYTE(_entry);
+	_p[_n + 2] := 16#3D;  // '='
+	_n := _n + 3;
+	FOR _i := 1 TO 125 DO
+		_p[_n] := 16#61 + TO_BYTE(_i MOD 26);
+		_n := _n + 1;
+	END_FOR
+END_FOR
+_p[_n] := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testKeepsLongTracestateWhole" Id="{cd3c19c0-a099-42a9-97f3-6f803c573dde}">
+      <Declaration><![CDATA[(*
+	W3C asks for at least 512 tracestate characters to be kept and allows dropping only whole
+	entries, never cutting one. A 515 character header is kept entirely, so no vendor's entry
+	reaches the backend corrupted.
+*)
+METHOD testKeepsLongTracestateWhole : REFERENCE TO FB_Test
+VAR
+	traceparent: STRING(55) := '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01';
+	tracestate: STRING(600);
+	pContext: POINTER TO FB_SpanContext;
+	pTraceState: POINTER TO FB_TraceState;
+	success: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testKeepsLongTracestateWhole');
+	THIS^._fillLongHeader(header:=tracestate);
+	success := TraceContextPropagator.extract(pDest:=pContext, traceparent:=traceparent, tracestate:=tracestate);
+	THIS^.AssertTrue(success, 'Expected a carrier with a long tracestate to be extracted');
+	IF pContext <> 0 THEN
+		pTraceState := pContext^.traceState;
+		THIS^.AssertTrue(pTraceState <> 0, 'Expected the long tracestate to be kept');
+		IF pTraceState <> 0 THEN
+			THIS^.AssertEquals_UDINT(515, pTraceState^.length, 'Expected all 515 characters, with no entry cut');
+			THIS^.AssertEquals_UDINT(4, pTraceState^.count, 'Expected all four entries');
+		END_IF
+		pContext^.delete(pSelf:=pContext);
+	END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testMeasuresTraceparentBeyond255" Id="{052e0977-c9be-4f2a-957d-9bbf5586d515}">
+      <Declaration><![CDATA[(*
+	A carrier can be longer than the 255 characters that LEN and T_MaxString handle. extract
+	measures the whole header, so a 300 character version 00 header is still rejected and a
+	300 character future version with extra fields is still accepted.
+*)
+METHOD testMeasuresTraceparentBeyond255 : REFERENCE TO FB_Test
+VAR
+	versionZero: STRING(300);
+	futureVersion: STRING(300);
+	pContext: POINTER TO FB_SpanContext;
+	success: BOOL;
+	reason: E_PropagationFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testMeasuresTraceparentBeyond255');
+	THIS^._fillLongTraceparent(header:=versionZero, prefix:='00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01');
+	THIS^._fillLongTraceparent(header:=futureVersion, prefix:='cc-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01');
+
+	success := TraceContextPropagator.extract(pDest:=pContext, traceparent:=versionZero, tracestate:='', failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected a 300 character version 00 traceparent to be rejected');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_PropagationFailureReason.TRACEPARENT_LENGTH_INVALID), TO_UDINT(reason), 'Expected TRACEPARENT_LENGTH_INVALID for a 300 character version 00 traceparent');
+	THIS^.AssertTrue(pContext = 0, 'Expected no context for a 300 character version 00 traceparent');
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
+
+	success := TraceContextPropagator.extract(pDest:=pContext, traceparent:=futureVersion, tracestate:='', failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected a 300 character future version traceparent to be accepted');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_PropagationFailureReason.NA), TO_UDINT(reason), 'Expected no failure reason for a 300 character future version traceparent');
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_fillLongTraceparent" Id="{05a6daa2-bf43-4382-aeb6-e3af131fa74f}">
+      <Declaration><![CDATA[(*
+	Writes a 300 character traceparent: the 55 character prefix, then '-' and 244 'a' characters
+	as extra fields. It is built byte by byte because STRING functions stop at 255 characters.
+*)
+METHOD _fillLongTraceparent
+VAR_IN_OUT
+	header: STRING(300);
+END_VAR
+VAR_INPUT
+	prefix: STRING(55);
+END_VAR
+VAR
+	_p: POINTER TO BYTE;
+	_i: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[header := prefix;
+_p := ADR(header);
+_p[55] := 16#2D;  // '-'
+FOR _i := 56 TO 299 DO
+	_p[_i] := 16#61;  // 'a'
+END_FOR
+_p[300] := 0;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

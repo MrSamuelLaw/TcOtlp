@@ -1,0 +1,98 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <EnumerationTextList Name="E_PropagationFailureReason" Id="{929a8e3b-ca0d-41fc-bce6-d0ae2c7832f7}">
+    <Declaration><![CDATA[(* Why TraceContextPropagator could not extract a span context from a carrier. *)
+{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_PropagationFailureReason :
+(
+	NA := 0,  // No failure.
+	DESTINATION_ALREADY_ASSIGNED,  // The destination pointer already holds a span context.
+	TRACEPARENT_EMPTY,  // No traceparent arrived, so there is no context to extract.
+	TRACEPARENT_LENGTH_INVALID,  // The traceparent is shorter than 55 characters, or longer for version 00.
+	VERSION_INVALID,  // The version is not two lowercase hex digits, or is the reserved ff.
+	DELIMITER_INVALID,  // A field is not followed by '-', or a future version's flags are followed by something else.
+	TRACE_ID_INVALID,  // The trace id is not 32 lowercase hex digits, or is all zero.
+	SPAN_ID_INVALID,  // The parent span id is not 16 lowercase hex digits, or is all zero.
+	TRACE_FLAGS_INVALID,  // The trace flags are not two lowercase hex digits.
+	MEMORY_ALLOCATION_FAILURE  // The span context could not be allocated.
+) UDINT;
+END_TYPE
+]]></Declaration>
+    <XmlArchive>
+      <Data>
+        <o xml:space="preserve" t="TextListEnumerationTextListObject">
+          <l n="TextList" t="ArrayList" cet="TextListRow">
+            <o>
+              <v n="TextID">"NA"</v>
+              <v n="TextDefault">"0"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"DESTINATION_ALREADY_ASSIGNED"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"TRACEPARENT_EMPTY"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"TRACEPARENT_LENGTH_INVALID"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"VERSION_INVALID"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"DELIMITER_INVALID"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"TRACE_ID_INVALID"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SPAN_ID_INVALID"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"TRACE_FLAGS_INVALID"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"MEMORY_ALLOCATION_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">""</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+          </l>
+          <l n="Languages" t="ArrayList" />
+          <v n="GuidInit">{4a9db018-11c8-45c1-a1c2-d7b2088a2f8f}</v>
+          <v n="GuidReInit">{fb8bac21-5cb9-427a-85bb-8e9d5894073b}</v>
+          <v n="GuidExitX">{bccd57e2-3a80-4dcf-bc63-2f1286361320}</v>
+        </o>
+      </Data>
+      <TypeList>
+        <Type n="ArrayList">System.Collections.ArrayList</Type>
+        <Type n="Guid">System.Guid</Type>
+        <Type n="String">System.String</Type>
+        <Type n="TextListEnumerationTextListObject">{4b60233c-f940-4beb-b331-82133b520151}</Type>
+        <Type n="TextListRow">{53da1be7-ad25-47c3-b0e8-e26286dad2e0}</Type>
+      </TypeList>
+    </XmlArchive>
+  </EnumerationTextList>
+</TcPlcObject>

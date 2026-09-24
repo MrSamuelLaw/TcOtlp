@@ -3,7 +3,7 @@
   <POU Name="FB_TestSpanSimulation" Id="{176e32a6-c7c8-44d8-b313-652cb89b8d64}" SpecialFunc="None">
     <Declaration><![CDATA[(*
 	Runs the manufacturing process from the tracing research notes through the whole pipeline:
-	a root span, step-a as its child, then step-b as a child linked to step-a. Each step runs
+	a root span that continues a trace propagated by an upstream caller, step-a as its child, then step-b as a child linked to step-a. Each step runs
 	for STEP_CYCLES scans, and step-b and the process end in the same scan. step-a succeeds,
 	and step-b fails, which fails the process. Processors are
 	staged and the provider ticked every scan, and spans go through FB_SpanProcessor_Batch to
@@ -27,7 +27,9 @@ END_VAR
       <Declaration><![CDATA[(*
 	A multi-scan process with a parent, a child and a linked child runs end to end through the
 	real provider, batch processor and file exporter: every span ends, none is dropped, and the
-	file export reports no error.
+	file export reports no error. The root span's parent is a remote context faked as if extracted
+	from an upstream caller's traceparent and tracestate headers, so the whole process joins that
+	trace and carries its trace state.
 *)
 METHOD testManufacturingProcess : REFERENCE TO FB_Test
 VAR CONSTANT
@@ -45,12 +47,25 @@ VAR_INST
 	_pCurrent: POINTER TO FB_Span;
 	_pRootContext: POINTER TO FB_SpanContext;
 	_pStepContext: POINTER TO FB_SpanContext;
+	_pRemoteContext: POINTER TO FB_SpanContext;
+	_rootJoinedRemoteTrace: BOOL;
+	_rootParentIsRemoteSpan: BOOL;
+	_rootTraceState: T_MaxString;
 	_fileDeleter: FB_FileDelete;
 END_VAR
 VAR
 	tracerReason: E_TracerFailureReason;
 	providerReason: E_TracerProviderFailureReason;
+	propagationReason: E_PropagationFailureReason;
 	setpoint: INT;
+	// the upstream caller's headers, from the W3C Trace Context examples
+	traceparent: STRING(55) := '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01';
+	tracestate: STRING(512) := 'congo=t61rcWkgMzE,rojo=00f067aa0ba902b7';
+	// the identity the traceparent carries, to check the root span joined it
+	remoteTraceIdBytes: ARRAY [0..15] OF BYTE := [
+		16#4B, 16#F9, 16#2F, 16#35, 16#77, 16#B3, 16#4D, 16#A6,
+		16#A3, 16#CE, 16#92, 16#9D, 16#0E, 16#0E, 16#47, 16#36];
+	remoteSpanIdBytes: ARRAY [0..7] OF BYTE := [16#00, 16#F0, 16#67, 16#AA, 16#0B, 16#A9, 16#02, 16#B7];
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -72,12 +87,35 @@ END_VAR
 				_step := 1;
 			END_IF
 
-		1: // processInit: start the root span and step-a as its child; retry while ids are not ready
-			IF _pRoot = 0 THEN
+		1: // processInit: start the root span under the context extracted from the caller's headers,
+		   // and step-a as its child;
+		   // retry while ids are not ready
+			IF _pRemoteContext = 0 THEN
+				TraceContextPropagator.extract(
+					pDest:=_pRemoteContext,
+					traceparent:=traceparent,
+					tracestate:=tracestate,
+					failureReason=>propagationReason
+				);
+			END_IF
+			IF _pRoot = 0 AND _pRemoteContext <> 0 THEN
 				_tracer.startSpan(name:='manufacturing-process')
+					.setParent(pContext:=_pRemoteContext)
 					.setStringAttribute('line', 'L1')
 					.setStringAttribute('recipe', 'widget-7')
 					.build(pDest:=_pRoot, failureReason=>tracerReason);
+				IF _pRoot <> 0 THEN
+					// record the parentage now, because the tracer takes the root when it ends
+					_rootJoinedRemoteTrace := _pRoot^.traceId <> 0
+						AND_THEN MEMCMP(ADR(_pRoot^.traceId^.bytes), ADR(remoteTraceIdBytes), SIZEOF(remoteTraceIdBytes)) = 0;
+					_rootParentIsRemoteSpan := _pRoot^.parentSpanId <> 0
+						AND_THEN MEMCMP(ADR(_pRoot^.parentSpanId^.bytes), ADR(remoteSpanIdBytes), SIZEOF(remoteSpanIdBytes)) = 0;
+					IF _pRoot^.traceState <> 0 AND_THEN _pRoot^.traceState^.pString <> 0 THEN
+						_rootTraceState := _pRoot^.traceState^.pString^;
+					END_IF
+					// the root copied what it needs from its parent
+					_pRemoteContext^.delete(pSelf:=_pRemoteContext);
+				END_IF
 			END_IF
 			IF _pRoot <> 0 AND _pRootContext = 0 THEN
 				_pRoot^.getContext(pDest:=_pRootContext);
@@ -150,10 +188,17 @@ END_VAR
 		THIS^.AssertEquals_UDINT(3, _endedCount, 'Expected every span to end');
 		THIS^.AssertEquals_UDINT(0, _exportErrors, 'Expected no file export errors');
 		THIS^.AssertEquals_UDINT(0, _processor.droppedCount, 'Expected the processor to drop no span');
+		THIS^.AssertTrue(_rootJoinedRemoteTrace, 'Expected the root span to join the propagated trace');
+		THIS^.AssertTrue(_rootParentIsRemoteSpan, 'Expected the root span$'s parent to be the propagated span');
+		THIS^.AssertEquals_STRING('congo=t61rcWkgMzE,rojo=00f067aa0ba902b7', _rootTraceState, 'Expected the root span to carry the propagated trace state');
 		IF _pCurrent <> 0 THEN _pCurrent^.delete(pSelf:=_pCurrent); END_IF
 		IF _pRoot <> 0 THEN _pRoot^.delete(pSelf:=_pRoot); END_IF
 		IF _pRootContext <> 0 THEN _pRootContext^.delete(pSelf:=_pRootContext); END_IF
 		IF _pStepContext <> 0 THEN _pStepContext^.delete(pSelf:=_pStepContext); END_IF
+		IF _pRemoteContext <> 0 THEN _pRemoteContext^.delete(pSelf:=_pRemoteContext); END_IF
+		_rootJoinedRemoteTrace := FALSE;
+		_rootParentIsRemoteSpan := FALSE;
+		_rootTraceState := '';
 		_step := 0;
 		_cycles := 0;
 		TcUnit.TEST_FINISHED();

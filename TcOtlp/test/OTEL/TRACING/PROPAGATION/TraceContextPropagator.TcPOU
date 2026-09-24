@@ -1,0 +1,212 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="TraceContextPropagator" Id="{9c5ef736-0160-4416-a3a1-fe86c83d8b9e}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Decodes W3C Trace Context carriers into span contexts. Propagation is the caller's job: the
+	application owns the carrier strings and the span it starts, and this program only turns a
+	traceparent and tracestate into a context. See "Trace Context Propagation" in the docs.
+*)
+PROGRAM TraceContextPropagator
+VAR CONSTANT
+	TRACEPARENT_LENGTH: UDINT := 55;  // version 00, and the fields every version starts with: 2 + 1 + 32 + 1 + 16 + 1 + 2
+	TRACE_ID_OFFSET: UDINT := 3;
+	SPAN_ID_OFFSET: UDINT := 36;
+	FLAGS_OFFSET: UDINT := 53;
+	DELIMITER: BYTE := 16#2D;  // '-'
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="extract" Id="{fbb8a4a6-c3c8-45df-b25c-9fd960f4fb77}">
+      <Declaration><![CDATA[(*
+	Parses a W3C traceparent and optional tracestate into a new remote span context. The caller
+	owns pDest, which must be 0, and releases it once with delete. Nothing is allocated until the
+	traceparent is known to be good, and on failure pDest stays 0: the caller should then start
+	its span without the context, because a mangled header must not stop a process.
+	An all-zero trace id or span id is the encoding of "absent" and is rejected. Version ff is
+	invalid. Version 00 is exactly 55 characters; a future version may be longer, and is read as
+	its first 55 characters when the flags are followed by '-'. The headers are taken by
+	reference at their full length, so an overlong traceparent is seen and rejected, and the
+	tracestate is never cut mid-entry. W3C asks for at least 512 tracestate characters to be
+	kept and allows only whole entries to be dropped, so every entry is kept here; a carrier of
+	limited size uses TraceStateFactory.truncate when the context is sent on. An invalid
+	tracestate is dropped without failing the extraction. The context is marked remote, and its
+	sampled bit is advisory: the PLC makes its own sampling decision.
+*)
+METHOD extract : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_SpanContext;
+END_VAR
+VAR_IN_OUT CONSTANT
+	traceparent: STRING;  // any length
+	tracestate: STRING;  // any length; '' when the header is absent
+END_VAR
+VAR_OUTPUT
+	failureReason: E_PropagationFailureReason;
+END_VAR
+VAR
+	_p: POINTER TO BYTE;
+	_length: UDINT;
+	_allZero: BOOL;
+	_version: BYTE;
+	_flags: BYTE;
+	_traceId: FB_TraceId;
+	_spanId: FB_SpanId;
+	_pTraceState: POINTER TO FB_TraceState;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[extract := FALSE;
+failureReason := E_PropagationFailureReason.NA;
+
+IF pDest <> 0 THEN
+	failureReason := E_PropagationFailureReason.DESTINATION_ALREADY_ASSIGNED;
+	RETURN;
+END_IF
+
+// measured with LEN2, because LEN stops at 255 characters
+_p := ADR(traceparent);
+_length := TO_UDINT(LEN2(_p));
+
+IF _length = 0 THEN
+	failureReason := E_PropagationFailureReason.TRACEPARENT_EMPTY;
+	RETURN;
+END_IF
+
+IF _length < TRACEPARENT_LENGTH THEN
+	failureReason := E_PropagationFailureReason.TRACEPARENT_LENGTH_INVALID;
+	RETURN;
+END_IF
+
+// every field sits at a fixed offset, so validation is a bounded decode of 27 bytes
+IF NOT _decodeHex(pText:=_p, nBytes:=1, pBytes:=ADR(_version)) OR_ELSE _version = 16#FF THEN
+	failureReason := E_PropagationFailureReason.VERSION_INVALID;
+	RETURN;
+END_IF
+
+// version 00 has no room for more fields
+IF _version = 0 AND _length > TRACEPARENT_LENGTH THEN
+	failureReason := E_PropagationFailureReason.TRACEPARENT_LENGTH_INVALID;
+	RETURN;
+END_IF
+
+// a future version may add fields after the flags, each introduced by '-'
+IF _p[TRACE_ID_OFFSET - 1] <> DELIMITER
+	OR _p[SPAN_ID_OFFSET - 1] <> DELIMITER
+	OR _p[FLAGS_OFFSET - 1] <> DELIMITER
+	OR (_length > TRACEPARENT_LENGTH AND_THEN _p[TRACEPARENT_LENGTH] <> DELIMITER)
+THEN
+	failureReason := E_PropagationFailureReason.DELIMITER_INVALID;
+	RETURN;
+END_IF
+
+IF NOT _decodeHex(
+		pText:=_p + TRACE_ID_OFFSET,
+		nBytes:=SIZEOF(_traceId.bytes),
+		pBytes:=ADR(_traceId.bytes),
+		allZero=>_allZero)
+	OR _allZero
+THEN
+	failureReason := E_PropagationFailureReason.TRACE_ID_INVALID;
+	RETURN;
+END_IF
+
+IF NOT _decodeHex(
+		pText:=_p + SPAN_ID_OFFSET,
+		nBytes:=SIZEOF(_spanId.bytes),
+		pBytes:=ADR(_spanId.bytes),
+		allZero=>_allZero)
+	OR _allZero
+THEN
+	failureReason := E_PropagationFailureReason.SPAN_ID_INVALID;
+	RETURN;
+END_IF
+
+IF NOT _decodeHex(pText:=_p + FLAGS_OFFSET, nBytes:=1, pBytes:=ADR(_flags)) THEN
+	failureReason := E_PropagationFailureReason.TRACE_FLAGS_INVALID;
+	RETURN;
+END_IF
+
+// the traceparent is good; an invalid tracestate leaves _pTraceState at 0 and is dropped
+TraceStateFactory.parse(pDest:=_pTraceState, pHeader:=ADR(tracestate));
+
+IF NOT ContextFactory.buildContext(
+	pDest:=pDest,
+	pTraceId:=ADR(_traceId),
+	pSpanId:=ADR(_spanId),
+	pTraceState:=_pTraceState,
+	traceFlags:=TO_UDINT(_flags)
+		OR TO_UDINT(E_SpanFlags.SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK)
+		OR TO_UDINT(E_SpanFlags.SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK))
+THEN
+	failureReason := E_PropagationFailureReason.MEMORY_ALLOCATION_FAILURE;
+END_IF
+
+// the context holds its own copy of the trace state
+IF _pTraceState <> 0 THEN _pTraceState^.delete(pSelf:=_pTraceState); END_IF
+
+extract := failureReason = E_PropagationFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_decodeHex" Id="{6d3983a6-243c-4548-ab4a-7ab9b1a76c4a}">
+      <Declaration><![CDATA[(*
+	Decodes nBytes bytes from the 2 * nBytes hex characters at pText into pBytes. W3C allows
+	only lowercase hex, so any other character fails. allZero reports whether every decoded
+	byte is 0. nBytes comes from the fixed traceparent fields, so it is at most 16.
+*)
+METHOD _decodeHex : BOOL
+VAR_INPUT
+	pText: POINTER TO BYTE;
+	nBytes: UDINT;
+	pBytes: POINTER TO BYTE;
+END_VAR
+VAR_OUTPUT
+	allZero: BOOL;
+END_VAR
+VAR
+	_i: UDINT;
+	_high: BYTE;
+	_low: BYTE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_decodeHex := FALSE;
+allZero := TRUE;
+
+IF pText = 0 OR pBytes = 0 OR nBytes = 0 THEN
+	RETURN;
+END_IF
+
+FOR _i := 0 TO nBytes - 1 DO
+	_high := _hexValue(pText[2 * _i]);
+	_low := _hexValue(pText[2 * _i + 1]);
+	IF _high > 15 OR _low > 15 THEN
+		RETURN;
+	END_IF
+	pBytes[_i] := SHL(_high, 4) OR _low;
+	allZero := allZero AND pBytes[_i] = 0;
+END_FOR
+
+_decodeHex := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_hexValue" Id="{6de22d62-88b8-4880-b7d3-1e60d3f4dd47}">
+      <Declaration><![CDATA[(* Returns the value of one lowercase hex digit, or 16#FF when c is not one. *)
+METHOD _hexValue : BYTE
+VAR_INPUT
+	c: BYTE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF c >= 16#30 AND c <= 16#39 THEN  // '0'..'9'
+	_hexValue := c - 16#30;
+ELSIF c >= 16#61 AND c <= 16#66 THEN  // 'a'..'f'
+	_hexValue := c - 16#61 + 10;
+ELSE
+	_hexValue := 16#FF;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
