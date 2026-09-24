@@ -42,8 +42,11 @@ END_VAR
 	_node := THIS^._head^.nxt;
 	__DELETE(THIS^._head);
 	THIS^._head := _node;
-END_FOR
-THIS^.stagedProcessorCount := 0;]]></ST>
+	// count down per node, so the count never claims nodes that are gone or hides ones that remain
+	IF THIS^.stagedProcessorCount > 0 THEN
+		THIS^.stagedProcessorCount := THIS^.stagedProcessorCount - 1;
+	END_IF
+END_FOR]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Exit" Id="{3862a08d-ca0c-4c94-87c9-51375cc5ca7c}">
@@ -96,7 +99,9 @@ END_VAR
     <Method Name="stageProcessor" Id="{0ae7d757-2fa4-42cf-bb9a-edd28ebf84dd}">
       <Declaration><![CDATA[(*
 	Adds a processor for the next tick. The processor is borrowed and must outlive the tick.
-	Staging the same processor twice has no effect. Returns the provider so calls can chain.
+	Staging the same processor twice has no effect. At most MAX_LOOP_COUNT processors can be
+	staged per tick; staging more fails with STAGE_PROCESSOR_FAILURE. Returns the provider so
+	calls can chain.
 *)
 METHOD stageProcessor : REFERENCE TO FB_TracerProvider
 VAR_INPUT
@@ -130,6 +135,11 @@ FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
 	IF _node^.val = processor.pSelf THEN
 		RETURN;
 	ELSIF _node^.nxt = 0 THEN
+		// at most MAX_LOOP_COUNT nodes, so _freeProcessors always releases them all
+		IF THIS^.stagedProcessorCount >= TcOtlp_GVL.MAX_LOOP_COUNT THEN
+			THIS^._failureReason := E_TracerProviderFailureReason.STAGE_PROCESSOR_FAILURE;
+			RETURN;
+		END_IF
 		_node^.nxt := __NEW(ST_LinkedListNode);
 		IF _node^.nxt = 0 THEN
 			THIS^._failureReason := E_TracerProviderFailureReason.STAGE_PROCESSOR_FAILURE;

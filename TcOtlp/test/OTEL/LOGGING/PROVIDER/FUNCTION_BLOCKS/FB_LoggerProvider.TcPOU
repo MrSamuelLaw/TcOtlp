@@ -28,8 +28,11 @@ END_VAR]]></Declaration>
 	_node := THIS^._head^.nxt;
 	__DELETE(THIS^._head);
 	THIS^._head := _node;
-END_FOR
-THIS^.stagedProcessorCount := 0;]]></ST>
+	// count down per node, so the count never claims nodes that are gone or hides ones that remain
+	IF THIS^.stagedProcessorCount > 0 THEN
+		THIS^.stagedProcessorCount := THIS^.stagedProcessorCount - 1;
+	END_IF
+END_FOR]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Exit" Id="{a3de6da8-4caa-45e5-82ac-23ff1b828ee2}">
@@ -125,6 +128,11 @@ ELSE
 			// silently do nothing if processor already added for this tick
 			RETURN;
 		ELSIF _node^.nxt = 0 THEN
+			// at most MAX_LOOP_COUNT nodes, so _freeProcessors always releases them all
+			IF THIS^.stagedProcessorCount >= TcOtlp_GVL.MAX_LOOP_COUNT THEN
+				THIS^._failureReason := E_LoggerProviderFailureReason.STAGE_PROCESSOR_FAILURE;
+				RETURN;
+			END_IF
 			_node^.nxt := __NEW(ST_LinkedListNode);
 			IF _node^.nxt = 0 THEN
 				THIS^._failureReason := E_LoggerProviderFailureReason.STAGE_PROCESSOR_FAILURE;
