@@ -158,5 +158,133 @@ setStatusOk REF= THIS^;
 // try to create the object with using short circuit evaluation]]></ST>
       </Implementation>
     </Method>
+    <Method Name="cloneTo" Id="{8a52cd95-727f-4d26-979c-15f2ccdc0c38}">
+      <Declaration><![CDATA[(*
+	Allocates a deep copy of this span, for a processor that keeps an ended span past onEnd.
+	The copy owns copies of every member, so it stays valid after this span is released. This
+	span is only read, apart from its links cursor. The caller owns pDest, which must be 0; on
+	failure nothing is allocated and pDest is left alone.
+*)
+METHOD cloneTo : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_Span;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_SpanCloneFailureReason;
+END_VAR
+VAR
+	_pClone: POINTER TO FB_Span;
+	_pMessage: POINTER TO FB_String;
+	_copied: BOOL;
+	_attributesFailureReason: E_AttributesFailureReason;
+	_linkFailureReason: E_LinkFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[cloneTo := FALSE;
+failureReason := E_SpanCloneFailureReason.NA;
+
+IF pDest <> 0 THEN
+	failureReason := E_SpanCloneFailureReason.DESTINATION_ALREADY_ASSIGNED;
+	RETURN;
+END_IF
+
+_pClone := __NEW(FB_Span);
+IF _pClone = 0 THEN
+	failureReason := E_SpanCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+
+// the clone owns its members from here, so deleting it releases whatever was copied
+_pClone^.kind := THIS^.kind;
+_pClone^.startTimestamp := THIS^.startTimestamp;
+_pClone^.endTimestamp := THIS^.endTimestamp;
+_pClone^.flags := THIS^.flags;
+
+_copied := (THIS^.name = 0 OR_ELSE ValueFactory.cloneString(
+		pDest:=_pClone^.name,
+		pSrc:=THIS^.name))
+	AND_THEN (THIS^.traceId = 0 OR_ELSE ValueFactory.createTraceId(
+		pDest:=_pClone^.traceId,
+		pBytes:=ADR(THIS^.traceId^.bytes),
+		nSize:=SIZEOF(THIS^.traceId^.bytes)))
+	AND_THEN (THIS^.spanId = 0 OR_ELSE ValueFactory.createSpanId(
+		pDest:=_pClone^.spanId,
+		pBytes:=ADR(THIS^.spanId^.bytes),
+		nSize:=SIZEOF(THIS^.spanId^.bytes)))
+	AND_THEN (THIS^.parentSpanId = 0 OR_ELSE ValueFactory.createSpanId(
+		pDest:=_pClone^.parentSpanId,
+		pBytes:=ADR(THIS^.parentSpanId^.bytes),
+		nSize:=SIZEOF(THIS^.parentSpanId^.bytes)))
+	AND_THEN (THIS^.traceState = 0 OR_ELSE ValueFactory.cloneString(
+		pDest:=_pClone^.traceState,
+		pSrc:=THIS^.traceState))
+	AND_THEN (THIS^.status = 0 OR_ELSE THIS^.status^.message = 0 OR_ELSE ValueFactory.cloneString(
+		pDest:=_pMessage,
+		pSrc:=THIS^.status^.message));
+IF NOT _copied THEN
+	IF _pMessage <> 0 THEN _pMessage^.delete(pSelf:=_pMessage); END_IF
+	_pClone^.delete(pSelf:=_pClone);
+	failureReason := E_SpanCloneFailureReason.VALUE_COPY_FAILURE;
+	RETURN;
+END_IF
+
+IF THIS^.status <> 0 THEN
+	_pClone^.status := __NEW(FB_Status(code:=THIS^.status^.code, message:=_pMessage));
+	IF _pClone^.status = 0 THEN
+		IF _pMessage <> 0 THEN _pMessage^.delete(pSelf:=_pMessage); END_IF
+		_pClone^.delete(pSelf:=_pClone);
+		failureReason := E_SpanCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
+		RETURN;
+	END_IF
+	_pMessage := 0;  // moved into the status
+END_IF
+
+IF NOT _pClone^.attributes.copyFrom(src:=THIS^.attributes, failureReason=>_attributesFailureReason) THEN
+	_pClone^.delete(pSelf:=_pClone);
+	IF _attributesFailureReason = E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE THEN
+		failureReason := E_SpanCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
+	ELSE
+		failureReason := E_SpanCloneFailureReason.ATTRIBUTE_COPY_FAILURE;
+	END_IF
+	RETURN;
+END_IF
+
+IF NOT _pClone^.links.copyFrom(src:=THIS^.links, failureReason=>_linkFailureReason) THEN
+	_pClone^.delete(pSelf:=_pClone);
+	IF _linkFailureReason = E_LinkFailureReason.MEMORY_ALLOCATION_FAILURE THEN
+		failureReason := E_SpanCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
+	ELSE
+		failureReason := E_SpanCloneFailureReason.LINK_COPY_FAILURE;
+	END_IF
+	RETURN;
+END_IF
+
+IF NOT _pClone^.resource.copyFrom(src:=THIS^.resource, failureResult=>_attributesFailureReason) THEN
+	_pClone^.delete(pSelf:=_pClone);
+	IF _attributesFailureReason = E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE THEN
+		failureReason := E_SpanCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
+	ELSE
+		failureReason := E_SpanCloneFailureReason.RESOURCE_COPY_FAILURE;
+	END_IF
+	RETURN;
+END_IF
+
+IF NOT _pClone^.scope.copyFrom(src:=THIS^.scope, failureResult=>_attributesFailureReason) THEN
+	_pClone^.delete(pSelf:=_pClone);
+	IF _attributesFailureReason = E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE THEN
+		failureReason := E_SpanCloneFailureReason.MEMORY_ALLOCATION_FAILURE;
+	ELSE
+		failureReason := E_SpanCloneFailureReason.SCOPE_COPY_FAILURE;
+	END_IF
+	RETURN;
+END_IF
+
+// transfer ownership to the caller
+pDest := _pClone;
+_pClone := 0;
+cloneTo := TRUE;]]></ST>
+      </Implementation>
+    </Method>
   </POU>
 </TcPlcObject>

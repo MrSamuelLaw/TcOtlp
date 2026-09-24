@@ -502,7 +502,7 @@ VAR
 	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
-	processor: FB_SpanProcessor_ForInspection;
+	processor: FB_SpanProcessor_ForInspection(exporter:=0);
 	pSpan: POINTER TO FB_Span;
 	pExpected: POINTER TO FB_Span;
 	pEnded: POINTER TO FB_Span;

@@ -1,0 +1,107 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_SpanExporter_Base" Id="{7c2c489b-aca7-451b-ae42-a43cab088e9b}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Contract shared by span exporters. A processor offers a batch with export, which moves up to
+	count of the oldest spans out of the processor's queue into the exporter without cloning
+	them. The exporter owns the batch until free, which runs when the batch is delivered or
+	failed, when the next batch is accepted, and when the exporter is destroyed.
+	Concrete exporters advance delivery in tick and report through isBusy whether they can take
+	another batch. Only ended spans reach an exporter.
+*)
+FUNCTION_BLOCK ABSTRACT FB_SpanExporter_Base
+VAR
+	_spans: FB_SpanQueue(maxCount:=0);
+	_exportActive: BOOL;
+	_callFailureReason: E_SpanExporterFailureReason;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="export" Id="{0626c578-cb2b-43ae-8054-5c85bcfdb916}">
+      <Declaration><![CDATA[(*
+	Takes ownership of up to count of the oldest spans in spans. While busy it refuses with
+	ACTIVE_EXPORT_IN_PROGRESS and leaves spans unchanged. A count of zero accepts nothing and
+	succeeds.
+*)
+METHOD export : BOOL
+VAR_IN_OUT
+	spans: FB_SpanQueue;  // accepted spans are transferred out of this queue
+END_VAR
+VAR_INPUT
+	count: UDINT;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_SpanExporterFailureReason;
+END_VAR
+VAR
+	_queueFailureReason: E_SpanQueueFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[export := FALSE;
+failureReason := E_SpanExporterFailureReason.NA;
+
+IF THIS^.isBusy() THEN
+	failureReason := E_SpanExporterFailureReason.ACTIVE_EXPORT_IN_PROGRESS;
+	RETURN;
+END_IF
+
+// release a finished batch still held by the exporter before accepting the next one
+THIS^.free();
+IF NOT spans.transferTo(
+	destination:=THIS^._spans,
+	count:=count,
+	failureReason=>_queueFailureReason
+) THEN
+	failureReason := E_SpanExporterFailureReason.QUEUE_TRANSFER_FAILURE;
+	RETURN;
+END_IF
+
+THIS^._exportActive := THIS^._spans.count > 0;
+export := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Exit" Id="{e0fb3d50-e99d-4fc9-bacf-ab8571b068ba}">
+      <Declaration><![CDATA[METHOD FB_Exit : BOOL
+VAR_INPUT
+	bInCopyCode: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bInCopyCode THEN
+	THIS^.free();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{777bbfc3-1e9f-41b6-ba68-5ec6ed3a5b8c}">
+      <Declaration><![CDATA[(* Releases every span the exporter owns and clears the active export. *)
+METHOD free
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._spans.free();
+THIS^._exportActive := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="isBusy" Id="{becd6464-9b53-4e3d-8a80-79ff1418c346}">
+      <Declaration><![CDATA[(* TRUE while the exporter cannot accept another batch. *)
+METHOD ABSTRACT isBusy : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="tick" Id="{67304bcf-08e8-4aac-bd2c-b5191c343fbc}">
+      <Declaration><![CDATA[(* Advances delivery of the accepted batch. Call it every scan. *)
+METHOD ABSTRACT tick : BOOL
+VAR_OUTPUT
+	failureReason: E_SpanExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

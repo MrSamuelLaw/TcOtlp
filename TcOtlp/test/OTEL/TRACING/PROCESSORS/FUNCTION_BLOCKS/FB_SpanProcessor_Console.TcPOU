@@ -6,7 +6,8 @@
 	development and commissioning. For example:
 	  span "work" trace=0101...01 span=0202020202020202 parent=none kind=SPAN_KIND_INTERNAL status=STATUS_CODE_UNSET duration=500ns
 	Attributes, links, resource and scope are not written. Lines longer than 255 characters
-	are truncated.
+	are truncated. It writes the line itself instead of using an exporter, so declare it
+	with 0 as the exporter.
 *)
 FUNCTION_BLOCK FB_SpanProcessor_Console EXTENDS FB_SpanProcessor_Simple
 ]]></Declaration>

@@ -1,13 +1,13 @@
 ---
 type: model
 domain: tracing
-status: partial
+status: implemented
 implements:
   - FB_SpanProcessor_Base
   - FB_SpanProcessor_Simple
   - FB_SpanProcessor_Console
 source: TcOtlp/test/OTEL/TRACING/PROCESSORS/FUNCTION_BLOCKS/
-gap: No span exporter exists, so FB_SpanProcessor_Simple.export is a no-op and FB_SpanProcessor_Console writes to the ADS log itself. onStart is not part of the contract yet.
+gap: FB_SpanProcessor_Console writes to the ADS log itself, because there is no FB_SpanExporter_Console yet. onStart is not part of the contract yet.
 ---
 
 `FB_SpanProcessor_Simple` extends `FB_SpanProcessor_Base` and handles each ended span as soon as [[FB_TracerProvider]] hands it over: `enrich`, then `export`. It keeps nothing between calls.
@@ -34,8 +34,9 @@ Abstract. It declares:
 
 - **`onEnd`** ignores an invalid reference, then calls `enrich` and `export`.
 - **`enrich`** is a no-op extension point.
-- **`export`** is a no-op until a span exporter exists. Override it to send spans somewhere. Once [[FB_SpanExporter]] exists, it should clone the span and hand the clone to the exporter, as `FB_LogRecordProcessor_Simple` does.
-- **`tick`** and **`free`** are no-ops, because the processor retains nothing.
+- **`export`** does nothing when there is no exporter or the exporter is busy. Otherwise it clones the span and offers the clone to the [[FB_SpanExporter]] as a batch of one. The exporter owns the clone once it accepts it. If the clone or the hand-off fails, the clone is released. Override `export` to send spans somewhere else.
+- **`tick`** ticks the exporter. **`free`** releases a clone left by a failed hand-off, because the processor keeps nothing between calls.
+- `FB_Init(exporter)` borrows the exporter, which must outlive the processor. Declare it with `exporter:=0` to drop every span.
 
 ## FB_SpanProcessor_Console
 
@@ -52,8 +53,8 @@ span "work" trace=01010101010101010101010101010101 span=0202020202020202 parent=
 - Attributes, links, resource and scope are not written.
 - Lines are truncated at 255 characters.
 
-Writing to a destination is Log Exporting behaviour, not processing. The console processor mirrors the logging test double `FB_LogRecordProcessor_ConsolePrinter`. Move its output into an `FB_SpanExporter_Console` once span exporters exist.
+Declare it with `exporter:=0`, because it overrides `export` and never uses an exporter. Writing to a destination is Log Exporting behaviour, not processing. The console processor mirrors the logging test double `FB_LogRecordProcessor_ConsolePrinter`. Move its output into an `FB_SpanExporter_Console` once span exporters exist.
 
 ## Trade-off
 
-The simple processor does its work inline, in the same tick that the span is handed over, so a slow destination slows the scan. That is fine for the ADS log but not for a network destination; use [[FB_SpanProcessor_Batch]] there once it exists.
+The simple processor keeps nothing. A span that ends while the exporter is busy is dropped, and no counter records the drop. Exporters that take several scans, such as `FB_SpanExporter_File`, stay busy after each span. So spans that end in the same scan, or within a few scans of each other, are lost. Use [[FB_SpanProcessor_Batch]] with those exporters.

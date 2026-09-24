@@ -8,7 +8,8 @@
 	TcOtlp_GVL.MAX_LOOP_COUNT: a maxCount of zero, or one above that limit, is held to
 	MAX_LOOP_COUNT so that free always reaches the end.
 	reset and next walk the spans oldest first without taking ownership, for readers
-	such as serializers.
+	such as serializers. transferTo moves the oldest spans into another queue, for handing
+	a batch to an exporter.
 *)
 FUNCTION_BLOCK FB_SpanQueue
 VAR
@@ -239,6 +240,66 @@ METHOD reset
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[THIS^._cursor := THIS^._head;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="transferTo" Id="{d88d0a02-dff6-4571-a522-879dc10cbe27}">
+      <Declaration><![CDATA[(*
+	Moves up to count of the oldest spans into destination, which must be empty. Ownership moves
+	with the nodes, so nothing is cloned or released. The move stops at this queue's count and at
+	the destination's bound.
+*)
+METHOD transferTo : BOOL
+VAR_IN_OUT
+	destination: FB_SpanQueue;
+END_VAR
+VAR_INPUT
+	count: UDINT;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_SpanQueueFailureReason;
+END_VAR
+VAR
+	_transferCount: UDINT;
+	_idx: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[transferTo := FALSE;
+failureReason := E_SpanQueueFailureReason.NA;
+
+IF ADR(destination) = THIS THEN
+	failureReason := E_SpanQueueFailureReason.SELF_TRANSFER_NOT_ALLOWED;
+	RETURN;
+END_IF
+IF destination.count <> 0 OR_ELSE destination._head <> 0 OR_ELSE destination._tail <> 0 THEN
+	failureReason := E_SpanQueueFailureReason.DESTINATION_NOT_EMPTY;
+	RETURN;
+END_IF
+
+_transferCount := MIN(count, THIS^.count, destination._capacity());
+IF _transferCount = 0 THEN
+	transferTo := TRUE;
+	RETURN;
+END_IF
+
+// count never exceeds MAX_LOOP_COUNT, so this walk is bounded
+destination._head := THIS^._head;
+destination._tail := destination._head;
+FOR _idx := 1 TO _transferCount - 1 DO
+	destination._tail := destination._tail^.nxt;
+END_FOR
+
+THIS^._head := destination._tail^.nxt;
+destination._tail^.nxt := 0;
+destination._cursor := destination._head;
+destination.count := _transferCount;
+
+THIS^.count := THIS^.count - _transferCount;
+THIS^._cursor := THIS^._head;
+IF THIS^._head = 0 THEN
+	THIS^._tail := 0;
+END_IF
+transferTo := TRUE;]]></ST>
       </Implementation>
     </Method>
   </POU>

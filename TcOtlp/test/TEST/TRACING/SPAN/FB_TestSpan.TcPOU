@@ -12,7 +12,9 @@ FUNCTION_BLOCK FB_TestSpan EXTENDS FB_TestSuite
       <ST><![CDATA[THIS^.testGetContextCopiesIdentity();
 THIS^.testGetContextIsLocal();
 THIS^.testGetContextRejectsAssignedDestination();
-THIS^.testGetContextOnUnstartedSpan();]]></ST>
+THIS^.testGetContextOnUnstartedSpan();
+THIS^.testCloneToCopiesEveryMember();
+THIS^.testCloneToRejectsAssignedDestination();]]></ST>
     </Implementation>
     <Method Name="_setIdentity" Id="{b85f5bb5-bb70-4b48-812a-1abcdb4179c1}">
       <Declaration><![CDATA[(* Points the span's identity outputs at the given values; pass 0 to clear them. *)
@@ -208,6 +210,121 @@ END_VAR
 
 	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
 	THIS^._setIdentity(span:=span, pTraceId:=0, pSpanId:=0, pTraceState:=0);
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testCloneToCopiesEveryMember" Id="{4490e7af-97e3-416a-8e55-ef9dd747b048}">
+      <Declaration><![CDATA[(* cloneTo gives the copy its own copy of every member, so it outlives the source. *)
+METHOD testCloneToCopiesEveryMember : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	pParent: POINTER TO FB_Span;
+	pContext: POINTER TO FB_SpanContext;
+	pSpan: POINTER TO FB_Span;
+	pClone: POINTER TO FB_Span;
+	pMessage: POINTER TO FB_String;
+	pLink: POINTER TO FB_Link;
+	pSourceLink: POINTER TO FB_Link;
+	message: STRING := 'boom';
+	reason: E_SpanCloneFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testCloneToCopiesEveryMember');
+	IF resource.attributes.count = 0 THEN
+		resource.attributes.setStringAttribute('host.id', 'PLC1');
+	END_IF
+	tracer.startSpan(name:='parent').build(pDest:=pParent);
+	IF pParent <> 0 THEN pParent^.getContext(pDest:=pContext); END_IF
+	tracer.startSpan(name:='work')
+		.setParent(pContext:=pContext)
+		.addLink(pContext:=pContext)
+		.setStringAttribute(key:='k', value:='v')
+		.build(pDest:=pSpan);
+	THIS^.AssertTrue(pSpan <> 0, 'Expected the span to build');
+	IF pSpan <> 0 THEN
+		pSpan^.kind := E_SpanKind.SPAN_KIND_SERVER;
+		pSpan^.startTimestamp := 1000;
+		pSpan^.endTimestamp := 1500;
+		ValueFactory.createString(pDest:=pMessage, pString:=ADR(message));
+		pSpan^.status := __NEW(FB_Status(code:=E_StatusCode.STATUS_CODE_ERROR, message:=pMessage));
+		IF pSpan^.status <> 0 THEN pMessage := 0; END_IF
+		pSpan^.links.reset();
+		pSourceLink := pSpan^.links.next();
+
+		THIS^.AssertTrue(pSpan^.cloneTo(pDest:=pClone, failureReason=>reason), 'Expected cloneTo to succeed');
+		THIS^.AssertEquals_UDINT(TO_UDINT(E_SpanCloneFailureReason.NA), TO_UDINT(reason), 'Expected no failure');
+		IF pClone <> 0 THEN
+			THIS^.AssertTrue(pClone^.name <> 0 AND_THEN pClone^.name <> pSpan^.name, 'Expected a copied name');
+			THIS^.AssertTrue(pClone^.traceId <> 0 AND_THEN pClone^.traceId <> pSpan^.traceId
+				AND_THEN MEMCMP(ADR(pClone^.traceId^.bytes), ADR(pSpan^.traceId^.bytes), SIZEOF(pSpan^.traceId^.bytes)) = 0,
+				'Expected a copied trace id');
+			THIS^.AssertTrue(pClone^.spanId <> 0 AND_THEN pClone^.spanId <> pSpan^.spanId
+				AND_THEN MEMCMP(ADR(pClone^.spanId^.bytes), ADR(pSpan^.spanId^.bytes), SIZEOF(pSpan^.spanId^.bytes)) = 0,
+				'Expected a copied span id');
+			THIS^.AssertTrue(pClone^.parentSpanId <> 0 AND_THEN pClone^.parentSpanId <> pSpan^.parentSpanId
+				AND_THEN MEMCMP(ADR(pClone^.parentSpanId^.bytes), ADR(pSpan^.parentSpanId^.bytes), SIZEOF(pSpan^.parentSpanId^.bytes)) = 0,
+				'Expected a copied parent span id');
+			THIS^.AssertEquals_UDINT(TO_UDINT(E_SpanKind.SPAN_KIND_SERVER), TO_UDINT(pClone^.kind), 'Expected the kind');
+			THIS^.AssertTrue(pClone^.startTimestamp = 1000 AND pClone^.endTimestamp = 1500, 'Expected the timestamps');
+			THIS^.AssertEquals_UDINT(pSpan^.flags, pClone^.flags, 'Expected the flags');
+			THIS^.AssertTrue(pClone^.status <> 0 AND_THEN pClone^.status <> pSpan^.status
+				AND_THEN pClone^.status^.code = E_StatusCode.STATUS_CODE_ERROR
+				AND_THEN pClone^.status^.message <> 0
+				AND_THEN pClone^.status^.message <> pSpan^.status^.message,
+				'Expected a copied error status');
+			THIS^.AssertEquals_UDINT(pSpan^.attributes.count, pClone^.attributes.count, 'Expected the attributes');
+			THIS^.AssertEquals_UDINT(1, pClone^.attributes.count, 'Expected one attribute');
+			THIS^.AssertEquals_UDINT(1, pClone^.links.count, 'Expected one link');
+			pClone^.links.reset();
+			pLink := pClone^.links.next();
+			THIS^.AssertTrue(pLink <> 0 AND_THEN pLink <> pSourceLink AND_THEN pLink^.spanId <> 0
+				AND_THEN MEMCMP(ADR(pLink^.spanId^.bytes), ADR(pSourceLink^.spanId^.bytes), SIZEOF(pLink^.spanId^.bytes)) = 0,
+				'Expected a copied link');
+			THIS^.AssertEquals_UDINT(pSpan^.resource.attributes.count, pClone^.resource.attributes.count, 'Expected the resource');
+			THIS^.AssertTrue(pClone^.resource.attributes.count > 0, 'Expected resource attributes to be copied');
+
+			// the copy must stay valid once the source is gone
+			pSpan^.delete(pSelf:=pSpan);
+			THIS^.AssertEquals_STRING('work', pClone^.name^.pString^, 'Expected the name to outlive the source');
+			THIS^.AssertEquals_STRING('boom', pClone^.status^.message^.pString^, 'Expected the message to outlive the source');
+			pClone^.delete(pSelf:=pClone);
+		END_IF
+		IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
+	END_IF
+	IF pMessage <> 0 THEN pMessage^.delete(pSelf:=pMessage); END_IF
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
+	IF pParent <> 0 THEN pParent^.delete(pSelf:=pParent); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testCloneToRejectsAssignedDestination" Id="{ad9ae434-2120-4175-ad8f-7b344b3e8934}">
+      <Declaration><![CDATA[(* cloneTo refuses a destination that already holds a span and leaves it alone. *)
+METHOD testCloneToRejectsAssignedDestination : REFERENCE TO FB_Test
+VAR
+	pSpan: POINTER TO FB_Span;
+	pDest: POINTER TO FB_Span;
+	reason: E_SpanCloneFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testCloneToRejectsAssignedDestination');
+	pSpan := __NEW(FB_Span);
+	pDest := pSpan;
+	IF pSpan <> 0 THEN
+		THIS^.AssertFalse(pSpan^.cloneTo(pDest:=pDest, failureReason=>reason), 'Expected cloneTo to fail');
+		THIS^.AssertEquals_UDINT(
+			TO_UDINT(E_SpanCloneFailureReason.DESTINATION_ALREADY_ASSIGNED),
+			TO_UDINT(reason),
+			'Expected DESTINATION_ALREADY_ASSIGNED'
+		);
+		THIS^.AssertTrue(pDest = pSpan, 'Expected the destination to be left alone');
+		pSpan^.delete(pSelf:=pSpan);
+	END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

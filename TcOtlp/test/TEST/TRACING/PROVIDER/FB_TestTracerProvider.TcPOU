@@ -19,8 +19,8 @@ VAR
 	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
-	processorA: FB_SpanProcessor_ForInspection;
-	processorB: FB_SpanProcessor_ForInspection;
+	processorA: FB_SpanProcessor_ForInspection(exporter:=0);
+	processorB: FB_SpanProcessor_ForInspection(exporter:=0);
 	pSpan: POINTER TO FB_Span;
 	success: BOOL;
 	reason: E_TracerProviderFailureReason;
@@ -59,7 +59,7 @@ VAR
 	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
-	processor: FB_SpanProcessor_ForInspection;
+	processor: FB_SpanProcessor_ForInspection(exporter:=0);
 	pSpan: POINTER TO FB_Span;
 END_VAR
 ]]></Declaration>
@@ -109,7 +109,7 @@ VAR
 	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
-	processor: FB_SpanProcessor_ForInspection;
+	processor: FB_SpanProcessor_ForInspection(exporter:=0);
 	pSpan: POINTER TO FB_Span;
 END_VAR
 ]]></Declaration>

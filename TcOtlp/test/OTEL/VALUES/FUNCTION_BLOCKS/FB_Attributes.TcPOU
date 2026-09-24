@@ -45,7 +45,11 @@ END_CASE
       </Implementation>
     </Method>
     <Method Name="copyFrom" Id="{12dc0284-c0fc-445c-a394-015d07f02ff7}">
-      <Declaration><![CDATA[METHOD copyFrom : BOOL
+      <Declaration><![CDATA[(*
+	Adds a copy of every attribute in src, and carries src's droppedCount over, so the copy
+	reports the same loss as the original.
+*)
+METHOD copyFrom : BOOL
 VAR_IN_OUT
 	src: FB_Attributes;
 END_VAR
@@ -62,6 +66,7 @@ END_VAR]]></Declaration>
         <ST><![CDATA[copyFrom := FALSE;
 failureReason := E_AttributesFailureReason.NA;
 
+THIS^.droppedCount := THIS^.droppedCount + src.droppedCount;
 src.reset();
 FOR _idx := 0 TO THIS^.maxCount DO
 	_pSrc := src.next();

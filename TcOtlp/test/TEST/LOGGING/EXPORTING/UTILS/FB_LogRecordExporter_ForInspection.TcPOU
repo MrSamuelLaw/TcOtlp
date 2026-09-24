@@ -4,11 +4,15 @@
     <Declaration><![CDATA[(*
 	Exporter test double that captures the linked list a processor transfers via
 	export, so tests can assert on the exported batch. Set busy to
-	simulate an exporter that cannot accept a batch.
+	simulate an exporter that cannot accept a batch. callsWhileBusy counts
+	export calls made while busy, which a processor must never make.
 *)
 FUNCTION_BLOCK FB_LogRecordExporter_ForInspection EXTENDS FB_LogRecordExporter_Base
 VAR_INPUT
 	busy: BOOL;		// TRUE simulates a busy exporter that refuses batches
+END_VAR
+VAR_OUTPUT
+	callsWhileBusy: UDINT;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -41,6 +45,25 @@ END_VAR
       <Implementation>
         <ST><![CDATA[failureReason := E_LogRecordExporterFailureReason.NA;
 tick := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="export" Id="{e330627d-8bfe-470b-94c7-55d6e8d5acfc}">
+      <Declaration><![CDATA[METHOD export : BOOL
+VAR_IN_OUT
+	logRecords: FB_LogRecordQueue;
+END_VAR
+VAR_INPUT
+	count: UDINT;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_LogRecordExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^.isBusy() THEN
+	THIS^.callsWhileBusy := THIS^.callsWhileBusy + 1;
+END_IF
+export := SUPER^.export(logRecords:=logRecords, count:=count, failureReason=>failureReason);]]></ST>
       </Implementation>
     </Method>
   </POU>

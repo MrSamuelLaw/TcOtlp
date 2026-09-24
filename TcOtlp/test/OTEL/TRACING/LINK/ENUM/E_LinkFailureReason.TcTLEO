@@ -15,7 +15,8 @@ TYPE E_LinkFailureReason :
 	LINK_POINTER_NULL,  // The link pointer is null.
 	LINK_COUNT_LIMIT_REACHED,  // The collection already holds maxCount links; the link was dropped and counted.
 	LINKS_EMPTY,  // The collection holds no links.
-	MEMORY_ALLOCATION_FAILURE  // Dynamic memory allocation failed.
+	MEMORY_ALLOCATION_FAILURE,  // Dynamic memory allocation failed.
+	ATTRIBUTE_COPY_FAILURE  // The link attributes could not be copied.
 ) UDINT;
 END_TYPE
 ]]></Declaration>
@@ -65,6 +66,11 @@ END_TYPE
             </o>
             <o>
               <v n="TextID">"MEMORY_ALLOCATION_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"ATTRIBUTE_COPY_FAILURE"</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>

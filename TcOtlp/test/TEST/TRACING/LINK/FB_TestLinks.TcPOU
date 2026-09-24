@@ -12,7 +12,9 @@ FUNCTION_BLOCK FB_TestLinks EXTENDS FB_TestSuite
 THIS^.testFromContextRejectsInvalidInput();
 THIS^.testFromSpanLinksToTheSpan();
 THIS^.testPushTakesOwnershipInOrder();
-THIS^.testPushRefusesWhenFull();]]></ST>
+THIS^.testPushRefusesWhenFull();
+THIS^.testFromLinkCopiesLink();
+THIS^.testFromLinkRejectsInvalidInput();]]></ST>
     </Implementation>
     <Method Name="_buildContext" Id="{cc0180b8-bb00-4066-86bc-df7b7037186f}">
       <Declaration><![CDATA[(* Builds a span context whose identifier bytes are all seed, for a test to link to. *)
@@ -273,6 +275,69 @@ END_VAR
 	THIS^.AssertEquals_UDINT(0, links.droppedCount, 'Expected free to clear droppedCount');
 
 	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testFromLinkCopiesLink" Id="{bb2598d0-ced5-42be-b32d-b2a360498f53}">
+      <Declaration><![CDATA[(* fromLink gives the copy its own identity, trace state and attributes. *)
+METHOD testFromLinkCopiesLink : REFERENCE TO FB_Test
+VAR
+	pContext: POINTER TO FB_SpanContext;
+	pLink: POINTER TO FB_Link;
+	pCopy: POINTER TO FB_Link;
+	reason: E_LinkFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testFromLinkCopiesLink');
+	THIS^._buildContext(pDest:=pContext, seed:=5, traceFlags:=1);
+	LinkFactory.fromContext(pDest:=pLink, pContext:=pContext, failureReason=>reason);
+	THIS^.AssertTrue(pLink <> 0, 'Expected the source link to build');
+	IF pLink <> 0 THEN
+		pLink^.attributes.setStringAttribute('k', 'v');
+		THIS^.AssertTrue(LinkFactory.fromLink(pDest:=pCopy, pSrc:=pLink, failureReason=>reason), 'Expected fromLink to succeed');
+		IF pCopy <> 0 THEN
+			THIS^.AssertTrue(pCopy^.traceId <> 0 AND_THEN pCopy^.traceId <> pLink^.traceId, 'Expected a copied trace id');
+			THIS^.AssertTrue(pCopy^.spanId <> 0 AND_THEN pCopy^.spanId <> pLink^.spanId, 'Expected a copied span id');
+			THIS^.AssertEquals_UDINT(pLink^.flags, pCopy^.flags, 'Expected the flags');
+			THIS^.AssertEquals_UDINT(1, pCopy^.attributes.count, 'Expected the attribute');
+			pLink^.delete(pSelf:=pLink);
+			THIS^.AssertTrue(pCopy^.traceId^.bytes[0] = 5 AND pCopy^.spanId^.bytes[0] = 5, 'Expected the identity to outlive the source');
+			pCopy^.delete(pSelf:=pCopy);
+		END_IF
+		IF pLink <> 0 THEN pLink^.delete(pSelf:=pLink); END_IF
+	END_IF
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testFromLinkRejectsInvalidInput" Id="{a95df6e9-e0a0-4d27-a0f5-7ad4eb6fcc06}">
+      <Declaration><![CDATA[(* fromLink refuses a missing source and an assigned destination. *)
+METHOD testFromLinkRejectsInvalidInput : REFERENCE TO FB_Test
+VAR
+	pLink: POINTER TO FB_Link;
+	pDest: POINTER TO FB_Link;
+	reason: E_LinkFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testFromLinkRejectsInvalidInput');
+	THIS^.AssertFalse(LinkFactory.fromLink(pDest:=pDest, pSrc:=0, failureReason=>reason), 'Expected a null source to fail');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.LINK_POINTER_NULL), TO_UDINT(reason), 'Expected LINK_POINTER_NULL');
+
+	pLink := __NEW(FB_Link);
+	THIS^.AssertFalse(LinkFactory.fromLink(pDest:=pDest, pSrc:=pLink, failureReason=>reason), 'Expected an empty link to fail');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.CONTEXT_INVALID), TO_UDINT(reason), 'Expected CONTEXT_INVALID');
+
+	pDest := pLink;
+	THIS^.AssertFalse(LinkFactory.fromLink(pDest:=pDest, pSrc:=pLink, failureReason=>reason), 'Expected an assigned destination to fail');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_LinkFailureReason.DESTINATION_ALREADY_ASSIGNED),
+		TO_UDINT(reason),
+		'Expected DESTINATION_ALREADY_ASSIGNED'
+	);
+	THIS^.AssertTrue(pDest = pLink, 'Expected the destination to be left alone');
+	IF pLink <> 0 THEN pLink^.delete(pSelf:=pLink); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

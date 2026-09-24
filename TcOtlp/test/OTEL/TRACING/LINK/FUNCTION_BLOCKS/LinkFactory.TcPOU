@@ -139,5 +139,85 @@ fromSpan := LinkFactory.fromContext(pDest:=pDest, pContext:=_pContext, failureRe
 _pContext^.delete(pSelf:=_pContext);]]></ST>
       </Implementation>
     </Method>
+    <Method Name="fromLink" Id="{7dea6f00-c81d-42d2-8d20-27d3f32c2f8f}">
+      <Declaration><![CDATA[(*
+	Allocates a copy of a link, for a span copy that must outlive the original. The source is
+	borrowed and unchanged. The copy owns its own identity, trace state and attributes. The
+	caller owns pDest, which must be 0; on failure nothing is allocated and pDest is left alone.
+*)
+METHOD fromLink : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_Link;
+END_VAR
+VAR_INPUT
+	pSrc: POINTER TO FB_Link;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_LinkFailureReason;
+END_VAR
+VAR
+	_pNew: POINTER TO FB_Link;
+	_copied: BOOL;
+	_attributesFailureReason: E_AttributesFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fromLink := FALSE;
+failureReason := E_LinkFailureReason.NA;
+
+IF pDest <> 0 THEN
+	failureReason := E_LinkFailureReason.DESTINATION_ALREADY_ASSIGNED;
+	RETURN;
+END_IF
+IF pSrc = 0 THEN
+	failureReason := E_LinkFailureReason.LINK_POINTER_NULL;
+	RETURN;
+END_IF
+IF pSrc^.traceId = 0 OR pSrc^.spanId = 0 THEN
+	failureReason := E_LinkFailureReason.CONTEXT_INVALID;
+	RETURN;
+END_IF
+
+_pNew := __NEW(FB_Link);
+IF _pNew = 0 THEN
+	failureReason := E_LinkFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+
+// the copy owns its members from here, so deleting it releases whatever was copied
+_copied := ValueFactory.createTraceId(
+		pDest:=_pNew^.traceId,
+		pBytes:=ADR(pSrc^.traceId^.bytes),
+		nSize:=SIZEOF(pSrc^.traceId^.bytes))
+	AND_THEN ValueFactory.createSpanId(
+		pDest:=_pNew^.spanId,
+		pBytes:=ADR(pSrc^.spanId^.bytes),
+		nSize:=SIZEOF(pSrc^.spanId^.bytes))
+	AND_THEN (pSrc^.traceState = 0 OR_ELSE ValueFactory.cloneString(
+		pDest:=_pNew^.traceState,
+		pSrc:=pSrc^.traceState));
+IF NOT _copied THEN
+	_pNew^.delete(pSelf:=_pNew);
+	failureReason := E_LinkFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+_pNew^.flags := pSrc^.flags;
+
+IF NOT _pNew^.attributes.copyFrom(src:=pSrc^.attributes, failureReason=>_attributesFailureReason) THEN
+	_pNew^.delete(pSelf:=_pNew);
+	IF _attributesFailureReason = E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE THEN
+		failureReason := E_LinkFailureReason.MEMORY_ALLOCATION_FAILURE;
+	ELSE
+		failureReason := E_LinkFailureReason.ATTRIBUTE_COPY_FAILURE;
+	END_IF
+	RETURN;
+END_IF
+
+// transfer ownership to the caller
+pDest := _pNew;
+_pNew := 0;
+fromLink := TRUE;]]></ST>
+      </Implementation>
+    </Method>
   </POU>
 </TcPlcObject>

@@ -11,7 +11,9 @@ TYPE E_SpanQueueFailureReason :
 	DESTINATION_ALREADY_ASSIGNED,  // The pop destination pointer is already assigned.
 	QUEUE_EMPTY,  // The queue contains no span to pop.
 	MAX_SIZE_ENFORCEMENT_FAILURE,  // The bounded eviction loop could not restore the configured maximum size.
-	MEMORY_ALLOCATION_FAILURE  // Dynamic node allocation failed.
+	MEMORY_ALLOCATION_FAILURE,  // Dynamic node allocation failed.
+	SELF_TRANSFER_NOT_ALLOWED,  // transferTo was asked to move spans into the same queue.
+	DESTINATION_NOT_EMPTY  // transferTo needs an empty destination queue.
 ) UDINT;
 END_TYPE
 ]]></Declaration>
@@ -46,6 +48,16 @@ END_TYPE
             </o>
             <o>
               <v n="TextID">"MEMORY_ALLOCATION_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SELF_TRANSFER_NOT_ALLOWED"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"DESTINATION_NOT_EMPTY"</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>

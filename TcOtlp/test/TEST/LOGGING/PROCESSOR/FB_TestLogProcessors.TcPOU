@@ -6,7 +6,8 @@ FUNCTION_BLOCK FB_TestLogProcessors EXTENDS FB_TestSuite
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[TestSimpleProcessors();
-TestBatchProcessors();]]></ST>
+TestBatchProcessors();
+THIS^.testProcessorsSkipBusyExporter();]]></ST>
     </Implementation>
     <Method Name="testBatchProcessors" Id="{7cba4cd6-baeb-4652-979f-3089242ac7bc}">
       <Declaration><![CDATA[(*
@@ -220,6 +221,51 @@ END_VAR
 	provider
 		.stageProcessor(processor)
 		.tick();
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testProcessorsSkipBusyExporter" Id="{08a4b76b-58e1-4e23-b2d2-d15472534b6d}">
+      <Declaration><![CDATA[(* Neither processor calls export on a busy exporter, even when the batch processor has a full batch ready. *)
+METHOD testProcessorsSkipBusyExporter : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	provider: FB_LoggerProvider(resource);
+	scope: FB_InstrumentationScope('scope', '1.0.0', '');
+	logger: FB_Logger(scope, provider);
+	simpleExporter: FB_LogRecordExporter_ForInspection;
+	simpleProcessor: FB_LogRecordProcessor_Simple(simpleExporter);
+	batchExporter: FB_LogRecordExporter_ForInspection;
+	batchProcessor: FB_LogRecordProcessor_ForBatchInspection(
+		maxQueueSize:=10,
+		scheduledDelayMillis:=60000,
+		maxExportBatchSize:=1,
+		exporter:=batchExporter
+	);
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testProcessorsSkipBusyExporter');
+	simpleExporter.busy := TRUE;
+	batchExporter.busy := TRUE;
+	logger.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setBody('work').emit();
+	provider
+		.stageProcessor(simpleProcessor)
+		.stageProcessor(batchProcessor)
+		.tick();
+	THIS^.AssertEquals_UDINT(0, simpleExporter.callsWhileBusy, 'Expected the simple processor not to call a busy exporter');
+	THIS^.AssertEquals_UDINT(0, simpleExporter.records.count, 'Expected the busy simple exporter to receive nothing');
+	THIS^.AssertEquals_UDINT(0, batchExporter.callsWhileBusy, 'Expected the batch processor not to call a busy exporter');
+	THIS^.AssertEquals_UDINT(1, batchProcessor.records.count, 'Expected the full batch to wait in the processor');
+
+	batchExporter.busy := FALSE;
+	provider
+		.stageProcessor(batchProcessor)
+		.tick();
+	THIS^.AssertEquals_UDINT(1, batchExporter.records.count, 'Expected the batch once the exporter is idle');
+	THIS^.AssertEquals_UDINT(0, batchProcessor.records.count, 'Expected the processor queue to be empty');
+	simpleExporter.free();
+	batchExporter.free();
+	batchProcessor.free();
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

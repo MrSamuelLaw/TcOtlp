@@ -8,7 +8,9 @@ FUNCTION_BLOCK FB_TestSpanQueue EXTENDS FB_TestSuite
       <ST><![CDATA[THIS^.testPushPopIsFifo();
 THIS^.testPushDropsOldestWhenFull();
 THIS^.testPopIntoAssignedDestinationFails();
-THIS^.testCursorWalksWithoutTakingOwnership();]]></ST>
+THIS^.testCursorWalksWithoutTakingOwnership();
+THIS^.testTransferToMovesOldestSpans();
+THIS^.testTransferToRejectsInvalidDestination();]]></ST>
     </Implementation>
     <Method Name="testPushPopIsFifo" Id="{124b3603-a899-43b7-87f1-fa3878fb6e21}">
       <Declaration><![CDATA[(* push takes ownership and clears the caller's pointer; pop returns spans oldest first. *)
@@ -151,6 +153,80 @@ END_VAR
 	queue.free();
 	queue.reset();
 	THIS^.AssertTrue(queue.next() = 0, 'Expected an empty walk after free');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testTransferToMovesOldestSpans" Id="{fe6d8c25-cf15-4993-bea2-43011af61f60}">
+      <Declaration><![CDATA[(* transferTo moves the oldest spans, up to the destination's bound, without copying them. *)
+METHOD testTransferToMovesOldestSpans : REFERENCE TO FB_Test
+VAR
+	source: FB_SpanQueue(maxCount:=4);
+	destination: FB_SpanQueue(maxCount:=2);
+	p: POINTER TO FB_Span;
+	pFirst: POINTER TO FB_Span;
+	pSecond: POINTER TO FB_Span;
+	pThird: POINTER TO FB_Span;
+	pPopped: POINTER TO FB_Span;
+	reason: E_SpanQueueFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testTransferToMovesOldestSpans');
+	p := __NEW(FB_Span); pFirst := p; source.push(pValue:=p, failureReason=>reason);
+	p := __NEW(FB_Span); pSecond := p; source.push(pValue:=p, failureReason=>reason);
+	p := __NEW(FB_Span); pThird := p; source.push(pValue:=p, failureReason=>reason);
+
+	THIS^.AssertTrue(source.transferTo(destination:=destination, count:=5, failureReason=>reason), 'Expected transferTo to succeed');
+	THIS^.AssertEquals_UDINT(2, destination.count, 'Expected the destination bound to hold');
+	THIS^.AssertEquals_UDINT(1, source.count, 'Expected one span left behind');
+
+	destination.pop(pValue:=pPopped, failureReason=>reason);
+	THIS^.AssertTrue(pPopped = pFirst, 'Expected the oldest span first');
+	IF pPopped <> 0 THEN pPopped^.delete(pSelf:=pPopped); END_IF
+	destination.pop(pValue:=pPopped, failureReason=>reason);
+	THIS^.AssertTrue(pPopped = pSecond, 'Expected the second span next');
+	IF pPopped <> 0 THEN pPopped^.delete(pSelf:=pPopped); END_IF
+	source.pop(pValue:=pPopped, failureReason=>reason);
+	THIS^.AssertTrue(pPopped = pThird, 'Expected the newest span to stay in the source');
+	IF pPopped <> 0 THEN pPopped^.delete(pSelf:=pPopped); END_IF
+
+	THIS^.AssertTrue(source.transferTo(destination:=destination, count:=1, failureReason=>reason), 'Expected an empty transfer to succeed');
+	THIS^.AssertEquals_UDINT(0, destination.count, 'Expected nothing to move from an empty queue');
+	source.free();
+	destination.free();
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testTransferToRejectsInvalidDestination" Id="{6135e096-49ef-495b-b5bb-9dc3bd148996}">
+      <Declaration><![CDATA[(* transferTo refuses itself and a non-empty destination, and moves nothing. *)
+METHOD testTransferToRejectsInvalidDestination : REFERENCE TO FB_Test
+VAR
+	source: FB_SpanQueue(maxCount:=4);
+	destination: FB_SpanQueue(maxCount:=4);
+	p: POINTER TO FB_Span;
+	reason: E_SpanQueueFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testTransferToRejectsInvalidDestination');
+	p := __NEW(FB_Span); source.push(pValue:=p, failureReason=>reason);
+	p := __NEW(FB_Span); destination.push(pValue:=p, failureReason=>reason);
+
+	THIS^.AssertFalse(source.transferTo(destination:=source, count:=1, failureReason=>reason), 'Expected a self transfer to fail');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_SpanQueueFailureReason.SELF_TRANSFER_NOT_ALLOWED),
+		TO_UDINT(reason),
+		'Expected SELF_TRANSFER_NOT_ALLOWED'
+	);
+	THIS^.AssertFalse(source.transferTo(destination:=destination, count:=1, failureReason=>reason), 'Expected a non-empty destination to fail');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_SpanQueueFailureReason.DESTINATION_NOT_EMPTY),
+		TO_UDINT(reason),
+		'Expected DESTINATION_NOT_EMPTY'
+	);
+	THIS^.AssertTrue(source.count = 1 AND destination.count = 1, 'Expected both queues to be unchanged');
+	source.free();
+	destination.free();
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

@@ -105,6 +105,7 @@ The physical layout is still evolving. Do not move code solely to make the folde
 - Put behavior in the domain that owns the decision, not merely where it is first called.
 - Keep Value Creation and Log Creation independent of processors, serializers, and destination infrastructure.
 - Keep processing policy out of exporters and transport behavior out of processors.
+- Processors check `isBusy()` and never call `export` on a busy exporter. What happens to the record or span then is processing policy: a simple processor drops it, and a batch processor keeps it queued. The exporter's own refusal while busy is a backstop, not the mechanism.
 - Keep serialization side-effect free with respect to the source records.
 - Make pointer ownership transfer explicit. A callee owns a pointer only when the contract says so and the caller's pointer is cleared.
 - Clone records or values when their lifetime must outlast the caller; release every owned allocation exactly once.

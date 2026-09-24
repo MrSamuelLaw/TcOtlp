@@ -1,0 +1,115 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestSpanFileExporter" Id="{bfd4d800-8ff5-42d9-a95a-9f15115f0cc0}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Tests FB_SpanExporter_File across scan cycles: it refuses a batch while busy, appends a batch
+	to its file, and delivers a second batch handed over right after the first one finished.
+*)
+FUNCTION_BLOCK FB_TestSpanFileExporter EXTENDS FB_TestSuite
+VAR
+	_exporter: FB_SpanExporter_File(filepath:='C:\Users\samue\Desktop\programming projects\TcOtlp\spans.jsonl');
+	_spans: FB_SpanQueue(maxCount:=0);
+	_resource: FB_Resource('');
+	_idGenerator: FB_MockIdGenerator;
+	_provider: FB_TracerProvider_ForInspection(resource:=_resource, idGenerator:=_idGenerator);
+	_scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	_tracer: FB_Tracer(scope:=_scope, provider:=_provider);
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testExportWritesSpansToFile();]]></ST>
+    </Implementation>
+    <Method Name="testExportWritesSpansToFile" Id="{c24d4546-c3b7-4de6-9e89-c73a803f826c}">
+      <Declaration><![CDATA[METHOD testExportWritesSpansToFile : REFERENCE TO FB_Test
+VAR CONSTANT
+	FILEPATH: STRING := 'C:\Users\samue\Desktop\programming projects\TcOtlp\spans.jsonl';
+	MAX_CYCLES: UDINT := 1000;
+END_VAR
+VAR_INST
+	_state: USINT;
+	_cycles: UDINT;
+	_delivered: UDINT;
+	_fileFinder: FB_EnumFindFileEntry;
+	_fileDeleter: FB_FileDelete;
+END_VAR
+VAR
+	pSpan: POINTER TO FB_Span;
+	idx: UDINT;
+	queueReason: E_SpanQueueFailureReason;
+	exportReason: E_SpanExporterFailureReason;
+	tickSucceeded: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testExportWritesSpansToFile');
+	CASE _state OF
+		0: // hand over a batch of two spans, then offer another while busy
+			_cycles := 0;
+			_delivered := 0;
+			FOR idx := 1 TO 2 DO
+				_tracer.startSpan(name:='work').setStringAttribute(key:='k', value:='v').build(pDest:=pSpan);
+				_spans.push(pValue:=pSpan, failureReason=>queueReason);
+				IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
+			END_FOR
+			THIS^.AssertEquals_UDINT(2, _spans.count, 'Expected two queued spans');
+			THIS^.AssertTrue(_exporter.export(spans:=_spans, count:=10, failureReason=>exportReason), 'Expected the exporter to accept the batch');
+			THIS^.AssertEquals_UDINT(0, _spans.count, 'Expected the batch to move into the exporter');
+			THIS^.AssertTrue(_exporter.isBusy(), 'Expected the exporter to be busy');
+
+			_tracer.startSpan(name:='late').build(pDest:=pSpan);
+			_spans.push(pValue:=pSpan, failureReason=>queueReason);
+			IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
+			THIS^.AssertFalse(_exporter.export(spans:=_spans, count:=1, failureReason=>exportReason), 'Expected a busy exporter to refuse');
+			THIS^.AssertEquals_UDINT(
+				TO_UDINT(E_SpanExporterFailureReason.ACTIVE_EXPORT_IN_PROGRESS),
+				TO_UDINT(exportReason),
+				'Expected ACTIVE_EXPORT_IN_PROGRESS'
+			);
+			THIS^.AssertEquals_UDINT(1, _spans.count, 'Expected the refused span to stay with the caller');
+			_spans.free();
+			_state := 10;
+
+		10: // deliver the batch, then hand over a second one in the scan it finished
+			tickSucceeded := _exporter.tick(failureReason=>exportReason);
+			_cycles := _cycles + 1;
+			IF NOT tickSucceeded THEN
+				THIS^.AssertEquals_UDINT(0, TO_UDINT(exportReason), 'Expected the file export to succeed');
+				_state := 30;
+			ELSIF _exporter.currentState = E_FileExporterState.done THEN
+				THIS^.AssertFalse(_exporter.isBusy(), 'Expected the exporter to release the delivered batch');
+				_delivered := _delivered + 1;
+				IF _delivered = 1 THEN
+					_tracer.startSpan(name:='next').build(pDest:=pSpan);
+					_spans.push(pValue:=pSpan, failureReason=>queueReason);
+					IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
+					THIS^.AssertTrue(_exporter.export(spans:=_spans, count:=1, failureReason=>exportReason), 'Expected a finished exporter to accept the next batch');
+					_cycles := 0;
+				ELSE
+					_state := 20;
+				END_IF
+			ELSIF _cycles > MAX_CYCLES THEN
+				THIS^.AssertTrue(FALSE, 'Timed out waiting for the file export');
+				_state := 30;
+			END_IF
+
+		20: // the batch made the file non-empty
+			_fileFinder(sPathName:=FILEPATH, bExecute:=TRUE);
+			IF NOT _fileFinder.bBusy THEN
+				THIS^.AssertTrue(ULARGE_TO_ULINT(_fileFinder.stFindFile.fileSize) > 0, 'Expected a non-empty file');
+				_fileFinder(bExecute:=FALSE);
+				_state := 30;
+			END_IF
+
+		30: // remove the file
+			_fileDeleter(sPathName:=FILEPATH, bExecute:=TRUE);
+			IF NOT _fileDeleter.bBusy THEN
+				_fileDeleter(bExecute:=FALSE);
+				_spans.free();
+				_state := 0;
+				TcUnit.TEST_FINISHED();
+			END_IF
+	END_CASE]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

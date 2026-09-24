@@ -1,0 +1,77 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_SpanExporter_ForInspection" Id="{d1e2c112-170e-4b6c-a2ea-96eff9a8f2f0}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Span exporter test double. It keeps each accepted batch until the next one or free, and is
+	busy while busy is set. callsWhileBusy counts export calls made while busy, which a processor
+	must never make.
+*)
+FUNCTION_BLOCK FB_SpanExporter_ForInspection EXTENDS FB_SpanExporter_Base
+VAR_INPUT
+	busy: BOOL;
+END_VAR
+VAR_OUTPUT
+	exportCount: UDINT;
+	lastBatchCount: UDINT;
+	tickCount: UDINT;
+	callsWhileBusy: UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="export" Id="{bfc15f05-cec6-465d-b91d-85232c0b1e2a}">
+      <Declaration><![CDATA[METHOD export : BOOL
+VAR_IN_OUT
+	spans: FB_SpanQueue;
+END_VAR
+VAR_INPUT
+	count: UDINT;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_SpanExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^.isBusy() THEN
+	THIS^.callsWhileBusy := THIS^.callsWhileBusy + 1;
+END_IF
+export := SUPER^.export(spans:=spans, count:=count, failureReason=>failureReason);
+IF export THEN
+	THIS^.exportCount := THIS^.exportCount + 1;
+	THIS^.lastBatchCount := THIS^._spans.count;
+	// nothing is delivered, so the batch stays held until the next one or free
+	THIS^._exportActive := FALSE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="heldSpan" Id="{9722e731-cc23-454b-a111-6ad1d8c6dad6}">
+      <Declaration><![CDATA[(* The oldest span of the held batch, borrowed; 0 when nothing is held. *)
+METHOD heldSpan : POINTER TO FB_Span
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._spans.reset();
+heldSpan := THIS^._spans.next();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="isBusy" Id="{e6675821-044b-4c3e-a7d6-fced08703e57}">
+      <Declaration><![CDATA[METHOD isBusy : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[isBusy := THIS^.busy;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="tick" Id="{62360fd4-efc1-479a-9eda-9e94368503c5}">
+      <Declaration><![CDATA[METHOD tick : BOOL
+VAR_OUTPUT
+	failureReason: E_SpanExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.tickCount := THIS^.tickCount + 1;
+failureReason := E_SpanExporterFailureReason.NA;
+tick := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

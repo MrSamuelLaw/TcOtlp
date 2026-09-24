@@ -223,5 +223,42 @@ METHOD reset
         <ST><![CDATA[THIS^._cursor := THIS^._head;]]></ST>
       </Implementation>
     </Method>
+    <Method Name="copyFrom" Id="{bb39053c-35cf-4f58-b15c-75656b2e6821}">
+      <Declaration><![CDATA[(*
+	Adds a copy of every link in src, oldest first, through LinkFactory.fromLink, and carries
+	src's droppedCount over. src is only read, apart from its cursor. On failure the links
+	copied so far stay in this collection, for the caller to release.
+*)
+METHOD copyFrom : BOOL
+VAR_IN_OUT
+	src: FB_Links;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_LinkFailureReason;
+END_VAR
+VAR
+	_idx: UDINT;
+	_pLink: POINTER TO FB_Link;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[copyFrom := FALSE;
+failureReason := E_LinkFailureReason.NA;
+
+THIS^.droppedCount := THIS^.droppedCount + src.droppedCount;
+
+// src.count never exceeds MAX_LOOP_COUNT, so this loop is bounded
+src.reset();
+FOR _idx := 1 TO src.count DO
+	IF NOT LinkFactory.fromLink(pDest:=_pLink, pSrc:=src.next(), failureReason=>failureReason)
+		OR_ELSE NOT THIS^.push(pValue:=_pLink, failureReason=>failureReason) THEN
+		IF _pLink <> 0 THEN _pLink^.delete(pSelf:=_pLink); END_IF
+		RETURN;
+	END_IF
+END_FOR
+
+copyFrom := TRUE;]]></ST>
+      </Implementation>
+    </Method>
   </POU>
 </TcPlcObject>

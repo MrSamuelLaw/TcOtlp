@@ -1,0 +1,199 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_SpanProcessor_Batch" Id="{a71550d4-0db6-43e1-a4c9-3f45b52b8815}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Keeps ended spans until they can be exported together. onEnd enriches the span and pushes a
+	clone onto a bounded queue; nothing is exported during onEnd. tick advances the exporter and
+	then, when the exporter is idle, hands it the oldest maxExportBatchSize spans once
+	scheduledDelayMillis has passed since the queue became non-empty, or at once when a full
+	batch is waiting. Spans that end in the same scan, or while the exporter is busy, therefore
+	stay queued and go out in a later batch.
+	When the queue holds maxQueueSize spans the oldest is dropped for the newest. droppedCount
+	counts those spans and the spans that could not be cloned or queued.
+	Pass 0 as the exporter to drop every span.
+*)
+FUNCTION_BLOCK FB_SpanProcessor_Batch EXTENDS FB_SpanProcessor_Base
+VAR_OUTPUT
+	scheduledDelayMillis: UDINT := 1000;  // maximum delay before queued spans are exported
+	maxExportBatchSize: UDINT := 512;  // maximum spans handed to one export
+	failureReason: E_SpanProcessorFailureReason;  // result of the last onEnd or export attempt
+END_VAR
+VAR
+	_scheduleDelayTimer: TON;
+	_spans: FB_SpanQueue(maxCount:=0);  // set again during THIS^.FB_Init
+	_rejectedCount: UDINT;  // spans lost to clone or push failures
+	_exporter: REFERENCE TO FB_SpanExporter_Base;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="enrich" Id="{58a73517-4aa7-4262-8b33-08d500b6caf4}">
+      <Declaration><![CDATA[// no-op; override to change or add to the span before it is queued
+METHOD enrich
+VAR_IN_OUT
+	span: FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="exportIfNeeded" Id="{11ed3564-eb9b-4ef9-b5f6-992904e51339}">
+      <Declaration><![CDATA[(* Hands the oldest queued spans to an idle exporter when the delay has passed or a full batch waits. *)
+METHOD exportIfNeeded
+VAR
+	_exportFailureReason: E_SpanExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^.maxExportBatchSize = 0
+	OR_ELSE NOT __ISVALIDREF(THIS^._exporter)
+	OR_ELSE THIS^._exporter.isBusy()
+	OR_ELSE THIS^._spans.count = 0 THEN
+	RETURN;
+END_IF
+
+IF NOT THIS^._scheduleDelayTimer.Q
+	AND_THEN THIS^._spans.count < THIS^.maxExportBatchSize THEN
+	RETURN;
+END_IF
+
+// accepted spans move to the exporter; on failure they stay queued for the next attempt
+IF THIS^._exporter.export(
+	spans:=THIS^._spans,
+	count:=THIS^.maxExportBatchSize,
+	failureReason=>_exportFailureReason
+) THEN
+	THIS^._scheduleDelayTimer(IN:=FALSE, PT:=UDINT_TO_TIME(THIS^.scheduledDelayMillis));
+	THIS^.failureReason := E_SpanProcessorFailureReason.NA;
+ELSE
+	THIS^.failureReason := E_SpanProcessorFailureReason.EXPORT_FAILURE;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Exit" Id="{8e0e1283-0ba6-4dca-b684-c115fba83cfd}">
+      <Declaration><![CDATA[METHOD FB_Exit : BOOL
+VAR_INPUT
+	bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bInCopyCode THEN
+	THIS^.free();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{f110f452-bca4-4a52-825d-53e41960ebdb}">
+      <Declaration><![CDATA[METHOD FB_Init : BOOL
+VAR_INPUT
+	bInitRetains: BOOL;  // TRUE: the retain variables are initialized (reset warm / reset cold)
+	bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	maxQueueSize: UDINT := 2048;  // held to TcOtlp_GVL.MAX_LOOP_COUNT; zero means that limit
+	scheduledDelayMillis: UDINT := 1000;  // maximum delay before queued spans are exported
+	maxExportBatchSize: UDINT := 512;  // maximum spans handed to one export; zero never exports
+	exporter: REFERENCE TO FB_SpanExporter_Base;  // borrowed and must outlive the processor; 0 drops every span
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._spans.FB_Init(FALSE, FALSE, maxQueueSize);
+THIS^.scheduledDelayMillis := scheduledDelayMillis;
+THIS^.maxExportBatchSize := maxExportBatchSize;
+IF __ISVALIDREF(exporter) THEN
+	THIS^._exporter REF= exporter;
+ELSE
+	THIS^._exporter REF= 0;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{5973cfd3-44d4-4cdc-9e72-ec496a2e5664}">
+      <Declaration><![CDATA[(* Releases every queued span and restarts the schedule delay. *)
+METHOD free
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._spans.free();
+THIS^._scheduleDelayTimer(IN:=FALSE, PT:=UDINT_TO_TIME(THIS^.scheduledDelayMillis));]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="onEnd" Id="{2123659c-d8d8-4101-94eb-c5da23dd6483}">
+      <Declaration><![CDATA[(*
+	Enriches the borrowed span, then pushes a clone onto the queue. A full queue drops its
+	oldest span to make room.
+*)
+METHOD onEnd
+VAR_INPUT
+	span: REFERENCE TO FB_Span;
+END_VAR
+VAR
+	_pClone: POINTER TO FB_Span;
+	_cloneFailureReason: E_SpanCloneFailureReason;
+	_queueFailureReason: E_SpanQueueFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT __ISVALIDREF(span) OR_ELSE NOT __ISVALIDREF(THIS^._exporter) THEN
+	RETURN;
+END_IF
+
+THIS^.enrich(span);
+
+IF NOT span.cloneTo(pDest:=_pClone, failureReason=>_cloneFailureReason) THEN
+	IF _pClone <> 0 THEN _pClone^.delete(pSelf:=_pClone); END_IF
+	THIS^._rejectedCount := THIS^._rejectedCount + 1;
+	THIS^.failureReason := E_SpanProcessorFailureReason.SPAN_CLONE_FAILURE;
+	RETURN;
+END_IF
+
+IF NOT THIS^._spans.push(pValue:=_pClone, failureReason=>_queueFailureReason) THEN
+	_pClone^.delete(pSelf:=_pClone);
+	THIS^._rejectedCount := THIS^._rejectedCount + 1;
+	THIS^.failureReason := E_SpanProcessorFailureReason.QUEUE_PUSH_FAILURE;
+	RETURN;
+END_IF
+
+THIS^.failureReason := E_SpanProcessorFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="tick" Id="{f995077b-220e-400d-b841-5a58452f7a2b}">
+      <Declaration><![CDATA[(* Advances the exporter, then exports a batch if one is due. Called once per provider tick. *)
+METHOD tick
+VAR
+	_exportFailureReason: E_SpanExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._scheduleDelayTimer(
+	IN:=THIS^._spans.count > 0,
+	PT:=UDINT_TO_TIME(THIS^.scheduledDelayMillis)
+);
+
+IF __ISVALIDREF(THIS^._exporter) THEN
+	THIS^._exporter.tick(failureReason=>_exportFailureReason);
+	THIS^.exportIfNeeded();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="droppedCount" Id="{4634bf4a-3619-416f-991f-a02a503fec1c}">
+      <Declaration><![CDATA[(* Spans lost so far: evicted from a full queue, or not cloned or queued. *)
+PROPERTY droppedCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{5186d12b-a1d8-41aa-90d1-71e559dc1e52}">
+        <Declaration><![CDATA[
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[droppedCount := THIS^._spans.droppedCount + THIS^._rejectedCount;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="queuedCount" Id="{3e7c3050-dce4-4302-9aca-310a43d6904e}">
+      <Declaration><![CDATA[(* Spans waiting for export. *)
+PROPERTY queuedCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{c1a11687-486a-42e0-9655-5ff3658d557a}">
+        <Declaration><![CDATA[
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[queuedCount := THIS^._spans.count;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,242 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_SpanExporter_File" Id="{de4c3ad2-a67f-46c5-acf9-0020675f1541}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Appends each accepted batch to a file as one OTLP ProtoJSON TracesData object per line
+	(JSON Lines), grouped by resource and scope. The file is opened in append mode and closed
+	again for every batch. Call the instance, or tick, every scan: the exporter is busy from
+	export until currentState reaches done or error. The batch is released at either end, and
+	an error is reported by tick until the next batch is accepted.
+*)
+FUNCTION_BLOCK FB_SpanExporter_File EXTENDS FB_SpanExporter_Base
+VAR_OUTPUT
+	currentState: E_FileExporterState;
+END_VAR
+VAR
+	_execute: BOOL;
+	_filepath: T_MaxString;
+	_hFile: UINT;
+	_len: UDINT;
+	_pString: POINTER TO STRING;  // payload buffer, owned while a write is in flight
+	_jsonVal: SJsonValue;
+	_resourceSpansArray: SJsonValue;
+	_fileOpener: FB_FileOpen;
+	_fileWriter: FB_FileWrite;
+	_fileCloser: FB_FileClose;
+	_computedState: E_FileExporterState;
+	_failureReason: E_SpanExporterFailureReason;
+	_serializationFailureReason: E_ProtoJsonSerializerFailureReason;
+	_serializer: FB_SpanProtoJsonSerializer;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.tick(failureReason=>THIS^._callFailureReason);]]></ST>
+    </Implementation>
+    <Method Name="export" Id="{f6dcaf5b-66c0-4245-b0f6-913ff59afe24}">
+      <Declaration><![CDATA[METHOD export : BOOL
+VAR_IN_OUT
+	spans: FB_SpanQueue;
+END_VAR
+VAR_INPUT
+	count: UDINT;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_SpanExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// a finished exporter accepts the next batch at once
+IF THIS^.currentState = E_FileExporterState.done OR THIS^.currentState = E_FileExporterState.error THEN
+	THIS^.currentState := E_FileExporterState.idle;
+	THIS^._computedState := E_FileExporterState.idle;
+END_IF
+export := SUPER^.export(
+	spans:=spans,
+	count:=count,
+	failureReason=>failureReason
+);
+IF export THEN
+	THIS^._failureReason := E_SpanExporterFailureReason.NA;
+	THIS^._serializationFailureReason := E_ProtoJsonSerializerFailureReason.NA;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Exit" Id="{8f5ed7b7-e7fd-406c-b5da-a0bf12f84366}">
+      <Declaration><![CDATA[(*
+	Releases a payload buffer that is still in flight. The FB_FileWrite reading it is
+	destroyed with this instance, so nothing uses the buffer afterwards. TwinCAT then
+	runs FB_SpanExporter_Base.FB_Exit, which releases the accepted spans.
+*)
+METHOD FB_Exit : BOOL
+VAR_INPUT
+	bInCopyCode: BOOL;  // TRUE: the instance is being copied during an online change
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// during an online change the copy keeps the buffer, so it must not be released here
+IF NOT bInCopyCode AND _pString <> 0 THEN
+	__DELETE(_pString);
+	_pString := 0;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{758e294e-069c-4a49-8e27-3cd61834f0d7}">
+      <Declaration><![CDATA[METHOD FB_Init : BOOL
+VAR_INPUT
+	bInitRetains: BOOL;  // TRUE: the retain variables are initialized (reset warm / reset cold)
+	bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	filepath: T_MaxString;  // file the batches are appended to
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._filepath := filepath;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="isBusy" Id="{524cb2d2-12ac-4a58-ae07-e8ca39d93b8a}">
+      <Declaration><![CDATA[METHOD isBusy : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[isBusy := THIS^._exportActive;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="tick" Id="{aabeec38-0d87-4b9c-9026-a2b4f8094172}">
+      <Declaration><![CDATA[METHOD tick : BOOL
+VAR_OUTPUT
+	failureReason: E_SpanExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[tick := TRUE;
+failureReason := E_SpanExporterFailureReason.NA;
+
+_execute := THIS^._exportActive;
+
+CASE currentState OF
+	E_FileExporterState.idle:
+		// level triggered: a batch accepted the scan after the previous one finished must still start
+		IF _execute AND_THEN THIS^._spans.count > 0 THEN
+			_failureReason := E_SpanExporterFailureReason.NA;
+			_serializationFailureReason := E_ProtoJsonSerializerFailureReason.NA;
+			_computedState := E_FileExporterState.serializing;
+		END_IF
+
+	E_FileExporterState.serializing:
+		IF NOT _serializer.serializeTracesData(
+			spans:=THIS^._spans,
+			failureReason=>_serializationFailureReason
+		) THEN
+			_failureReason := E_SpanExporterFailureReason.SERIALIZATION_FAILURE;
+			_computedState := E_FileExporterState.error;
+		ELSE
+			_jsonVal := _serializer.jsonValue;
+			IF _jsonVal = 0 OR_ELSE NOT _serializer.parser.IsObject(_jsonVal) THEN
+				_failureReason := E_SpanExporterFailureReason.SERIALIZATION_FAILURE;
+				_computedState := E_FileExporterState.error;
+			ELSE
+				_resourceSpansArray := _serializer.parser.FindMember(_jsonVal, 'resourceSpans');
+				IF _resourceSpansArray = 0 OR_ELSE NOT _serializer.parser.IsArray(_resourceSpansArray) THEN
+					_failureReason := E_SpanExporterFailureReason.SERIALIZATION_FAILURE;
+					_computedState := E_FileExporterState.error;
+				ELSE
+					_computedState := E_FileExporterState.opening;
+				END_IF
+			END_IF
+		END_IF
+
+	E_FileExporterState.opening:
+		IF _fileOpener.bError THEN
+			_failureReason := E_SpanExporterFailureReason.FILE_OPEN_FAILURE;
+			_computedState := E_FileExporterState.error;
+		ELSIF NOT _fileOpener.bBusy THEN
+			_hFile := _fileOpener.hFile;
+			_computedState := E_FileExporterState.buffering;
+		END_IF
+
+	E_FileExporterState.buffering:
+		// write one complete TracesData object per JSONL line
+		_len := _serializer.parser.GetJsonLength(_jsonVal);  // includes the null terminating character
+		IF _len = 0 THEN
+			_failureReason := E_SpanExporterFailureReason.SERIALIZATION_FAILURE;
+			_computedState := E_FileExporterState.closing;
+		ELSE
+			_pString := __NEW(BYTE, (_len + 1));  // + 1 for the new line
+			IF _pString = 0 THEN
+				_failureReason := E_SpanExporterFailureReason.BUFFER_ALLOCATION_FAILURE;
+				_computedState := E_FileExporterState.closing;
+			ELSE
+				_serializer.parser.CopyJson(_jsonVal, _pString^, _len);
+				CONCAT2(_pString, ADR('$N'), _pString, _len + 1);
+				_computedState := E_FileExporterState.writing;
+			END_IF
+		END_IF
+
+	E_FileExporterState.writing:
+		IF _fileWriter.bError THEN
+			IF _pString <> 0 THEN __DELETE(_pString); _pString := 0; END_IF
+			_failureReason := E_SpanExporterFailureReason.FILE_WRITE_FAILURE;
+			_computedState := E_FileExporterState.closing;
+		ELSIF NOT _fileWriter.bBusy THEN
+			IF _pString <> 0 THEN __DELETE(_pString); _pString := 0; END_IF
+			_computedState := E_FileExporterState.closing;
+		END_IF
+
+	E_FileExporterState.closing:
+		IF _fileCloser.bError THEN
+			IF _failureReason = E_SpanExporterFailureReason.NA THEN
+				_failureReason := E_SpanExporterFailureReason.FILE_CLOSE_FAILURE;
+			END_IF
+			_computedState := E_FileExporterState.error;
+		ELSIF NOT _fileCloser.bBusy THEN
+			IF _failureReason = E_SpanExporterFailureReason.NA THEN
+				_computedState := E_FileExporterState.done;
+			ELSE
+				_computedState := E_FileExporterState.error;
+			END_IF
+		END_IF
+
+	E_FileExporterState.done:
+		IF NOT _execute THEN
+			_computedState := E_FileExporterState.idle;
+		END_IF
+
+	E_FileExporterState.error:
+		// keep the failure until export accepts a new batch
+END_CASE
+
+currentState := _computedState;
+
+IF currentState <= E_FileExporterState.serializing THEN _hFile := 0; END_IF
+IF currentState = E_FileExporterState.done
+	OR_ELSE currentState = E_FileExporterState.error THEN
+	THIS^.free();
+END_IF
+
+_fileOpener(
+	sNetId:='',
+	sPathName:=THIS^._filepath,
+	bExecute:=currentState = E_FileExporterState.opening,
+	nMode:=FOPEN_MODEAPPEND OR FOPEN_MODETEXT,
+	ePath:=PATH_GENERIC,
+	tTimeout:=DEFAULT_ADS_TIMEOUT
+);
+
+_fileWriter(
+	hFile:=_hFile,
+	bExecute:=currentState = E_FileExporterState.writing,
+	pWriteBuff:=_pString,
+	cbWriteLen:=_len
+);
+
+_fileCloser(
+	hFile:=_hFile,
+	bExecute:=currentState = E_FileExporterState.closing
+);
+
+IF currentState = E_FileExporterState.error THEN
+	tick := FALSE;
+	failureReason := _failureReason;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

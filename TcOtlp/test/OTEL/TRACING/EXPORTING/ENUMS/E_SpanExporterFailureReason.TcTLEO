@@ -1,0 +1,86 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <EnumerationTextList Name="E_SpanExporterFailureReason" Id="{21e06c98-435b-44fd-919a-c9869f59babe}">
+    <Declaration><![CDATA[(* Why a span exporter refused a batch or could not deliver it. *)
+{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_SpanExporterFailureReason :
+(
+	NA := 0,  // No failure occurred.
+	ACTIVE_EXPORT_IN_PROGRESS,  // The exporter cannot accept another batch while an export is active.
+	QUEUE_TRANSFER_FAILURE,  // Spans could not be transferred into the exporter queue.
+	SERIALIZATION_FAILURE,  // The accepted spans could not be serialized.
+	BUFFER_ALLOCATION_FAILURE,  // The serialized payload buffer could not be allocated.
+	FILE_OPEN_FAILURE,  // The destination file could not be opened.
+	FILE_WRITE_FAILURE,  // The serialized payload could not be written.
+	FILE_CLOSE_FAILURE  // The destination file could not be closed.
+) UDINT;
+END_TYPE
+]]></Declaration>
+    <XmlArchive>
+      <Data>
+        <o xml:space="preserve" t="TextListEnumerationTextListObject">
+          <l n="TextList" t="ArrayList" cet="TextListRow">
+            <o>
+              <v n="TextID">"NA"</v>
+              <v n="TextDefault">"0"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"ACTIVE_EXPORT_IN_PROGRESS"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"QUEUE_TRANSFER_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SERIALIZATION_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"BUFFER_ALLOCATION_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"FILE_OPEN_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"FILE_WRITE_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"FILE_CLOSE_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">""</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+          </l>
+          <l n="Languages" t="ArrayList" />
+          <v n="GuidInit">{9d97f308-543a-4a2b-a828-6d53a9468d68}</v>
+          <v n="GuidReInit">{9e773819-d329-48f8-8b9d-13811e5feab5}</v>
+          <v n="GuidExitX">{30324a64-2dea-4ff6-930d-ed0a30bd4408}</v>
+        </o>
+      </Data>
+      <TypeList>
+        <Type n="ArrayList">System.Collections.ArrayList</Type>
+        <Type n="Guid">System.Guid</Type>
+        <Type n="String">System.String</Type>
+        <Type n="TextListEnumerationTextListObject">{4b60233c-f940-4beb-b331-82133b520151}</Type>
+        <Type n="TextListRow">{53da1be7-ad25-47c3-b0e8-e26286dad2e0}</Type>
+      </TypeList>
+    </XmlArchive>
+  </EnumerationTextList>
+</TcPlcObject>

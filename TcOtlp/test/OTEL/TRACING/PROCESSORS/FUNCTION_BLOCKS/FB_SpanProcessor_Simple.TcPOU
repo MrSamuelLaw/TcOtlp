@@ -3,10 +3,16 @@
   <POU Name="FB_SpanProcessor_Simple" Id="{60eb4cc9-96f9-4fec-956a-893d74d004a7}" SpecialFunc="None">
     <Declaration><![CDATA[(*
 	Handles each ended span as soon as the provider hands it over: enrich, then export.
-	It keeps nothing between calls. No span exporter exists yet, so export is a no-op here;
-	override it to send spans somewhere, as FB_SpanProcessor_Console does.
+	export clones the span and offers the clone to the exporter as a batch of one. The span is
+	dropped when the exporter is busy or the clone fails, and nothing is kept between calls.
+	Pass 0 as the exporter to drop every span, or override export to send spans somewhere
+	else, as FB_SpanProcessor_Console does.
 *)
 FUNCTION_BLOCK FB_SpanProcessor_Simple EXTENDS FB_SpanProcessor_Base
+VAR
+	_spans: FB_SpanQueue(maxCount:=1);
+	_exporter: REFERENCE TO FB_SpanExporter_Base;
+END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
@@ -23,15 +29,32 @@ END_VAR
       </Implementation>
     </Method>
     <Method Name="export" Id="{e23aeb4f-0578-4d80-920b-0707ff036a41}">
-      <Declaration><![CDATA[(* Sends one ended span on. The span is borrowed for the duration of the call.
-   No-op until a span exporter exists; override to write the span somewhere. *)
+      <Declaration><![CDATA[(* Sends one ended span on. The span is borrowed for the duration of the call, so the
+   exporter is given a clone, which it owns once it accepts it. *)
 METHOD export
 VAR_INPUT
 	span: REFERENCE TO FB_Span;
 END_VAR
+VAR
+	_pClone: POINTER TO FB_Span;
+	_cloneFailureReason: E_SpanCloneFailureReason;
+	_queueFailureReason: E_SpanQueueFailureReason;
+	_exportFailureReason: E_SpanExporterFailureReason;
+END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[IF NOT __ISVALIDREF(THIS^._exporter) OR_ELSE THIS^._exporter.isBusy() THEN
+	RETURN;
+END_IF
+
+IF span.cloneTo(pDest:=_pClone, failureReason=>_cloneFailureReason)
+	AND_THEN THIS^._spans.push(pValue:=_pClone, failureReason=>_queueFailureReason) THEN
+	THIS^._exporter.export(spans:=THIS^._spans, count:=1, failureReason=>_exportFailureReason);
+END_IF
+
+// whatever the exporter did not accept is dropped
+THIS^._spans.free();
+IF _pClone <> 0 THEN _pClone^.delete(pSelf:=_pClone); END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="FB_Exit" Id="{aa794779-2300-4745-90d9-e47ab6a0c9cd}">
@@ -47,11 +70,11 @@ END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="free" Id="{4afad73c-67d9-4058-80c6-cd8d4b6ca5a6}">
-      <Declaration><![CDATA[// the simple processor retains nothing
+      <Declaration><![CDATA[// the simple processor keeps nothing between calls; this releases a span left by a failed hand-off
 METHOD free
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[THIS^._spans.free();]]></ST>
       </Implementation>
     </Method>
     <Method Name="onEnd" Id="{33e9352a-8eea-463d-a646-7a407c79cc74}">
@@ -70,11 +93,32 @@ THIS^.export(span);]]></ST>
       </Implementation>
     </Method>
     <Method Name="tick" Id="{ff0bbd46-b17e-4a44-9a5a-c4e4e7871d87}">
-      <Declaration><![CDATA[// the simple processor has no cyclic work
+      <Declaration><![CDATA[// advances the exporter's delivery once per provider tick
 METHOD tick
+VAR
+	_exportFailureReason: E_SpanExporterFailureReason;
+END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[IF __ISVALIDREF(THIS^._exporter) THEN
+	THIS^._exporter.tick(failureReason=>_exportFailureReason);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{63177fde-2c04-4e1b-adf4-7d0c9d5c04b4}">
+      <Declaration><![CDATA[METHOD FB_Init : BOOL
+VAR_INPUT
+	bInitRetains: BOOL;  // TRUE: the retain variables are initialized (reset warm / reset cold)
+	bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	exporter: REFERENCE TO FB_SpanExporter_Base;  // borrowed and must outlive the processor; 0 drops every span
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF __ISVALIDREF(exporter) THEN
+	THIS^._exporter REF= exporter;
+ELSE
+	THIS^._exporter REF= 0;
+END_IF]]></ST>
       </Implementation>
     </Method>
   </POU>

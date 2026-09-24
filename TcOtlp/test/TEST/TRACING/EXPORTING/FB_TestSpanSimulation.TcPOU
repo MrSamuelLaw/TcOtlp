@@ -1,0 +1,150 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestSpanSimulation" Id="{176e32a6-c7c8-44d8-b313-652cb89b8d64}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Runs the manufacturing process from the tracing research notes through the whole pipeline:
+	a root span, step-a as its child, then step-b as a child linked to step-a. Each step runs
+	for STEP_CYCLES scans, and step-b and the process end in the same scan. Processors are
+	staged and the provider ticked every scan, and spans go through FB_SpanProcessor_Batch to
+	FB_SpanExporter_File. The file is left on disk so the exported JSON can be inspected.
+*)
+FUNCTION_BLOCK FB_TestSpanSimulation EXTENDS FB_TestSuite
+VAR
+	_resource: FB_Resource('');
+	_idGenerator: FB_IdGenerator(nTraceIds:=4, nSpanIds:=16);
+	_provider: FB_TracerProvider(resource:=_resource, idGenerator:=_idGenerator);
+	_scope: FB_InstrumentationScope('line1.process', '1.0.0', '');
+	_tracer: FB_Tracer(scope:=_scope, provider:=_provider);
+	_exporter: FB_SpanExporter_File(filepath:='C:\Users\samue\Desktop\programming projects\TcOtlp\simulation_spans.jsonl');
+	_processor: FB_SpanProcessor_Batch(maxQueueSize:=16, scheduledDelayMillis:=200, maxExportBatchSize:=16, exporter:=_exporter);
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testManufacturingProcess();]]></ST>
+    </Implementation>
+    <Method Name="testManufacturingProcess" Id="{32199410-40a9-42ca-999f-041d77c20028}">
+      <Declaration><![CDATA[METHOD testManufacturingProcess : REFERENCE TO FB_Test
+VAR CONSTANT
+	FILEPATH: STRING := 'C:\Users\samue\Desktop\programming projects\TcOtlp\simulation_spans.jsonl';
+	STEP_CYCLES: UDINT := 50;  // scans each process step runs for
+	MAX_CYCLES: UDINT := 2000;
+END_VAR
+VAR_INST
+	_step: USINT;
+	_cycles: UDINT;
+	_stepCycles: UDINT;
+	_endedCount: UDINT;
+	_exportErrors: UDINT;
+	_pRoot: POINTER TO FB_Span;
+	_pCurrent: POINTER TO FB_Span;
+	_pRootContext: POINTER TO FB_SpanContext;
+	_pStepContext: POINTER TO FB_SpanContext;
+	_fileDeleter: FB_FileDelete;
+END_VAR
+VAR
+	tracerReason: E_TracerFailureReason;
+	providerReason: E_TracerProviderFailureReason;
+	setpoint: INT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testManufacturingProcess');
+	// start of scan: stage the processors before any span ends
+	_provider.stageProcessor(_processor);
+	_cycles := _cycles + 1;
+
+	CASE _step OF
+		0: // start from an empty file
+			_fileDeleter(sPathName:=FILEPATH, bExecute:=TRUE);
+			IF NOT _fileDeleter.bBusy THEN
+				_fileDeleter(bExecute:=FALSE);
+				_step := 1;
+			END_IF
+
+		1: // processInit: start the root span and step-a as its child; retry while ids are not ready
+			IF _pRoot = 0 THEN
+				_tracer.startSpan(name:='manufacturing-process')
+					.setStringAttribute('line', 'L1')
+					.setStringAttribute('recipe', 'widget-7')
+					.build(pDest:=_pRoot, failureReason=>tracerReason);
+			END_IF
+			IF _pRoot <> 0 AND _pRootContext = 0 THEN
+				_pRoot^.getContext(pDest:=_pRootContext);
+			END_IF
+			IF _pRootContext <> 0 THEN
+				setpoint := 42;
+				_tracer.startSpan(name:='step-a')
+					.setParent(pContext:=_pRootContext)
+					.setNumberAttribute('setpoint', setpoint)
+					.build(pDest:=_pCurrent, failureReason=>tracerReason);
+				IF _pCurrent <> 0 THEN
+					_stepCycles := 0;
+					_step := 2;
+				END_IF
+			END_IF
+
+		2: // step1Done: end step-a, keeping its context to link the next step to it
+			_stepCycles := _stepCycles + 1;
+			IF _stepCycles >= STEP_CYCLES THEN
+				_pCurrent^.getContext(pDest:=_pStepContext);
+				IF _tracer.endSpan(pSpan:=_pCurrent, failureReason=>tracerReason) THEN
+					_endedCount := _endedCount + 1;
+				END_IF
+				_step := 3;
+			END_IF
+
+		3: // start step-b as a child of the process, linked to step-a
+			setpoint := 17;
+			_tracer.startSpan(name:='step-b')
+				.setParent(pContext:=_pRootContext)
+				.addLink(pContext:=_pStepContext)
+				.setNumberAttribute('setpoint', setpoint)
+				.build(pDest:=_pCurrent, failureReason=>tracerReason);
+			IF _pCurrent <> 0 THEN
+				_pStepContext^.delete(pSelf:=_pStepContext);
+				_stepCycles := 0;
+				_step := 4;
+			END_IF
+
+		4: // step2Done, processDone: end step-b and the process in the same scan
+			_stepCycles := _stepCycles + 1;
+			IF _stepCycles >= STEP_CYCLES THEN
+				IF _tracer.endSpan(pSpan:=_pCurrent, failureReason=>tracerReason) THEN
+					_endedCount := _endedCount + 1;
+				END_IF
+				IF _tracer.endSpan(pSpan:=_pRoot, failureReason=>tracerReason) THEN
+					_endedCount := _endedCount + 1;
+				END_IF
+				_pRootContext^.delete(pSelf:=_pRootContext);
+				_step := 5;
+			END_IF
+
+		5: // let the processor export everything it holds and the exporter finish writing
+			IF _processor.queuedCount = 0 AND NOT _exporter.isBusy() THEN
+				_step := 6;
+			END_IF
+	END_CASE
+
+	// end of scan
+	_provider.tick(failureReason=>providerReason);
+	IF _exporter.currentState = E_FileExporterState.error THEN
+		_exportErrors := _exportErrors + 1;
+	END_IF
+
+	IF _step = 6 OR _cycles > MAX_CYCLES THEN
+		THIS^.AssertTrue(_cycles <= MAX_CYCLES, CONCAT('Timed out running the process in step ', USINT_TO_STRING(_step)));
+		THIS^.AssertEquals_UDINT(3, _endedCount, 'Expected every span to end');
+		THIS^.AssertEquals_UDINT(0, _exportErrors, 'Expected no file export errors');
+		THIS^.AssertEquals_UDINT(0, _processor.droppedCount, 'Expected the processor to drop no span');
+		IF _pCurrent <> 0 THEN _pCurrent^.delete(pSelf:=_pCurrent); END_IF
+		IF _pRoot <> 0 THEN _pRoot^.delete(pSelf:=_pRoot); END_IF
+		IF _pRootContext <> 0 THEN _pRootContext^.delete(pSelf:=_pRootContext); END_IF
+		IF _pStepContext <> 0 THEN _pStepContext^.delete(pSelf:=_pStepContext); END_IF
+		_step := 0;
+		_cycles := 0;
+		TcUnit.TEST_FINISHED();
+	END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
