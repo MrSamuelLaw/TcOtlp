@@ -7,7 +7,7 @@
 	for STEP_CYCLES scans, and step-b and the process end in the same scan. step-a succeeds,
 	and step-b fails, which fails the process. Processors are
 	staged and the provider ticked every scan, and spans go through FB_SpanProcessor_Batch to
-	FB_SpanExporter_File. The file is left on disk so the exported JSON can be inspected.
+	FB_SpanExporter_File. The resource names the PLC as a service, and the file is left on disk so the exported JSON can be inspected.
 *)
 FUNCTION_BLOCK FB_TestSpanSimulation EXTENDS FB_TestSuite
 VAR
@@ -55,7 +55,12 @@ END_VAR
 	_cycles := _cycles + 1;
 
 	CASE _step OF
-		0: // start from an empty file
+		0: // describe the PLC once, before any span snapshots the resource; start from an empty file
+			IF _resource.attributes.count = 0 THEN
+				_resource.attributes.setStringAttribute('service.name', 'line1-plc');
+				_resource.attributes.setStringAttribute('service.version', '1.0.0');
+				_resource.attributes.setStringAttribute('host.name', 'PLC1');
+			END_IF
 			_fileDeleter(sPathName:=FILEPATH, bExecute:=TRUE);
 			IF NOT _fileDeleter.bBusy THEN
 				_fileDeleter(bExecute:=FALSE);
