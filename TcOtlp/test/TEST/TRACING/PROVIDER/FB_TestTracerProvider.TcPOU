@@ -7,7 +7,7 @@ FUNCTION_BLOCK FB_TestTracerProvider EXTENDS FB_TestSuite
     <Implementation>
       <ST><![CDATA[THIS^.testTickHandsSpansToEachProcessor();
 THIS^.testStageProcessorIgnoresDuplicates();
-THIS^.testTickWithoutProcessorsReleasesSpans();
+THIS^.testTickWithoutProcessorsSucceeds();
 THIS^.testProcessorsMustBeStagedEachScan();]]></ST>
     </Implementation>
     <Method Name="testTickHandsSpansToEachProcessor" Id="{5b30edc3-9036-441a-9c30-62fc4c769911}">
@@ -75,9 +75,9 @@ END_VAR
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
-    <Method Name="testTickWithoutProcessorsReleasesSpans" Id="{75732081-6f8c-43ed-852a-ccd93b6a2013}">
-      <Declaration><![CDATA[(* With no processors staged, tick releases the ended spans instead of keeping them. *)
-METHOD testTickWithoutProcessorsReleasesSpans : REFERENCE TO FB_Test
+    <Method Name="testTickWithoutProcessorsSucceeds" Id="{75732081-6f8c-43ed-852a-ccd93b6a2013}">
+      <Declaration><![CDATA[(* With no processors staged, ended spans are never queued and tick still succeeds. *)
+METHOD testTickWithoutProcessorsSucceeds : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
@@ -89,14 +89,14 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('testTickWithoutProcessorsReleasesSpans');
+        <ST><![CDATA[TcUnit.TEST('testTickWithoutProcessorsSucceeds');
 	tracer.startSpan(name:='work').build(pDest:=pSpan);
 	tracer.endSpan(pSpan:=pSpan);
-	THIS^.AssertEquals_UDINT(1, provider.spans.count, 'Expected the span to be queued');
+	THIS^.AssertEquals_UDINT(0, provider.spans.count, 'Expected the span not to be queued');
 
 	success := provider.tick();
 	THIS^.AssertTrue(success, 'Expected tick to succeed');
-	THIS^.AssertEquals_UDINT(0, provider.spans.count, 'Expected the span to be released');
+	THIS^.AssertEquals_UDINT(0, provider.spans.count, 'Expected the queue to stay empty');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

@@ -202,6 +202,8 @@ THIS^._failureReason := E_TracerFailureReason.NA;]]></ST>
 	Ends a running span: stamps its end time and hands it to the provider for processing.
 	The caller's pointer is cleared whether or not the hand-off succeeds. If the provider
 	cannot queue the span, the span is released, because an ended span has no other owner.
+	If no processor is staged on the provider, nothing would see the span, so endSpan only
+	releases it and succeeds. Stage processors before ending spans in a scan.
 	endSpan is not part of the fluent chain and leaves a span being built untouched.
 *)
 METHOD endSpan : BOOL
@@ -218,6 +220,13 @@ failureReason := E_TracerFailureReason.NA;
 
 IF pSpan = 0 THEN
 	failureReason := E_TracerFailureReason.SPAN_POINTER_NULL;
+	RETURN;
+END_IF
+
+// nothing would process the span, so skip the hand-off and just release it
+IF THIS^._provider.stagedProcessorCount = 0 THEN
+	pSpan^.delete(pSelf:=pSpan);
+	endSpan := TRUE;
 	RETURN;
 END_IF
 

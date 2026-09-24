@@ -40,7 +40,7 @@ provider.tick(failureReason => reason);
   2. Calls `tick` on each processor.
   3. Calls the id generator's `tick`.
 
-  It always clears the queue and the staged list, so a span is never carried into the next scan. With no processors staged, the spans are released unprocessed.
+  It always clears the queue and the staged list, so a span is never carried into the next scan. Spans are only queued while at least one processor is staged, because [[FB_Tracer]]`.endSpan` releases a span straight away when none is.
 
 `tick` returns `FALSE` with an `E_TracerProviderFailureReason`:
 

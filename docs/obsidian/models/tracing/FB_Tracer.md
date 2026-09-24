@@ -72,6 +72,8 @@ tracer.endSpan(pSpan := pSpan, failureReason => reason);
 
 `endSpan` stamps the end timestamp and moves the span into [[FB_TracerProvider]]'s queue through `onEnd`. The caller's pointer is **always cleared**, whether or not the hand-off succeeds: an ended span has no other owner, so if the provider cannot queue it, `endSpan` releases it and reports `TRANSFER_TO_PROVIDER_FAILURE`. That only happens when a queue node cannot be allocated, because a full queue drops its oldest span instead of refusing the new one.
 
+If no processor is staged on the provider, nothing would see the span, so `endSpan` releases it without stamping or queuing it and returns `TRUE`. Stage processors at the start of the scan, before any span ends; a span ended before `stageProcessor` is called is dropped.
+
 `endSpan` is not part of the fluent chain. It does not read or reset the chain's failure, so it can be called while another span is being built.
 
 ## Methods not yet implemented

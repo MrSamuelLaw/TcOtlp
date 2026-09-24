@@ -20,7 +20,8 @@ THIS^.testBuildIntoAssignedDestinationFails();
 THIS^.testNoIdentifiersAvailable();
 THIS^.testSetsAttributes();
 THIS^.testEndSpanQueuesSpan();
-THIS^.testEndSpanRejectsNull();]]></ST>
+THIS^.testEndSpanRejectsNull();
+THIS^.testEndSpanWithoutProcessorsReleasesSpan();]]></ST>
     </Implementation>
     <Method Name="testBuildsRootSpan" Id="{00bf1eb6-c0c9-43b1-a36c-e82587fffac9}">
       <Declaration><![CDATA[(* A span without a parent starts a new trace: it gets fresh identifiers, no parent, root flags,
@@ -499,6 +500,7 @@ VAR
 	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	processor: FB_SpanProcessor_ForInspection;
 	pSpan: POINTER TO FB_Span;
 	pExpected: POINTER TO FB_Span;
 	pEnded: POINTER TO FB_Span;
@@ -509,6 +511,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testEndSpanQueuesSpan');
+	provider.stageProcessor(processor);
 	success := tracer.startSpan(name:='work').build(pDest:=pSpan, failureReason=>reason);
 	THIS^.AssertTrue(success, 'Expected the span to build');
 	pExpected := pSpan;
@@ -561,6 +564,38 @@ END_VAR
 		'Expected SPAN_POINTER_NULL'
 	);
 	THIS^.AssertEquals_UDINT(0, provider.spans.count, 'Expected nothing to be queued');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testEndSpanWithoutProcessorsReleasesSpan" Id="{32597e59-8288-4682-aa64-c6a3846181b6}">
+      <Declaration><![CDATA[(* With no processor staged, endSpan releases the span instead of queuing it, and succeeds. *)
+METHOD testEndSpanWithoutProcessorsReleasesSpan : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	pSpan: POINTER TO FB_Span;
+	success: BOOL;
+	reason: E_TracerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testEndSpanWithoutProcessorsReleasesSpan');
+	tracer.startSpan(name:='work').build(pDest:=pSpan);
+	THIS^.AssertTrue(pSpan <> 0, 'Expected the span to build');
+
+	success := tracer.endSpan(pSpan:=pSpan, failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected endSpan to succeed');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_TracerFailureReason.NA),
+		TO_UDINT(reason),
+		'Expected no failure reason'
+	);
+	THIS^.AssertTrue(pSpan = 0, 'Expected endSpan to clear the caller$'s pointer');
+	THIS^.AssertEquals_UDINT(0, provider.spans.count, 'Expected nothing to be queued');
+	IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
