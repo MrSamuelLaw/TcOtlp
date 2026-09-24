@@ -85,6 +85,72 @@ FOR _idx := 1 TO spans.count DO
 END_FOR]]></ST>
       </Implementation>
     </Method>
+    <Method Name="_serializeLinks" Id="{45aabacb-16c0-4a4f-99bf-c2b12725f22d}">
+      <Declaration><![CDATA[(*
+	Writes the span's links as a 'links' array of Link objects, in the order they were added.
+	Walking the links moves their cursor, but the links themselves are only read.
+*)
+METHOD _serializeLinks : BOOL
+VAR_IN_OUT
+	v: SJsonValue;
+	links: FB_Links;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+VAR
+	_array: SJsonValue;
+	_obj: SJsonValue;
+	_pLink: POINTER TO FB_Link;
+	_idx: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_serializeLinks := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID;
+	RETURN;
+END_IF
+
+_array := THIS^.parser.AddArrayMember(v, 'links', 0);
+IF _array = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+	RETURN;
+END_IF
+
+links.reset();
+FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
+	_pLink := links.next();
+	IF _pLink = 0 THEN
+		_serializeLinks := TRUE;
+		RETURN;
+	END_IF
+
+	_obj := THIS^.parser.PushbackJsonValue(_array, '{}');
+	IF _obj = 0 THEN
+		failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+		RETURN;
+	END_IF
+	IF _pLink^.traceId <> 0 AND_THEN NOT THIS^.serializeTraceIdValue(_obj, _pLink^.traceId, failureReason=>failureReason) THEN RETURN; END_IF
+	IF _pLink^.spanId <> 0 AND_THEN NOT THIS^.serializeSpanIdValue(_obj, _pLink^.spanId, failureReason=>failureReason) THEN RETURN; END_IF
+	IF _pLink^.traceState <> 0 AND_THEN NOT THIS^.serializeStringValue(_obj, ADR('traceState'), _pLink^.traceState, failureReason=>failureReason) THEN RETURN; END_IF
+	IF _pLink^.attributes.count > 0 AND_THEN NOT THIS^.serializeKeyValues(_obj, ADR('attributes'), ADR(_pLink^.attributes), failureReason=>failureReason) THEN RETURN; END_IF
+	IF _pLink^.attributes.droppedCount > 0 AND_THEN NOT THIS^.serializeUint32Value(
+		_obj,
+		ADR('droppedAttributesCount'),
+		_pLink^.attributes.droppedCount,
+		failureReason=>failureReason
+	) THEN
+		RETURN;
+	END_IF
+	IF _pLink^.flags <> 0 AND_THEN NOT THIS^.serializeUint32Value(_obj, ADR('flags'), _pLink^.flags, failureReason=>failureReason) THEN RETURN; END_IF
+END_FOR
+
+// FB_Links holds at most MAX_LOOP_COUNT links, so the walk always ends above
+failureReason := E_ProtoJsonSerializerFailureReason.LOOP_LIMIT_EXCEEDED;]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="_serializeStatus" Id="{8df3e1fb-b498-44c7-a12c-07ce0a43571a}">
       <Declaration><![CDATA[METHOD _serializeStatus : BOOL
 VAR_IN_OUT
@@ -349,6 +415,15 @@ IF pSpan^.attributes.droppedCount > 0 AND_THEN NOT THIS^.serializeUint32Value(
 	_obj,
 	ADR('droppedAttributesCount'),
 	pSpan^.attributes.droppedCount,
+	failureReason=>failureReason
+) THEN
+	RETURN;
+END_IF
+IF pSpan^.links.count > 0 AND_THEN NOT THIS^._serializeLinks(_obj, pSpan^.links, failureReason=>failureReason) THEN RETURN; END_IF
+IF pSpan^.links.droppedCount > 0 AND_THEN NOT THIS^.serializeUint32Value(
+	_obj,
+	ADR('droppedLinksCount'),
+	pSpan^.links.droppedCount,
 	failureReason=>failureReason
 ) THEN
 	RETURN;

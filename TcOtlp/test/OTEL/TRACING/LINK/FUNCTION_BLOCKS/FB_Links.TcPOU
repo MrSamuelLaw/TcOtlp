@@ -1,32 +1,226 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_Links" Id="{84632793-b934-468f-abc7-b9540f1e3ec7}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_Links
+    <Declaration><![CDATA[(*
+	The links of one span, oldest first. The collection owns every FB_Link it contains: push
+	takes ownership and clears the caller's pointer, pop hands ownership back, and free
+	releases what is left. The bound is maxCount, but never more than
+	TcOtlp_GVL.MAX_LOOP_COUNT: a maxCount of zero, or one above that limit, is held to
+	MAX_LOOP_COUNT so that free always reaches the end.
+	reset and next walk the links without taking ownership, for readers such as serializers.
+*)
+FUNCTION_BLOCK FB_Links
+VAR
+	_head: POINTER TO ST_LinkedListNode;
+	_tail: POINTER TO ST_LinkedListNode;
+	_cursor: POINTER TO ST_LinkedListNode;  // next node returned by next; 0 at the end
+END_VAR
 VAR_OUTPUT
 	count: UDINT;
+	maxCount: UDINT;
+	droppedCount: UDINT;  // links refused because the collection was full
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
-    <Method Name="pop" Id="{140011c5-033a-44d9-9673-d6002d7ea8ef}">
-      <Declaration><![CDATA[METHOD pop : BOOL
-VAR_IN_OUT
-	pDest: POINTER TO FB_Link;
-END_VAR
+    <Method Name="_capacity" Id="{1202d0d9-d2d1-4f58-bd42-c41cd7a43c4b}">
+      <Declaration><![CDATA[(* The enforced bound: maxCount, held to MAX_LOOP_COUNT when it is zero or larger. *)
+METHOD _capacity : UDINT
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[IF THIS^.maxCount = 0 OR THIS^.maxCount > TcOtlp_GVL.MAX_LOOP_COUNT THEN
+	_capacity := TcOtlp_GVL.MAX_LOOP_COUNT;
+ELSE
+	_capacity := THIS^.maxCount;
+END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="push" Id="{199c2d38-fc0d-4031-aa3e-bf96309245f4}">
-      <Declaration><![CDATA[METHOD push : BOOL
-VAR_IN_OUT
-	pSrc: POINTER TO FB_Link;
+    <Method Name="FB_Exit" Id="{b3815c02-e3c5-443d-95d3-b91d25218ba8}">
+      <Declaration><![CDATA[METHOD FB_Exit : BOOL
+VAR_INPUT
+	bInCopyCode: BOOL;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[]]></ST>
+        <ST><![CDATA[IF NOT bInCopyCode THEN
+	THIS^.free();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{cd9b520d-1508-415a-8314-8040110f64f3}">
+      <Declaration><![CDATA[METHOD FB_Init : BOOL
+VAR_INPUT
+	bInitRetains: BOOL;
+	bInCopyCode: BOOL;
+	maxCount: UDINT := TcOtlp_GVL.DEFAULT_MAX_LINK_COUNT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.maxCount := maxCount;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{4ec8d077-979a-4d5d-8ddf-d325e12e0581}">
+      <Declaration><![CDATA[(*
+	Releases every owned link and clears droppedCount. push holds count to MAX_LOOP_COUNT, so
+	the loop always reaches the end. If it ever stops early, the unreleased nodes stay in the
+	collection and free returns FALSE, so a later call can finish the job.
+*)
+METHOD free : BOOL
+VAR
+	_idx: UDINT;
+	_node: POINTER TO ST_LinkedListNode;
+	_link: POINTER TO FB_Link;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
+	IF THIS^._head = 0 THEN
+		EXIT;
+	END_IF
+
+	_node := THIS^._head;
+	THIS^._head := _node^.nxt;
+	IF _node^.val <> 0 THEN
+		_link := _node^.val;
+		_node^.val := 0;
+		_link^.delete(pSelf:=_link);
+	END_IF
+	__DELETE(_node);
+	_node := 0;
+	IF THIS^.count > 0 THEN
+		THIS^.count := THIS^.count - 1;
+	END_IF
+END_FOR
+
+IF THIS^._head = 0 THEN
+	THIS^._tail := 0;
+	THIS^.count := 0;
+	THIS^.droppedCount := 0;
+END_IF
+THIS^._cursor := THIS^._head;
+free := THIS^._head = 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="next" Id="{f9599380-4bde-4dfa-bb02-d7fea912b80f}">
+      <Declaration><![CDATA[(*
+	Returns the link at the cursor and advances it, or 0 after the last link. The link is
+	borrowed: the collection still owns it, and it is valid only until it is popped or freed.
+	Call reset first.
+*)
+METHOD next : POINTER TO FB_Link
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[next := 0;
+IF THIS^._cursor <> 0 THEN
+	next := THIS^._cursor^.val;
+	THIS^._cursor := THIS^._cursor^.nxt;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="pop" Id="{126e1125-04a1-42a8-85d9-36a0acfb67a5}">
+      <Declaration><![CDATA[(* Moves the oldest link to pValue, which must be 0. The caller owns it on success. *)
+METHOD pop : BOOL
+VAR_IN_OUT
+	pValue: POINTER TO FB_Link;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_LinkFailureReason;
+END_VAR
+VAR
+	_node: POINTER TO ST_LinkedListNode;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[pop := FALSE;
+failureReason := E_LinkFailureReason.NA;
+
+IF pValue <> 0 THEN
+	failureReason := E_LinkFailureReason.DESTINATION_ALREADY_ASSIGNED;
+	RETURN;
+END_IF
+IF THIS^._head = 0 THEN
+	failureReason := E_LinkFailureReason.LINKS_EMPTY;
+	RETURN;
+END_IF
+
+_node := THIS^._head;
+THIS^._head := _node^.nxt;
+IF THIS^._head = 0 THEN
+	THIS^._tail := 0;
+END_IF
+IF THIS^._cursor = _node THEN
+	THIS^._cursor := THIS^._head;
+END_IF
+
+pValue := _node^.val;
+_node^.val := 0;
+_node^.nxt := 0;
+__DELETE(_node);
+_node := 0;
+THIS^.count := THIS^.count - 1;
+pop := failureReason = E_LinkFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="push" Id="{1d9c812a-cd4a-4561-a79c-82691a83289e}">
+      <Declaration><![CDATA[(*
+	Takes ownership of the link and clears pValue. On failure pValue is left unchanged and
+	still owned by the caller. A full collection keeps the links it has, as the OpenTelemetry
+	limits require: the new link is refused with LINK_COUNT_LIMIT_REACHED and counted in
+	droppedCount, and the caller releases it.
+*)
+METHOD push : BOOL
+VAR_IN_OUT
+	pValue: POINTER TO FB_Link;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_LinkFailureReason;
+END_VAR
+VAR
+	_node: POINTER TO ST_LinkedListNode;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[push := FALSE;
+failureReason := E_LinkFailureReason.NA;
+
+IF pValue = 0 THEN
+	failureReason := E_LinkFailureReason.LINK_POINTER_NULL;
+	RETURN;
+END_IF
+
+IF THIS^.count >= THIS^._capacity() THEN
+	failureReason := E_LinkFailureReason.LINK_COUNT_LIMIT_REACHED;
+	THIS^.droppedCount := THIS^.droppedCount + 1;
+	RETURN;
+END_IF
+
+_node := __NEW(ST_LinkedListNode);
+IF _node = 0 THEN
+	failureReason := E_LinkFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+
+_node^.val := pValue;
+_node^.nxt := 0;
+IF THIS^._tail = 0 THEN
+	THIS^._head := _node;
+	THIS^._cursor := _node;
+ELSE
+	THIS^._tail^.nxt := _node;
+END_IF
+THIS^._tail := _node;
+THIS^.count := THIS^.count + 1;
+pValue := 0;
+push := failureReason = E_LinkFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="reset" Id="{73c63875-fa03-4735-a35c-753a2609f386}">
+      <Declaration><![CDATA[(* Moves the cursor to the oldest link, so next starts from the head. *)
+METHOD reset
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._cursor := THIS^._head;]]></ST>
       </Implementation>
     </Method>
   </POU>

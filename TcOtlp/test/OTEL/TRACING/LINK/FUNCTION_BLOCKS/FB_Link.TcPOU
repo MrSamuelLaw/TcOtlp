@@ -1,15 +1,24 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_Link" Id="{2b4ea221-4624-41d5-872a-acc0a6aeb214}" SpecialFunc="None">
-    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+    <Declaration><![CDATA[(*
+	A pointer from one span to another span's context, possibly in another trace. Build it
+	through LinkFactory, which validates the context and copies its identity.
+	The link owns every pointer member and releases them in free.
+*)
+{attribute 'enable_dynamic_creation'}
 FUNCTION_BLOCK FB_Link
-VAR_OUTPUT
-	// required values
+VAR_INPUT
+	// written by LinkFactory
 	traceId: POINTER TO FB_TraceId;
 	spanId: POINTER TO FB_SpanId;
-	traceState: POINTER TO FB_String;
-	attributes: FB_Attributes(maxCount := TcOtlp_GVL.DEFAULT_MAX_ATTRIBUTE_COUNT);
+	traceState: POINTER TO FB_String;  // optional; 0 means none
+
+	// the linked context's trace flags and remoteness; see E_SpanFlags
 	flags: UDINT;
+END_VAR
+VAR_OUTPUT
+	attributes: FB_Attributes(maxCount := TcOtlp_GVL.DEFAULT_MAX_ATTRIBUTE_COUNT);
 END_VAR
 ]]></Declaration>
     <Implementation>

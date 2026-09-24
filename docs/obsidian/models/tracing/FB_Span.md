@@ -32,7 +32,7 @@ startSpan ──► building ──► build(pDest) ──► running ──► 
 
 This is where spans differ from the logging pipeline. A log record is *emitted* to the provider at the end of its chain. A span is *returned* to the caller, because its work has only just begun.
 
-While the span runs, the caller owns it. The caller can take a context from it for a child span or a link (`getContext`), set its status, and add attributes. Processors cannot see a running span yet.
+While the span runs, the caller owns it. The caller can take a context from it for a child span or a link (`getContext`), set its status, add attributes, and push links. Processors cannot see a running span yet.
 
 ### 3. Ended
 
@@ -56,7 +56,7 @@ The fields the tracer writes during building are `VAR_INPUT`, as on `FB_LogRecor
 | `traceState: POINTER TO FB_String` | yes | `setParent`, copied from the parent |
 | `flags: UDINT` | — | `setParent`, or `build` for a root span |
 | `status: POINTER TO FB_Status` | yes | not implemented |
-| `attributes`, `links`, `resource`, `scope` | yes | setters; `startSpan` snapshots the resource and scope |
+| `attributes`, `links`, `resource`, `scope` | yes | setters and `addLink`, or `links.push` on a running span; `startSpan` snapshots the resource and scope |
 
 `free` releases everything the span owns, and `FB_Exit` calls it. `delete` releases the span itself and clears the caller's pointer; it is called as `pSpan^.delete(pSelf:=pSpan)` and refuses any pointer other than one to the span itself.
 
@@ -97,6 +97,6 @@ Fluent setters for a running span. Both are empty shells for now.
 - [x] [[FB_Tracer]] sets bits 8 and 9 on a span whose parent is a remote context.
 - [x] `tracer.endSpan(pSpan)`: stamp the end timestamp, hand the span to the provider, and clear the caller's pointer.
 - [ ] `setStatusOk` and `setStatusError`.
-- [ ] Adding links to a building span. `FB_Links` is still a stub.
+- [x] Adding links to a building span with `addLink`, or to a running span with `links.push`. See [[FB_Link]].
 
 `ContextFactory` intentionally does not enforce remoteness; it stores whatever flags it is given. Tests verify that `getContext` always produces a local context. Only `TraceContextPropagator.extract` should produce a remote one. See [[FB_SpanContext]].

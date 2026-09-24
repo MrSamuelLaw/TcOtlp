@@ -34,6 +34,7 @@ The tracer builds one span at a time and holds it in `pSpan` until `build`.
 
 - **`startSpan(name, kind := SPAN_KIND_INTERNAL)`** allocates the span, stamps its start time, copies the name, and snapshots the resource and scope. It fails if the name is empty or the kind is `SPAN_KIND_UNSPECIFIED`. If a span is already being built, the chain fails with `SPAN_ALREADY_STARTED`; the span that is already building is kept, and `build` releases it.
 - **`setParent(pContext)`** makes the span a child of the given context. It borrows the context and copies what it needs: the trace ID, the parent span ID, the trace state, and the trace flags. It sets bit 8 of the span's flags, and also bit 9 when the context is remote. It rejects a null pointer and a context whose `isValid()` is `FALSE`. The tracer is the producer of spans, so this is where the parent is validated. Calling it again replaces the parent.
+- **`addLink(pContext)`** links the span to another span's context through `LinkFactory.fromContext`, for example the SCADA request that triggered this work in another trace. It borrows the context. Links keep the order they are added in, and adding one does not make the span a child. A null context fails with `LINK_CONTEXT_POINTER_NULL`, an invalid one with `LINK_CONTEXT_INVALID`, and more than `TcOtlp_GVL.DEFAULT_MAX_LINK_COUNT` links with `LINK_COUNT_LIMIT_REACHED`. See [[FB_Link]].
 - **`setStringAttribute(key, value)`** and **`setNumberAttribute(key, value)`** add attributes, with the same limits as the logger.
 - **`build(pDest, failureReason) : BOOL`** ends the chain. It takes a new span ID from the provider's [[FB_IdGenerator]], and a new trace ID as well for a root span. Identifiers are taken only when everything before them has succeeded, so a failed chain does not consume any. On success the span moves to `pDest`, which is `VAR_IN_OUT` and must be `0` on entry, and `pSpan` is cleared. On failure the incomplete span is released, `pDest` stays `0`, and the first failure in the chain is reported.
 
@@ -63,6 +64,9 @@ Processors are not notified when a span is built. The processor contract has no 
 | `MEMORY_ALLOCATION_FAILURE` | Dynamic memory allocation failed. |
 | `SPAN_POINTER_NULL` | `endSpan` was given a null pointer. |
 | `TRANSFER_TO_PROVIDER_FAILURE` | The provider could not queue the ended span, so it was released. |
+| `LINK_CONTEXT_POINTER_NULL` | `addLink` was given a null pointer. |
+| `LINK_CONTEXT_INVALID` | The linked context has an all-zero trace ID or span ID. |
+| `LINK_COUNT_LIMIT_REACHED` | The span cannot own another link. |
 
 ## endSpan
 

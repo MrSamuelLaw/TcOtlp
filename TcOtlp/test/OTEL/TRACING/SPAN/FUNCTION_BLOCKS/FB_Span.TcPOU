@@ -29,7 +29,7 @@ VAR_INPUT
 END_VAR
 VAR_OUTPUT
 	attributes: FB_Attributes(maxCount := TcOtlp_GVL.DEFAULT_MAX_ATTRIBUTE_COUNT);
-	links: FB_Links;
+	links: FB_Links(maxCount := TcOtlp_GVL.DEFAULT_MAX_LINK_COUNT);
 	resource: FB_Resource('');
 	scope: FB_InstrumentationScope('', '', '');
 
@@ -92,6 +92,7 @@ IF THIS^.traceState <> 0 THEN THIS^.traceState^.delete(pSelf:=THIS^.traceState);
 IF THIS^.parentSpanId <> 0 THEN THIS^.parentSpanId^.delete(pSelf:=THIS^.parentSpanId); END_IF
 IF THIS^.status <> 0 THEN THIS^.status^.delete(pSelf:=THIS^.status); END_IF
 THIS^.attributes.free();
+THIS^.links.free();
 THIS^.scope.free();
 THIS^.resource.free();]]></ST>
       </Implementation>

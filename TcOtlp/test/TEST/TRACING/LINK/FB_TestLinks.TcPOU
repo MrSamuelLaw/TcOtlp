@@ -1,0 +1,280 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestLinks" Id="{774cbd45-c83b-4748-9cdc-bfbacf04f1cc}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Tests LinkFactory and FB_Links: that a link holds copies of the context it points at, that
+   the collection owns its links, keeps their order and refuses links beyond its bound.
+
+   Every test releases the contexts and links it builds before returning. *)
+FUNCTION_BLOCK FB_TestLinks EXTENDS FB_TestSuite
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testFromContextCopiesIdentity();
+THIS^.testFromContextRejectsInvalidInput();
+THIS^.testFromSpanLinksToTheSpan();
+THIS^.testPushTakesOwnershipInOrder();
+THIS^.testPushRefusesWhenFull();]]></ST>
+    </Implementation>
+    <Method Name="_buildContext" Id="{cc0180b8-bb00-4066-86bc-df7b7037186f}">
+      <Declaration><![CDATA[(* Builds a span context whose identifier bytes are all seed, for a test to link to. *)
+METHOD _buildContext
+VAR_IN_OUT
+	pDest: POINTER TO FB_SpanContext;
+END_VAR
+VAR_INPUT
+	seed: BYTE;
+	traceFlags: UDINT;
+END_VAR
+VAR
+	_traceId: FB_TraceId;
+	_spanId: FB_SpanId;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[MEMSET(ADR(_traceId.bytes), seed, SIZEOF(_traceId.bytes));
+MEMSET(ADR(_spanId.bytes), seed, SIZEOF(_spanId.bytes));
+ContextFactory.buildContext(
+	pDest:=pDest,
+	pTraceId:=ADR(_traceId),
+	pSpanId:=ADR(_spanId),
+	pTraceState:=0,
+	traceFlags:=traceFlags
+);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testFromContextCopiesIdentity" Id="{204ccd02-c522-40e9-b35f-c11b0f7f8727}">
+      <Declaration><![CDATA[(* A link holds copies of the context's identity and trace state, so it outlives the context.
+   Its flags carry the context's trace flags and remoteness. *)
+METHOD testFromContextCopiesIdentity : REFERENCE TO FB_Test
+VAR
+	pContext: POINTER TO FB_SpanContext;
+	pLink: POINTER TO FB_Link;
+	traceId: FB_TraceId;
+	spanId: FB_SpanId;
+	traceStateText: T_MaxString := 'vendor=abc';
+	success: BOOL;
+	reason: E_LinkFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testFromContextCopiesIdentity');
+	MEMSET(ADR(traceId.bytes), 16#AA, SIZEOF(traceId.bytes));
+	MEMSET(ADR(spanId.bytes), 16#BB, SIZEOF(spanId.bytes));
+	ContextFactory.buildContext(
+		pDest:=pContext,
+		pTraceId:=ADR(traceId),
+		pSpanId:=ADR(spanId),
+		pTraceState:=ADR(traceStateText),
+		traceFlags:=16#301
+	);
+
+	success := LinkFactory.fromContext(pDest:=pLink, pContext:=pContext, failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected the link to build');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.NA), TO_UDINT(reason), 'Expected no failure reason');
+
+	// the context is borrowed, so it can be released before the link
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
+
+	IF pLink <> 0 THEN
+		THIS^.AssertTrue(
+			pLink^.traceId <> 0 AND_THEN MEMCMP(ADR(pLink^.traceId^.bytes), ADR(traceId.bytes), SIZEOF(traceId.bytes)) = 0,
+			'Expected the linked trace id'
+		);
+		THIS^.AssertTrue(
+			pLink^.spanId <> 0 AND_THEN MEMCMP(ADR(pLink^.spanId^.bytes), ADR(spanId.bytes), SIZEOF(spanId.bytes)) = 0,
+			'Expected the linked span id'
+		);
+		THIS^.AssertTrue(pLink^.traceState <> 0, 'Expected the trace state to be copied');
+		IF pLink^.traceState <> 0 THEN
+			THIS^.AssertEquals_STRING('vendor=abc', pLink^.traceState^.pString^, 'Expected the trace state text');
+		END_IF
+		THIS^.AssertEquals_UDINT(16#301, pLink^.flags, 'Expected the trace flags and both remoteness bits');
+		THIS^.AssertEquals_UDINT(0, pLink^.attributes.count, 'Expected no attributes');
+		pLink^.delete(pSelf:=pLink);
+	END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testFromContextRejectsInvalidInput" Id="{22ab2495-4520-4a85-b906-bbfa89e9ea0a}">
+      <Declaration><![CDATA[(* fromContext refuses an assigned destination, a null context and an all zero context,
+   and allocates nothing when it does. *)
+METHOD testFromContextRejectsInvalidInput : REFERENCE TO FB_Test
+VAR
+	pContext: POINTER TO FB_SpanContext;
+	pZero: POINTER TO FB_SpanContext;
+	pLink: POINTER TO FB_Link;
+	pOther: POINTER TO FB_Link;
+	success: BOOL;
+	reason: E_LinkFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testFromContextRejectsInvalidInput');
+	THIS^._buildContext(pDest:=pContext, seed:=16#11, traceFlags:=16#101);
+	THIS^._buildContext(pDest:=pZero, seed:=0, traceFlags:=0);
+
+	success := LinkFactory.fromContext(pDest:=pLink, pContext:=0, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected a null context to be refused');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.CONTEXT_POINTER_NULL), TO_UDINT(reason), 'Expected the failure reason');
+	THIS^.AssertTrue(pLink = 0, 'Expected nothing to be allocated');
+
+	success := LinkFactory.fromContext(pDest:=pLink, pContext:=pZero, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected an invalid context to be refused');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.CONTEXT_INVALID), TO_UDINT(reason), 'Expected the failure reason');
+	THIS^.AssertTrue(pLink = 0, 'Expected nothing to be allocated');
+
+	LinkFactory.fromContext(pDest:=pLink, pContext:=pContext);
+	pOther := pLink;
+	success := LinkFactory.fromContext(pDest:=pLink, pContext:=pContext, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected an assigned destination to be refused');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.DESTINATION_ALREADY_ASSIGNED), TO_UDINT(reason), 'Expected the failure reason');
+	THIS^.AssertTrue(pLink = pOther, 'Expected the destination to be left alone');
+
+	IF pLink <> 0 THEN pLink^.delete(pSelf:=pLink); END_IF
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
+	IF pZero <> 0 THEN pZero^.delete(pSelf:=pZero); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testFromSpanLinksToTheSpan" Id="{fa2845c8-83a6-46af-a075-0e77a5da39b9}">
+      <Declaration><![CDATA[(* A link built from a span points at that span, and is local: remoteness is known and not
+   remote. A null span is refused. *)
+METHOD testFromSpanLinksToTheSpan : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	pSpan: POINTER TO FB_Span;
+	pLink: POINTER TO FB_Link;
+	success: BOOL;
+	reason: E_LinkFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testFromSpanLinksToTheSpan');
+	tracer.startSpan(name:='trigger').build(pDest:=pSpan);
+	THIS^.AssertTrue(pSpan <> 0, 'Expected the span to build');
+
+	success := LinkFactory.fromSpan(pDest:=pLink, pSpan:=0, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected a null span to be refused');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.SPAN_POINTER_NULL), TO_UDINT(reason), 'Expected the failure reason');
+
+	success := LinkFactory.fromSpan(pDest:=pLink, pSpan:=pSpan, failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected the link to build');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.NA), TO_UDINT(reason), 'Expected no failure reason');
+	IF pLink <> 0 AND pSpan <> 0 THEN
+		THIS^.AssertTrue(
+			MEMCMP(ADR(pLink^.traceId^.bytes), ADR(pSpan^.traceId^.bytes), SIZEOF(pSpan^.traceId^.bytes)) = 0,
+			'Expected the span$'s trace id'
+		);
+		THIS^.AssertTrue(
+			MEMCMP(ADR(pLink^.spanId^.bytes), ADR(pSpan^.spanId^.bytes), SIZEOF(pSpan^.spanId^.bytes)) = 0,
+			'Expected the span$'s span id'
+		);
+		THIS^.AssertEquals_UDINT(16#101, pLink^.flags, 'Expected the sampled bit and a known local context');
+	END_IF
+
+	IF pLink <> 0 THEN pLink^.delete(pSelf:=pLink); END_IF
+	IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testPushTakesOwnershipInOrder" Id="{a1d4c8f6-7340-4c6d-9461-226f7c917ddf}">
+      <Declaration><![CDATA[(* push takes ownership and clears the caller's pointer; next walks the links oldest first
+   without taking them, and pop hands them back in the same order. *)
+METHOD testPushTakesOwnershipInOrder : REFERENCE TO FB_Test
+VAR
+	links: FB_Links(maxCount:=TcOtlp_GVL.DEFAULT_MAX_LINK_COUNT);
+	pFirst: POINTER TO FB_SpanContext;
+	pSecond: POINTER TO FB_SpanContext;
+	pLink: POINTER TO FB_Link;
+	pWalked: POINTER TO FB_Link;
+	success: BOOL;
+	reason: E_LinkFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testPushTakesOwnershipInOrder');
+	THIS^._buildContext(pDest:=pFirst, seed:=16#11, traceFlags:=16#101);
+	THIS^._buildContext(pDest:=pSecond, seed:=16#22, traceFlags:=16#101);
+
+	LinkFactory.fromContext(pDest:=pLink, pContext:=pFirst);
+	success := links.push(pValue:=pLink, failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected the first push to succeed');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.NA), TO_UDINT(reason), 'Expected no failure reason');
+	THIS^.AssertTrue(pLink = 0, 'Expected push to clear the caller$'s pointer');
+	LinkFactory.fromContext(pDest:=pLink, pContext:=pSecond);
+	links.push(pValue:=pLink);
+	THIS^.AssertEquals_UDINT(2, links.count, 'Expected two links');
+
+	links.reset();
+	pWalked := links.next();
+	THIS^.AssertTrue(pWalked <> 0 AND_THEN pWalked^.spanId^.bytes[0] = 16#11, 'Expected next to start at the oldest link');
+	pWalked := links.next();
+	THIS^.AssertTrue(pWalked <> 0 AND_THEN pWalked^.spanId^.bytes[0] = 16#22, 'Expected next to reach the second link');
+	THIS^.AssertTrue(links.next() = 0, 'Expected next to end after the last link');
+	THIS^.AssertEquals_UDINT(2, links.count, 'Expected walking to leave the links in place');
+
+	success := links.pop(pValue:=pLink, failureReason=>reason);
+	THIS^.AssertTrue(success AND_THEN pLink^.spanId^.bytes[0] = 16#11, 'Expected pop to return the oldest link');
+	success := links.pop(pValue:=pLink, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected pop into an assigned destination to fail');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.DESTINATION_ALREADY_ASSIGNED), TO_UDINT(reason), 'Expected the failure reason');
+	IF pLink <> 0 THEN pLink^.delete(pSelf:=pLink); END_IF
+
+	links.pop(pValue:=pLink);
+	IF pLink <> 0 THEN pLink^.delete(pSelf:=pLink); END_IF
+	success := links.pop(pValue:=pLink, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected pop from an empty collection to fail');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.LINKS_EMPTY), TO_UDINT(reason), 'Expected the failure reason');
+	THIS^.AssertEquals_UDINT(0, links.count, 'Expected no links left');
+
+	IF pFirst <> 0 THEN pFirst^.delete(pSelf:=pFirst); END_IF
+	IF pSecond <> 0 THEN pSecond^.delete(pSelf:=pSecond); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testPushRefusesWhenFull" Id="{25eef890-4e51-4894-8fce-f5ac86e0c639}">
+      <Declaration><![CDATA[(* A full collection keeps its links and refuses the new one: the caller keeps it, and it is
+   counted as dropped. A null link is refused without being counted. free releases every link. *)
+METHOD testPushRefusesWhenFull : REFERENCE TO FB_Test
+VAR
+	links: FB_Links(maxCount:=1);
+	pContext: POINTER TO FB_SpanContext;
+	pLink: POINTER TO FB_Link;
+	pRefused: POINTER TO FB_Link;
+	success: BOOL;
+	reason: E_LinkFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testPushRefusesWhenFull');
+	THIS^._buildContext(pDest:=pContext, seed:=16#11, traceFlags:=16#101);
+
+	success := links.push(pValue:=pLink, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected a null link to be refused');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.LINK_POINTER_NULL), TO_UDINT(reason), 'Expected the failure reason');
+
+	LinkFactory.fromContext(pDest:=pLink, pContext:=pContext);
+	links.push(pValue:=pLink);
+	LinkFactory.fromContext(pDest:=pLink, pContext:=pContext);
+	pRefused := pLink;
+	success := links.push(pValue:=pLink, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected a push beyond maxCount to fail');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.LINK_COUNT_LIMIT_REACHED), TO_UDINT(reason), 'Expected the failure reason');
+	THIS^.AssertTrue(pLink = pRefused, 'Expected the caller to keep the refused link');
+	THIS^.AssertEquals_UDINT(1, links.count, 'Expected the first link to be kept');
+	THIS^.AssertEquals_UDINT(1, links.droppedCount, 'Expected the refused link to be counted');
+	IF pLink <> 0 THEN pLink^.delete(pSelf:=pLink); END_IF
+
+	THIS^.AssertTrue(links.free(), 'Expected free to release every link');
+	THIS^.AssertEquals_UDINT(0, links.count, 'Expected no links after free');
+	THIS^.AssertEquals_UDINT(0, links.droppedCount, 'Expected free to clear droppedCount');
+
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

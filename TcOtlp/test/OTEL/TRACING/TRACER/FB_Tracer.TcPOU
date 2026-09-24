@@ -13,6 +13,7 @@
 	IF NOT tracer
 		.startSpan(name := 'chiller.startup', kind := E_SpanKind.SPAN_KIND_CONSUMER)
 		.setParent(pContext := pParentContext)
+		.addLink(pContext := pTriggerContext)
 		.setStringAttribute('skid', 'A')
 		.build(pDest := pSpan, failureReason => reason) THEN
 		// CASE reason OF ...
@@ -149,6 +150,51 @@ IF THIS^.pSpan = 0 THEN
 END_IF
 
 _shouldReturnEarly := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="addLink" Id="{32899abc-ae3a-42d5-8087-1375b8ab333d}">
+      <Declaration><![CDATA[(*
+	Links the span to another span's context, for example the span that triggered this work
+	in another trace. The context is borrowed: the link keeps its own copies. Links keep the
+	order they are added in. A span holds at most TcOtlp_GVL.DEFAULT_MAX_LINK_COUNT links;
+	adding one more fails the chain with LINK_COUNT_LIMIT_REACHED.
+	To give a link attributes, build it with LinkFactory and push it to the running span's
+	links instead.
+*)
+METHOD addLink : REFERENCE TO FB_Tracer
+VAR_INPUT
+	pContext: POINTER TO FB_SpanContext;
+END_VAR
+VAR
+	_pLink: POINTER TO FB_Link;
+	_linkFailureReason: E_LinkFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[addLink REF= THIS^;
+
+IF THIS^._shouldReturnEarly() THEN
+	RETURN;
+END_IF
+
+IF LinkFactory.fromContext(pDest:=_pLink, pContext:=pContext, failureReason=>_linkFailureReason)
+	AND_THEN THIS^.pSpan^.links.push(pValue:=_pLink, failureReason=>_linkFailureReason) THEN
+	RETURN;
+END_IF
+
+// push leaves a refused link with the caller
+IF _pLink <> 0 THEN _pLink^.delete(pSelf:=_pLink); END_IF
+THIS^._failed := TRUE;
+CASE _linkFailureReason OF
+	E_LinkFailureReason.CONTEXT_POINTER_NULL:
+		THIS^._failureReason := E_TracerFailureReason.LINK_CONTEXT_POINTER_NULL;
+	E_LinkFailureReason.CONTEXT_INVALID:
+		THIS^._failureReason := E_TracerFailureReason.LINK_CONTEXT_INVALID;
+	E_LinkFailureReason.LINK_COUNT_LIMIT_REACHED:
+		THIS^._failureReason := E_TracerFailureReason.LINK_COUNT_LIMIT_REACHED;
+ELSE
+	THIS^._failureReason := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
+END_CASE]]></ST>
       </Implementation>
     </Method>
     <Method Name="build" Id="{3c8e8a79-eb89-4c0f-8f0e-dcaaee758df5}">

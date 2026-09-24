@@ -1,11 +1,10 @@
 ---
 type: model
 domain: serialization
-status: partial
+status: implemented
 implements:
   - FB_SpanProtoJsonSerializer
 source: TcOtlp/test/OTEL/TRACING/SERIALIZATION/FUNCTION_BLOCKS/FB_SpanProtoJsonSerializer.TcPOU
-gap: Span links are not written, because FB_Links has no implementation yet.
 ---
 
 `FB_SpanProtoJsonSerializer.serializeTracesData` converts a queue of ended spans into one OTLP ProtoJSON `TracesData` object: `resourceSpans` → `scopeSpans` → `spans`. It extends `FB_BaseProtoJsonSerializer`, and the document is left in `parser` and `jsonValue`, as with [[LogRecords ProtoJSON Serializer]].
@@ -47,8 +46,8 @@ Each group costs one walk of the queue, so the work is bounded by count². The f
 | `kind` | Always, as the `E_SpanKind` number |
 | `startTimeUnixNano`, `endTimeUnixNano` | Always, as decimal strings |
 | `attributes`, `droppedAttributesCount` | When present or non-zero |
+| `links`, `droppedLinksCount` | When present or non-zero. Each Link has hex `traceId` and `spanId`, and `traceState`, `attributes`, `droppedAttributesCount` and `flags` when set |
 | `status` | When the span has one: `message` when set, and `code` as a number unless it is `STATUS_CODE_UNSET` |
-| `links` | Not written yet |
 
 ## Failures
 
@@ -56,7 +55,7 @@ Each group costs one walk of the queue, so the work is bounded by count². The f
 
 | Failure reason | Cause |
 | --- | --- |
-| `LOOP_LIMIT_EXCEEDED` | The queue holds more than `TcOtlp_GVL.MAX_LOOP_COUNT` spans. |
+| `LOOP_LIMIT_EXCEEDED` | The queue, or a span's links, hold more than `TcOtlp_GVL.MAX_LOOP_COUNT` entries. |
 | `MEMORY_ALLOCATION_FAILURE` | The written-flag array could not be allocated. |
 | `SPAN_COLLECTION_INCONSISTENT` | The queue's `count` and its linked spans disagree. |
 | `SPAN_POINTER_NULL` | `serializeSpan` was given a null span. |

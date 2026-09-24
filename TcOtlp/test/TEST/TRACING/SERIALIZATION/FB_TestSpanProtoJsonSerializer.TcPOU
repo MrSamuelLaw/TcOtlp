@@ -9,7 +9,8 @@ FUNCTION_BLOCK FB_TestSpanProtoJsonSerializer EXTENDS FB_TestSuite
 THIS^.testSerializeChildSpan();
 THIS^.testSerializeSpanRejectsInvalidInput();
 THIS^.testSerializeTracesDataWithEmptyQueue();
-THIS^.testSerializeTracesDataGroupsByResourceAndScope();]]></ST>
+THIS^.testSerializeTracesDataGroupsByResourceAndScope();
+THIS^.testSerializeSpanLinks();]]></ST>
     </Implementation>
     <Method Name="testSerializeRootSpan" Id="{ffa2cc14-29c0-48dc-aa0d-c692404b304a}">
       <Declaration><![CDATA[(* A root span is written with hex identifiers, numeric enums, string timestamps, attributes and status, and no parentSpanId. *)
@@ -310,6 +311,91 @@ END_VAR
 	END_FOR
 
 	queue.free();
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testSerializeSpanLinks" Id="{a9a9dda3-91e8-40bf-b4e7-2147740c442f}">
+      <Declaration><![CDATA[(* Links are written as a 'links' array in the order they were added, each with hex
+   identifiers, flags and any attributes. A span without links writes no 'links' member. *)
+METHOD testSerializeSpanLinks : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	serializer: FB_SpanProtoJsonSerializer;
+	pTrigger: POINTER TO FB_Span;
+	pSpan: POINTER TO FB_Span;
+	pTriggerContext: POINTER TO FB_SpanContext;
+	pLink: POINTER TO FB_Link;
+	root: SJsonValue;
+	spans: SJsonValue;
+	obj: SJsonValue;
+	links: SJsonValue;
+	link: SJsonValue;
+	attribute: SJsonValue;
+	success: BOOL;
+	reason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testSerializeSpanLinks');
+	tracer.startSpan(name:='trigger').build(pDest:=pTrigger);
+	IF pTrigger <> 0 THEN pTrigger^.getContext(pDest:=pTriggerContext); END_IF
+	tracer.startSpan(name:='work').addLink(pContext:=pTriggerContext).build(pDest:=pSpan);
+	THIS^.AssertTrue(pSpan <> 0, 'Expected the linked span to build');
+
+	// a link with attributes is built with LinkFactory and pushed to the running span
+	LinkFactory.fromSpan(pDest:=pLink, pSpan:=pTrigger);
+	IF pLink <> 0 THEN
+		pLink^.attributes.setStringAttribute(key:='link.reason', value:='retry');
+	END_IF
+	IF pSpan <> 0 AND pLink <> 0 THEN
+		pSpan^.links.push(pValue:=pLink);
+	END_IF
+
+	IF pSpan <> 0 AND pTrigger <> 0 THEN
+		root := serializer.parser.NewDocument();
+		root := serializer.parser.SetObject(root);
+		spans := serializer.parser.AddArrayMember(root, 'spans', 0);
+		success := serializer.serializeSpan(v:=spans, pSpan:=pSpan, failureReason=>reason);
+		THIS^.AssertTrue(success, 'Expected the linked span to serialize');
+		THIS^.AssertEquals_UDINT(TO_UDINT(E_ProtoJsonSerializerFailureReason.NA), TO_UDINT(reason), 'Expected no failure reason');
+		success := serializer.serializeSpan(v:=spans, pSpan:=pTrigger, failureReason=>reason);
+		THIS^.AssertTrue(success, 'Expected the trigger span to serialize');
+
+		obj := serializer.parser.GetArrayValueByIdx(spans, 0);
+		links := serializer.parser.FindMember(obj, 'links');
+		THIS^.AssertTrue(serializer.parser.IsArray(links), 'Expected a links array');
+		THIS^.AssertTrue(serializer.parser.FindMember(obj, 'droppedLinksCount') = 0, 'Expected no droppedLinksCount when nothing was dropped');
+
+		link := serializer.parser.GetArrayValueByIdx(links, 0);
+		THIS^.AssertTrue(serializer.parser.IsObject(link), 'Expected the first Link object');
+		THIS^.AssertEquals_STRING('01010101010101010101010101010101', serializer.parser.GetString(serializer.parser.FindMember(link, 'traceId')), 'Expected the hex linked traceId');
+		THIS^.AssertEquals_STRING('0202020202020202', serializer.parser.GetString(serializer.parser.FindMember(link, 'spanId')), 'Expected the hex linked spanId');
+		THIS^.AssertEquals_UDINT(16#101, serializer.parser.GetUint(serializer.parser.FindMember(link, 'flags')), 'Expected the link flags');
+		THIS^.AssertTrue(serializer.parser.FindMember(link, 'attributes') = 0, 'Expected no attributes on the first link');
+		THIS^.AssertTrue(serializer.parser.FindMember(link, 'traceState') = 0, 'Expected no traceState on the first link');
+
+		link := serializer.parser.GetArrayValueByIdx(links, 1);
+		THIS^.AssertTrue(serializer.parser.IsObject(link), 'Expected the second Link object');
+		attribute := serializer.parser.GetArrayValueByIdx(serializer.parser.FindMember(link, 'attributes'), 0);
+		THIS^.AssertEquals_STRING('link.reason', serializer.parser.GetString(serializer.parser.FindMember(attribute, 'key')), 'Expected the link attribute key');
+		THIS^.AssertEquals_STRING(
+			'retry',
+			serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(attribute, 'value'), 'stringValue')),
+			'Expected the link attribute value'
+		);
+
+		obj := serializer.parser.GetArrayValueByIdx(spans, 1);
+		THIS^.AssertTrue(serializer.parser.FindMember(obj, 'links') = 0, 'Expected a span without links to omit links');
+	END_IF
+
+	IF pLink <> 0 THEN pLink^.delete(pSelf:=pLink); END_IF
+	IF pTriggerContext <> 0 THEN pTriggerContext^.delete(pSelf:=pTriggerContext); END_IF
+	IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
+	IF pTrigger <> 0 THEN pTrigger^.delete(pSelf:=pTrigger); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

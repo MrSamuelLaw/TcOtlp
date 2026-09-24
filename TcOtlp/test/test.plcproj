@@ -305,6 +305,9 @@
     <Compile Include="TEST\TRACING\TRACER\FB_TestTracer.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TEST\TRACING\LINK\FB_TestLinks.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="TEST\TRACING\SERIALIZATION\FB_TestSpanProtoJsonSerializer.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -394,6 +397,7 @@
     <Folder Include="TEST\LOGGING\SERIALIZATION" />
     <Folder Include="TEST\TRACING" />
     <Folder Include="TEST\TRACING\ID_GENERATOR" />
+    <Folder Include="TEST\TRACING\LINK" />
     <Folder Include="TEST\TRACING\PROCESSOR" />
     <Folder Include="TEST\TRACING\PROVIDER" />
     <Folder Include="TEST\TRACING\SERIALIZATION" />

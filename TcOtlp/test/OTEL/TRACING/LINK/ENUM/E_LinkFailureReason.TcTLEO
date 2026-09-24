@@ -1,13 +1,22 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <EnumerationTextList Name="E_LinkFailureReason" Id="{80042483-c6c1-4d55-964c-4d3d4cc6edc9}">
-    <Declaration><![CDATA[{attribute 'qualified_only'}
+    <Declaration><![CDATA[(* Why a LinkFactory or FB_Links call failed. *)
+{attribute 'qualified_only'}
 {attribute 'strict'}
 {attribute 'to_string'}
 TYPE E_LinkFailureReason :
 (
-	enum_member := 0
-);
+	NA := 0,  // No failure occurred.
+	DESTINATION_ALREADY_ASSIGNED,  // The destination pointer was not 0.
+	CONTEXT_POINTER_NULL,  // The span context pointer is null.
+	CONTEXT_INVALID,  // The span context has an all zero trace id or span id.
+	SPAN_POINTER_NULL,  // The span pointer is null.
+	LINK_POINTER_NULL,  // The link pointer is null.
+	LINK_COUNT_LIMIT_REACHED,  // The collection already holds maxCount links; the link was dropped and counted.
+	LINKS_EMPTY,  // The collection holds no links.
+	MEMORY_ALLOCATION_FAILURE  // Dynamic memory allocation failed.
+) UDINT;
 END_TYPE
 ]]></Declaration>
     <XmlArchive>
@@ -15,8 +24,48 @@ END_TYPE
         <o xml:space="preserve" t="TextListEnumerationTextListObject">
           <l n="TextList" t="ArrayList" cet="TextListRow">
             <o>
-              <v n="TextID">"enum_member"</v>
+              <v n="TextID">"NA"</v>
               <v n="TextDefault">"0"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"DESTINATION_ALREADY_ASSIGNED"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"CONTEXT_POINTER_NULL"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"CONTEXT_INVALID"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SPAN_POINTER_NULL"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"LINK_POINTER_NULL"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"LINK_COUNT_LIMIT_REACHED"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"LINKS_EMPTY"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"MEMORY_ALLOCATION_FAILURE"</v>
+              <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
@@ -26,9 +75,9 @@ END_TYPE
             </o>
           </l>
           <l n="Languages" t="ArrayList" />
-          <v n="GuidInit">{ee69140b-72aa-4549-89e4-3941e82623b3}</v>
-          <v n="GuidReInit">{27ee16b0-13b2-4c24-98cf-fb5a6e043675}</v>
-          <v n="GuidExitX">{c1ebdc8d-e155-4ced-a175-570d52672e7e}</v>
+          <v n="GuidInit">{c2cf95df-c0cc-4a25-957a-5193e1df0d26}</v>
+          <v n="GuidReInit">{c2f4b86a-89c2-4a9e-88f6-07d2872e73cb}</v>
+          <v n="GuidExitX">{7289ac32-b1f8-4d0a-afd1-c16f45edc0eb}</v>
         </o>
       </Data>
       <TypeList>

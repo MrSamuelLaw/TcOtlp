@@ -21,7 +21,9 @@ THIS^.testNoIdentifiersAvailable();
 THIS^.testSetsAttributes();
 THIS^.testEndSpanQueuesSpan();
 THIS^.testEndSpanRejectsNull();
-THIS^.testEndSpanWithoutProcessorsReleasesSpan();]]></ST>
+THIS^.testEndSpanWithoutProcessorsReleasesSpan();
+THIS^.testAddsLinks();
+THIS^.testRejectsInvalidLink();]]></ST>
     </Implementation>
     <Method Name="testBuildsRootSpan" Id="{00bf1eb6-c0c9-43b1-a36c-e82587fffac9}">
       <Declaration><![CDATA[(* A span without a parent starts a new trace: it gets fresh identifiers, no parent, root flags,
@@ -595,6 +597,100 @@ END_VAR
 	);
 	THIS^.AssertTrue(pSpan = 0, 'Expected endSpan to clear the caller$'s pointer');
 	THIS^.AssertEquals_UDINT(0, provider.spans.count, 'Expected nothing to be queued');
+	IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testAddsLinks" Id="{791d53e4-31ad-4aba-8e9e-926bde5a2561}">
+      <Declaration><![CDATA[(* addLink links the span to other contexts, in the order they are added, without making it
+   a child. The contexts are borrowed. *)
+METHOD testAddsLinks : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	pTrigger: POINTER TO FB_Span;
+	pSpan: POINTER TO FB_Span;
+	pTriggerContext: POINTER TO FB_SpanContext;
+	pRemote: POINTER TO FB_SpanContext;
+	pLink: POINTER TO FB_Link;
+	traceId: FB_TraceId;
+	spanId: FB_SpanId;
+	success: BOOL;
+	reason: E_TracerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testAddsLinks');
+	tracer.startSpan(name:='trigger').build(pDest:=pTrigger);
+	IF pTrigger <> 0 THEN pTrigger^.getContext(pDest:=pTriggerContext); END_IF
+	MEMSET(ADR(traceId.bytes), 16#AA, SIZEOF(traceId.bytes));
+	MEMSET(ADR(spanId.bytes), 16#BB, SIZEOF(spanId.bytes));
+	ContextFactory.buildContext(pDest:=pRemote, pTraceId:=ADR(traceId), pSpanId:=ADR(spanId), pTraceState:=0, traceFlags:=16#301);
+
+	success := tracer
+		.startSpan(name:='work')
+		.addLink(pContext:=pTriggerContext)
+		.addLink(pContext:=pRemote)
+		.build(pDest:=pSpan, failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected a span with links to build');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_TracerFailureReason.NA), TO_UDINT(reason), 'Expected no failure reason');
+
+	// the contexts are borrowed, so they can be released before the span
+	IF pTriggerContext <> 0 THEN pTriggerContext^.delete(pSelf:=pTriggerContext); END_IF
+	IF pRemote <> 0 THEN pRemote^.delete(pSelf:=pRemote); END_IF
+
+	IF pSpan <> 0 THEN
+		THIS^.AssertEquals_UDINT(2, pSpan^.links.count, 'Expected two links');
+		THIS^.AssertTrue(pSpan^.parentSpanId = 0, 'Expected a link not to make the span a child');
+		pSpan^.links.reset();
+		pLink := pSpan^.links.next();
+		THIS^.AssertTrue(
+			pLink <> 0 AND_THEN pTrigger <> 0 AND_THEN MEMCMP(ADR(pLink^.spanId^.bytes), ADR(pTrigger^.spanId^.bytes), SIZEOF(spanId.bytes)) = 0,
+			'Expected the first link to point at the trigger span'
+		);
+		pLink := pSpan^.links.next();
+		THIS^.AssertTrue(pLink <> 0 AND_THEN pLink^.traceId^.bytes[0] = 16#AA, 'Expected the second link to point at the remote trace');
+		THIS^.AssertTrue(pLink <> 0 AND_THEN pLink^.flags = 16#301, 'Expected the remote link to keep both remoteness bits');
+		pSpan^.delete(pSelf:=pSpan);
+	END_IF
+	IF pTrigger <> 0 THEN pTrigger^.delete(pSelf:=pTrigger); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testRejectsInvalidLink" Id="{968ab518-4059-45c8-8fc3-4955c14abc22}">
+      <Declaration><![CDATA[(* A null or all zero link context fails the chain, and build then releases the span. *)
+METHOD testRejectsInvalidLink : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	pSpan: POINTER TO FB_Span;
+	pZero: POINTER TO FB_SpanContext;
+	traceId: FB_TraceId;
+	spanId: FB_SpanId;
+	success: BOOL;
+	reason: E_TracerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testRejectsInvalidLink');
+	success := tracer.startSpan(name:='work').addLink(pContext:=0).build(pDest:=pSpan, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected a null link context to fail the chain');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_TracerFailureReason.LINK_CONTEXT_POINTER_NULL), TO_UDINT(reason), 'Expected LINK_CONTEXT_POINTER_NULL');
+	THIS^.AssertTrue(pSpan = 0, 'Expected no span');
+
+	ContextFactory.buildContext(pDest:=pZero, pTraceId:=ADR(traceId), pSpanId:=ADR(spanId), pTraceState:=0, traceFlags:=0);
+	success := tracer.startSpan(name:='work').addLink(pContext:=pZero).build(pDest:=pSpan, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected an all zero link context to fail the chain');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_TracerFailureReason.LINK_CONTEXT_INVALID), TO_UDINT(reason), 'Expected LINK_CONTEXT_INVALID');
+	THIS^.AssertTrue(pSpan = 0, 'Expected no span');
+
+	IF pZero <> 0 THEN pZero^.delete(pSelf:=pZero); END_IF
 	IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
