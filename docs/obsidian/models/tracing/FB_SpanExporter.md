@@ -45,7 +45,7 @@ Use it with [[FB_SpanProcessor_Batch]]. The exporter stays busy for several scan
 
 ### FB_SpanExporter_HTTP
 
-`FB_Init(url, bNoServerCertCheck)` sets the full collector endpoint, for example `http://192.168.1.10:4318/v1/traces`. `F_ParseHttpUrl` in `OTEL/COMMON` splits the URL into scheme, host, port and path once, at initialisation. `FB_LogRecordExporter_HTTP` uses the same parser. The scheme must be lower-case `http` or `https`, and IPv6 hosts are not supported. `bNoServerCertCheck` allows HTTPS to a collector with a self-signed certificate.
+`FB_Init(url, bNoServerCertCheck)` sets the full collector endpoint, for example `http://192.168.1.10:4318/v1/traces`. `F_ParseHttpUrl` in `OTEL/EXPORTING` splits the URL into scheme, host, port and path once, at initialisation. `FB_LogRecordExporter_HTTP` uses the same parser. The scheme must be lower-case `http` or `https`, and IPv6 hosts are not supported. `bNoServerCertCheck` allows HTTPS to a collector with a self-signed certificate.
 
 Each accepted batch is sent as one `POST` with `Content-Type: application/json` and a complete `TracesData` document as the body. The state machine runs `idle`, `serializing`, `sending`, `waiting`, `processing`, then `done`, or `error` on a failure:
 
