@@ -51,7 +51,7 @@ A trace ID alone is not enough to build a link. `FB_Link` requires a span ID as 
 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
 ```
 
-Read left to right: version, then the 16-byte trace ID, then the 8-byte span ID of the caller's span, then the trace flags whose bit 0 is the sampled flag. Exactly 55 ASCII characters for version `00`. `tracestate` is a separate, optional value carried verbatim.
+Read left to right: version, then the 16-byte trace ID, then the 8-byte span ID of the caller's span, then the trace flags whose bit 0 is the sampled flag. Exactly 55 ASCII characters for version `00`. `tracestate` is a separate, optional header of up to 32 vendor entries; W3C requires it to be forwarded and says at least 512 characters SHOULD be propagated, so the carrier is `STRING(512)`. It is parsed into an [[FB_TraceState]].
 
 ### Delivery is atomic
 
@@ -62,13 +62,65 @@ Ignition invokes an RPC method on the PLC rather than writing tags. The trigger 
 METHOD startProcess : BOOL
 VAR_INPUT
 	traceparent: STRING(55);
-	tracestate: T_MaxString;
+	tracestate: STRING(512);
 END_VAR
 ```
 
 The method body extracts the context, starts the local root span with a link to it, and returns. It does not wait for the process.
 
 TwinCAT runs an RPC method in the context of the owning PLC task, so this introduces no second-task concern and needs no guarding, which is consistent with the repository's single-task assumption.
+
+### Call-site model
+
+Propagation is the caller's job. The library only decodes and encodes carriers; the application owns the RPC method, the carrier string, and the span it starts.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant IG as Ignition gateway
+    participant RPC as FB_ChillerSkid.startProcess<br/>(application, TcRpcEnable)
+    participant TCP as TraceContextPropagator
+    participant CF as ContextFactory
+    participant TR as FB_Tracer
+    participant LF as LinkFactory
+
+    IG->>RPC: OPC UA / ADS method call<br/>traceparent: STRING(55), tracestate: STRING(512)
+    Note over RPC: carrier lives in the method's inputs<br/>(or an instance VAR if kept); never __NEW
+    RPC->>TCP: extract(pDest:=pCtx (0), traceparent, tracestate)
+    Note over TCP: validate all 55 chars first<br/>nothing allocated on a bad carrier
+    alt carrier valid
+        TCP->>CF: buildContext(traceId, spanId, traceState, flags | remote bits)
+        CF-->>TCP: heap FB_SpanContext
+        TCP-->>RPC: TRUE, pCtx <> 0 (caller owns it)
+        RPC->>TR: startSpan('chiller.startup', CONSUMER).addLink(pCtx).build(pDest:=_pSpan)
+        TR->>LF: fromContext(pContext:=pCtx)
+        LF-->>TR: FB_Link with its own copies of the ids
+        RPC->>RPC: pCtx^.delete(pSelf:=pCtx)
+    else carrier malformed or empty
+        TCP-->>RPC: FALSE, pCtx = 0, failureReason
+        RPC->>TR: startSpan('chiller.startup', CONSUMER).build(pDest:=_pSpan)
+        Note over RPC: no addLink: addLink(0) fails the chain
+    end
+    RPC-->>IG: return TRUE (accepted); does not wait
+    Note over RPC: _pSpan is an instance VAR; the startup runs<br/>for minutes over many scans
+    RPC->>TR: endSpan(_pSpan) when the sequence finishes
+```
+
+Memory at each step:
+
+| Object | Where it lives | Owner | Lifetime |
+| --- | --- | --- | --- |
+| `traceparent` / `tracestate` | RPC method inputs, or an instance `VAR` of the application FB | Application | At least until `extract` returns. Not dynamically allocated. |
+| `FB_SpanContext` | Heap, through `ContextFactory` | Caller of `extract` | From `extract` until the link is built, then `delete` once. It must be heap: its trace id, span id and trace state are pointers. |
+| `FB_Link` | Heap, inside the span's links | The span | Copies the ids, so it outlives the context. Released with the span. |
+| `FB_Span` | Heap; pointer in an instance `VAR` | Application until `endSpan`, then the provider | The whole startup sequence, across scans. |
+
+Rules the call site must follow:
+
+- **Branch on `extract`.** A failed extract must still start the span, but without `addLink`. Passing a null context fails the whole fluent chain with `LINK_CONTEXT_POINTER_NULL`, which would turn a bad header into a missing trace.
+- **Release the context in the same call.** Nothing needs it after the link is built.
+- **Keep the span pointer in the instance, not the method.** The method returns in one call; the span runs for minutes.
+- **The carrier is `STRING(55)`, not `ARRAY[0..54] OF BYTE`.** Ignition and OPC UA send a string, and the parser reads the same 55 ASCII bytes either way. `STRING(55)` takes 56 bytes with its terminator.
 
 ### Optionally, a span for the acceptance itself
 
@@ -78,9 +130,9 @@ The RPC call is short and bounded, so it *can* legitimately be its own `SERVER` 
 
 `TraceContextPropagator` follows the existing factory idiom — a `PROGRAM`, `BOOL` return, `VAR_IN_OUT` destination, failure reason on an output — matching `ValueFactory` and `LinkFactory`.
 
-- **`extract(pDest: POINTER TO FB_SpanContext, traceparent: STRING(55), tracestate: T_MaxString, failureReason: E_PropagationFailureReason) -> BOOL`** — Parses a carrier into a newly allocated context. `pDest` is `VAR_IN_OUT` and must be `0` on entry. Returns `FALSE` and leaves `pDest` at `0` on failure.
+- **`extract(pDest: POINTER TO FB_SpanContext, traceparent: STRING(55), tracestate: STRING(512), failureReason: E_PropagationFailureReason) -> BOOL`** — Parses a carrier into a newly allocated context. `pDest` is `VAR_IN_OUT` and must be `0` on entry. Returns `FALSE` and leaves `pDest` at `0` on failure.
 
-- **`inject(context: FB_SpanContext, traceparent: STRING(55), tracestate: T_MaxString, failureReason: E_PropagationFailureReason) -> BOOL`** — Formats a local context for an outbound call, for when the PLC is the caller.
+- **`inject(context: FB_SpanContext, traceparent: STRING(55), tracestate: STRING(512), failureReason: E_PropagationFailureReason) -> BOOL`** — Formats a local context for an outbound call, for when the PLC is the caller.
 
 Span contexts are always dynamically allocated, so `extract` builds its result through `ContextFactory.buildContext` like every other producer. On success the caller owns the context and releases it exactly once with `pContext^.delete(pSelf:=pContext);`, typically right after building the link from it. See [[FB_SpanContext]].
 
@@ -105,5 +157,5 @@ Propagation does not need a new domain. Extraction reads bytes and produces a va
 ## Open questions
 
 - **Link direction is one-way.** The caller cannot link forward, because the PLC's trace ID does not exist when the command is sent. If correlation needs to be visible from the caller's side, the cheap path is log records carrying the inbound trace ID — already the stated direction, since [[FB_Span]] notes span events are deprecated in favour of logs with span context.
-- **`tracestate` is pass-through only.** Nothing yet parses or edits the list. An implementation that adds a vendor entry for this controller needs a key/value representation, which is a Value Creation question.
+- **`tracestate` has its own submodule.** Parsing, validation, `put`/`delete` and W3C truncation belong to [[FB_TraceState]] in `OTEL/TRACING/TRACESTATE/`. `extract` calls `TraceStateFactory.parse`; an invalid trace state is dropped without failing extraction, and an invalid traceparent drops the trace state with it.
 - **Fan-out attribution.** When one command starts several processes, every resulting trace links to the same command span. Whether the operator also needs a shared correlation attribute to group those runs is undecided.
