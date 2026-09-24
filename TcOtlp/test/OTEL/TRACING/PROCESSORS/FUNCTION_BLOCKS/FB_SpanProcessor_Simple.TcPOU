@@ -6,7 +6,7 @@
 	export clones the span and offers the clone to the exporter as a batch of one. The span is
 	dropped when the exporter is busy or the clone fails, and nothing is kept between calls.
 	Pass 0 as the exporter to drop every span, or override export to send spans somewhere
-	else, as FB_SpanProcessor_Console does.
+	else. Use FB_SpanExporter_Console to write spans to the ADS log.
 *)
 FUNCTION_BLOCK FB_SpanProcessor_Simple EXTENDS FB_SpanProcessor_Base
 VAR

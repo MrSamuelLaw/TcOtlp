@@ -5,8 +5,9 @@ status: partial
 implements:
   - FB_SpanExporter_Base
   - FB_SpanExporter_File
+  - FB_SpanExporter_Console
 source: TcOtlp/test/OTEL/TRACING/EXPORTING/FUNCTION_BLOCKS/
-gap: There is no console or HTTP span exporter, and register is not implemented, so nothing stops two processors from sharing one exporter.
+gap: There is no HTTP span exporter, and register is not implemented, so nothing stops two processors from sharing one exporter.
 ---
 
 `FB_SpanExporter_Base` defines the ownership and coordination contract shared by span exporters. It mirrors [[FB_LogRecordExporter]]. Processors check `isBusy()` before offering a batch, and they call `tick` every scan to advance the exporter's destination work. The exporter is the only tracing component allowed to perform destination I/O.
@@ -30,7 +31,7 @@ Concrete exporter function-block bodies invoke `tick()`.
 | Exporter | Status | Busy semantics |
 | --- | --- | --- |
 | `FB_SpanExporter_File` | Implemented | Busy while its serialization and file-I/O state machine owns a batch, which takes several scans; exposes that state through `currentState`. |
-| `FB_SpanExporter_Console` | Not built | Never busy; would write accepted spans synchronously before releasing the batch. |
+| `FB_SpanExporter_Console` | Implemented | Never busy; writes the accepted spans and releases the batch inside `export`. |
 | `FB_SpanExporter_HTTP` | Not built | Busy for the duration of the OTLP/HTTP request/response cycle. |
 
 ### FB_SpanExporter_File
@@ -41,9 +42,28 @@ The exporter starts a batch on the rising edge of "export active and the batch q
 
 Use it with [[FB_SpanProcessor_Batch]]. The exporter stays busy for several scans, and [[FB_SpanProcessor_Simple]] drops every span that ends in that time.
 
+### FB_SpanExporter_Console
+
+Writes one line per span to the TwinCAT ADS log at hint level, for development and commissioning. `export` accepts the batch, writes a line for each span, and releases the batch before it returns. So `isBusy()` is always `FALSE` and `tick` does nothing. That makes it the natural partner for [[FB_SpanProcessor_Simple]], which then writes every span, even spans that end in the same scan.
+
+It does not serialize. `format` builds the line and is public, so tests can check it without reading the log:
+
+```text
+span "work" trace=01010101010101010101010101010101 span=0202020202020202 parent=none kind=SPAN_KIND_INTERNAL status=STATUS_CODE_UNSET duration=500ns
+```
+
+- Identifiers are written as lower-case hex.
+- A root span is written with `parent=none`.
+- A span without a status is written as `STATUS_CODE_UNSET`.
+- The duration is `endTimestamp - startTimestamp` in nanoseconds, or 0 if the end is not after the start.
+- Attributes, links, resource and scope are not written.
+- Lines are truncated at 255 characters.
+
+Writing is bounded by `MAX_LOOP_COUNT` spans per batch; any spans beyond that are released without a line.
+
 ## Serialization
 
-File and HTTP exporters pass their batch queue to [[Spans ProtoJSON Serializer]], which takes ownership of the spans and drains the queue. After serializing, the exporter holds only the JSON document; the spans are already released. `free` in `done` or `error` releases whatever a failed or interrupted export left behind.
+The file exporter, and later the HTTP exporter, pass their batch queue to [[Spans ProtoJSON Serializer]], which takes ownership of the spans and drains the queue. After serializing, the exporter holds only the JSON document; the spans are already released. `free` in `done` or `error` releases whatever a failed or interrupted export left behind.
 
 ## Open questions
 

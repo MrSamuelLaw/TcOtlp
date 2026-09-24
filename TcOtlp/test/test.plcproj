@@ -137,6 +137,12 @@
     <Compile Include="OTEL\TRACING\SPAN\ENUMS\E_SpanStatusFailureReason.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\TRACING\EXPORTING\FUNCTION_BLOCKS\FB_SpanExporter_Console.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="TEST\TRACING\EXPORTING\FB_TestSpanConsoleExporter.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\TRACING\ID_GENERATION\ENUMS\E_IdGenFailureReason.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
@@ -159,9 +165,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\TRACING\PROCESSORS\FUNCTION_BLOCKS\FB_SpanProcessor_Base.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\PROCESSORS\FUNCTION_BLOCKS\FB_SpanProcessor_Console.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="OTEL\TRACING\PROCESSORS\FUNCTION_BLOCKS\FB_SpanProcessor_Simple.TcPOU">

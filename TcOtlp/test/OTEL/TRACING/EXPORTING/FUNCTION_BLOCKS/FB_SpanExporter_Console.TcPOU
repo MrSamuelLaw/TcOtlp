@@ -1,20 +1,20 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="FB_SpanProcessor_Console" Id="{939e57e6-0c33-4a87-bf0d-ff246b4b306d}" SpecialFunc="None">
+  <POU Name="FB_SpanExporter_Console" Id="{bfa6e66b-a17a-4273-aefc-2078300ae23c}" SpecialFunc="None">
     <Declaration><![CDATA[(*
-	Simple processor that writes one line per ended span to the TwinCAT ADS log, for
-	development and commissioning. For example:
+	Writes one line per span to the TwinCAT ADS log at hint level, for development and
+	commissioning. For example:
 	  span "work" trace=0101...01 span=0202020202020202 parent=none kind=SPAN_KIND_INTERNAL status=STATUS_CODE_UNSET duration=500ns
-	Attributes, links, resource and scope are not written. Lines longer than 255 characters
-	are truncated. It writes the line itself instead of using an exporter, so declare it
-	with 0 as the exporter.
+	export writes the whole batch and releases it before returning, so the exporter is never
+	busy and suits FB_SpanProcessor_Simple. Attributes, links, resource and scope are not
+	written. Lines longer than 255 characters are truncated.
 *)
-FUNCTION_BLOCK FB_SpanProcessor_Console EXTENDS FB_SpanProcessor_Simple
+FUNCTION_BLOCK FB_SpanExporter_Console EXTENDS FB_SpanExporter_Base
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[]]></ST>
+      <ST><![CDATA[THIS^.tick(failureReason=>THIS^._callFailureReason);]]></ST>
     </Implementation>
-    <Method Name="_hex" Id="{f6a39f1d-c083-4a40-b8a8-68a63c9767d4}">
+    <Method Name="_hex" Id="{29d05295-65a5-4fe2-aeda-a1d0a703112a}">
       <Declaration><![CDATA[(* Lower-case hex of count bytes; at most 64 bytes are written. *)
 METHOD _hex : T_MaxString
 VAR_INPUT
@@ -39,22 +39,46 @@ FOR _i := 1 TO MIN(count, MAX_BYTES) DO
 END_FOR]]></ST>
       </Implementation>
     </Method>
-    <Method Name="export" Id="{268110da-e75f-453a-b49f-d7b54e8a9d8e}">
-      <Declaration><![CDATA[(* Writes the span to the ADS log as one line. *)
-METHOD export
+    <Method Name="export" Id="{c447d4a5-f2a7-4555-8816-dc3bc4a28608}">
+      <Declaration><![CDATA[(* Accepts the batch, writes one line per span and releases the batch. *)
+METHOD export : BOOL
+VAR_IN_OUT
+	spans: FB_SpanQueue;
+END_VAR
 VAR_INPUT
-	span: REFERENCE TO FB_Span;
+	count: UDINT;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_SpanExporterFailureReason;
+END_VAR
+VAR
+	_idx: UDINT;
+	_pSpan: POINTER TO FB_Span;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[IF NOT __ISVALIDREF(span) THEN
+        <ST><![CDATA[export := SUPER^.export(
+	spans:=spans,
+	count:=count,
+	failureReason=>failureReason
+);
+IF NOT export THEN
 	RETURN;
 END_IF
 
-ADSLOGSTR(msgCtrlMask:=ADSLOG_MSGTYPE_HINT, msgFmtStr:='%s', strArg:=THIS^.format(span));]]></ST>
+THIS^._spans.reset();
+FOR _idx := 1 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
+	_pSpan := THIS^._spans.next();
+	IF _pSpan = 0 THEN
+		EXIT;
+	END_IF
+	ADSLOGSTR(msgCtrlMask:=ADSLOG_MSGTYPE_HINT, msgFmtStr:='%s', strArg:=THIS^.format(_pSpan^));
+END_FOR
+
+THIS^.free();]]></ST>
       </Implementation>
     </Method>
-    <Method Name="format" Id="{4cd90421-d411-4b86-90a3-9ee6fbef1b75}">
+    <Method Name="format" Id="{ed9cc2c8-6736-4c87-811f-7b4cce07c97e}">
       <Declaration><![CDATA[(* Builds the log line for one span. Missing members are written as empty, none or unset. *)
 METHOD format : T_MaxString
 VAR_INPUT
@@ -108,6 +132,24 @@ format := CONCAT(format, TO_STRING(_status));
 format := CONCAT(format, ' duration=');
 format := CONCAT(format, ULINT_TO_STRING(_duration));
 format := CONCAT(format, 'ns');]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="isBusy" Id="{4772e1a3-f8a6-43c3-b9ed-4b20b994e8b3}">
+      <Declaration><![CDATA[METHOD isBusy : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[isBusy := FALSE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="tick" Id="{fec7cc30-b13d-4046-88f6-617ee43e5c60}">
+      <Declaration><![CDATA[METHOD tick : BOOL
+VAR_OUTPUT
+	failureReason: E_SpanExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[failureReason := E_SpanExporterFailureReason.NA;
+tick := TRUE;]]></ST>
       </Implementation>
     </Method>
   </POU>

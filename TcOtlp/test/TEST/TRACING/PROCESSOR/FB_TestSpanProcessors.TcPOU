@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_TestSpanProcessors" Id="{b3192278-4ca7-4ecc-b77c-8e4f07666086}" SpecialFunc="None">
-    <Declaration><![CDATA[(* Tests FB_SpanProcessor_Simple and FB_SpanProcessor_Batch and their hand-off to an exporter, and the console line written by FB_SpanProcessor_Console. *)
+    <Declaration><![CDATA[(* Tests FB_SpanProcessor_Simple and FB_SpanProcessor_Batch and their hand-off to an exporter. *)
 FUNCTION_BLOCK FB_TestSpanProcessors EXTENDS FB_TestSuite
 VAR
 	// kept across scans by testBatchExportsAfterScheduledDelay
@@ -16,8 +16,6 @@ END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[THIS^.testSimpleEnrichesThenExports();
-THIS^.testConsoleFormatsRootSpan();
-THIS^.testConsoleFormatsChildSpan();
 THIS^.testSimpleHandsCloneToExporter();
 THIS^.testSimpleDropsSpanWhenExporterBusy();
 THIS^.testBatchWaitsForFullBatch();
@@ -51,79 +49,6 @@ END_VAR
 	THIS^.AssertEquals_UDINT(1, processor.exportedCount, 'Expected one export');
 	THIS^.AssertTrue(processor.enrichedBeforeExport, 'Expected enrich to run before export');
 	THIS^.AssertEquals_STRING('work', processor.lastSpanName, 'Expected the span to be exported');
-TcUnit.TEST_FINISHED();]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="testConsoleFormatsRootSpan" Id="{659292d5-140d-4296-9520-efaa5008aa64}">
-      <Declaration><![CDATA[(* A root span is written with its identifiers in hex, no parent and its duration. *)
-METHOD testConsoleFormatsRootSpan : REFERENCE TO FB_Test
-VAR
-	resource: FB_Resource('');
-	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
-	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
-	tracer: FB_Tracer(scope:=scope, provider:=provider);
-	processor: FB_SpanProcessor_Console(exporter:=0);
-	pSpan: POINTER TO FB_Span;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[TcUnit.TEST('testConsoleFormatsRootSpan');
-	tracer.startSpan(name:='work').build(pDest:=pSpan);
-	THIS^.AssertTrue(pSpan <> 0, 'Expected the span to build');
-	IF pSpan <> 0 THEN
-		pSpan^.startTimestamp := 1000;
-		pSpan^.endTimestamp := 1500;
-		THIS^.AssertEquals_STRING(
-			'span "work" trace=01010101010101010101010101010101 span=0202020202020202 parent=none kind=SPAN_KIND_INTERNAL status=STATUS_CODE_UNSET duration=500ns',
-			processor.format(pSpan^),
-			'Expected the root span line'
-		);
-		processor.onEnd(pSpan^);  // writes the line to the ADS log
-		pSpan^.delete(pSelf:=pSpan);
-	END_IF
-TcUnit.TEST_FINISHED();]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="testConsoleFormatsChildSpan" Id="{0e396fb6-fd2e-443a-b109-9e87f2e4ca97}">
-      <Declaration><![CDATA[(* A child span is written with its parent span id and its kind. *)
-METHOD testConsoleFormatsChildSpan : REFERENCE TO FB_Test
-VAR
-	resource: FB_Resource('');
-	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
-	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
-	tracer: FB_Tracer(scope:=scope, provider:=provider);
-	processor: FB_SpanProcessor_Console(exporter:=0);
-	pRoot: POINTER TO FB_Span;
-	pChild: POINTER TO FB_Span;
-	pContext: POINTER TO FB_SpanContext;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[TcUnit.TEST('testConsoleFormatsChildSpan');
-	tracer.startSpan(name:='root').build(pDest:=pRoot);
-	IF pRoot <> 0 THEN
-		pRoot^.getContext(pDest:=pContext);
-	END_IF
-	tracer
-		.startSpan(name:='child', kind:=E_SpanKind.SPAN_KIND_CLIENT)
-		.setParent(pContext:=pContext)
-		.build(pDest:=pChild);
-	THIS^.AssertTrue(pChild <> 0, 'Expected the child span to build');
-	IF pChild <> 0 THEN
-		pChild^.startTimestamp := 2000;
-		pChild^.endTimestamp := 2000;
-		THIS^.AssertEquals_STRING(
-			'span "child" trace=01010101010101010101010101010101 span=0303030303030303 parent=0202020202020202 kind=SPAN_KIND_CLIENT status=STATUS_CODE_UNSET duration=0ns',
-			processor.format(pChild^),
-			'Expected the child span line'
-		);
-	END_IF
-
-	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
-	IF pChild <> 0 THEN pChild^.delete(pSelf:=pChild); END_IF
-	IF pRoot <> 0 THEN pRoot^.delete(pSelf:=pRoot); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

@@ -1,0 +1,151 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestSpanConsoleExporter" Id="{d8394b2c-0c11-4de7-8b15-9b970e20ca4e}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Tests FB_SpanExporter_Console: the line it writes per span, and that it releases each batch at once. *)
+FUNCTION_BLOCK FB_TestSpanConsoleExporter EXTENDS FB_TestSuite
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testFormatsRootSpan();
+THIS^.testFormatsChildSpan();
+THIS^.testExportWritesAndReleasesBatch();
+THIS^.testSimpleProcessorExportsEverySpan();]]></ST>
+    </Implementation>
+    <Method Name="testFormatsRootSpan" Id="{a298bcac-1186-4daf-9a88-d0e0706f13d9}">
+      <Declaration><![CDATA[(* A root span is written with its identifiers in hex, no parent and its duration. *)
+METHOD testFormatsRootSpan : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	exporter: FB_SpanExporter_Console;
+	pSpan: POINTER TO FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testFormatsRootSpan');
+	tracer.startSpan(name:='work').build(pDest:=pSpan);
+	THIS^.AssertTrue(pSpan <> 0, 'Expected the span to build');
+	IF pSpan <> 0 THEN
+		pSpan^.startTimestamp := 1000;
+		pSpan^.endTimestamp := 1500;
+		THIS^.AssertEquals_STRING(
+			'span "work" trace=01010101010101010101010101010101 span=0202020202020202 parent=none kind=SPAN_KIND_INTERNAL status=STATUS_CODE_UNSET duration=500ns',
+			exporter.format(pSpan^),
+			'Expected the root span line'
+		);
+		pSpan^.delete(pSelf:=pSpan);
+	END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testFormatsChildSpan" Id="{5c50740d-0b07-440a-8734-a0a91777e4c1}">
+      <Declaration><![CDATA[(* A child span is written with its parent span id and its kind. *)
+METHOD testFormatsChildSpan : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	exporter: FB_SpanExporter_Console;
+	pRoot: POINTER TO FB_Span;
+	pChild: POINTER TO FB_Span;
+	pContext: POINTER TO FB_SpanContext;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testFormatsChildSpan');
+	tracer.startSpan(name:='root').build(pDest:=pRoot);
+	IF pRoot <> 0 THEN
+		pRoot^.getContext(pDest:=pContext);
+	END_IF
+	tracer
+		.startSpan(name:='child', kind:=E_SpanKind.SPAN_KIND_CLIENT)
+		.setParent(pContext:=pContext)
+		.build(pDest:=pChild);
+	THIS^.AssertTrue(pChild <> 0, 'Expected the child span to build');
+	IF pChild <> 0 THEN
+		pChild^.startTimestamp := 2000;
+		pChild^.endTimestamp := 2000;
+		THIS^.AssertEquals_STRING(
+			'span "child" trace=01010101010101010101010101010101 span=0303030303030303 parent=0202020202020202 kind=SPAN_KIND_CLIENT status=STATUS_CODE_UNSET duration=0ns',
+			exporter.format(pChild^),
+			'Expected the child span line'
+		);
+	END_IF
+
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
+	IF pChild <> 0 THEN pChild^.delete(pSelf:=pChild); END_IF
+	IF pRoot <> 0 THEN pRoot^.delete(pSelf:=pRoot); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testExportWritesAndReleasesBatch" Id="{cfb1c4f2-6729-4dfc-8858-26bf6d01f4d5}">
+      <Declaration><![CDATA[(* export takes the whole batch, writes it and releases it at once, so the exporter is never busy. *)
+METHOD testExportWritesAndReleasesBatch : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	exporter: FB_SpanExporter_Console;
+	spans: FB_SpanQueue(maxCount:=0);
+	pSpan: POINTER TO FB_Span;
+	idx: UDINT;
+	queueReason: E_SpanQueueFailureReason;
+	exportReason: E_SpanExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testExportWritesAndReleasesBatch');
+	FOR idx := 1 TO 2 DO
+		tracer.startSpan(name:='work').build(pDest:=pSpan);
+		spans.push(pValue:=pSpan, failureReason=>queueReason);
+		IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
+	END_FOR
+	THIS^.AssertEquals_UDINT(2, spans.count, 'Expected two queued spans');
+
+	THIS^.AssertTrue(exporter.export(spans:=spans, count:=10, failureReason=>exportReason), 'Expected the exporter to accept the batch');
+	THIS^.AssertEquals_UDINT(0, TO_UDINT(exportReason), 'Expected no failure');
+	THIS^.AssertEquals_UDINT(0, spans.count, 'Expected the batch to move into the exporter');
+	THIS^.AssertFalse(exporter.isBusy(), 'Expected the exporter to release the batch before returning');
+	THIS^.AssertTrue(exporter.tick(failureReason=>exportReason), 'Expected tick to succeed');
+	spans.free();
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testSimpleProcessorExportsEverySpan" Id="{4b0571aa-39f2-4ce5-8ad9-ebf546619ed9}">
+      <Declaration><![CDATA[(* A simple processor with a console exporter writes every span, even spans ending in the same scan. *)
+METHOD testSimpleProcessorExportsEverySpan : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	exporter: FB_SpanExporter_Console;
+	processor: FB_SpanProcessor_Simple(exporter:=exporter);
+	pSpan: POINTER TO FB_Span;
+	idx: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testSimpleProcessorExportsEverySpan');
+	FOR idx := 1 TO 2 DO
+		tracer.startSpan(name:='work').build(pDest:=pSpan);
+		THIS^.AssertTrue(pSpan <> 0, 'Expected the span to build');
+		IF pSpan <> 0 THEN
+			THIS^.AssertFalse(exporter.isBusy(), 'Expected the console exporter to be free for every span');
+			processor.onEnd(pSpan^);  // writes the line to the ADS log
+			pSpan^.delete(pSelf:=pSpan);
+		END_IF
+	END_FOR
+	THIS^.AssertFalse(exporter.isBusy(), 'Expected the console exporter to hold no batch');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
