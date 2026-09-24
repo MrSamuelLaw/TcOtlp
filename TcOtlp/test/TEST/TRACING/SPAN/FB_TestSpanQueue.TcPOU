@@ -7,7 +7,8 @@ FUNCTION_BLOCK FB_TestSpanQueue EXTENDS FB_TestSuite
     <Implementation>
       <ST><![CDATA[THIS^.testPushPopIsFifo();
 THIS^.testPushDropsOldestWhenFull();
-THIS^.testPopIntoAssignedDestinationFails();]]></ST>
+THIS^.testPopIntoAssignedDestinationFails();
+THIS^.testCursorWalksWithoutTakingOwnership();]]></ST>
     </Implementation>
     <Method Name="testPushPopIsFifo" Id="{124b3603-a899-43b7-87f1-fa3878fb6e21}">
       <Declaration><![CDATA[(* push takes ownership and clears the caller's pointer; pop returns spans oldest first. *)
@@ -111,6 +112,45 @@ END_VAR
 	THIS^.AssertTrue(queue.free(), 'Expected free to release every span');
 	THIS^.AssertEquals_UDINT(0, queue.count, 'Expected an empty queue after free');
 	IF pOwned <> 0 THEN pOwned^.delete(pSelf:=pOwned); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testCursorWalksWithoutTakingOwnership" Id="{872d32b9-70ec-476d-9341-337d29cbef0d}">
+      <Declaration><![CDATA[(* reset and next walk the spans oldest first and leave them queued; pop keeps the cursor valid. *)
+METHOD testCursorWalksWithoutTakingOwnership : REFERENCE TO FB_Test
+VAR
+	queue: FB_SpanQueue(maxCount:=4);
+	pFirst: POINTER TO FB_Span;
+	pSecond: POINTER TO FB_Span;
+	pExpectedFirst: POINTER TO FB_Span;
+	pExpectedSecond: POINTER TO FB_Span;
+	pPopped: POINTER TO FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testCursorWalksWithoutTakingOwnership');
+	pFirst := __NEW(FB_Span);
+	pSecond := __NEW(FB_Span);
+	pExpectedFirst := pFirst;
+	pExpectedSecond := pSecond;
+	queue.push(pValue:=pFirst);
+	queue.push(pValue:=pSecond);
+
+	queue.reset();
+	THIS^.AssertTrue(queue.next() = pExpectedFirst, 'Expected the oldest span first');
+	THIS^.AssertTrue(queue.next() = pExpectedSecond, 'Expected the second span next');
+	THIS^.AssertTrue(queue.next() = 0, 'Expected 0 after the last span');
+	THIS^.AssertEquals_UDINT(2, queue.count, 'Expected the walk to leave both spans queued');
+
+	// popping the node under the cursor moves the cursor to the new head
+	queue.reset();
+	queue.pop(pValue:=pPopped);
+	THIS^.AssertTrue(queue.next() = pExpectedSecond, 'Expected the cursor to move past the popped span');
+
+	IF pPopped <> 0 THEN pPopped^.delete(pSelf:=pPopped); END_IF
+	queue.free();
+	queue.reset();
+	THIS^.AssertTrue(queue.next() = 0, 'Expected an empty walk after free');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

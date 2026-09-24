@@ -143,6 +143,9 @@
     <Compile Include="OTEL\TRACING\PROVIDER\FUNCTION_BLOCKS\FB_TracerProvider.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\TRACING\SERIALIZATION\FUNCTION_BLOCKS\FB_SpanProtoJsonSerializer.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\TRACING\SPAN\ENUMS\E_SpanFlags.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
@@ -302,6 +305,9 @@
     <Compile Include="TEST\TRACING\TRACER\FB_TestTracer.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TEST\TRACING\SERIALIZATION\FB_TestSpanProtoJsonSerializer.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="TEST\TRACING\SPAN\FB_TestSpan.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -357,6 +363,7 @@
     <Folder Include="OTEL\TRACING\PROVIDER\FUNCTION_BLOCKS" />
     <Folder Include="OTEL\TRACING\PROVIDER\ENUMS" />
     <Folder Include="OTEL\TRACING\SERIALIZATION" />
+    <Folder Include="OTEL\TRACING\SERIALIZATION\FUNCTION_BLOCKS" />
     <Folder Include="OTEL\TRACING\SPAN\FUNCTION_BLOCKS" />
     <Folder Include="OTEL\TRACING\SPAN\ENUMS" />
     <Folder Include="OTEL\VALUES" />
@@ -389,6 +396,7 @@
     <Folder Include="TEST\TRACING\ID_GENERATOR" />
     <Folder Include="TEST\TRACING\PROCESSOR" />
     <Folder Include="TEST\TRACING\PROVIDER" />
+    <Folder Include="TEST\TRACING\SERIALIZATION" />
     <Folder Include="TEST\TRACING\SPAN" />
     <Folder Include="TEST\TRACING\TRACER" />
     <Folder Include="TEST\VALUES" />

@@ -1,0 +1,545 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_SpanProtoJsonSerializer" Id="{26cc97b2-23b3-421b-9277-0008576ec889}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Writes ended spans as OTLP ProtoJSON: TracesData > ResourceSpans > ScopeSpans > Span.
+	Serialization only reads the spans; ownership stays with the caller.
+
+	Example:
+	IF serializer.serializeTracesData(spans:=queue, failureReason=>reason) THEN
+		// serializer.parser and serializer.jsonValue hold the document
+	END_IF
+*)
+FUNCTION_BLOCK FB_SpanProtoJsonSerializer EXTENDS FB_BaseProtoJsonSerializer
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="_inGroup" Id="{c33380da-e24c-4fa0-98bf-44b9d3c6d396}">
+      <Declaration><![CDATA[(*
+	TRUE when pSpan belongs to the group led by pLeader: the same resource, and the same
+	scope when matchScope is set. With no leader, every span belongs.
+*)
+METHOD _inGroup : BOOL
+VAR_INPUT
+	pSpan: POINTER TO FB_Span;
+	pLeader: POINTER TO FB_Span;
+	matchScope: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_inGroup := FALSE;
+IF pSpan = 0 THEN
+	RETURN;
+END_IF
+IF pLeader = 0 THEN
+	_inGroup := TRUE;
+	RETURN;
+END_IF
+IF pSpan^.resource.id <> pLeader^.resource.id THEN
+	RETURN;
+END_IF
+IF matchScope AND_THEN pSpan^.scope.name <> pLeader^.scope.name THEN
+	RETURN;
+END_IF
+_inGroup := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_nextPending" Id="{c1d3c8d4-0948-480b-ab33-a43c258b660b}">
+      <Declaration><![CDATA[(*
+	Returns the oldest span that is not written yet and belongs to the resource of pLeader,
+	or to any resource when pLeader is 0. Returns 0 when there is none. pDone holds one
+	flag per queued span, in queue order.
+*)
+METHOD _nextPending : POINTER TO FB_Span
+VAR_IN_OUT
+	spans: FB_SpanQueue;
+END_VAR
+VAR_INPUT
+	pDone: POINTER TO BOOL;
+	pLeader: POINTER TO FB_Span;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+VAR
+	_idx: UDINT;
+	_pSpan: POINTER TO FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_nextPending := 0;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+
+spans.reset();
+FOR _idx := 1 TO spans.count DO
+	_pSpan := spans.next();
+	IF _pSpan = 0 THEN
+		failureReason := E_ProtoJsonSerializerFailureReason.SPAN_COLLECTION_INCONSISTENT;
+		RETURN;
+	END_IF
+	IF NOT pDone[_idx - 1] AND_THEN THIS^._inGroup(pSpan:=_pSpan, pLeader:=pLeader, matchScope:=FALSE) THEN
+		_nextPending := _pSpan;
+		RETURN;
+	END_IF
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_serializeStatus" Id="{8df3e1fb-b498-44c7-a12c-07ce0a43571a}">
+      <Declaration><![CDATA[METHOD _serializeStatus : BOOL
+VAR_IN_OUT
+	v: SJsonValue;
+END_VAR
+VAR_INPUT
+	pStatus: POINTER TO FB_Status;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+VAR
+	_obj: SJsonValue;
+	_member: SJsonValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_serializeStatus := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID;
+	RETURN;
+END_IF
+IF pStatus = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.VALUE_POINTER_NULL;
+	RETURN;
+END_IF
+
+_obj := THIS^.parser.AddObjectMember(v, 'status');
+IF _obj = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+	RETURN;
+END_IF
+IF pStatus^.message <> 0 AND_THEN NOT THIS^.serializeStringValue(_obj, ADR('message'), pStatus^.message, failureReason=>failureReason) THEN
+	RETURN;
+END_IF
+IF pStatus^.code <> E_StatusCode.STATUS_CODE_UNSET THEN
+	_member := THIS^.parser.AddUintMember(_obj, 'code', TO_UDINT(pStatus^.code));
+	IF _member = 0 THEN
+		failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+		RETURN;
+	END_IF
+END_IF
+_serializeStatus := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="serializeResourceSpans" Id="{92429b2d-7ac8-4d08-bcba-0fbc071c5c43}">
+      <Declaration><![CDATA[(*
+	Writes one ResourceSpans group for the oldest span not written yet, with every pending
+	span of the same resource grouped by scope. Scopes keep first-seen order.
+*)
+METHOD serializeResourceSpans : BOOL
+VAR_IN_OUT
+	v: SJsonValue;
+	spans: FB_SpanQueue;
+	remaining: UDINT;  // spans not written yet; reduced by each span written
+END_VAR
+VAR_INPUT
+	pDone: POINTER TO BOOL;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+VAR
+	_pLeader: POINTER TO FB_Span;
+	_pScopeLeader: POINTER TO FB_Span;
+	_scopeSpans: SJsonValue;
+	_scopeLimit: UDINT;
+	_scopeIdx: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[serializeResourceSpans := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID;
+	RETURN;
+END_IF
+IF pDone = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.VALUE_POINTER_NULL;
+	RETURN;
+END_IF
+
+_pLeader := THIS^._nextPending(spans:=spans, pDone:=pDone, pLeader:=0, failureReason=>failureReason);
+IF failureReason <> E_ProtoJsonSerializerFailureReason.NA THEN
+	RETURN;
+END_IF
+IF _pLeader = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.SPAN_COLLECTION_INCONSISTENT;
+	RETURN;
+END_IF
+IF NOT THIS^.startNewResource(
+	v:=v,
+	resource:=_pLeader^.resource,
+	scopeSpans=>_scopeSpans,
+	failureReason=>failureReason
+) THEN
+	RETURN;
+END_IF
+
+// One scope per pass; the last pass finds no pending span of this resource.
+_scopeLimit := spans.count + 1;
+FOR _scopeIdx := 1 TO _scopeLimit DO
+	_pScopeLeader := THIS^._nextPending(spans:=spans, pDone:=pDone, pLeader:=_pLeader, failureReason=>failureReason);
+	IF failureReason <> E_ProtoJsonSerializerFailureReason.NA THEN
+		RETURN;
+	END_IF
+	IF _pScopeLeader = 0 THEN
+		serializeResourceSpans := TRUE;
+		RETURN;
+	END_IF
+	IF NOT THIS^.serializeScopeSpans(
+		v:=_scopeSpans,
+		spans:=spans,
+		remaining:=remaining,
+		pDone:=pDone,
+		pLeader:=_pScopeLeader,
+		failureReason=>failureReason
+	) THEN
+		RETURN;
+	END_IF
+END_FOR
+
+failureReason := E_ProtoJsonSerializerFailureReason.LOOP_LIMIT_EXCEEDED;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="serializeScopeSpans" Id="{1e8a37c8-2b49-42e7-82f8-dfd199c9e095}">
+      <Declaration><![CDATA[(*
+	Writes one ScopeSpans group holding every pending span with the resource and scope of
+	pLeader, in queue order, and marks them written.
+*)
+METHOD serializeScopeSpans : BOOL
+VAR_IN_OUT
+	v: SJsonValue;
+	spans: FB_SpanQueue;
+	remaining: UDINT;  // spans not written yet; reduced by each span written
+END_VAR
+VAR_INPUT
+	pDone: POINTER TO BOOL;
+	pLeader: POINTER TO FB_Span;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+VAR
+	_serializedSpans: SJsonValue;
+	_pSpan: POINTER TO FB_Span;
+	_idx: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[serializeScopeSpans := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID;
+	RETURN;
+END_IF
+IF pLeader = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.SPAN_POINTER_NULL;
+	RETURN;
+END_IF
+IF pDone = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.VALUE_POINTER_NULL;
+	RETURN;
+END_IF
+
+IF NOT THIS^.startNewScope(
+	v:=v,
+	scope:=pLeader^.scope,
+	serializedSpans=>_serializedSpans,
+	failureReason=>failureReason
+) THEN
+	RETURN;
+END_IF
+
+spans.reset();
+FOR _idx := 1 TO spans.count DO
+	_pSpan := spans.next();
+	IF _pSpan = 0 THEN
+		failureReason := E_ProtoJsonSerializerFailureReason.SPAN_COLLECTION_INCONSISTENT;
+		RETURN;
+	END_IF
+	IF NOT pDone[_idx - 1] AND_THEN THIS^._inGroup(pSpan:=_pSpan, pLeader:=pLeader, matchScope:=TRUE) THEN
+		IF NOT THIS^.serializeSpan(_serializedSpans, _pSpan, failureReason=>failureReason) THEN
+			RETURN;
+		END_IF
+		pDone[_idx - 1] := TRUE;
+		IF remaining > 0 THEN
+			remaining := remaining - 1;
+		END_IF
+	END_IF
+END_FOR
+
+serializeScopeSpans := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="serializeSpan" Id="{9db01843-179e-4f59-81af-712c3a873a2f}">
+      <Declaration><![CDATA[(* Appends one Span object to the JSON array v. The span is only read. *)
+METHOD serializeSpan : BOOL
+VAR_IN_OUT
+	v: SJsonValue;
+END_VAR
+VAR_INPUT
+	pSpan: POINTER TO FB_Span;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+VAR
+	_obj: SJsonValue;
+	_member: SJsonValue;
+	_parentSpanId: STRING(16);
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[serializeSpan := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID;
+	RETURN;
+END_IF
+IF pSpan = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.SPAN_POINTER_NULL;
+	RETURN;
+END_IF
+
+_obj := THIS^.parser.PushbackJsonValue(v, '{}');
+IF _obj = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+	RETURN;
+END_IF
+
+// identity; a root span has no parentSpanId
+IF pSpan^.traceId <> 0 AND_THEN NOT THIS^.serializeTraceIdValue(_obj, pSpan^.traceId, failureReason=>failureReason) THEN RETURN; END_IF
+IF pSpan^.spanId <> 0 AND_THEN NOT THIS^.serializeSpanIdValue(_obj, pSpan^.spanId, failureReason=>failureReason) THEN RETURN; END_IF
+IF pSpan^.traceState <> 0 AND_THEN NOT THIS^.serializeStringValue(_obj, ADR('traceState'), pSpan^.traceState, failureReason=>failureReason) THEN RETURN; END_IF
+IF pSpan^.parentSpanId <> 0 THEN
+	IF NOT THIS^._serializeBytes(
+		ADR(pSpan^.parentSpanId^.bytes),
+		SIZEOF(pSpan^.parentSpanId^.bytes),
+		ADR(_parentSpanId),
+		SIZEOF(_parentSpanId),
+		E_BytesEncoding.hex,
+		failureReason=>failureReason
+	) THEN
+		RETURN;
+	END_IF
+	_member := THIS^.parser.AddStringMember(_obj, 'parentSpanId', _parentSpanId);
+	IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
+END_IF
+IF pSpan^.flags <> 0 AND_THEN NOT THIS^.serializeUint32Value(_obj, ADR('flags'), pSpan^.flags, failureReason=>failureReason) THEN RETURN; END_IF
+
+// description and timing; OTLP/JSON writes enums as numbers and 64-bit integers as strings
+IF pSpan^.name <> 0 AND_THEN NOT THIS^.serializeStringValue(_obj, ADR('name'), pSpan^.name, failureReason=>failureReason) THEN RETURN; END_IF
+_member := THIS^.parser.AddUintMember(_obj, 'kind', TO_UDINT(pSpan^.kind));
+IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
+IF NOT THIS^.serializeUint64Value(_obj, ADR('startTimeUnixNano'), pSpan^.startTimestamp, failureReason=>failureReason) THEN RETURN; END_IF
+IF NOT THIS^.serializeUint64Value(_obj, ADR('endTimeUnixNano'), pSpan^.endTimestamp, failureReason=>failureReason) THEN RETURN; END_IF
+
+IF pSpan^.attributes.count > 0 AND_THEN NOT THIS^.serializeKeyValues(_obj, ADR('attributes'), ADR(pSpan^.attributes), failureReason=>failureReason) THEN RETURN; END_IF
+IF pSpan^.attributes.droppedCount > 0 AND_THEN NOT THIS^.serializeUint32Value(
+	_obj,
+	ADR('droppedAttributesCount'),
+	pSpan^.attributes.droppedCount,
+	failureReason=>failureReason
+) THEN
+	RETURN;
+END_IF
+IF pSpan^.status <> 0 AND_THEN NOT THIS^._serializeStatus(_obj, pSpan^.status, failureReason=>failureReason) THEN RETURN; END_IF
+serializeSpan := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="serializeTracesData" Id="{a6b1074d-9a24-4749-a01e-8fd29e031da7}">
+      <Declaration><![CDATA[(*
+	Writes a TracesData document for every span in the queue to jsonValue. Spans are grouped
+	by resource and then by instrumentation scope, so each resource and scope is written once.
+	Groups keep first-seen order, and spans keep queue order within a group.
+
+	The queue and its spans are only read: the caller keeps ownership whatever the result.
+	Grouping walks the queue once per group, so the work is bounded by count squared.
+*)
+METHOD serializeTracesData : BOOL
+VAR_IN_OUT
+	spans: FB_SpanQueue;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+VAR
+	_count: UDINT;
+	_pDone: POINTER TO BOOL;
+	_remaining: UDINT;
+	_resourceSpans: SJsonValue;
+	_resourceIdx: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[serializeTracesData := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+
+_count := spans.count;
+IF _count > TcOtlp_GVL.MAX_LOOP_COUNT THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.LOOP_LIMIT_EXCEEDED;
+	RETURN;
+END_IF
+
+// start a new document whose root is an object holding the resourceSpans array
+THIS^.jsonValue := THIS^.parser.NewDocument();
+IF THIS^.jsonValue = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+	RETURN;
+END_IF
+THIS^.jsonValue := THIS^.parser.SetObject(THIS^.jsonValue);
+IF THIS^.jsonValue = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+	RETURN;
+END_IF
+_resourceSpans := THIS^.parser.AddArrayMember(THIS^.jsonValue, 'resourceSpans', 0);
+IF _resourceSpans = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+	RETURN;
+END_IF
+IF _count = 0 THEN
+	serializeTracesData := TRUE;
+	RETURN;
+END_IF
+
+// One flag per queued span, in queue order, set once the span is written. Marking spans
+// here instead of popping or rotating them keeps the queue unchanged.
+_pDone := __NEW(BOOL, _count);
+IF _pDone = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+MEMSET(_pDone, 0, _count * SIZEOF(BOOL));
+
+// every group writes at least one span, so _count passes always suffice
+_remaining := _count;
+FOR _resourceIdx := 1 TO _count DO
+	IF _remaining = 0 THEN
+		EXIT;
+	END_IF
+	IF NOT THIS^.serializeResourceSpans(
+		v:=_resourceSpans,
+		spans:=spans,
+		remaining:=_remaining,
+		pDone:=_pDone,
+		failureReason=>failureReason
+	) THEN
+		EXIT;
+	END_IF
+END_FOR
+IF failureReason = E_ProtoJsonSerializerFailureReason.NA AND _remaining > 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.SPAN_COLLECTION_INCONSISTENT;
+END_IF
+
+__DELETE(_pDone);
+serializeTracesData := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="startNewResource" Id="{6467ee6b-76be-429b-8f02-a6f19ce859e0}">
+      <Declaration><![CDATA[METHOD startNewResource : BOOL
+VAR_IN_OUT
+	v: SJsonValue;
+	resource: FB_Resource;
+END_VAR
+VAR_OUTPUT
+	scopeSpans: SJsonValue;
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+VAR
+	_resourceObj: SJsonValue;
+	_member: SJsonValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[startNewResource := FALSE;
+scopeSpans := 0;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID;
+	RETURN;
+END_IF
+
+_resourceObj := THIS^.parser.PushbackJsonValue(v, '{}');
+IF _resourceObj = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+	RETURN;
+END_IF
+IF NOT THIS^._injectResource(_resourceObj, resource, failureReason=>failureReason) THEN
+	RETURN;
+END_IF
+IF resource.schemaUrl <> '' THEN
+	_member := THIS^.parser.AddStringMember(_resourceObj, 'schemaUrl', resource.schemaUrl);
+	IF _member = 0 THEN
+		failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+		RETURN;
+	END_IF
+END_IF
+scopeSpans := THIS^.parser.AddArrayMember(_resourceObj, 'scopeSpans', 0);
+IF scopeSpans = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+	RETURN;
+END_IF
+
+startNewResource := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="startNewScope" Id="{36122df4-73e4-403e-9cf9-e1f307fb3fe6}">
+      <Declaration><![CDATA[METHOD startNewScope : BOOL
+VAR_IN_OUT
+	v: SJsonValue;
+	scope: FB_InstrumentationScope;
+END_VAR
+VAR_OUTPUT
+	serializedSpans: SJsonValue;
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+VAR
+	_scopeObj: SJsonValue;
+	_member: SJsonValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[startNewScope := FALSE;
+serializedSpans := 0;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID;
+	RETURN;
+END_IF
+
+_scopeObj := THIS^.parser.PushbackJsonValue(v, '{}');
+IF _scopeObj = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+	RETURN;
+END_IF
+IF NOT THIS^._injectInstrumentationScope(_scopeObj, scope, failureReason=>failureReason) THEN
+	RETURN;
+END_IF
+IF scope.schemaUrl <> '' THEN
+	_member := THIS^.parser.AddStringMember(_scopeObj, 'schemaUrl', scope.schemaUrl);
+	IF _member = 0 THEN
+		failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+		RETURN;
+	END_IF
+END_IF
+serializedSpans := THIS^.parser.AddArrayMember(_scopeObj, 'spans', 0);
+IF serializedSpans = 0 THEN
+	failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE;
+	RETURN;
+END_IF
+
+startNewScope := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

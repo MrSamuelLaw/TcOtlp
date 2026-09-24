@@ -37,7 +37,10 @@ Concrete exporter function-block bodies invoke `call()`. The intended set mirror
 | `FB_SpanExporter_File` | Busy while its serialization and file-I/O state machine owns a batch; exposes that state through `currentState`. |
 | `FB_SpanExporter_HTTP` | Busy for the duration of the OTLP/HTTP request/response cycle. |
 
+## Serialization
+
+File and HTTP exporters serialize with [[Spans ProtoJSON Serializer]], which reads the batch without taking ownership, so the exporter keeps the batch until delivery finishes.
+
 ## Open questions
 
-- Whether span serialization reuses `FB_BaseProtoJsonSerializer` directly or needs a `FB_SpanProtoJsonSerializer` sibling to handle `TracesData` grouping (`ResourceSpans` → `ScopeSpans` → `Span`), which parallels but does not equal the `LogsData` grouping described in [[LogRecords ProtoJSON Serializer]].
 - Whether an exporter must preserve parent-before-child ordering within a batch, or whether the collector reassembles the tree from `parent_span_id` alone. The OTLP spec allows arbitrary ordering; confirming this lets the batch processor stay a simple FIFO.

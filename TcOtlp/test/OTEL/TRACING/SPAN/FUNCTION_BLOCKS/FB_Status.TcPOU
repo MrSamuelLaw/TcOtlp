@@ -1,7 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_Status" Id="{7502d296-8874-4aba-89de-396bbd73f912}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_Status
+    <Declaration><![CDATA[{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_Status
 VAR_OUTPUT
 	code: E_StatusCode;
 	// optional and only set when status is an error. Owned by the status and released with it.

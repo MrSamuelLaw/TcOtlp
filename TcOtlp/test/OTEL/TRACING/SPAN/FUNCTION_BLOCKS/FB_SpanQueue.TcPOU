@@ -7,11 +7,14 @@
 	spans when the bound is reached. The bound is maxCount, but never more than
 	TcOtlp_GVL.MAX_LOOP_COUNT: a maxCount of zero, or one above that limit, is held to
 	MAX_LOOP_COUNT so that free always reaches the end.
+	reset and next walk the spans oldest first without taking ownership, for readers
+	such as serializers.
 *)
 FUNCTION_BLOCK FB_SpanQueue
 VAR
 	_head: POINTER TO ST_LinkedListNode;
 	_tail: POINTER TO ST_LinkedListNode;
+	_cursor: POINTER TO ST_LinkedListNode;  // next node returned by next; 0 at the end
 END_VAR
 VAR_OUTPUT
 	count: UDINT;
@@ -95,7 +98,24 @@ IF THIS^._head = 0 THEN
 	THIS^._tail := 0;
 	THIS^.count := 0;
 END_IF
+THIS^._cursor := THIS^._head;
 free := THIS^._head = 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="next" Id="{98c9c37a-96a9-477e-bdc0-9447f3869fa4}">
+      <Declaration><![CDATA[(*
+	Returns the span at the cursor and advances it, or 0 after the last span. The span is
+	borrowed: the queue still owns it, and it is valid only until it is popped or dropped.
+	Call reset first.
+*)
+METHOD next : POINTER TO FB_Span
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[next := 0;
+IF THIS^._cursor <> 0 THEN
+	next := THIS^._cursor^.val;
+	THIS^._cursor := THIS^._cursor^.nxt;
+END_IF]]></ST>
       </Implementation>
     </Method>
     <Method Name="pop" Id="{20f7cf69-8ba2-4d4e-b317-f36437396b59}">
@@ -128,6 +148,9 @@ _node := THIS^._head;
 THIS^._head := _node^.nxt;
 IF THIS^._head = 0 THEN
 	THIS^._tail := 0;
+END_IF
+IF THIS^._cursor = _node THEN
+	THIS^._cursor := THIS^._head;
 END_IF
 
 pValue := _node^.val;
@@ -208,6 +231,14 @@ THIS^._tail := _node;
 THIS^.count := THIS^.count + 1;
 pValue := 0;
 push := failureReason = E_SpanQueueFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="reset" Id="{e0e62b49-9fdc-442d-899c-23e048e89ad2}">
+      <Declaration><![CDATA[(* Moves the cursor to the oldest span, so next starts from the head. *)
+METHOD reset
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._cursor := THIS^._head;]]></ST>
       </Implementation>
     </Method>
   </POU>

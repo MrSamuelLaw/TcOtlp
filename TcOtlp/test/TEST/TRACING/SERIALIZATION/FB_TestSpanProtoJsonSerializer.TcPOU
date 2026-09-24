@@ -1,0 +1,317 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestSpanProtoJsonSerializer" Id="{db065884-1d07-4f0b-9eec-d553d5215051}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Tests FB_SpanProtoJsonSerializer: span fields, and grouping by resource and scope. *)
+FUNCTION_BLOCK FB_TestSpanProtoJsonSerializer EXTENDS FB_TestSuite
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testSerializeRootSpan();
+THIS^.testSerializeChildSpan();
+THIS^.testSerializeSpanRejectsInvalidInput();
+THIS^.testSerializeTracesDataWithEmptyQueue();
+THIS^.testSerializeTracesDataGroupsByResourceAndScope();]]></ST>
+    </Implementation>
+    <Method Name="testSerializeRootSpan" Id="{ffa2cc14-29c0-48dc-aa0d-c692404b304a}">
+      <Declaration><![CDATA[(* A root span is written with hex identifiers, numeric enums, string timestamps, attributes and status, and no parentSpanId. *)
+METHOD testSerializeRootSpan : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	serializer: FB_SpanProtoJsonSerializer;
+	pSpan: POINTER TO FB_Span;
+	pMessage: POINTER TO FB_String;
+	root: SJsonValue;
+	spans: SJsonValue;
+	obj: SJsonValue;
+	attribute: SJsonValue;
+	status: SJsonValue;
+	success: BOOL;
+	reason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testSerializeRootSpan');
+	tracer
+		.startSpan(name:='work')
+		.setStringAttribute(key:='stats.label', value:='pVal')
+		.build(pDest:=pSpan);
+	THIS^.AssertTrue(pSpan <> 0, 'Expected the span to build');
+	IF pSpan <> 0 THEN
+		pSpan^.startTimestamp := 1000;
+		pSpan^.endTimestamp := 1581452773000000789;
+		ValueFactory.createString(pDest:=pMessage, pString:=ADR('motor stalled'));
+		pSpan^.status := __NEW(FB_Status(code:=E_StatusCode.STATUS_CODE_ERROR, message:=pMessage));
+		IF pSpan^.status <> 0 THEN
+			pMessage := 0;  // moved into the status
+		END_IF
+
+		root := serializer.parser.NewDocument();
+		root := serializer.parser.SetObject(root);
+		spans := serializer.parser.AddArrayMember(root, 'spans', 0);
+		success := serializer.serializeSpan(v:=spans, pSpan:=pSpan, failureReason=>reason);
+		THIS^.AssertTrue(success, 'Expected the span to serialize');
+		THIS^.AssertEquals_UDINT(TO_UDINT(E_ProtoJsonSerializerFailureReason.NA), TO_UDINT(reason), 'Expected no failure reason');
+
+		obj := serializer.parser.GetArrayValueByIdx(spans, 0);
+		THIS^.AssertTrue(serializer.parser.IsObject(obj), 'Expected one Span object');
+		THIS^.AssertEquals_STRING('01010101010101010101010101010101', serializer.parser.GetString(serializer.parser.FindMember(obj, 'traceId')), 'Expected the hex traceId');
+		THIS^.AssertEquals_STRING('0202020202020202', serializer.parser.GetString(serializer.parser.FindMember(obj, 'spanId')), 'Expected the hex spanId');
+		THIS^.AssertTrue(serializer.parser.FindMember(obj, 'parentSpanId') = 0, 'Expected a root span to omit parentSpanId');
+		THIS^.AssertEquals_STRING('work', serializer.parser.GetString(serializer.parser.FindMember(obj, 'name')), 'Expected the name');
+		THIS^.AssertEquals_UDINT(1, serializer.parser.GetUint(serializer.parser.FindMember(obj, 'kind')), 'Expected SPAN_KIND_INTERNAL as a number');
+		THIS^.AssertEquals_STRING('1000', serializer.parser.GetString(serializer.parser.FindMember(obj, 'startTimeUnixNano')), 'Expected a string startTimeUnixNano');
+		THIS^.AssertEquals_STRING('1581452773000000789', serializer.parser.GetString(serializer.parser.FindMember(obj, 'endTimeUnixNano')), 'Expected a string endTimeUnixNano');
+
+		attribute := serializer.parser.GetArrayValueByIdx(serializer.parser.FindMember(obj, 'attributes'), 0);
+		THIS^.AssertEquals_STRING('stats.label', serializer.parser.GetString(serializer.parser.FindMember(attribute, 'key')), 'Expected the attribute key');
+		THIS^.AssertEquals_STRING(
+			'pVal',
+			serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(attribute, 'value'), 'stringValue')),
+			'Expected the attribute value'
+		);
+
+		status := serializer.parser.FindMember(obj, 'status');
+		THIS^.AssertEquals_UDINT(2, serializer.parser.GetUint(serializer.parser.FindMember(status, 'code')), 'Expected STATUS_CODE_ERROR as a number');
+		THIS^.AssertEquals_STRING('motor stalled', serializer.parser.GetString(serializer.parser.FindMember(status, 'message')), 'Expected the status message');
+		THIS^.AssertTrue(pSpan^.name <> 0 AND_THEN pSpan^.status <> 0, 'Expected serialization to leave the span intact');
+	END_IF
+
+	IF pMessage <> 0 THEN pMessage^.delete(pSelf:=pMessage); END_IF
+	IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testSerializeChildSpan" Id="{59235f6e-3375-4031-9daa-7f676956041d}">
+      <Declaration><![CDATA[(* A child span is written with its parentSpanId and kind, and without a status when none is set. *)
+METHOD testSerializeChildSpan : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	serializer: FB_SpanProtoJsonSerializer;
+	pRoot: POINTER TO FB_Span;
+	pChild: POINTER TO FB_Span;
+	pContext: POINTER TO FB_SpanContext;
+	root: SJsonValue;
+	spans: SJsonValue;
+	obj: SJsonValue;
+	success: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testSerializeChildSpan');
+	tracer.startSpan(name:='root').build(pDest:=pRoot);
+	IF pRoot <> 0 THEN
+		pRoot^.getContext(pDest:=pContext);
+	END_IF
+	tracer
+		.startSpan(name:='child', kind:=E_SpanKind.SPAN_KIND_CLIENT)
+		.setParent(pContext:=pContext)
+		.build(pDest:=pChild);
+	THIS^.AssertTrue(pChild <> 0, 'Expected the child span to build');
+	IF pChild <> 0 THEN
+		root := serializer.parser.NewDocument();
+		root := serializer.parser.SetObject(root);
+		spans := serializer.parser.AddArrayMember(root, 'spans', 0);
+		success := serializer.serializeSpan(v:=spans, pSpan:=pChild);
+		THIS^.AssertTrue(success, 'Expected the child span to serialize');
+
+		obj := serializer.parser.GetArrayValueByIdx(spans, 0);
+		THIS^.AssertEquals_STRING('0303030303030303', serializer.parser.GetString(serializer.parser.FindMember(obj, 'spanId')), 'Expected the child spanId');
+		THIS^.AssertEquals_STRING('0202020202020202', serializer.parser.GetString(serializer.parser.FindMember(obj, 'parentSpanId')), 'Expected the parent spanId');
+		THIS^.AssertEquals_UDINT(3, serializer.parser.GetUint(serializer.parser.FindMember(obj, 'kind')), 'Expected SPAN_KIND_CLIENT as a number');
+		THIS^.AssertTrue(serializer.parser.FindMember(obj, 'status') = 0, 'Expected no status member');
+		THIS^.AssertTrue(serializer.parser.FindMember(obj, 'attributes') = 0, 'Expected no attributes member');
+	END_IF
+
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
+	IF pChild <> 0 THEN pChild^.delete(pSelf:=pChild); END_IF
+	IF pRoot <> 0 THEN pRoot^.delete(pSelf:=pRoot); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testSerializeSpanRejectsInvalidInput" Id="{12720abc-a60a-4ca1-9f13-38711b9d2830}">
+      <Declaration><![CDATA[(* serializeSpan reports a null span and an invalid JSON destination. *)
+METHOD testSerializeSpanRejectsInvalidInput : REFERENCE TO FB_Test
+VAR
+	serializer: FB_SpanProtoJsonSerializer;
+	root: SJsonValue;
+	spans: SJsonValue;
+	invalid: SJsonValue;
+	pSpan: POINTER TO FB_Span;
+	success: BOOL;
+	reason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testSerializeSpanRejectsInvalidInput');
+	root := serializer.parser.NewDocument();
+	root := serializer.parser.SetObject(root);
+	spans := serializer.parser.AddArrayMember(root, 'spans', 0);
+
+	success := serializer.serializeSpan(v:=spans, pSpan:=pSpan, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected a null span to fail');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_ProtoJsonSerializerFailureReason.SPAN_POINTER_NULL), TO_UDINT(reason), 'Expected SPAN_POINTER_NULL');
+
+	pSpan := __NEW(FB_Span);
+	success := serializer.serializeSpan(v:=invalid, pSpan:=pSpan, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected an invalid destination to fail');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID), TO_UDINT(reason), 'Expected JSON_VALUE_INVALID');
+	IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testSerializeTracesDataWithEmptyQueue" Id="{ca74d4ca-6f40-4128-b7c0-a7cc66b4ec06}">
+      <Declaration><![CDATA[(* An empty queue gives a document with an empty resourceSpans array. *)
+METHOD testSerializeTracesDataWithEmptyQueue : REFERENCE TO FB_Test
+VAR
+	serializer: FB_SpanProtoJsonSerializer;
+	queue: FB_SpanQueue(maxCount:=0);
+	resourceSpans: SJsonValue;
+	success: BOOL;
+	reason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testSerializeTracesDataWithEmptyQueue');
+	success := serializer.serializeTracesData(spans:=queue, failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected an empty queue to serialize');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_ProtoJsonSerializerFailureReason.NA), TO_UDINT(reason), 'Expected no failure reason');
+	resourceSpans := serializer.parser.FindMember(serializer.jsonValue, 'resourceSpans');
+	THIS^.AssertTrue(resourceSpans <> 0 AND_THEN serializer.parser.IsArray(resourceSpans), 'Expected a resourceSpans array');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(resourceSpans, 0) = 0, 'Expected no ResourceSpans groups');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testSerializeTracesDataGroupsByResourceAndScope" Id="{9bcd3ce8-bfe8-48e7-ab1d-e1f108e0e7a3}">
+      <Declaration><![CDATA[(*
+	Spans arrive with interleaved resources and scopes. Each resource is written once with
+	its scopes in first-seen order, and spans keep queue order inside a scope. The queue is
+	only read, so a second serialization gives the same document.
+*)
+METHOD testSerializeTracesDataGroupsByResourceAndScope : REFERENCE TO FB_Test
+VAR
+	idGenerator: FB_MockIdGenerator;
+	resourceB: FB_Resource('resource.b');
+	resourceA: FB_Resource('resource.a');
+	resourceC: FB_Resource('resource.c');
+	providerB: FB_TracerProvider_ForInspection(resource:=resourceB, idGenerator:=idGenerator);
+	providerA: FB_TracerProvider_ForInspection(resource:=resourceA, idGenerator:=idGenerator);
+	providerC: FB_TracerProvider_ForInspection(resource:=resourceC, idGenerator:=idGenerator);
+	scopeB: FB_InstrumentationScope('scope.b', '1.0.0', 'scope.b.schema');
+	scopeA: FB_InstrumentationScope('scope.a', '1.0.0', 'scope.a.schema');
+	scopeC: FB_InstrumentationScope('scope.c', '1.0.0', 'scope.c.schema');
+	tracerBb: FB_Tracer(scope:=scopeB, provider:=providerB);
+	tracerBa: FB_Tracer(scope:=scopeA, provider:=providerB);
+	tracerAc: FB_Tracer(scope:=scopeC, provider:=providerA);
+	tracerAb: FB_Tracer(scope:=scopeB, provider:=providerA);
+	tracerCa: FB_Tracer(scope:=scopeA, provider:=providerC);
+	queue: FB_SpanQueue(maxCount:=0);
+	serializer: FB_SpanProtoJsonSerializer;
+	pSpan: POINTER TO FB_Span;
+	name: T_MaxString;
+	pass: UDINT;
+	idx: UDINT;
+	success: BOOL;
+	reason: E_ProtoJsonSerializerFailureReason;
+	resourceSpans: SJsonValue;
+	resourceObj: SJsonValue;
+	scopeSpans: SJsonValue;
+	scopeObj: SJsonValue;
+	spanArray: SJsonValue;
+	spanObj: SJsonValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testSerializeTracesDataGroupsByResourceAndScope');
+	// resource order B, A, C, B, C, A, B, A with interleaved scopes
+	FOR idx := 1 TO 8 DO
+		name := CONCAT('span', UDINT_TO_STRING(idx));
+		CASE idx OF
+			1, 7: tracerBb.startSpan(name:=name).build(pDest:=pSpan);
+			4: tracerBa.startSpan(name:=name).build(pDest:=pSpan);
+			2, 8: tracerAc.startSpan(name:=name).build(pDest:=pSpan);
+			6: tracerAb.startSpan(name:=name).build(pDest:=pSpan);
+			3, 5: tracerCa.startSpan(name:=name).build(pDest:=pSpan);
+		END_CASE
+		THIS^.AssertTrue(pSpan <> 0, CONCAT('Expected to build ', name));
+		IF pSpan <> 0 AND_THEN NOT queue.push(pValue:=pSpan) THEN
+			pSpan^.delete(pSelf:=pSpan);
+		END_IF
+	END_FOR
+	THIS^.AssertEquals_UDINT(8, queue.count, 'Expected eight queued spans');
+
+	FOR pass := 1 TO 2 DO
+		success := serializer.serializeTracesData(spans:=queue, failureReason=>reason);
+		THIS^.AssertTrue(success, 'Expected TracesData to serialize');
+		THIS^.AssertEquals_UDINT(TO_UDINT(E_ProtoJsonSerializerFailureReason.NA), TO_UDINT(reason), 'Expected no failure reason');
+		THIS^.AssertEquals_UDINT(8, queue.count, 'Expected the queue to keep its spans');
+		resourceSpans := serializer.parser.FindMember(serializer.jsonValue, 'resourceSpans');
+		THIS^.AssertTrue(resourceSpans <> 0 AND_THEN serializer.parser.IsArray(resourceSpans), 'Expected a resourceSpans array');
+		THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(resourceSpans, 3) = 0, 'Expected exactly three ResourceSpans groups');
+
+		resourceObj := serializer.parser.GetArrayValueByIdx(resourceSpans, 0);
+		THIS^.AssertEquals_STRING('resource.b', serializer.parser.GetString(serializer.parser.FindMember(resourceObj, 'schemaUrl')), 'Expected resource.b at 0');
+		scopeSpans := serializer.parser.FindMember(resourceObj, 'scopeSpans');
+		scopeObj := serializer.parser.GetArrayValueByIdx(scopeSpans, 0);
+		THIS^.AssertEquals_STRING('scope.b', serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name')), 'Expected resource.b scope.b at 0');
+		spanArray := serializer.parser.FindMember(scopeObj, 'spans');
+		spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 0);
+		THIS^.AssertEquals_STRING('span1', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span1 in resource.b scope.b');
+		spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 1);
+		THIS^.AssertEquals_STRING('span7', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span7 in resource.b scope.b');
+		THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(spanArray, 2) = 0, 'Expected 2 span(s) in resource.b scope.b');
+
+		scopeObj := serializer.parser.GetArrayValueByIdx(scopeSpans, 1);
+		THIS^.AssertEquals_STRING('scope.a', serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name')), 'Expected resource.b scope.a at 1');
+		spanArray := serializer.parser.FindMember(scopeObj, 'spans');
+		spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 0);
+		THIS^.AssertEquals_STRING('span4', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span4 in resource.b scope.a');
+		THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(spanArray, 1) = 0, 'Expected 1 span(s) in resource.b scope.a');
+		THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(scopeSpans, 2) = 0, 'Expected 2 scope(s) in resource.b');
+
+		resourceObj := serializer.parser.GetArrayValueByIdx(resourceSpans, 1);
+		THIS^.AssertEquals_STRING('resource.a', serializer.parser.GetString(serializer.parser.FindMember(resourceObj, 'schemaUrl')), 'Expected resource.a at 1');
+		scopeSpans := serializer.parser.FindMember(resourceObj, 'scopeSpans');
+		scopeObj := serializer.parser.GetArrayValueByIdx(scopeSpans, 0);
+		THIS^.AssertEquals_STRING('scope.c', serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name')), 'Expected resource.a scope.c at 0');
+		spanArray := serializer.parser.FindMember(scopeObj, 'spans');
+		spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 0);
+		THIS^.AssertEquals_STRING('span2', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span2 in resource.a scope.c');
+		spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 1);
+		THIS^.AssertEquals_STRING('span8', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span8 in resource.a scope.c');
+		THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(spanArray, 2) = 0, 'Expected 2 span(s) in resource.a scope.c');
+
+		scopeObj := serializer.parser.GetArrayValueByIdx(scopeSpans, 1);
+		THIS^.AssertEquals_STRING('scope.b', serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name')), 'Expected resource.a scope.b at 1');
+		spanArray := serializer.parser.FindMember(scopeObj, 'spans');
+		spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 0);
+		THIS^.AssertEquals_STRING('span6', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span6 in resource.a scope.b');
+		THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(spanArray, 1) = 0, 'Expected 1 span(s) in resource.a scope.b');
+		THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(scopeSpans, 2) = 0, 'Expected 2 scope(s) in resource.a');
+
+		resourceObj := serializer.parser.GetArrayValueByIdx(resourceSpans, 2);
+		THIS^.AssertEquals_STRING('resource.c', serializer.parser.GetString(serializer.parser.FindMember(resourceObj, 'schemaUrl')), 'Expected resource.c at 2');
+		scopeSpans := serializer.parser.FindMember(resourceObj, 'scopeSpans');
+		scopeObj := serializer.parser.GetArrayValueByIdx(scopeSpans, 0);
+		THIS^.AssertEquals_STRING('scope.a', serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name')), 'Expected resource.c scope.a at 0');
+		spanArray := serializer.parser.FindMember(scopeObj, 'spans');
+		spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 0);
+		THIS^.AssertEquals_STRING('span3', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span3 in resource.c scope.a');
+		spanObj := serializer.parser.GetArrayValueByIdx(spanArray, 1);
+		THIS^.AssertEquals_STRING('span5', serializer.parser.GetString(serializer.parser.FindMember(spanObj, 'name')), 'Expected span5 in resource.c scope.a');
+		THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(spanArray, 2) = 0, 'Expected 2 span(s) in resource.c scope.a');
+		THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(scopeSpans, 1) = 0, 'Expected 1 scope(s) in resource.c');
+	END_FOR
+
+	queue.free();
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
