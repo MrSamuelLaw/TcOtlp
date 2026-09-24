@@ -28,8 +28,11 @@ END_VAR
 	tracer.startSpan(name:='work').build(pDest:=pSpan);
 	THIS^.AssertTrue(pSpan <> 0, 'Expected the span to build');
 	IF pSpan <> 0 THEN
+		// the builder has no timestamp setter; fixed values keep the output deterministic
 		pSpan^.startTimestamp := 1000;
 		pSpan^.endTimestamp := 1500;
+		// FB_MockIdGenerator fills each new id with the next counter byte:
+		// the trace id is 16#01 repeated, then the span id is 16#02 repeated
 		THIS^.AssertEquals_STRING(
 			'span "work" trace=01010101010101010101010101010101 span=0202020202020202 parent=none kind=SPAN_KIND_INTERNAL status=STATUS_CODE_UNSET duration=500ns',
 			exporter.format(pSpan^),
@@ -67,8 +70,11 @@ END_VAR
 		.build(pDest:=pChild);
 	THIS^.AssertTrue(pChild <> 0, 'Expected the child span to build');
 	IF pChild <> 0 THEN
+		// the builder has no timestamp setter; fixed values keep the output deterministic
 		pChild^.startTimestamp := 2000;
 		pChild^.endTimestamp := 2000;
+		// FB_MockIdGenerator fills each new id with the next counter byte: the root takes
+		// trace id 16#01 and span id 16#02, and the child shares the trace and takes span id 16#03
 		THIS^.AssertEquals_STRING(
 			'span "child" trace=01010101010101010101010101010101 span=0303030303030303 parent=0202020202020202 kind=SPAN_KIND_CLIENT status=STATUS_CODE_UNSET duration=0ns',
 			exporter.format(pChild^),

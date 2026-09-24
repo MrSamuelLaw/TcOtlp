@@ -23,11 +23,11 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testHttpWithPortAndPath');
-	THIS^.AssertEquals_BOOL(TRUE, F_ParseHttpUrl(url:='http://192.168.1.10:4318/v1/traces', endpoint=>endpoint), 'Expected the parse result');
-	THIS^.AssertEquals_BOOL(FALSE, endpoint.useTls, 'Expected the scheme');
-	THIS^.AssertEquals_STRING('192.168.1.10', endpoint.host, 'Expected the host');
-	THIS^.AssertEquals_UINT(4318, endpoint.port, 'Expected the port');
-	THIS^.AssertEquals_STRING('/v1/traces', endpoint.path, 'Expected the path');
+	THIS^.AssertEquals_BOOL(TRUE, F_ParseHttpUrl(url:='http://192.168.1.10:4318/v1/traces', endpoint=>endpoint), 'Expected the URL to parse');
+	THIS^.AssertEquals_BOOL(FALSE, endpoint.useTls, 'Expected plain HTTP (useTls FALSE)');
+	THIS^.AssertEquals_STRING('192.168.1.10', endpoint.host, 'Expected host 192.168.1.10');
+	THIS^.AssertEquals_UINT(4318, endpoint.port, 'Expected port 4318');
+	THIS^.AssertEquals_STRING('/v1/traces', endpoint.path, 'Expected path /v1/traces');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -40,11 +40,11 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testHttpDefaultsPortAndPath');
-	THIS^.AssertEquals_BOOL(TRUE, F_ParseHttpUrl(url:='http://collector', endpoint=>endpoint), 'Expected the parse result');
-	THIS^.AssertEquals_BOOL(FALSE, endpoint.useTls, 'Expected the scheme');
-	THIS^.AssertEquals_STRING('collector', endpoint.host, 'Expected the host');
-	THIS^.AssertEquals_UINT(80, endpoint.port, 'Expected the port');
-	THIS^.AssertEquals_STRING('/', endpoint.path, 'Expected the path');
+	THIS^.AssertEquals_BOOL(TRUE, F_ParseHttpUrl(url:='http://collector', endpoint=>endpoint), 'Expected the URL to parse');
+	THIS^.AssertEquals_BOOL(FALSE, endpoint.useTls, 'Expected plain HTTP (useTls FALSE)');
+	THIS^.AssertEquals_STRING('collector', endpoint.host, 'Expected host collector');
+	THIS^.AssertEquals_UINT(80, endpoint.port, 'Expected the default http port 80');
+	THIS^.AssertEquals_STRING('/', endpoint.path, 'Expected the default path /');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -57,11 +57,11 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testHttpsDefaultsPort');
-	THIS^.AssertEquals_BOOL(TRUE, F_ParseHttpUrl(url:='https://collector/v1/logs', endpoint=>endpoint), 'Expected the parse result');
-	THIS^.AssertEquals_BOOL(TRUE, endpoint.useTls, 'Expected the scheme');
-	THIS^.AssertEquals_STRING('collector', endpoint.host, 'Expected the host');
-	THIS^.AssertEquals_UINT(443, endpoint.port, 'Expected the port');
-	THIS^.AssertEquals_STRING('/v1/logs', endpoint.path, 'Expected the path');
+	THIS^.AssertEquals_BOOL(TRUE, F_ParseHttpUrl(url:='https://collector/v1/logs', endpoint=>endpoint), 'Expected the URL to parse');
+	THIS^.AssertEquals_BOOL(TRUE, endpoint.useTls, 'Expected HTTPS (useTls TRUE)');
+	THIS^.AssertEquals_STRING('collector', endpoint.host, 'Expected host collector');
+	THIS^.AssertEquals_UINT(443, endpoint.port, 'Expected the default https port 443');
+	THIS^.AssertEquals_STRING('/v1/logs', endpoint.path, 'Expected path /v1/logs');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -74,7 +74,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testRejectsMissingScheme');
-	THIS^.AssertEquals_BOOL(FALSE, F_ParseHttpUrl(url:='not-a-valid-url', endpoint=>endpoint), 'Expected the parse result');
+	THIS^.AssertEquals_BOOL(FALSE, F_ParseHttpUrl(url:='not-a-valid-url', endpoint=>endpoint), 'Expected a URL without a scheme to be rejected');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -87,7 +87,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testRejectsUpperCaseScheme');
-	THIS^.AssertEquals_BOOL(FALSE, F_ParseHttpUrl(url:='HTTP://collector', endpoint=>endpoint), 'Expected the parse result');
+	THIS^.AssertEquals_BOOL(FALSE, F_ParseHttpUrl(url:='HTTP://collector', endpoint=>endpoint), 'Expected an upper-case scheme to be rejected');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -100,7 +100,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testRejectsEmptyPort');
-	THIS^.AssertEquals_BOOL(FALSE, F_ParseHttpUrl(url:='http://collector:/v1/traces', endpoint=>endpoint), 'Expected the parse result');
+	THIS^.AssertEquals_BOOL(FALSE, F_ParseHttpUrl(url:='http://collector:/v1/traces', endpoint=>endpoint), 'Expected a colon without a port to be rejected');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -113,7 +113,8 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testRejectsZeroPort');
-	THIS^.AssertEquals_BOOL(FALSE, F_ParseHttpUrl(url:='http://collector:abc/v1/traces', endpoint=>endpoint), 'Expected the parse result');
+	THIS^.AssertEquals_BOOL(FALSE, F_ParseHttpUrl(url:='http://collector:0/v1/traces', endpoint=>endpoint), 'Expected port 0 to be rejected');
+	THIS^.AssertEquals_BOOL(FALSE, F_ParseHttpUrl(url:='http://collector:abc/v1/traces', endpoint=>endpoint), 'Expected a non-numeric port to be rejected');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -126,7 +127,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testRejectsEmptyHost');
-	THIS^.AssertEquals_BOOL(FALSE, F_ParseHttpUrl(url:='http:///v1/traces', endpoint=>endpoint), 'Expected the parse result');
+	THIS^.AssertEquals_BOOL(FALSE, F_ParseHttpUrl(url:='http:///v1/traces', endpoint=>endpoint), 'Expected a URL without a host to be rejected');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

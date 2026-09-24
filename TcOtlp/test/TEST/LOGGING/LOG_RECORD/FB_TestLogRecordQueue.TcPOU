@@ -14,7 +14,8 @@ THIS^.testTransfersRequestedCount();
 THIS^.testReportsFailureReasons();]]></ST>
     </Implementation>
     <Method Name="testAllowsUnboundedLength" Id="{019ff837-5af1-7c2a-a12a-b45f8f7d24d0}">
-      <Declaration><![CDATA[METHOD testAllowsUnboundedLength : REFERENCE TO FB_Test
+      <Declaration><![CDATA[(* A queue built with maxCount 0 is unbounded and accepts every record without dropping; batch processors rely on this when no limit is configured. *)
+METHOD testAllowsUnboundedLength : REFERENCE TO FB_Test
 VAR
 	queue: FB_LogRecordQueue(maxCount:=0);
 	pRecord: POINTER TO FB_LogRecord;
@@ -26,6 +27,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testAllowsUnboundedLength');
 	FOR _idx := 1 TO 3 DO
+		// opaque queue node: no factory hands a test an owned FB_LogRecord
 		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=_idx));
 		success := queue.push(pValue:=pRecord, failureReason=>failureReason);
 		THIS^.AssertTrue(success AND_THEN pRecord = 0, 'Expected the unbounded queue to take ownership');
@@ -37,7 +39,8 @@ TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
     <Method Name="testDropsOldestRecordFirst" Id="{cf630375-dba4-48d5-9684-440330c5de11}">
-      <Declaration><![CDATA[METHOD testDropsOldestRecordFirst : REFERENCE TO FB_Test
+      <Declaration><![CDATA[(* A full queue drops its oldest record to make room for a new one, so the most recent logs survive a burst. *)
+METHOD testDropsOldestRecordFirst : REFERENCE TO FB_Test
 VAR
 	queue: FB_LogRecordQueue(maxCount:=2);
 	pRecord: POINTER TO FB_LogRecord;
@@ -49,6 +52,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testDropsOldestRecordFirst');
 	FOR _idx := 1 TO 3 DO
+		// opaque queue node: no factory hands a test an owned FB_LogRecord
 		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=_idx));
 		success := queue.push(pValue:=pRecord, failureReason=>failureReason);
 		THIS^.AssertTrue(success, 'Expected push to succeed');
@@ -64,7 +68,8 @@ TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
     <Method Name="testEnforcesMaximumSize" Id="{3d15347b-a733-498c-969f-bd92e68843e9}">
-      <Declaration><![CDATA[METHOD testEnforcesMaximumSize : REFERENCE TO FB_Test
+      <Declaration><![CDATA[(* A bounded queue never holds more than maxCount records and counts each record it drops, so memory stays bounded on the PLC. *)
+METHOD testEnforcesMaximumSize : REFERENCE TO FB_Test
 VAR
 	queue: FB_LogRecordQueue(maxCount:=2);
 	pRecord: POINTER TO FB_LogRecord;
@@ -76,6 +81,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testEnforcesMaximumSize');
 	FOR _idx := 1 TO 3 DO
+		// opaque queue node: no factory hands a test an owned FB_LogRecord
 		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=_idx));
 		success := queue.push(pValue:=pRecord, failureReason=>failureReason);
 		THIS^.AssertTrue(success AND_THEN pRecord = 0, 'Expected push to take ownership');
@@ -87,7 +93,8 @@ TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
     <Method Name="testPushAndPopTransferRecordOwnership" Id="{a62a9c43-350f-4e05-b17a-4a95998386c2}">
-      <Declaration><![CDATA[METHOD testPushAndPopTransferRecordOwnership : REFERENCE TO FB_Test
+      <Declaration><![CDATA[(* Push takes ownership of the record and clears the caller's pointer, and pop hands the same record back; each record then has exactly one owner. *)
+METHOD testPushAndPopTransferRecordOwnership : REFERENCE TO FB_Test
 VAR
 	queue: FB_LogRecordQueue(maxCount:=2);
 	pRecord: POINTER TO FB_LogRecord;
@@ -100,6 +107,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testPushAndPopTransferRecordOwnership');
 	noFailure := E_LogRecordQueueFailureReason.NA;
+	// opaque queue node: no factory hands a test an owned FB_LogRecord
 	pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=42));
 	pOriginal := pRecord;
 	success := queue.push(pValue:=pRecord, failureReason=>failureReason);
@@ -114,7 +122,8 @@ TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
     <Method Name="testReportsFailureReasons" Id="{09515266-8060-41de-97d3-7b1f99aac163}">
-      <Declaration><![CDATA[METHOD testReportsFailureReasons : REFERENCE TO FB_Test
+      <Declaration><![CDATA[(* Push and pop refuse a null record, an empty queue and an already assigned destination with a distinct reason each, and a later success clears the reason. *)
+METHOD testReportsFailureReasons : REFERENCE TO FB_Test
 VAR
 	queue: FB_LogRecordQueue(maxCount:=1);
 	pRecord: POINTER TO FB_LogRecord;
@@ -135,6 +144,7 @@ END_VAR
 	THIS^.AssertFalse(success, 'Expected an empty pop to fail');
 	THIS^.AssertTrue(failureReason = E_LogRecordQueueFailureReason.QUEUE_EMPTY, 'Expected the empty queue failure reason');
 
+	// opaque queue node: no factory hands a test an owned FB_LogRecord
 	pAssigned := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=2));
 	success := queue.pop(pValue:=pAssigned, failureReason=>failureReason);
 	THIS^.AssertFalse(success, 'Expected pop into an assigned pointer to fail');
@@ -148,7 +158,8 @@ TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
     <Method Name="testTransfersQueueOwnership" Id="{fb6226eb-9608-4e3d-8cfa-65afca222a12}">
-      <Declaration><![CDATA[METHOD testTransfersQueueOwnership : REFERENCE TO FB_Test
+      <Declaration><![CDATA[(* transferTo moves records to another queue without copying them and keeps their FIFO order, so a batch can be handed on without new allocations. *)
+METHOD testTransfersQueueOwnership : REFERENCE TO FB_Test
 VAR
 	source: FB_LogRecordQueue(maxCount:=2);
 	destination: FB_LogRecordQueue(maxCount:=2);
@@ -165,6 +176,7 @@ END_VAR
         <ST><![CDATA[TcUnit.TEST('testTransfersQueueOwnership');
 	noFailure := E_LogRecordQueueFailureReason.NA;
 	FOR _idx := 1 TO 2 DO
+		// opaque queue node: no factory hands a test an owned FB_LogRecord
 		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=_idx));
 		IF _idx = 1 THEN
 			pFirstOriginal := pRecord;
@@ -189,7 +201,8 @@ TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
     <Method Name="testTransfersRequestedCount" Id="{f5b79060-62be-451f-b340-4783541a9eaf}">
-      <Declaration><![CDATA[METHOD testTransfersRequestedCount : REFERENCE TO FB_Test
+      <Declaration><![CDATA[(* transferTo moves only the requested number of oldest records and leaves the rest in the source, so a processor can export part of its queue. *)
+METHOD testTransfersRequestedCount : REFERENCE TO FB_Test
 VAR
 	source: FB_LogRecordQueue(maxCount:=3);
 	destination: FB_LogRecordQueue(maxCount:=0);
@@ -204,6 +217,7 @@ END_VAR
         <ST><![CDATA[TcUnit.TEST('testTransfersRequestedCount');
 	noFailure := E_LogRecordQueueFailureReason.NA;
 	FOR _idx := 1 TO 3 DO
+		// opaque queue node: no factory hands a test an owned FB_LogRecord
 		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=_idx));
 		success := source.push(pValue:=pRecord, failureReason=>failureReason);
 		THIS^.AssertTrue(success, 'Expected source push to succeed');

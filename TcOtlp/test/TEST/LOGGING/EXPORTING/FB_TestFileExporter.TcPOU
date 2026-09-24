@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_TestFileExporter" Id="{652c2ccf-e368-4316-b865-a55144794447}" SpecialFunc="None">
-    <Declaration><![CDATA[(* Tests file log exporter behavior. *)
+    <Declaration><![CDATA[(* Tests that the file log exporter writes processed batches to disk. *)
 FUNCTION_BLOCK FB_TestFileExporter EXTENDS FB_TestSuite
 VAR
 	_resource:		FB_Resource(schemaUrl:='');
@@ -20,13 +20,17 @@ VAR
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[THIS^.TestExportBatchedLogRecords(cleanup:=FALSE);]]></ST>
+      <ST><![CDATA[THIS^.testExportBatchedLogRecords(cleanup:=FALSE);]]></ST>
     </Implementation>
     <Method Name="testExportBatchedLogRecords" Id="{62c42b19-8451-4cb9-878c-1813787327e9}">
-      <Declaration><![CDATA[METHOD testExportBatchedLogRecords : REFERENCE TO FB_Test
+      <Declaration><![CDATA[(*
+	Records emitted through two loggers reach the file as one batch, and a batch handed over in the
+	scan the previous one finished still starts, so back-to-back flushes never stall the file exporter.
+*)
+METHOD testExportBatchedLogRecords : REFERENCE TO FB_Test
 
 VAR_INPUT
-	cleanup: BOOL := TRUE;
+	cleanup: BOOL := TRUE;  // FALSE keeps logs.jsonl on disk for manual inspection
 END_VAR
 
 VAR CONSTANT
@@ -57,9 +61,9 @@ VAR
 	_spanId: ARRAY[0..ValueFactory.nSpanIdBytes-1] OF BYTE := [16, 17, 18, 19, 20, 21, 22, 23];
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test File Export Batched LogRecords');
+        <ST><![CDATA[TcUnit.TEST('testExportBatchedLogRecords');
 	CASE _state OF
-		0: // initialization
+		0: // emit three records through two loggers; the processor captures them without exporting
 			_cycles := 0;
 			_redelivered := FALSE;
 			_processor.free();
@@ -100,9 +104,9 @@ END_VAR]]></Declaration>
 			_provider
 				.stageProcessor(_processor)
 				.tick();
-			THIS^.AssertTrue(_firstEmitSucceeded, 'First emit was unsuccessful');
-			THIS^.AssertTrue(_secondEmitSucceeded, 'Second emit was unsuccessful');
-			THIS^.AssertTrue(_thirdEmitSucceeded, 'Third emit was unsuccessful');
+			THIS^.AssertTrue(_firstEmitSucceeded, 'Expected the first emit to succeed');
+			THIS^.AssertTrue(_secondEmitSucceeded, 'Expected the second emit to succeed');
+			THIS^.AssertTrue(_thirdEmitSucceeded, 'Expected the third emit to succeed');
 			THIS^.AssertTrue(_logger1.pLogRecord = 0, 'Expected emit to release the logger-owned record');
 			IF _firstEmitSucceeded
 				AND _secondEmitSucceeded
@@ -115,14 +119,14 @@ END_VAR]]></Declaration>
 				RETURN;
 			END_IF
 			
-		10: // export
+		10: // hand the captured records to the file exporter and tick it until the write is done
 			IF _processor.records.count > 0 THEN
 				_exportSucceeded := _processor.exportRecords(
 					exporter:=_exporter,
 					failureReason=>_exporterFailureReason
 				);
 				IF NOT _exportSucceeded OR_ELSE _processor.records.count > 0 THEN
-					THIS^.AssertTrue(FALSE, 'Exporter failed to take ownership of the processor buffer');
+					THIS^.AssertTrue(FALSE, 'Expected the exporter to take ownership of the processor buffer');
 					_state := 30;
 					RETURN;
 				END_IF
@@ -132,13 +136,13 @@ END_VAR]]></Declaration>
 			IF NOT _exportCallSucceeded THEN
 				THIS^.AssertTrue(
 					_exporterFailureReason <> E_LogRecordExporterFailureReason.NA,
-					'Expected an exporter failure reason when call returns FALSE'
+					'Expected an exporter failure reason when tick returns FALSE'
 				);
-				THIS^.AssertTrue(FALSE, 'OTLP pipeline failed to export logs to file');
+				THIS^.AssertTrue(FALSE, 'Expected the file export to succeed');
 				_state := 30;
 				RETURN;
 			ELSIF _cycles > MAX_CYCLES THEN
-				THIS^.AssertTrue(FALSE, 'Timed out waiting for the OTLP pipeline to finish');
+				THIS^.AssertTrue(FALSE, 'Expected the file export to finish within MAX_CYCLES');
 				_state := 30;
 				RETURN;
 			ELSIF _exporter.currentState = E_FileExporterState.done AND NOT _redelivered THEN
@@ -159,7 +163,7 @@ END_VAR]]></Declaration>
 				THIS^.AssertTrue(_exportSucceeded, 'Expected the finished exporter to accept the next batch');
 				RETURN;
 			ELSIF _exporter.currentState = E_FileExporterState.done THEN
-				THIS^.AssertFalse(_exporter.isBusy(), 'Expected exporter to release its completed records');
+				THIS^.AssertFalse(_exporter.isBusy(), 'Expected the exporter to release its completed records');
 				THIS^.AssertTrue(
 					_exporterFailureReason = E_LogRecordExporterFailureReason.NA,
 					'Expected no failure reason when file export succeeds'
@@ -177,7 +181,7 @@ END_VAR]]></Declaration>
 			);
 			IF NOT _fileFinder.bBusy THEN
 				_fileSize := ULARGE_TO_ULINT(_fileFinder.stFindFile.fileSize);
-				THIS^.AssertTrue(_fileSize > 0, 'File size = 0, expected non-empty file');
+				THIS^.AssertTrue(_fileSize > 0, 'Expected a non-empty file');
 				_state := 30;
 			END_IF
 			RETURN;
@@ -196,7 +200,7 @@ END_VAR]]></Declaration>
 			// clean up the record owned by the processor
 			_processor.free();
 			_logger1.free();
-			THIS^.AssertTrue(_processor.records.count = 0, 'Expected processor to be empty after cleanup');
+			THIS^.AssertTrue(_processor.records.count = 0, 'Expected the processor to be empty after cleanup');
 
 			_state := 0;
 			TcUnit.TEST_FINISHED();

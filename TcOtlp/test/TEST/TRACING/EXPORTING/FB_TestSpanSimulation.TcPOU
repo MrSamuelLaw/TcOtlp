@@ -24,7 +24,12 @@ END_VAR
       <ST><![CDATA[THIS^.testManufacturingProcess();]]></ST>
     </Implementation>
     <Method Name="testManufacturingProcess" Id="{32199410-40a9-42ca-999f-041d77c20028}">
-      <Declaration><![CDATA[METHOD testManufacturingProcess : REFERENCE TO FB_Test
+      <Declaration><![CDATA[(*
+	A multi-scan process with a parent, a child and a linked child runs end to end through the
+	real provider, batch processor and file exporter: every span ends, none is dropped, and the
+	file export reports no error.
+*)
+METHOD testManufacturingProcess : REFERENCE TO FB_Test
 VAR CONSTANT
 	FILEPATH: STRING := 'C:\Users\samue\Desktop\programming projects\TcOtlp\simulation_spans.jsonl';
 	STEP_CYCLES: UDINT := 50;  // scans each process step runs for
@@ -141,7 +146,7 @@ END_VAR
 	END_IF
 
 	IF _step = 6 OR _cycles > MAX_CYCLES THEN
-		THIS^.AssertTrue(_cycles <= MAX_CYCLES, CONCAT('Timed out running the process in step ', USINT_TO_STRING(_step)));
+		THIS^.AssertTrue(_cycles <= MAX_CYCLES, CONCAT('Expected the process to finish within MAX_CYCLES; stuck in step ', USINT_TO_STRING(_step)));
 		THIS^.AssertEquals_UDINT(3, _endedCount, 'Expected every span to end');
 		THIS^.AssertEquals_UDINT(0, _exportErrors, 'Expected no file export errors');
 		THIS^.AssertEquals_UDINT(0, _processor.droppedCount, 'Expected the processor to drop no span');

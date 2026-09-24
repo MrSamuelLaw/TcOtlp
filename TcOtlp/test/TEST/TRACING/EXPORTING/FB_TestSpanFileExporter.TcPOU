@@ -20,7 +20,11 @@ END_VAR
       <ST><![CDATA[THIS^.testExportWritesSpansToFile();]]></ST>
     </Implementation>
     <Method Name="testExportWritesSpansToFile" Id="{c24d4546-c3b7-4de6-9e89-c73a803f826c}">
-      <Declaration><![CDATA[METHOD testExportWritesSpansToFile : REFERENCE TO FB_Test
+      <Declaration><![CDATA[(*
+	The file exporter refuses a second batch while it is busy, leaving the spans with the caller,
+	writes an accepted batch to its file, and accepts the next batch in the scan the first one finished.
+*)
+METHOD testExportWritesSpansToFile : REFERENCE TO FB_Test
 VAR CONSTANT
 	FILEPATH: STRING := 'C:\Users\samue\Desktop\programming projects\TcOtlp\spans.jsonl';
 	MAX_CYCLES: UDINT := 1000;
@@ -88,7 +92,7 @@ END_VAR
 					_state := 20;
 				END_IF
 			ELSIF _cycles > MAX_CYCLES THEN
-				THIS^.AssertTrue(FALSE, 'Timed out waiting for the file export');
+				THIS^.AssertTrue(FALSE, 'Expected the file export to finish within MAX_CYCLES');
 				_state := 30;
 			END_IF
 

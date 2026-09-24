@@ -13,7 +13,11 @@ THIS^.testStartLogRecordStampsUnixEpochNanos();
 ]]></ST>
     </Implementation>
     <Method Name="testEmitReturnsFirstFluentFailure" Id="{22b29b23-959e-4f62-a5d9-51b7a540587f}">
-      <Declaration><![CDATA[METHOD testEmitReturnsFirstFluentFailure : REFERENCE TO FB_Test
+      <Declaration><![CDATA[(*
+	When several fluent setters fail, emit reports the first failure and frees the
+	incomplete record, so the caller sees the root cause and nothing leaks.
+*)
+METHOD testEmitReturnsFirstFluentFailure : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	provider: FB_LoggerProvider(resource);
@@ -25,6 +29,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testEmitReturnsFirstFluentFailure');
+	// both setters get a deliberately null pointer; the span ID failure comes first
 	logger
 		.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_ERROR)
 		.setSpanId(pBytes:=0, nSize:=0)
@@ -34,14 +39,18 @@ END_VAR
 	THIS^.AssertFalse(success, 'Expected the invalid Span ID to fail emission');
 	THIS^.AssertTrue(
 		failureResult = E_LoggerFailureReason.SPAN_ID_BYTES_POINTER_NULL,
-		'Expected emit to preserve the first fluent failure'
+		'Expected emit to report the first fluent failure, SPAN_ID_BYTES_POINTER_NULL'
 	);
 	THIS^.AssertTrue(logger.pLogRecord = 0, 'Expected failed emit to release the incomplete record');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
     <Method Name="testEmitWithoutRecordReturnsFailure" Id="{266078e4-fb0f-4c33-8b21-a844ac7e4540}">
-      <Declaration><![CDATA[METHOD testEmitWithoutRecordReturnsFailure : REFERENCE TO FB_Test
+      <Declaration><![CDATA[(*
+	Calling emit with no record started fails with LOG_RECORD_NOT_STARTED, so a
+	misordered call is reported instead of emitting an empty record.
+*)
+METHOD testEmitWithoutRecordReturnsFailure : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	provider: FB_LoggerProvider(resource);
@@ -58,13 +67,17 @@ END_VAR
 	THIS^.AssertFalse(success, 'Expected emit without a started record to fail');
 	THIS^.AssertTrue(
 		failureResult = E_LoggerFailureReason.LOG_RECORD_NOT_STARTED,
-		'Expected LOG_RECORD_NOT_STARTED'
+		'Expected emit without a started record to report LOG_RECORD_NOT_STARTED'
 	);
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
     <Method Name="testStartingSecondRecordReturnsFailure" Id="{12abcb47-297d-44c0-b695-aa665d9ece2d}">
-      <Declaration><![CDATA[METHOD testStartingSecondRecordReturnsFailure : REFERENCE TO FB_Test
+      <Declaration><![CDATA[(*
+	Starting a second record before the first is emitted fails the pending emit and
+	frees the record, so one logger never holds or leaks two records at once.
+*)
+METHOD testStartingSecondRecordReturnsFailure : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	provider: FB_LoggerProvider(resource);
@@ -77,22 +90,25 @@ END_VAR
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testStartingSecondRecordReturnsFailure');
 	logger.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_INFO);
+	// deliberately start a second record before the first is emitted
 	logger.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_WARN);
 
 	success := logger.emit(failureResult=>failureResult);
 	THIS^.AssertFalse(success, 'Expected starting a second record to fail emission');
 	THIS^.AssertTrue(
 		failureResult = E_LoggerFailureReason.LOG_RECORD_ALREADY_STARTED,
-		'Expected LOG_RECORD_ALREADY_STARTED'
+		'Expected starting a second record to report LOG_RECORD_ALREADY_STARTED'
 	);
 	THIS^.AssertTrue(logger.pLogRecord = 0, 'Expected failed emit to release the incomplete record');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
     <Method Name="testStartLogRecordStampsUnixEpochNanos" Id="{3e082376-53e9-4a25-8cd4-9824a3e8e093}">
-      <Declaration><![CDATA[// Regression test: the auto-stamped timestamp must be nanoseconds since the
-// unix epoch. A precedence error in (F_GetSystemTime() - DIFF * 100) underflows
-// ULINT and produces timestamps billions of years in the future.
+      <Declaration><![CDATA[(*
+	The auto-stamped timestamp is nanoseconds since the unix epoch. A precedence
+	error in (F_GetSystemTime() - DIFF * 100) once underflowed ULINT and produced
+	timestamps billions of years in the future.
+*)
 METHOD testStartLogRecordStampsUnixEpochNanos : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');

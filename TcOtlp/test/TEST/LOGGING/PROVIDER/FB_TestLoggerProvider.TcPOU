@@ -7,7 +7,7 @@ FUNCTION_BLOCK FB_TestLoggerProvider EXTENDS FB_TestSuite
     <Implementation>
       <ST><![CDATA[THIS^.testStageProcessorChaining();
 THIS^.testStageProcessorCount();
-THIS^.testFreeReleasesNodes();
+THIS^.testTickUnstagesProcessors();
 THIS^.testDuplicateProcessorReceivesRecordOnce();
 THIS^.testDistinctProcessorsEachReceiveRecord();
 THIS^.testTickReportsSuccess();]]></ST>
@@ -29,7 +29,7 @@ VAR
 	processorB: FB_LogRecordProcessor_Simple(exporterB);
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test DistinctProcessorsEachReceiveRecord');
+        <ST><![CDATA[TcUnit.TEST('testDistinctProcessorsEachReceiveRecord');
 	provider.stageProcessor(processorA);
 	provider.stageProcessor(processorB);
 
@@ -56,10 +56,11 @@ VAR
 	processor: FB_LogRecordProcessor_Simple(exporter);
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test DuplicateProcessorReceivesRecordOnce');
+        <ST><![CDATA[TcUnit.TEST('testDuplicateProcessorReceivesRecordOnce');
 	provider.stageProcessor(processor);
+	// the second stage of the same processor is silently ignored
 	provider.stageProcessor(processor);
-	THIS^.AssertEquals_UDINT(1, provider.stagedProcessorCount, 'Expected duplicate to be rejected');
+	THIS^.AssertEquals_UDINT(1, provider.stagedProcessorCount, 'Expected staging the same processor twice to leave one staged processor');
 
 	logger.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).emit();
 	provider.tick();
@@ -68,8 +69,12 @@ END_VAR]]></Declaration>
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
-    <Method Name="testFreeReleasesNodes" Id="{f6a7b8c9-d0e1-4f2a-3b4c-5d6e7f8a9b0c}">
-      <Declaration><![CDATA[METHOD testFreeReleasesNodes : REFERENCE TO FB_Test
+    <Method Name="testTickUnstagesProcessors" Id="{f6a7b8c9-d0e1-4f2a-3b4c-5d6e7f8a9b0c}">
+      <Declaration><![CDATA[(*
+	Staging lasts one tick: tick releases every staged processor node, so the
+	caller must stage processors again each cycle and no list node leaks.
+*)
+METHOD testTickUnstagesProcessors : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	provider: FB_LoggerProvider(resource);
@@ -77,17 +82,21 @@ VAR
 	processorB: FB_LogRecordProcessor_Simple(0);
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test FreeReleasesNodes');
+        <ST><![CDATA[TcUnit.TEST('testTickUnstagesProcessors');
 	provider.stageProcessor(processorA);
 	provider.stageProcessor(processorB);
-	THIS^.AssertEquals_UDINT(2, provider.stagedProcessorCount, 'Expected two processors before free');
+	THIS^.AssertEquals_UDINT(2, provider.stagedProcessorCount, 'Expected two staged processors before tick');
 	provider.tick();
-	THIS^.AssertEquals_UDINT(0, provider.stagedProcessorCount, 'Expected zero processors after free');
+	THIS^.AssertEquals_UDINT(0, provider.stagedProcessorCount, 'Expected tick to unstage every processor');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
     <Method Name="testStageProcessorChaining" Id="{b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e}">
-      <Declaration><![CDATA[METHOD testStageProcessorChaining : REFERENCE TO FB_Test
+      <Declaration><![CDATA[(*
+	stageProcessor returns the provider, so processors can be staged in one
+	fluent chain and each chained call still counts.
+*)
+METHOD testStageProcessorChaining : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	provider: FB_LoggerProvider(resource);
@@ -95,14 +104,18 @@ VAR
 	processorB: FB_LogRecordProcessor_Simple(0);
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test StageProcessorChaining');
+        <ST><![CDATA[TcUnit.TEST('testStageProcessorChaining');
 	provider.stageProcessor(processorA).stageProcessor(processorB);
-	THIS^.AssertEquals_UDINT(2, provider.stagedProcessorCount, 'Expected two processors after chaining');
+	THIS^.AssertEquals_UDINT(2, provider.stagedProcessorCount, 'Expected two staged processors after a chained stageProcessor call');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
     <Method Name="testStageProcessorCount" Id="{c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f}">
-      <Declaration><![CDATA[METHOD testStageProcessorCount : REFERENCE TO FB_Test
+      <Declaration><![CDATA[(*
+	stagedProcessorCount starts at zero and rises by one per distinct staged
+	processor; tick relies on it to bound its walk of the processor list.
+*)
+METHOD testStageProcessorCount : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	provider: FB_LoggerProvider(resource);
@@ -110,12 +123,12 @@ VAR
 	processorB: FB_LogRecordProcessor_Simple(0);
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test StageProcessorCount');
-	THIS^.AssertEquals_UDINT(0, provider.stagedProcessorCount, 'Expected zero processors after init');
+        <ST><![CDATA[TcUnit.TEST('testStageProcessorCount');
+	THIS^.AssertEquals_UDINT(0, provider.stagedProcessorCount, 'Expected zero staged processors after init');
 	provider.stageProcessor(processorA);
-	THIS^.AssertEquals_UDINT(1, provider.stagedProcessorCount, 'Expected one processor after first add');
+	THIS^.AssertEquals_UDINT(1, provider.stagedProcessorCount, 'Expected one staged processor after the first stageProcessor call');
 	provider.stageProcessor(processorB);
-	THIS^.AssertEquals_UDINT(2, provider.stagedProcessorCount, 'Expected two processors after second add');
+	THIS^.AssertEquals_UDINT(2, provider.stagedProcessorCount, 'Expected two staged processors after the second stageProcessor call');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
@@ -138,7 +151,7 @@ VAR
 	tickFailureReason: E_LoggerProviderFailureReason;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test TickReportsSuccess');
+        <ST><![CDATA[TcUnit.TEST('testTickReportsSuccess');
 	// a single staged processor walks the list to its tail on the first iteration
 	logger.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).emit();
 	tickSucceeded := provider

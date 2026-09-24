@@ -1,7 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_LogRecordProcessor_ConsolePrinter" Id="{fbf4b219-b8fc-4773-8575-46cdfadab41e}" SpecialFunc="None">
-    <Declaration><![CDATA[(* Processor test double that writes emitted records to the console. *)
+    <Declaration><![CDATA[(*
+	Processor test double that writes each emitted record's string body to the TwinCAT ADS log
+	(the Error List) instead of exporting it. Stage it in place of a real processor to watch records
+	arrive during manual debugging; no automated test asserts on its output.
+*)
 FUNCTION_BLOCK FB_LogRecordProcessor_ConsolePrinter EXTENDS FB_LogRecordProcessor_Simple]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>

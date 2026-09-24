@@ -2,10 +2,13 @@
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_TestSpan" Id="{db2f10cc-3e6d-4621-b34d-b5ee61137998}" SpecialFunc="None">
     <Declaration><![CDATA[(* Tests FB_Span.getContext: that it snapshots the span's identity into a caller-owned context,
-   marks it local, and follows the factory's pointer contract.
+   marks it local, and follows the factory's pointer contract. Also tests cloneTo and the
+   status setters.
 
-   The tests point the span's identity at local values instead of going through FB_Tracer,
-   and clear them again before returning so the span's free does not release them. *)
+   The getContext tests point the span's identity at local values instead of going through
+   FB_Tracer, because they compare exact identity bytes and trace state while the tracer draws
+   its ids from an id generator. They clear the identity again before returning so the span's
+   free does not release the locals. *)
 FUNCTION_BLOCK FB_TestSpan EXTENDS FB_TestSuite
 ]]></Declaration>
     <Implementation>
@@ -20,7 +23,9 @@ THIS^.testSetStatusError();
 THIS^.testSetStatusOkIsFinal();]]></ST>
     </Implementation>
     <Method Name="_setIdentity" Id="{b85f5bb5-bb70-4b48-812a-1abcdb4179c1}">
-      <Declaration><![CDATA[(* Points the span's identity outputs at the given values; pass 0 to clear them. *)
+      <Declaration><![CDATA[(* Points the span's identity outputs at the given values; pass 0 to clear them.
+   Built by hand instead of through FB_Tracer because the getContext tests need exact identity
+   bytes and trace state, and the tracer draws its ids from an id generator. *)
 METHOD _setIdentity
 VAR_IN_OUT
 	span: FB_Span;
@@ -217,10 +222,8 @@ VAR
 	pContext: POINTER TO FB_SpanContext;
 	pSpan: POINTER TO FB_Span;
 	pClone: POINTER TO FB_Span;
-	pMessage: POINTER TO FB_String;
 	pLink: POINTER TO FB_Link;
 	pSourceLink: POINTER TO FB_Link;
-	message: STRING := 'boom';
 	reason: E_SpanCloneFailureReason;
 END_VAR
 ]]></Declaration>
@@ -231,19 +234,17 @@ END_VAR
 	END_IF
 	tracer.startSpan(name:='parent').build(pDest:=pParent);
 	IF pParent <> 0 THEN pParent^.getContext(pDest:=pContext); END_IF
-	tracer.startSpan(name:='work')
+	tracer.startSpan(name:='work', kind:=E_SpanKind.SPAN_KIND_SERVER)
 		.setParent(pContext:=pContext)
 		.addLink(pContext:=pContext)
 		.setStringAttribute(key:='k', value:='v')
 		.build(pDest:=pSpan);
 	THIS^.AssertTrue(pSpan <> 0, 'Expected the span to build');
 	IF pSpan <> 0 THEN
-		pSpan^.kind := E_SpanKind.SPAN_KIND_SERVER;
+		// no builder sets timestamps; fixed values make the copy checkable
 		pSpan^.startTimestamp := 1000;
 		pSpan^.endTimestamp := 1500;
-		ValueFactory.createString(pDest:=pMessage, pString:=ADR(message));
-		pSpan^.status := __NEW(FB_Status(code:=E_StatusCode.STATUS_CODE_ERROR, message:=pMessage));
-		IF pSpan^.status <> 0 THEN pMessage := 0; END_IF
+		pSpan^.setStatusError(message:='boom');
 		pSpan^.links.reset();
 		pSourceLink := pSpan^.links.next();
 
@@ -287,7 +288,6 @@ END_VAR
 		END_IF
 		IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
 	END_IF
-	IF pMessage <> 0 THEN pMessage^.delete(pSelf:=pMessage); END_IF
 	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
 	IF pParent <> 0 THEN pParent^.delete(pSelf:=pParent); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
@@ -304,8 +304,8 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testCloneToRejectsAssignedDestination');
-	pSpan := __NEW(FB_Span);
-	pDest := pSpan;
+	pSpan := __NEW(FB_Span);  // identity is irrelevant: only the destination check runs
+	pDest := pSpan;  // deliberately assigned, so cloneTo must refuse it
 	IF pSpan <> 0 THEN
 		THIS^.AssertFalse(pSpan^.cloneTo(pDest:=pDest, failureReason=>reason), 'Expected cloneTo to fail');
 		THIS^.AssertEquals_UDINT(
@@ -323,7 +323,7 @@ TcUnit.TEST_FINISHED();]]></ST>
       <Declaration><![CDATA[(* setStatusOk gives a span with no status an OK status without a message. *)
 METHOD testSetStatusOk : REFERENCE TO FB_Test
 VAR
-	span: FB_Span;
+	span: FB_Span;  // a bare span: the status setters need no identity
 	failureReason: E_SpanStatusFailureReason;
 END_VAR
 ]]></Declaration>
@@ -345,7 +345,7 @@ TcUnit.TEST_FINISHED();]]></ST>
    message leaves the status without one. *)
 METHOD testSetStatusError : REFERENCE TO FB_Test
 VAR
-	span: FB_Span;
+	span: FB_Span;  // a bare span: the status setters need no identity
 	message: T_MaxString := 'motor over temp';
 	failureReason: E_SpanStatusFailureReason;
 END_VAR
@@ -383,7 +383,7 @@ TcUnit.TEST_FINISHED();]]></ST>
       <Declaration><![CDATA[(* OK replaces an error and its message, and an error after OK is ignored and reported. *)
 METHOD testSetStatusOkIsFinal : REFERENCE TO FB_Test
 VAR
-	span: FB_Span;
+	span: FB_Span;  // a bare span: the status setters need no identity
 	failureReason: E_SpanStatusFailureReason;
 END_VAR
 ]]></Declaration>

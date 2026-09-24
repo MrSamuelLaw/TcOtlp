@@ -11,10 +11,11 @@ VAR
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[THIS^.canDeepCopyCloneRecord();]]></ST>
+      <ST><![CDATA[THIS^.testCloneToIsIndependent();]]></ST>
     </Implementation>
-    <Method Name="canDeepCopyCloneRecord" Id="{72ba3491-fa53-4815-8cd0-1a9a071d1081}">
-      <Declaration><![CDATA[METHOD canDeepCopyCloneRecord : REFERENCE TO FB_Test
+    <Method Name="testCloneToIsIndependent" Id="{72ba3491-fa53-4815-8cd0-1a9a071d1081}">
+      <Declaration><![CDATA[(* cloneTo deep copies a record, its resource, scope and every owned value, so a processor can keep the clone after the logger frees the source. Cloning into an assigned destination is refused so the existing record is not leaked. *)
+METHOD testCloneToIsIndependent : REFERENCE TO FB_Test
 VAR_INPUT
 END_VAR
 VAR
@@ -41,7 +42,8 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('canDeepCopyCloneRecord');
+        <ST><![CDATA[TcUnit.TEST('testCloneToIsIndependent');
+	// Arrange: a source record with event name, body, IDs and one attribute at each level
 	attributesSuccess := resource.attributes.setStringAttribute(
 		key:='resource.key',
 		value:='resource.value',
@@ -63,9 +65,11 @@ END_VAR
 		.setTraceId(ADR(traceIdBytes), SIZEOF(traceIdBytes))
 		.setSpanId(ADR(spanIdBytes), SIZEOF(spanIdBytes))
 		.setStringAttribute('record.key', 'record.value');
-	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected a source log record');
+	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected startLogRecord to build a source log record');
 
+	// Clone: the first clone succeeds, a second into the same destination is refused
 	IF logger.pLogRecord <> 0 THEN
+		// no builder sets droppedAttributesCount; set by hand so the clone has a non-default value to copy
 		logger.pLogRecord^.droppedAttributesCount := 4;
 		cloneSuccess := logger.pLogRecord^.cloneTo(
 			pDest:=pClone,
@@ -82,10 +86,11 @@ END_VAR
 		THIS^.AssertFalse(cloneSuccess, 'Expected cloning into an assigned destination to fail');
 		THIS^.AssertTrue(
 			cloneFailureResult = E_LogRecordCloneFailureReason.DESTINATION_ALREADY_ASSIGNED,
-			'Expected DESTINATION_ALREADY_ASSIGNED'
+			'Expected the DESTINATION_ALREADY_ASSIGNED reason when cloning into an assigned destination'
 		);
 	END_IF
 
+	// Copied fields: equal values, distinct allocations for every owned value
 	IF pClone <> 0 AND_THEN logger.pLogRecord <> 0 THEN
 		THIS^.AssertTrue(pClone^.severityNumber = logger.pLogRecord^.severityNumber, 'Expected severity number to be cloned');
 		THIS^.AssertTrue(pClone^.timestamp = logger.pLogRecord^.timestamp, 'Expected timestamp to be cloned');
@@ -110,12 +115,13 @@ END_VAR
 		THIS^.AssertTrue(pClonedString^.pString <> pSourceString^.pString, 'Expected body string allocation to be cloned');
 		THIS^.AssertEquals_STRING(pSourceString^.pString^, pClonedString^.pString^, 'Expected body value to be cloned');
 
+		// Attributes: each level's attribute, key and value are new allocations
 		logger.pLogRecord^.resource.attributes.reset();
 		pClone^.resource.attributes.reset();
 		pSourceResourceAttribute := logger.pLogRecord^.resource.attributes.next();
 		pClonedResourceAttribute := pClone^.resource.attributes.next();
-		THIS^.AssertTrue(pSourceResourceAttribute <> 0, 'Expected source resource attribute');
-		THIS^.AssertTrue(pClonedResourceAttribute <> 0, 'Expected cloned resource attribute');
+		THIS^.AssertTrue(pSourceResourceAttribute <> 0, 'Expected the source record to have a resource attribute');
+		THIS^.AssertTrue(pClonedResourceAttribute <> 0, 'Expected the cloned record to have a resource attribute');
 		IF pSourceResourceAttribute <> 0 AND_THEN pClonedResourceAttribute <> 0 THEN
 			THIS^.AssertTrue(pClonedResourceAttribute <> pSourceResourceAttribute, 'Expected resource attribute allocation to be cloned');
 			THIS^.AssertTrue(pClonedResourceAttribute^.pKey <> pSourceResourceAttribute^.pKey, 'Expected resource attribute key allocation to be cloned');
@@ -126,8 +132,8 @@ END_VAR
 		pClone^.scope.attributes.reset();
 		pSourceScopeAttribute := logger.pLogRecord^.scope.attributes.next();
 		pClonedScopeAttribute := pClone^.scope.attributes.next();
-		THIS^.AssertTrue(pSourceScopeAttribute <> 0, 'Expected source scope attribute');
-		THIS^.AssertTrue(pClonedScopeAttribute <> 0, 'Expected cloned scope attribute');
+		THIS^.AssertTrue(pSourceScopeAttribute <> 0, 'Expected the source record to have a scope attribute');
+		THIS^.AssertTrue(pClonedScopeAttribute <> 0, 'Expected the cloned record to have a scope attribute');
 		IF pSourceScopeAttribute <> 0 AND_THEN pClonedScopeAttribute <> 0 THEN
 			THIS^.AssertTrue(pClonedScopeAttribute <> pSourceScopeAttribute, 'Expected scope attribute allocation to be cloned');
 			THIS^.AssertTrue(pClonedScopeAttribute^.pKey <> pSourceScopeAttribute^.pKey, 'Expected scope attribute key allocation to be cloned');
@@ -138,8 +144,8 @@ END_VAR
 		pClone^.attributes.reset();
 		pSourceRecordAttribute := logger.pLogRecord^.attributes.next();
 		pClonedRecordAttribute := pClone^.attributes.next();
-		THIS^.AssertTrue(pSourceRecordAttribute <> 0, 'Expected source record attribute');
-		THIS^.AssertTrue(pClonedRecordAttribute <> 0, 'Expected cloned record attribute');
+		THIS^.AssertTrue(pSourceRecordAttribute <> 0, 'Expected the source record to have a record attribute');
+		THIS^.AssertTrue(pClonedRecordAttribute <> 0, 'Expected the cloned record to have a record attribute');
 		IF pSourceRecordAttribute <> 0 AND_THEN pClonedRecordAttribute <> 0 THEN
 			THIS^.AssertTrue(pClonedRecordAttribute <> pSourceRecordAttribute, 'Expected record attribute allocation to be cloned');
 			THIS^.AssertTrue(pClonedRecordAttribute^.pKey <> pSourceRecordAttribute^.pKey, 'Expected record attribute key allocation to be cloned');
@@ -147,6 +153,7 @@ END_VAR
 		END_IF
 	END_IF
 
+	// Independence: the clone keeps its values after the logger frees the source
 	logger.free();
 	THIS^.AssertTrue(logger.pLogRecord = 0, 'Expected source log record to be deleted');
 

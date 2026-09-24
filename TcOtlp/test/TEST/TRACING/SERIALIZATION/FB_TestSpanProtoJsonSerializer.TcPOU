@@ -24,7 +24,6 @@ VAR
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	serializer: FB_SpanProtoJsonSerializer;
 	pSpan: POINTER TO FB_Span;
-	pMessage: POINTER TO FB_String;
 	root: SJsonValue;
 	spans: SJsonValue;
 	obj: SJsonValue;
@@ -42,13 +41,10 @@ END_VAR
 		.build(pDest:=pSpan);
 	THIS^.AssertTrue(pSpan <> 0, 'Expected the span to build');
 	IF pSpan <> 0 THEN
+		// no builder sets timestamps; fixed values replace the clock so the output is known
 		pSpan^.startTimestamp := 1000;
 		pSpan^.endTimestamp := 1581452773000000789;
-		ValueFactory.createString(pDest:=pMessage, pString:=ADR('motor stalled'));
-		pSpan^.status := __NEW(FB_Status(code:=E_StatusCode.STATUS_CODE_ERROR, message:=pMessage));
-		IF pSpan^.status <> 0 THEN
-			pMessage := 0;  // moved into the status
-		END_IF
+		pSpan^.setStatusError(message:='motor stalled');
 
 		root := serializer.parser.NewDocument();
 		root := serializer.parser.SetObject(root);
@@ -59,6 +55,7 @@ END_VAR
 
 		obj := serializer.parser.GetArrayValueByIdx(spans, 0);
 		THIS^.AssertTrue(serializer.parser.IsObject(obj), 'Expected one Span object');
+		// FB_MockIdGenerator fills each new id with one counter byte: the trace id gets 01, the span id 02
 		THIS^.AssertEquals_STRING('01010101010101010101010101010101', serializer.parser.GetString(serializer.parser.FindMember(obj, 'traceId')), 'Expected the hex traceId');
 		THIS^.AssertEquals_STRING('0202020202020202', serializer.parser.GetString(serializer.parser.FindMember(obj, 'spanId')), 'Expected the hex spanId');
 		THIS^.AssertTrue(serializer.parser.FindMember(obj, 'parentSpanId') = 0, 'Expected a root span to omit parentSpanId');
@@ -81,7 +78,6 @@ END_VAR
 		THIS^.AssertTrue(pSpan^.name <> 0 AND_THEN pSpan^.status <> 0, 'Expected serialization to leave the span intact');
 	END_IF
 
-	IF pMessage <> 0 THEN pMessage^.delete(pSelf:=pMessage); END_IF
 	IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
@@ -124,6 +120,8 @@ END_VAR
 		THIS^.AssertTrue(success, 'Expected the child span to serialize');
 
 		obj := serializer.parser.GetArrayValueByIdx(spans, 0);
+		// FB_MockIdGenerator fills each new id with one counter byte: the root takes trace 01 and
+		// span 02, and the child keeps the root's trace and takes span 03
 		THIS^.AssertEquals_STRING('0303030303030303', serializer.parser.GetString(serializer.parser.FindMember(obj, 'spanId')), 'Expected the child spanId');
 		THIS^.AssertEquals_STRING('0202020202020202', serializer.parser.GetString(serializer.parser.FindMember(obj, 'parentSpanId')), 'Expected the parent spanId');
 		THIS^.AssertEquals_UDINT(3, serializer.parser.GetUint(serializer.parser.FindMember(obj, 'kind')), 'Expected SPAN_KIND_CLIENT as a number');
@@ -141,6 +139,11 @@ TcUnit.TEST_FINISHED();]]></ST>
       <Declaration><![CDATA[(* serializeSpan reports a null span and an invalid JSON destination. *)
 METHOD testSerializeSpanRejectsInvalidInput : REFERENCE TO FB_Test
 VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	serializer: FB_SpanProtoJsonSerializer;
 	root: SJsonValue;
 	spans: SJsonValue;
@@ -160,7 +163,9 @@ END_VAR
 	THIS^.AssertFalse(success, 'Expected a null span to fail');
 	THIS^.AssertEquals_UDINT(TO_UDINT(E_ProtoJsonSerializerFailureReason.SPAN_POINTER_NULL), TO_UDINT(reason), 'Expected SPAN_POINTER_NULL');
 
-	pSpan := __NEW(FB_Span);
+	// a valid span, so the only fault left is the destination, which invalid leaves at 0
+	tracer.startSpan(name:='work').build(pDest:=pSpan);
+	THIS^.AssertTrue(pSpan <> 0, 'Expected the span to build');
 	success := serializer.serializeSpan(v:=invalid, pSpan:=pSpan, failureReason=>reason);
 	THIS^.AssertFalse(success, 'Expected an invalid destination to fail');
 	THIS^.AssertEquals_UDINT(TO_UDINT(E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID), TO_UDINT(reason), 'Expected JSON_VALUE_INVALID');
@@ -370,9 +375,10 @@ END_VAR
 
 		link := serializer.parser.GetArrayValueByIdx(links, 0);
 		THIS^.AssertTrue(serializer.parser.IsObject(link), 'Expected the first Link object');
+		// FB_MockIdGenerator fills each new id with one counter byte: the trigger took trace 01 and span 02
 		THIS^.AssertEquals_STRING('01010101010101010101010101010101', serializer.parser.GetString(serializer.parser.FindMember(link, 'traceId')), 'Expected the hex linked traceId');
 		THIS^.AssertEquals_STRING('0202020202020202', serializer.parser.GetString(serializer.parser.FindMember(link, 'spanId')), 'Expected the hex linked spanId');
-		THIS^.AssertEquals_UDINT(16#101, serializer.parser.GetUint(serializer.parser.FindMember(link, 'flags')), 'Expected the link flags');
+		THIS^.AssertEquals_UDINT(16#101, serializer.parser.GetUint(serializer.parser.FindMember(link, 'flags')), 'Expected the sampled bit and a known local context (16#101)');
 		THIS^.AssertTrue(serializer.parser.FindMember(link, 'attributes') = 0, 'Expected no attributes on the first link');
 		THIS^.AssertTrue(serializer.parser.FindMember(link, 'traceState') = 0, 'Expected no traceState on the first link');
 
@@ -433,15 +439,15 @@ END_VAR
 	pBytes := ADR(header);
 	FOR entry := 0 TO 3 DO
 		IF entry > 0 THEN
-			pBytes[n] := 16#2C;
+			pBytes[n] := 16#2C;  // ','
 			n := n + 1;
 		END_IF
-		pBytes[n] := 16#6B;
-		pBytes[n + 1] := 16#30 + TO_BYTE(entry);
-		pBytes[n + 2] := 16#3D;
+		pBytes[n] := 16#6B;  // 'k'
+		pBytes[n + 1] := 16#30 + TO_BYTE(entry);  // '0' to '3'
+		pBytes[n + 2] := 16#3D;  // '='
 		n := n + 3;
-		FOR i := 1 TO 125 DO
-			pBytes[n] := 16#61 + TO_BYTE(i MOD 26);
+		FOR i := 1 TO 125 DO  // 125 value characters make a 128 character entry
+			pBytes[n] := 16#61 + TO_BYTE(i MOD 26);  // 'a' to 'z'
 			n := n + 1;
 		END_FOR
 	END_FOR
@@ -450,6 +456,7 @@ END_VAR
 	MEMSET(ADR(traceId.bytes), 16#AA, SIZEOF(traceId.bytes));
 	MEMSET(ADR(spanId.bytes), 16#BB, SIZEOF(spanId.bytes));
 	TraceStateFactory.parse(pDest:=pTraceState, pHeader:=ADR(header));
+	// 16#301: sampled, remoteness known, remote
 	ContextFactory.buildContext(pDest:=pRemote, pTraceId:=ADR(traceId), pSpanId:=ADR(spanId), pTraceState:=pTraceState, traceFlags:=16#301);
 	IF pTraceState <> 0 THEN pTraceState^.delete(pSelf:=pTraceState); END_IF
 	tracer.startSpan(name:='remote.child').setParent(pContext:=pRemote).build(pDest:=pSpan);

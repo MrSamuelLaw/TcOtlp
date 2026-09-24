@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_TestHttpExporter" Id="{bfb7e007-9273-4824-8978-2683d2dd42fa}" SpecialFunc="None">
-    <Declaration><![CDATA[(* Tests HTTP log exporter behavior. *)
+    <Declaration><![CDATA[(* Tests how the HTTP log exporter reports and recovers from destination failures. *)
 FUNCTION_BLOCK FB_TestHttpExporter EXTENDS FB_TestSuite
 VAR
 	_exporterBadUrl: 	FB_LogRecordExporter_HTTP(url:='not-a-valid-url', bNoServerCertCheck:=TRUE);
@@ -13,10 +13,14 @@ END_VAR
 THIS^.testConnectionRefusedReportsFailure();]]></ST>
     </Implementation>
     <Method Name="testConnectionRefusedReportsFailure" Id="{065feb3c-02c9-46b0-ad35-d7d0685f8118}">
-      <Declaration><![CDATA[METHOD testConnectionRefusedReportsFailure : REFERENCE TO FB_Test
+      <Declaration><![CDATA[(*
+	A refused connection surfaces as HTTP_REQUEST_FAILURE and leaves the exporter in the error state,
+	and the next export still recovers it, so one unreachable collector cannot wedge logging for good.
+*)
+METHOD testConnectionRefusedReportsFailure : REFERENCE TO FB_Test
 
 VAR CONSTANT
-	MAX_CYCLES: UDINT := 60000;
+	MAX_CYCLES: UDINT := 60000;  // generous bound on scan cycles per request; a loopback refusal normally fails in a few
 END_VAR
 
 VAR_INST
@@ -34,11 +38,12 @@ VAR
 	queueFailureReason: E_LogRecordQueueFailureReason;
 END_VAR]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test Http Export Connection Refused Reports Failure');
+        <ST><![CDATA[TcUnit.TEST('testConnectionRefusedReportsFailure');
 	CASE _state OF
 		0: // export one batch to the unreachable endpoint
 			_cycles := 0;
 			batch.free();
+			// no factory hands a test an owned FB_LogRecord
 			pRecord := __NEW(FB_LogRecord(
 				severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
 				timestamp:=1
@@ -75,7 +80,7 @@ END_VAR]]></Declaration>
 				_state := 15;
 				RETURN;
 			ELSIF _cycles > MAX_CYCLES THEN
-				THIS^.AssertTrue(FALSE, 'Timed out waiting for the refused connection to fail');
+				THIS^.AssertTrue(FALSE, 'Expected the refused connection to fail within MAX_CYCLES');
 				_state := 20;
 				RETURN;
 			ELSE
@@ -115,7 +120,7 @@ END_VAR]]></Declaration>
 				);
 				_state := 20;
 			ELSIF _cycles > MAX_CYCLES THEN
-				THIS^.AssertTrue(FALSE, CONCAT('Timed out waiting for the second batch; state ', TO_STRING(_exporterRefused.currentState)));
+				THIS^.AssertTrue(FALSE, CONCAT('Expected the second batch to fail within MAX_CYCLES; state ', TO_STRING(_exporterRefused.currentState)));
 				_state := 20;
 			END_IF
 			RETURN;
@@ -130,7 +135,11 @@ END_VAR]]></Declaration>
       </Implementation>
     </Method>
     <Method Name="testInvalidUrlFailsFast" Id="{77bbc1ef-8cf0-40de-91d7-0bb12b15c980}">
-      <Declaration><![CDATA[METHOD testInvalidUrlFailsFast : REFERENCE TO FB_Test
+      <Declaration><![CDATA[(*
+	An endpoint URL without an http(s) scheme fails on the first tick with HTTP_URL_PARSE_FAILURE and
+	releases the batch without sending, so a misconfigured exporter never holds records or blocks a request slot.
+*)
+METHOD testInvalidUrlFailsFast : REFERENCE TO FB_Test
 VAR
 	batch: FB_LogRecordQueue(maxCount:=0);
 	pRecord: POINTER TO FB_LogRecord;
@@ -142,12 +151,13 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test Http Export Invalid Url Fails Fast');
+        <ST><![CDATA[TcUnit.TEST('testInvalidUrlFailsFast');
+	// no factory hands a test an owned FB_LogRecord
 	pRecord := __NEW(FB_LogRecord(
 		severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
 		timestamp:=1
 	));
-	THIS^.AssertTrue(pRecord <> 0, 'Expected HTTP exporter record allocation to succeed');
+	THIS^.AssertTrue(pRecord <> 0, 'Expected the record allocation to succeed');
 	pushSucceeded := batch.push(pValue:=pRecord, failureReason=>queueFailureReason);
 	THIS^.AssertTrue(pushSucceeded AND_THEN pRecord = 0, 'Expected the queue to take ownership of the pushed record');
 
@@ -164,7 +174,7 @@ END_VAR
 	);
 
 	callSucceeded := _exporterBadUrl.tick(failureReason=>failureReason);
-	THIS^.AssertFalse(callSucceeded, 'Expected call to report failure for an unparseable endpoint URL');
+	THIS^.AssertFalse(callSucceeded, 'Expected tick to report failure for an unparseable endpoint URL');
 	THIS^.AssertTrue(
 		failureReason = E_LogRecordExporterFailureReason.HTTP_URL_PARSE_FAILURE,
 		'Expected HTTP_URL_PARSE_FAILURE for an endpoint URL without an http(s) scheme'

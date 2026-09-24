@@ -5,21 +5,23 @@
 FUNCTION_BLOCK FB_TestLogProcessors EXTENDS FB_TestSuite
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[TestSimpleProcessors();
-TestBatchProcessors();
+      <ST><![CDATA[THIS^.testSimpleProcessorExportsEachRecord();
+THIS^.testBatchProcessorQueuesAndFlushes();
 THIS^.testProcessorsSkipBusyExporter();]]></ST>
     </Implementation>
-    <Method Name="testBatchProcessors" Id="{7cba4cd6-baeb-4652-979f-3089242ac7bc}">
+    <Method Name="testBatchProcessorQueuesAndFlushes" Id="{7cba4cd6-baeb-4652-979f-3089242ac7bc}">
       <Declaration><![CDATA[(*
 	The batch processor queues emitted records in arrival order (oldest at
 	the head), dropping the oldest when the queue is full. Flushing moves
-	the oldest maxExportBatchSize records into the exporter's queue.
+	the oldest maxExportBatchSize records into the exporter's queue, on a
+	full batch or when the schedule delay elapses, so records leave in order
+	and memory stays bounded however fast the PLC logs.
 
 	FB_LoggerProvider.tick() unstages every processor, so a processor must be
 	staged again before each tick. tick() also currently returns FALSE once a
 	processor has been staged, so these tests call it as a statement.
 *)
-METHOD testBatchProcessors : REFERENCE TO FB_Test
+METHOD testBatchProcessorQueuesAndFlushes : REFERENCE TO FB_Test
 VAR
 	resourceA: FB_Resource('resource.a');
 	resourceB: FB_Resource('resource.b');
@@ -75,9 +77,10 @@ END_VAR
 
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test BatchLogProcessors');
-	// small batches so the count-based flush trigger fires without waiting on the timer
+        <ST><![CDATA[TcUnit.TEST('testBatchProcessorQueuesAndFlushes');
+	// processor uses maxExportBatchSize 6 so the count-based flush trigger fires without waiting on the timer
 
+	// --- Scenario: records queue in arrival order ---
 	// emit interleaved across (resource, scope) pairs
 	loggerBA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts1).emit();
 	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts2).emit();
@@ -108,6 +111,7 @@ END_VAR
 	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 4, 'Expected queued record 5 to be ts4');
 	THIS^.AssertTrue(processor.records.next() = 0, 'Expected queue iteration to be exhausted');
 
+	// --- Scenario: a full batch flushes to the exporter in order ---
 	// emit one more to reach maxExportBatchSize, triggering a flush
 	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts6).emit();
 	providerA
@@ -132,7 +136,8 @@ END_VAR
 	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 6, 'Expected batch record 5 to be ts6');
 	THIS^.AssertTrue(exporter.records.next() = 0, 'Expected batch iteration to be exhausted');
 
-	// a busy exporter still accepts records into the queue, but no batch leaves
+	// --- Scenario: a busy exporter holds records in the queue ---
+	// the processor still queues records, but no batch leaves
 	exporter.busy := TRUE;
 	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts7).emit();
 	providerA
@@ -141,7 +146,8 @@ END_VAR
 	THIS^.AssertEquals_UDINT(1, processor.records.count, 'Expected one queued record while the exporter is busy');
 	THIS^.AssertEquals_UDINT(6, exporter.records.count, 'Expected the busy exporter to keep the previous batch');
 
-	// once free again, a partial batch waits for the schedule delay to elapse
+	// --- Scenario: a partial batch waits for the schedule delay ---
+	// once free again, the single queued record stays until scheduledDelayMillis (1000 ms) elapses
 	exporter.busy := FALSE;
 	providerA
 		.stageProcessor(processor)
@@ -149,6 +155,7 @@ END_VAR
 	THIS^.AssertEquals_UDINT(1, processor.records.count, 'Expected the partial batch to wait for the schedule delay');
 	THIS^.AssertEquals_UDINT(6, exporter.records.count, 'Expected no new batch before the schedule delay elapses');
 
+	// --- Scenario: no exporter, no queue ---
 	// without a bound exporter onEmit only enriches, so nothing is cloned or queued
 	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts8).emit();
 	providerA
@@ -157,7 +164,8 @@ END_VAR
 	THIS^.AssertEquals_UDINT(0, orphanProcessor.records.count, 'Expected no queued records without a bound exporter');
 	THIS^.AssertTrue(orphanProcessor.lastOperationSucceeded, 'Expected onEmit to succeed without a bound exporter');
 
-	// a full queue drops the oldest record to make room for the newest
+	// --- Scenario: a full queue drops the oldest record ---
+	// boundedProcessor holds 2 records, so the third emit pushes out the first
 	THIS^.AssertEquals_UDINT(2, boundedProcessor.records.maxCount, 'Expected the internal queue to be bounded to maxQueueSize');
 	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts9).emit();
 	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts10).emit();
@@ -176,7 +184,8 @@ END_VAR
 	pRec := boundedProcessor.records.next();
 	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 11, 'Expected ts11 at the tail');
 
-	// an unbounded processor queue still flushes a partial batch when its timer expires
+	// --- Scenario: the schedule timer flushes a partial batch ---
+	// timerProcessor has an unbounded queue (maxQueueSize 0) and a 0 ms delay, so one record is enough to flush
 	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts12).emit();
 	providerA
 		.stageProcessor(timerProcessor)
@@ -187,7 +196,7 @@ END_VAR
 	pRec := timerExporter.records.next();
 	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 12, 'Expected the timer-triggered batch record');
 
-	// free releases each processor queue
+	// --- Cleanup: free releases each processor queue ---
 	processor.free();
 	orphanProcessor.free();
 	boundedProcessor.free();
@@ -199,19 +208,25 @@ END_VAR
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
-    <Method Name="testSimpleProcessors" Id="{4aa68aa9-8a85-4975-8601-420ccbbed827}">
-      <Declaration><![CDATA[METHOD testSimpleProcessors : REFERENCE TO FB_Test
+    <Method Name="testSimpleProcessorExportsEachRecord" Id="{4aa68aa9-8a85-4975-8601-420ccbbed827}">
+      <Declaration><![CDATA[(*
+	The simple processor hands each emitted record to an idle exporter straight away, as a clone that
+	keeps the body, severity and resource snapshot, so the exporter owns a record that outlives the logger's.
+*)
+METHOD testSimpleProcessorExportsEachRecord : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	provider: FB_LoggerProvider(resource);
 	scope: FB_InstrumentationScope('name', 'version', 'schemaUrl');
 	logger: FB_Logger(scope, provider);
-// 	processor: FB_LogRecordProcessor_ConsolePrinter(0);
-	processor: FB_LogRecordProcessor_Simple(0);
+	exporter: FB_LogRecordExporter_ForInspection;
+	processor: FB_LogRecordProcessor_Simple(exporter);
+	pRec: POINTER TO FB_LogRecord;
+	pBody: POINTER TO FB_String;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test SimpleLogProcessors');
+        <ST><![CDATA[TcUnit.TEST('testSimpleProcessorExportsEachRecord');
 	resource.attributes.setStringAttribute('plc.name', 'sim.plc');
 	logger.startLogRecord(
 			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_ERROR
@@ -221,6 +236,27 @@ END_VAR
 	provider
 		.stageProcessor(processor)
 		.tick();
+
+	THIS^.AssertEquals_UDINT(1, exporter.records.count, 'Expected the simple processor to export the emitted record');
+	exporter.records.reset();
+	pRec := exporter.records.next();
+	THIS^.AssertTrue(pRec <> 0, 'Expected the exporter to hold the exported record');
+	IF pRec <> 0 THEN
+		THIS^.AssertTrue(
+			pRec^.severityNumber = E_SeverityNumber.SEVERITY_NUMBER_ERROR,
+			'Expected the exported record to keep its ERROR severity'
+		);
+		THIS^.AssertTrue(
+			pRec^.body <> 0 AND_THEN pRec^.body^.eType = E_ValueType.E_String,
+			'Expected the exported record to keep its string body'
+		);
+		IF pRec^.body <> 0 AND_THEN pRec^.body^.eType = E_ValueType.E_String THEN
+			pBody := pRec^.body;
+			THIS^.AssertEquals_STRING('this is a test', pBody^.pString^, 'Expected the exported body text');
+		END_IF
+		THIS^.AssertEquals_UDINT(1, pRec^.resource.attributes.count, 'Expected the exported record to keep the resource attribute');
+	END_IF
+	exporter.free();
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

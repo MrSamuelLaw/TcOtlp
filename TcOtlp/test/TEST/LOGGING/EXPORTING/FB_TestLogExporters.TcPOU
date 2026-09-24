@@ -1,27 +1,28 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_TestLogExporters" Id="{6be9410b-9d69-4d16-a5fe-b31cbe727e6c}" SpecialFunc="None">
-    <Declaration><![CDATA[(* Tests log exporter contracts. *)
+    <Declaration><![CDATA[(* Tests the contract between a caller's batch and a log exporter. *)
 FUNCTION_BLOCK FB_TestLogExporters EXTENDS FB_TestSuite
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[testGroupsRecordsThroughExporter();]]></ST>
+      <ST><![CDATA[THIS^.testExportSerializesWholeBatch();]]></ST>
     </Implementation>
-    <Method Name="testGroupsRecordsThroughExporter" Id="{5d5f1575-5e45-48b1-b9ad-2eec80177025}">
-      <Declaration><![CDATA[METHOD testGroupsRecordsThroughExporter : REFERENCE TO FB_Test
+    <Method Name="testExportSerializesWholeBatch" Id="{5d5f1575-5e45-48b1-b9ad-2eec80177025}">
+      <Declaration><![CDATA[(*
+	export takes ownership of every record in the caller's batch and passes them to the serializer, so the
+	caller holds nothing the exporter will release. Grouping by resource and scope is tested in FB_TestProtoJsonSerializer.
+*)
+METHOD testExportSerializesWholeBatch : REFERENCE TO FB_Test
+VAR CONSTANT
+	RECORD_COUNT: UDINT := 2;  // more than one, so the whole batch has to move, not just its head
+END_VAR
 VAR
-	resourceB: FB_Resource('resource.b');
-	resourceA: FB_Resource('resource.a');
-	scopeB: FB_InstrumentationScope('scope.b', '1.0.0', '');
-	scopeA: FB_InstrumentationScope('scope.a', '1.0.0', '');
 	exporter: FB_LogRecordExporter_File_ForSerializationInspection;
 	serialized: REFERENCE TO FB_LogRecordProtoJsonSerializer;
 	batch: FB_LogRecordQueue(maxCount:=0);
 	pRecord: POINTER TO FB_LogRecord;
 	queueFailureReason: E_LogRecordQueueFailureReason;
 	exporterFailureReason: E_LogRecordExporterFailureReason;
-	attributesFailureReason: E_AttributesFailureReason;
-	copySucceeded: BOOL;
 	pushSucceeded: BOOL;
 	exportSucceeded: BOOL;
 	resourceLogs: SJsonValue;
@@ -29,66 +30,42 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test Groups Records Through Exporter');
-		// Interleave resources B/A and scopes B/A. Repeated B scopes are non-adjacent.
-		FOR _idx := 1 TO 6 DO
-			pRecord := __NEW(FB_LogRecord(
-				severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
-				timestamp:=_idx
-			));
-			THIS^.AssertTrue(pRecord <> 0, 'Expected exporter record allocation to succeed');
-			IF pRecord = 0 THEN EXIT; END_IF
+        <ST><![CDATA[TcUnit.TEST('testExportSerializesWholeBatch');
+	// arrange: a batch of bare records; their resource and scope do not matter here
+	FOR _idx := 1 TO RECORD_COUNT DO
+		// no factory hands a test an owned FB_LogRecord
+		pRecord := __NEW(FB_LogRecord(
+			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
+			timestamp:=_idx
+		));
+		THIS^.AssertTrue(pRecord <> 0, 'Expected the record allocation to succeed');
+		IF pRecord = 0 THEN EXIT; END_IF
 
-			IF (_idx MOD 2) = 1 THEN
-				copySucceeded := pRecord^.resource.copyFrom(
-					src:=resourceB,
-					failureResult=>attributesFailureReason
-				);
-			ELSE
-				copySucceeded := pRecord^.resource.copyFrom(
-					src:=resourceA,
-					failureResult=>attributesFailureReason
-				);
-			END_IF
-			THIS^.AssertTrue(copySucceeded, 'Expected exporter resource snapshot copy to succeed');
-
-			IF _idx = 3 OR_ELSE _idx = 4 THEN
-				copySucceeded := pRecord^.scope.copyFrom(
-					src:=scopeA,
-					failureResult=>attributesFailureReason
-				);
-			ELSE
-				copySucceeded := pRecord^.scope.copyFrom(
-					src:=scopeB,
-					failureResult=>attributesFailureReason
-				);
-			END_IF
-			THIS^.AssertTrue(copySucceeded, 'Expected exporter scope snapshot copy to succeed');
-
-			pushSucceeded := batch.push(
-				pValue:=pRecord,
-				failureReason=>queueFailureReason
-			);
-			THIS^.AssertTrue(pushSucceeded, 'Expected exporter queue setup to succeed');
-			IF NOT pushSucceeded AND_THEN pRecord <> 0 THEN pRecord^.delete(pSelf:=pRecord); END_IF
-		END_FOR
-
-		exportSucceeded := exporter.export(
-			logRecords:=batch,
-			count:=batch.count,
-			failureReason=>exporterFailureReason
+		pushSucceeded := batch.push(
+			pValue:=pRecord,
+			failureReason=>queueFailureReason
 		);
-		THIS^.AssertTrue(
-			exportSucceeded
-			AND_THEN batch.count = 0
-			AND_THEN exporterFailureReason = E_LogRecordExporterFailureReason.NA,
-			'Expected exporter success without a failure reason and record ownership transfer'
-		);
-		serialized REF= exporter.serializer;
+		THIS^.AssertTrue(pushSucceeded, 'Expected the batch to accept the record');
+		IF NOT pushSucceeded AND_THEN pRecord <> 0 THEN pRecord^.delete(pSelf:=pRecord); END_IF
+	END_FOR
 
-		resourceLogs := serialized.parser.FindMember(serialized.jsonValue, 'resourceLogs');
-		THIS^.AssertTrue(resourceLogs <> 0 AND_THEN serialized.parser.IsArray(resourceLogs), 'Expected the exporter to serialize the batch into resourceLogs');
+	// act
+	exportSucceeded := exporter.export(
+		logRecords:=batch,
+		count:=batch.count,
+		failureReason=>exporterFailureReason
+	);
 
+	// assert: the exporter owns the whole batch and serialized it
+	THIS^.AssertTrue(
+		exportSucceeded
+		AND_THEN batch.count = 0
+		AND_THEN exporterFailureReason = E_LogRecordExporterFailureReason.NA,
+		'Expected export to succeed with no failure reason and take every record out of the batch'
+	);
+	serialized REF= exporter.serializer;
+	resourceLogs := serialized.parser.FindMember(serialized.jsonValue, 'resourceLogs');
+	THIS^.AssertTrue(resourceLogs <> 0 AND_THEN serialized.parser.IsArray(resourceLogs), 'Expected the exporter to serialize the batch into a resourceLogs array');
 
 	exporter.free();
 	batch.free();

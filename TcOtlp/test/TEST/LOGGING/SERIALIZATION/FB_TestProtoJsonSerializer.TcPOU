@@ -1,17 +1,19 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_TestProtoJsonSerializer" Id="{355aaa54-d854-4f5d-a742-3803c7661c44}" SpecialFunc="None">
-    <Declaration><![CDATA[(* Tests base and log-record ProtoJSON serialization. *)
+    <Declaration><![CDATA[(* Tests that the base and log-record ProtoJSON serializers write the OTLP/JSON wire form: field encodings, failure reasons, and resource/scope grouping. *)
 FUNCTION_BLOCK FB_TestProtoJsonSerializer EXTENDS FB_TestSuite
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[THIS^.TestSerializeNumberValues();
-THIS^.TestSerializeLogRecord();
-THIS^.TestSerializeFailureReasons();
-THIS^.TestSerializeLogsData();]]></ST>
+      <ST><![CDATA[THIS^.testSerializeNumberValues();
+THIS^.testSerializeLogRecord();
+THIS^.testSerializeRejectsNullInputs();
+THIS^.testSerializeLogsDataGroupsByResourceAndScope();]]></ST>
     </Implementation>
-    <Method Name="TestSerializeFailureReasons" Id="{e9865385-1f56-43aa-b979-d2dbed1ed025}">
-      <Declaration><![CDATA[METHOD TestSerializeFailureReasons : REFERENCE TO FB_Test
+    <Method Name="testSerializeRejectsNullInputs" Id="{e9865385-1f56-43aa-b979-d2dbed1ed025}">
+      <Declaration><![CDATA[(* A null log-record pointer or a null member key fails serialization with its own failure reason,
+   so a caller can tell a missing record from a serializer misuse instead of writing broken JSON. *)
+METHOD testSerializeRejectsNullInputs : REFERENCE TO FB_Test
 VAR
 	serializer: FB_LogRecordProtoJsonSerializer;
 	root: SJsonValue;
@@ -22,11 +24,12 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test Serializer Failure Reasons');
+        <ST><![CDATA[TcUnit.TEST('testSerializeRejectsNullInputs');
 	root := serializer.parser.NewDocument();
 	root := serializer.parser.SetObject(root);
 	records := serializer.parser.AddArrayMember(root, 'logRecords', 0);
 
+	// pRecord is deliberately left 0.
 	serializationSucceeded := serializer.serializeLogRecord(
 		v:=records,
 		pLogRecord:=pRecord,
@@ -35,9 +38,10 @@ END_VAR
 	THIS^.AssertFalse(serializationSucceeded, 'Expected a null log-record pointer to fail serialization');
 	THIS^.AssertTrue(
 		failureReason = E_ProtoJsonSerializerFailureReason.LOG_RECORD_POINTER_NULL,
-		'Expected the null log-record failure reason'
+		'Expected LOG_RECORD_POINTER_NULL as the failure reason for a null log record'
 	);
 
+	// pKey is deliberately 0.
 	serializationSucceeded := serializer.serializeUint32Value(
 		v:=root,
 		pKey:=0,
@@ -47,13 +51,15 @@ END_VAR
 	THIS^.AssertFalse(serializationSucceeded, 'Expected a null JSON member key to fail serialization');
 	THIS^.AssertTrue(
 		failureReason = E_ProtoJsonSerializerFailureReason.KEY_POINTER_NULL,
-		'Expected the null serializer key failure reason'
+		'Expected KEY_POINTER_NULL as the failure reason for a null member key'
 	);
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
-    <Method Name="TestSerializeLogRecord" Id="{432059f0-a68e-4217-85ac-25035b48c8cb}">
-      <Declaration><![CDATA[METHOD TestSerializeLogRecord : REFERENCE TO FB_Test
+    <Method Name="testSerializeLogRecord" Id="{432059f0-a68e-4217-85ac-25035b48c8cb}">
+      <Declaration><![CDATA[(* A record built through the logger serializes every field in its OTLP/JSON form: enums and fixed32 as numbers,
+   64-bit integers as decimal strings, trace and span IDs as hex, and values as typed AnyValue objects. *)
+METHOD testSerializeLogRecord : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource(schemaUrl:='');
 	provider: FB_LoggerProvider(resource:=resource);
@@ -82,7 +88,7 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test SerializeLogRecord');
+        <ST><![CDATA[TcUnit.TEST('testSerializeLogRecord');
 	processor.free();
 	logger.free();
 
@@ -97,8 +103,9 @@ END_VAR
 		.setStringAttribute('stats.label', 'pVal')
 		.setNumberAttribute('stats.duration_ms', durationMs)
 		.setNumberAttribute('stats.temperature', temperature);
-	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected a log record before emission');
+	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected the logger to hold a log record before emission');
 	IF logger.pLogRecord <> 0 THEN
+		// no builder sets droppedAttributesCount; set by hand to check it is written
 		logger.pLogRecord^.droppedAttributesCount := 2;
 	END_IF
 
@@ -107,7 +114,7 @@ END_VAR
 	provider
 		.stageProcessor(processor)
 		.tick();
-	THIS^.AssertTrue(processor.lastOperationSucceeded, 'Expected emitted record capture to succeed');
+	THIS^.AssertTrue(processor.lastOperationSucceeded, 'Expected the inspection processor to capture the emitted record');
 	THIS^.AssertTrue(logger.pLogRecord = 0, 'Expected emit to release the logger-owned record');
 	pRecord := processor.pop();
 	THIS^.AssertTrue(pRecord <> 0, 'Expected the processor to return the emitted record');
@@ -127,16 +134,17 @@ END_VAR
 		'Expected LogRecord serialization to succeed without a failure reason'
 	);
 	obj := serializer.parser.GetArrayValueByIdx(records, 0);
-		THIS^.AssertTrue(serializer.parser.IsObject(obj), 'Expected one serialized LogRecord object');
-	
+		THIS^.AssertTrue(serializer.parser.IsObject(obj), 'Expected the logRecords array to hold one LogRecord object');
+
 		// OTLP/JSON encodes enums and fixed32 values as numbers.
+		// 5 is SEVERITY_NUMBER_DEBUG; flags 1 is the sampled bit, set because the record has a trace id.
 		member := serializer.parser.FindMember(obj, 'severityNumber');
-		THIS^.AssertEquals_UDINT(5, serializer.parser.GetUint(member), 'Expected numeric OTLP severityNumber');
+		THIS^.AssertEquals_UDINT(5, serializer.parser.GetUint(member), 'Expected severityNumber 5 (DEBUG) as a JSON number');
 		actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'severityText'));
-		THIS^.AssertEquals_STRING('SEVERITY_NUMBER_DEBUG', actualString, 'Expected severityText');
-		THIS^.AssertEquals_UDINT(1, serializer.parser.GetUint(serializer.parser.FindMember(obj, 'flags')), 'Expected numeric OTLP flags');
-		THIS^.AssertEquals_UDINT(2, serializer.parser.GetUint(serializer.parser.FindMember(obj, 'droppedAttributesCount')), 'Expected droppedAttributesCount');
-	
+		THIS^.AssertEquals_STRING('SEVERITY_NUMBER_DEBUG', actualString, 'Expected severityText to be the severity enum name');
+		THIS^.AssertEquals_UDINT(1, serializer.parser.GetUint(serializer.parser.FindMember(obj, 'flags')), 'Expected flags 1 (sampled) as a JSON number');
+		THIS^.AssertEquals_UDINT(2, serializer.parser.GetUint(serializer.parser.FindMember(obj, 'droppedAttributesCount')), 'Expected droppedAttributesCount 2 as a JSON number');
+
 		// OTLP/JSON encodes 64-bit integers as decimal strings and trace/span IDs as hex.
 		actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'timeUnixNano'));
 		THIS^.AssertEquals_STRING('1581452773000000789', actualString, 'Expected string-encoded timeUnixNano');
@@ -144,15 +152,17 @@ END_VAR
 		THIS^.AssertEquals_STRING('000102030405060708090A0B0C0D0E0F', actualString, 'Expected hex-encoded traceId');
 		actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'spanId'));
 		THIS^.AssertEquals_STRING('1011121314151617', actualString, 'Expected hex-encoded spanId');
-	
+
+		// Event name and body.
 		actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'eventName'));
-		THIS^.AssertEquals_STRING('Serialization Event', actualString, 'Expected eventName');
+		THIS^.AssertEquals_STRING('Serialization Event', actualString, 'Expected eventName to be written as set');
 		value := serializer.parser.FindMember(serializer.parser.FindMember(obj, 'body'), 'stringValue');
 		actualString := serializer.parser.GetString(value);
 		THIS^.AssertEquals_STRING('This is a body string value', actualString, 'Expected AnyValue string body');
-	
+
+		// Attributes keep insertion order; each value is a typed AnyValue, with intValue as a decimal string.
 		attributes := serializer.parser.FindMember(obj, 'attributes');
-		THIS^.AssertTrue(serializer.parser.IsArray(attributes), 'Expected attributes array');
+		THIS^.AssertTrue(serializer.parser.IsArray(attributes), 'Expected attributes to be a JSON array');
 		attribute := serializer.parser.GetArrayValueByIdx(attributes, 0);
 		actualString := serializer.parser.GetString(serializer.parser.FindMember(attribute, 'key'));
 		THIS^.AssertEquals_STRING('stats.label', actualString, 'Expected string attribute key');
@@ -171,7 +181,7 @@ END_VAR
 		value := serializer.parser.FindMember(serializer.parser.FindMember(attribute, 'value'), 'doubleValue');
 		THIS^.AssertTrue(serializer.parser.IsDouble(value) AND_THEN serializer.parser.GetDouble(value) = 21.5, 'Expected floating attribute AnyValue');
 	END_IF
-	
+
 	IF pRecord <> 0 THEN pRecord^.delete(pSelf:=pRecord); END_IF
 	processor.free();
 	logger.free();
@@ -180,8 +190,10 @@ TcUnit.TEST_FINISHED();
 ]]></ST>
       </Implementation>
     </Method>
-    <Method Name="TestSerializeLogsData" Id="{3baae409-f1cd-4ee8-b8e2-c63cbc28a66d}">
-      <Declaration><![CDATA[METHOD TestSerializeLogsData : REFERENCE TO FB_Test
+    <Method Name="testSerializeLogsDataGroupsByResourceAndScope" Id="{3baae409-f1cd-4ee8-b8e2-c63cbc28a66d}">
+      <Declaration><![CDATA[(* serializeLogsData groups interleaved records into one ResourceLogs per resource and one ScopeLogs per scope,
+   in first-seen order with records kept in arrival order, and drains the queue it is given. *)
+METHOD testSerializeLogsDataGroupsByResourceAndScope : REFERENCE TO FB_Test
 VAR
 	resourceB: FB_Resource('resource.b');
 	resourceA: FB_Resource('resource.a');
@@ -209,11 +221,17 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test SerializeLogsData');
+        <ST><![CDATA[TcUnit.TEST('testSerializeLogsDataGroupsByResourceAndScope');
 	queue.free();
 
-	// Build the serializer boundary directly. Resource arrival order is
-	// B, A, C, B, C, A, B, A; scope order is also interleaved.
+	// ---- Arrange: eight records with interleaved resource/scope pairs ----
+	// Records are built with __NEW and their resource/scope snapshots faked with copyFrom because
+	// no factory hands a test an owned FB_LogRecord (the logger only hands records to a processor),
+	// and grouping can only be tested when every resource/scope pair is controlled exactly.
+	// The timestamp is the record number, so each record can be identified in the output.
+	//   record:   1  2  3  4  5  6  7  8
+	//   resource: B  A  C  B  C  A  B  A
+	//   scope:    B  C  A  A  A  B  B  C
 	FOR _idx := 1 TO 8 DO
 		pRecord := __NEW(FB_LogRecord(
 			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO,
@@ -264,11 +282,12 @@ END_VAR
 			pValue:=pRecord,
 			failureReason=>queueFailureReason
 		);
-		THIS^.AssertTrue(pushSucceeded AND_THEN pRecord = 0, 'Expected queue to take record ownership');
+		THIS^.AssertTrue(pushSucceeded AND_THEN pRecord = 0, 'Expected the queue to take record ownership');
 		IF NOT pushSucceeded AND_THEN pRecord <> 0 THEN pRecord^.delete(pSelf:=pRecord); END_IF
 	END_FOR
-	THIS^.AssertEquals_UDINT(8, queue.count, 'Expected eight records at the serializer boundary');
+	THIS^.AssertEquals_UDINT(8, queue.count, 'Expected eight records queued before serialization');
 
+	// ---- Act ----
 	serializationSucceeded := serializer.serializeLogsData(
 		logRecords:=queue,
 		failureReason=>serializerFailureReason
@@ -277,10 +296,11 @@ END_VAR
 		serializationSucceeded AND_THEN serializerFailureReason = E_ProtoJsonSerializerFailureReason.NA,
 		'Expected LogsData serialization to succeed without a failure reason'
 	);
-	THIS^.AssertEquals_UDINT(0, queue.count, 'Expected serializer to take ownership of the queued records');
+	THIS^.AssertEquals_UDINT(0, queue.count, 'Expected the serializer to drain the queue it was given');
 
+	// ---- Assert: three ResourceLogs groups in first-seen order B, A, C ----
 	resourceLogs := serializer.parser.FindMember(serializer.jsonValue, 'resourceLogs');
-	THIS^.AssertTrue(resourceLogs <> 0 AND_THEN serializer.parser.IsArray(resourceLogs), 'Expected resourceLogs array');
+	THIS^.AssertTrue(resourceLogs <> 0 AND_THEN serializer.parser.IsArray(resourceLogs), 'Expected resourceLogs to be a JSON array');
 
 	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(resourceLogs, 3) = 0, 'Expected exactly three ResourceLogs groups');
 
@@ -288,104 +308,107 @@ END_VAR
 	// followed by the later first-seen scope A group.
 	resourceObj := serializer.parser.GetArrayValueByIdx(resourceLogs, 0);
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(resourceObj, 'schemaUrl'));
-	THIS^.AssertEquals_STRING('resource.b', actualString, 'Expected resource B first');
+	THIS^.AssertEquals_STRING('resource.b', actualString, 'Expected resource B as the first ResourceLogs group');
 	scopeLogs := serializer.parser.FindMember(resourceObj, 'scopeLogs');
 	scopeObj := serializer.parser.GetArrayValueByIdx(scopeLogs, 0);
 
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name'));
-	THIS^.AssertEquals_STRING('scope.b', actualString, 'Expected resource B scope B first');
+	THIS^.AssertEquals_STRING('scope.b', actualString, 'Expected scope B as the first scope of resource B');
 	logRecords := serializer.parser.FindMember(scopeObj, 'logRecords');
 	recordObj := serializer.parser.GetArrayValueByIdx(logRecords, 0);
 
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(recordObj, 'timeUnixNano'));
-	THIS^.AssertEquals_STRING('1', actualString, 'Expected first resource B scope B record');
+	THIS^.AssertEquals_STRING('1', actualString, 'Expected record 1 first in resource B scope B');
 	recordObj := serializer.parser.GetArrayValueByIdx(logRecords, 1);
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(recordObj, 'timeUnixNano'));
-	THIS^.AssertEquals_STRING('7', actualString, 'Expected second resource B scope B record');
-	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(logRecords, 2) = 0, 'Expected one resource B scope B group');
+	THIS^.AssertEquals_STRING('7', actualString, 'Expected record 7 second in resource B scope B');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(logRecords, 2) = 0, 'Expected exactly two records in resource B scope B');
 
 	scopeObj := serializer.parser.GetArrayValueByIdx(scopeLogs, 1);
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name'));
-	THIS^.AssertEquals_STRING('scope.a', actualString, 'Expected resource B scope A second');
+	THIS^.AssertEquals_STRING('scope.a', actualString, 'Expected scope A as the second scope of resource B');
 	logRecords := serializer.parser.FindMember(scopeObj, 'logRecords');
 	recordObj := serializer.parser.GetArrayValueByIdx(logRecords, 0);
 
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(recordObj, 'timeUnixNano'));
-	THIS^.AssertEquals_STRING('4', actualString, 'Expected resource B scope A record');
-	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(logRecords, 1) = 0, 'Expected one resource B scope A record');
+	THIS^.AssertEquals_STRING('4', actualString, 'Expected record 4 in resource B scope A');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(logRecords, 1) = 0, 'Expected exactly one record in resource B scope A');
 	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(scopeLogs, 2) = 0, 'Expected exactly two scopes for resource B');
 
 	// Resource A was seen second. Its repeated scope C records are one group.
 	resourceObj := serializer.parser.GetArrayValueByIdx(resourceLogs, 1);
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(resourceObj, 'schemaUrl'));
-	THIS^.AssertEquals_STRING('resource.a', actualString, 'Expected resource A second');
+	THIS^.AssertEquals_STRING('resource.a', actualString, 'Expected resource A as the second ResourceLogs group');
 	scopeLogs := serializer.parser.FindMember(resourceObj, 'scopeLogs');
 	scopeObj := serializer.parser.GetArrayValueByIdx(scopeLogs, 0);
 
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name'));
-	THIS^.AssertEquals_STRING('scope.c', actualString, 'Expected resource A scope C first');
+	THIS^.AssertEquals_STRING('scope.c', actualString, 'Expected scope C as the first scope of resource A');
 	logRecords := serializer.parser.FindMember(scopeObj, 'logRecords');
 	recordObj := serializer.parser.GetArrayValueByIdx(logRecords, 0);
 
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(recordObj, 'timeUnixNano'));
-	THIS^.AssertEquals_STRING('2', actualString, 'Expected first resource A scope C record');
+	THIS^.AssertEquals_STRING('2', actualString, 'Expected record 2 first in resource A scope C');
 	recordObj := serializer.parser.GetArrayValueByIdx(logRecords, 1);
 
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(recordObj, 'timeUnixNano'));
-	THIS^.AssertEquals_STRING('8', actualString, 'Expected second resource A scope C record');
-	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(logRecords, 2) = 0, 'Expected one resource A scope C group');
+	THIS^.AssertEquals_STRING('8', actualString, 'Expected record 8 second in resource A scope C');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(logRecords, 2) = 0, 'Expected exactly two records in resource A scope C');
 
 	scopeObj := serializer.parser.GetArrayValueByIdx(scopeLogs, 1);
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name'));
-	THIS^.AssertEquals_STRING('scope.b', actualString, 'Expected resource A scope B second');
+	THIS^.AssertEquals_STRING('scope.b', actualString, 'Expected scope B as the second scope of resource A');
 	logRecords := serializer.parser.FindMember(scopeObj, 'logRecords');
 	recordObj := serializer.parser.GetArrayValueByIdx(logRecords, 0);
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(recordObj, 'timeUnixNano'));
-	THIS^.AssertEquals_STRING('6', actualString, 'Expected resource A scope B record');
-	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(logRecords, 1) = 0, 'Expected one resource A scope B record');
+	THIS^.AssertEquals_STRING('6', actualString, 'Expected record 6 in resource A scope B');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(logRecords, 1) = 0, 'Expected exactly one record in resource A scope B');
 	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(scopeLogs, 2) = 0, 'Expected exactly two scopes for resource A');
 
 	// Resource C was seen third and its non-adjacent records share one scope.
 	resourceObj := serializer.parser.GetArrayValueByIdx(resourceLogs, 2);
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(resourceObj, 'schemaUrl'));
-	THIS^.AssertEquals_STRING('resource.c', actualString, 'Expected resource C third');
+	THIS^.AssertEquals_STRING('resource.c', actualString, 'Expected resource C as the third ResourceLogs group');
 	scopeLogs := serializer.parser.FindMember(resourceObj, 'scopeLogs');
 	scopeObj := serializer.parser.GetArrayValueByIdx(scopeLogs, 0);
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(serializer.parser.FindMember(scopeObj, 'scope'), 'name'));
-	THIS^.AssertEquals_STRING('scope.a', actualString, 'Expected resource C scope A');
+	THIS^.AssertEquals_STRING('scope.a', actualString, 'Expected scope A as the only scope of resource C');
 	logRecords := serializer.parser.FindMember(scopeObj, 'logRecords');
 	recordObj := serializer.parser.GetArrayValueByIdx(logRecords, 0);
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(recordObj, 'timeUnixNano'));
-	THIS^.AssertEquals_STRING('3', actualString, 'Expected first resource C scope A record');
+	THIS^.AssertEquals_STRING('3', actualString, 'Expected record 3 first in resource C scope A');
 	recordObj := serializer.parser.GetArrayValueByIdx(logRecords, 1);
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(recordObj, 'timeUnixNano'));
-	THIS^.AssertEquals_STRING('5', actualString, 'Expected second resource C scope A record');
-	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(logRecords, 2) = 0, 'Expected one resource C scope A group');
-	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(scopeLogs, 1) = 0, 'Expected one scope for resource C');
+	THIS^.AssertEquals_STRING('5', actualString, 'Expected record 5 second in resource C scope A');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(logRecords, 2) = 0, 'Expected exactly two records in resource C scope A');
+	THIS^.AssertTrue(serializer.parser.GetArrayValueByIdx(scopeLogs, 1) = 0, 'Expected exactly one scope for resource C');
 
 	queue.free();
 	IF pRecord <> 0 THEN pRecord^.delete(pSelf:=pRecord); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
-    <Method Name="TestSerializeNumberValues" Id="{802e0990-b061-4995-9126-6b3d466b4e43}">
-      <Declaration><![CDATA[METHOD TestSerializeNumberValues : REFERENCE TO FB_Test
+    <Method Name="testSerializeNumberValues" Id="{802e0990-b061-4995-9126-6b3d466b4e43}">
+      <Declaration><![CDATA[(* Integers up to 32 bits and finite floats are written as JSON numbers, while 64-bit integers and
+   NaN/Infinity are written as strings, as ProtoJSON requires so that no value loses precision or breaks JSON. *)
+METHOD testSerializeNumberValues : REFERENCE TO FB_Test
 VAR
 	serializer: FB_BaseProtoJsonSerializer;
 	root: SJsonValue;
 	nSInt: SINT := -12;
 	nInt: INT := -1234;
 	nDInt: DINT := -123456789;
-	nLInt: LINT := -9007199254740993;
+	nLInt: LINT := -9007199254740993; // -(2^53 + 1): cannot be held exactly by a JSON (double) number
 	nUSInt: USINT := 12;
 	nUInt: UINT := 1234;
 	nUDInt: UDINT := 4000000000;
-	nULInt: ULINT := 18000000000000000000;
+	nULInt: ULINT := 18000000000000000000; // above 2^63, so it only fits an unsigned 64-bit integer
 	fReal: REAL := 42.25;
 	fLReal: LREAL := -24.5;
 	fNaN: LREAL;
 	fPositiveInfinity: LREAL;
 	fNegativeInfinity: LREAL;
+	// IEEE 754 double bit patterns; ST has no literals for these values.
 	nNaNBits: LWORD := LWORD#16#7FF8000000000000;
 	nPositiveInfinityBits: LWORD := LWORD#16#7FF0000000000000;
 	nNegativeInfinityBits: LWORD := LWORD#16#FFF0000000000000;
@@ -394,20 +417,21 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('Test SerializeNumberValues');
+        <ST><![CDATA[TcUnit.TEST('testSerializeNumberValues');
 	root := serializer.parser.NewDocument();
 	serializer.parser.SetObject(root);
 
-	THIS^.AssertTrue(serializer.serializeNumberValue(root, ADR('sintValue'), nSInt), 'Expected SINT dispatch');
-	THIS^.AssertTrue(serializer.serializeNumberValue(root, ADR('intValue'), nInt), 'Expected INT dispatch');
-	THIS^.AssertTrue(serializer.serializeNumberValue(root, ADR('dintValue'), nDInt), 'Expected DINT dispatch');
-	THIS^.AssertTrue(serializer.serializeNumberValue(root, ADR('lintValue'), nLInt), 'Expected LINT dispatch');
-	THIS^.AssertTrue(serializer.serializeNumberValue(root, ADR('usintValue'), nUSInt), 'Expected USINT dispatch');
-	THIS^.AssertTrue(serializer.serializeNumberValue(root, ADR('uintValue'), nUInt), 'Expected UINT dispatch');
-	THIS^.AssertTrue(serializer.serializeNumberValue(root, ADR('udintValue'), nUDInt), 'Expected UDINT dispatch');
-	THIS^.AssertTrue(serializer.serializeNumberValue(root, ADR('ulintValue'), nULInt), 'Expected ULINT dispatch');
-	THIS^.AssertTrue(serializer.serializeNumberValue(root, ADR('realValue'), fReal), 'Expected REAL dispatch');
-	THIS^.AssertTrue(serializer.serializeNumberValue(root, ADR('lrealValue'), fLReal), 'Expected LREAL dispatch');
+	// serializeNumberValue takes ANY_NUM and dispatches on the actual type.
+	THIS^.AssertTrue(serializer.serializeNumberValue(root, ADR('sintValue'), nSInt), 'Expected a SINT to serialize');
+	THIS^.AssertTrue(serializer.serializeNumberValue(root, ADR('intValue'), nInt), 'Expected an INT to serialize');
+	THIS^.AssertTrue(serializer.serializeNumberValue(root, ADR('dintValue'), nDInt), 'Expected a DINT to serialize');
+	THIS^.AssertTrue(serializer.serializeNumberValue(root, ADR('lintValue'), nLInt), 'Expected a LINT to serialize');
+	THIS^.AssertTrue(serializer.serializeNumberValue(root, ADR('usintValue'), nUSInt), 'Expected a USINT to serialize');
+	THIS^.AssertTrue(serializer.serializeNumberValue(root, ADR('uintValue'), nUInt), 'Expected a UINT to serialize');
+	THIS^.AssertTrue(serializer.serializeNumberValue(root, ADR('udintValue'), nUDInt), 'Expected a UDINT to serialize');
+	THIS^.AssertTrue(serializer.serializeNumberValue(root, ADR('ulintValue'), nULInt), 'Expected a ULINT to serialize');
+	THIS^.AssertTrue(serializer.serializeNumberValue(root, ADR('realValue'), fReal), 'Expected a REAL to serialize');
+	THIS^.AssertTrue(serializer.serializeNumberValue(root, ADR('lrealValue'), fLReal), 'Expected an LREAL to serialize');
 
 	THIS^.AssertEquals_DINT(-12, serializer.parser.GetInt(serializer.parser.FindMember(root, 'sintValue')), 'Expected SINT as a JSON number');
 	THIS^.AssertEquals_DINT(-1234, serializer.parser.GetInt(serializer.parser.FindMember(root, 'intValue')), 'Expected INT as a JSON number');
@@ -432,11 +456,11 @@ END_VAR
 	serializer.serializeNumberValue(root, ADR('positiveInfinityValue'), fPositiveInfinity);
 	serializer.serializeNumberValue(root, ADR('negativeInfinityValue'), fNegativeInfinity);
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(root, 'nanValue'));
-	THIS^.AssertEquals_STRING('NaN', actualString, 'Expected quoted NaN');
+	THIS^.AssertEquals_STRING('NaN', actualString, 'Expected NaN as the quoted string NaN');
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(root, 'positiveInfinityValue'));
-	THIS^.AssertEquals_STRING('Infinity', actualString, 'Expected quoted positive infinity');
+	THIS^.AssertEquals_STRING('Infinity', actualString, 'Expected positive infinity as the quoted string Infinity');
 	actualString := serializer.parser.GetString(serializer.parser.FindMember(root, 'negativeInfinityValue'));
-	THIS^.AssertEquals_STRING('-Infinity', actualString, 'Expected quoted negative infinity');
+	THIS^.AssertEquals_STRING('-Infinity', actualString, 'Expected negative infinity as the quoted string -Infinity');
 
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>

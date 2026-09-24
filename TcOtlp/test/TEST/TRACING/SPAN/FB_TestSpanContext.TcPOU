@@ -88,7 +88,7 @@ END_VAR
 		pTraceId:=ADR(traceId),
 		pSpanId:=ADR(spanId),
 		pTraceState:=pTraceState,
-		traceFlags:=1,
+		traceFlags:=1,  // sampled
 		failureReason=>failureReason
 	);
 	// the trace state is borrowed, so the caller releases its own copy at once
@@ -296,7 +296,7 @@ END_VAR
 		pTraceId:=ADR(traceId),
 		pSpanId:=ADR(spanId),
 		pTraceState:=pTraceState,
-		traceFlags:=16#301
+		traceFlags:=16#301  // sampled, remoteness known, remote: every flag free must clear
 	);
 	IF pTraceState <> 0 THEN pTraceState^.delete(pSelf:=pTraceState); END_IF
 	THIS^.AssertTrue(success, 'Expected buildContext to succeed');
@@ -353,6 +353,7 @@ END_VAR
 	THIS^.AssertTrue(pContext <> 0 AND_THEN pContext^.isRemote(), 'Expected known-and-remote to mean remote');
 	THIS^._release(pContext:=pContext);
 
+	// 16#FF sets every W3C trace flag bit
 	ContextFactory.buildContext(pDest:=pContext, pTraceId:=ADR(traceId), pSpanId:=ADR(spanId), pTraceState:=0, traceFlags:=hasIsRemote OR isRemote OR 16#FF);
 	THIS^.AssertTrue(pContext <> 0 AND_THEN pContext^.isRemote(), 'Expected the W3C trace flags not to change the remote answer');
 	THIS^._release(pContext:=pContext);
@@ -390,7 +391,7 @@ END_VAR
 		pTraceId:=ADR(traceId),
 		pSpanId:=ADR(spanId),
 		pTraceState:=pTraceState,
-		traceFlags:=1
+		traceFlags:=1  // sampled, so the kept flags can be told from the second build's 0
 	);
 	IF pTraceState <> 0 THEN pTraceState^.delete(pSelf:=pTraceState); END_IF
 	THIS^.AssertTrue(success, 'Expected the first build to succeed');

@@ -68,7 +68,7 @@ END_VAR
 		pTraceId:=ADR(traceId),
 		pSpanId:=ADR(spanId),
 		pTraceState:=pTraceState,
-		traceFlags:=16#301
+		traceFlags:=16#301  // sampled, remoteness known, remote
 	);
 	IF pTraceState <> 0 THEN pTraceState^.delete(pSelf:=pTraceState); END_IF
 
@@ -92,7 +92,7 @@ END_VAR
 		IF pLink^.traceState <> 0 THEN
 			THIS^.AssertEquals_STRING('vendor=abc', pLink^.traceState^.pString^, 'Expected the trace state text');
 		END_IF
-		THIS^.AssertEquals_UDINT(16#301, pLink^.flags, 'Expected the trace flags and both remoteness bits');
+		THIS^.AssertEquals_UDINT(16#301, pLink^.flags, 'Expected sampled, remoteness known, remote (16#301)');
 		THIS^.AssertEquals_UDINT(0, pLink^.attributes.count, 'Expected no attributes');
 		pLink^.delete(pSelf:=pLink);
 	END_IF
@@ -114,24 +114,24 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testFromContextRejectsInvalidInput');
-	THIS^._buildContext(pDest:=pContext, seed:=16#11, traceFlags:=16#101);
-	THIS^._buildContext(pDest:=pZero, seed:=0, traceFlags:=0);
+	THIS^._buildContext(pDest:=pContext, seed:=16#11, traceFlags:=16#101);  // sampled, remoteness known, local
+	THIS^._buildContext(pDest:=pZero, seed:=0, traceFlags:=0);  // all zero ids: an invalid context
 
 	success := LinkFactory.fromContext(pDest:=pLink, pContext:=0, failureReason=>reason);
 	THIS^.AssertFalse(success, 'Expected a null context to be refused');
-	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.CONTEXT_POINTER_NULL), TO_UDINT(reason), 'Expected the failure reason');
-	THIS^.AssertTrue(pLink = 0, 'Expected nothing to be allocated');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.CONTEXT_POINTER_NULL), TO_UDINT(reason), 'Expected CONTEXT_POINTER_NULL');
+	THIS^.AssertTrue(pLink = 0, 'Expected nothing to be allocated for a null context');
 
 	success := LinkFactory.fromContext(pDest:=pLink, pContext:=pZero, failureReason=>reason);
 	THIS^.AssertFalse(success, 'Expected an invalid context to be refused');
-	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.CONTEXT_INVALID), TO_UDINT(reason), 'Expected the failure reason');
-	THIS^.AssertTrue(pLink = 0, 'Expected nothing to be allocated');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.CONTEXT_INVALID), TO_UDINT(reason), 'Expected CONTEXT_INVALID');
+	THIS^.AssertTrue(pLink = 0, 'Expected nothing to be allocated for an invalid context');
 
 	LinkFactory.fromContext(pDest:=pLink, pContext:=pContext);
 	pOther := pLink;
 	success := LinkFactory.fromContext(pDest:=pLink, pContext:=pContext, failureReason=>reason);
 	THIS^.AssertFalse(success, 'Expected an assigned destination to be refused');
-	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.DESTINATION_ALREADY_ASSIGNED), TO_UDINT(reason), 'Expected the failure reason');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.DESTINATION_ALREADY_ASSIGNED), TO_UDINT(reason), 'Expected DESTINATION_ALREADY_ASSIGNED');
 	THIS^.AssertTrue(pLink = pOther, 'Expected the destination to be left alone');
 
 	IF pLink <> 0 THEN pLink^.delete(pSelf:=pLink); END_IF
@@ -163,7 +163,7 @@ END_VAR
 
 	success := LinkFactory.fromSpan(pDest:=pLink, pSpan:=0, failureReason=>reason);
 	THIS^.AssertFalse(success, 'Expected a null span to be refused');
-	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.SPAN_POINTER_NULL), TO_UDINT(reason), 'Expected the failure reason');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.SPAN_POINTER_NULL), TO_UDINT(reason), 'Expected SPAN_POINTER_NULL');
 
 	success := LinkFactory.fromSpan(pDest:=pLink, pSpan:=pSpan, failureReason=>reason);
 	THIS^.AssertTrue(success, 'Expected the link to build');
@@ -177,7 +177,7 @@ END_VAR
 			MEMCMP(ADR(pLink^.spanId^.bytes), ADR(pSpan^.spanId^.bytes), SIZEOF(pSpan^.spanId^.bytes)) = 0,
 			'Expected the span$'s span id'
 		);
-		THIS^.AssertEquals_UDINT(16#101, pLink^.flags, 'Expected the sampled bit and a known local context');
+		THIS^.AssertEquals_UDINT(16#101, pLink^.flags, 'Expected the sampled bit and a known local context (16#101)');
 	END_IF
 
 	IF pLink <> 0 THEN pLink^.delete(pSelf:=pLink); END_IF
@@ -201,6 +201,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testPushTakesOwnershipInOrder');
+	// 16#101: sampled, remoteness known, local; the seed byte tells the links apart
 	THIS^._buildContext(pDest:=pFirst, seed:=16#11, traceFlags:=16#101);
 	THIS^._buildContext(pDest:=pSecond, seed:=16#22, traceFlags:=16#101);
 
@@ -225,14 +226,14 @@ END_VAR
 	THIS^.AssertTrue(success AND_THEN pLink^.spanId^.bytes[0] = 16#11, 'Expected pop to return the oldest link');
 	success := links.pop(pValue:=pLink, failureReason=>reason);
 	THIS^.AssertFalse(success, 'Expected pop into an assigned destination to fail');
-	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.DESTINATION_ALREADY_ASSIGNED), TO_UDINT(reason), 'Expected the failure reason');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.DESTINATION_ALREADY_ASSIGNED), TO_UDINT(reason), 'Expected DESTINATION_ALREADY_ASSIGNED');
 	IF pLink <> 0 THEN pLink^.delete(pSelf:=pLink); END_IF
 
 	links.pop(pValue:=pLink);
 	IF pLink <> 0 THEN pLink^.delete(pSelf:=pLink); END_IF
 	success := links.pop(pValue:=pLink, failureReason=>reason);
 	THIS^.AssertFalse(success, 'Expected pop from an empty collection to fail');
-	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.LINKS_EMPTY), TO_UDINT(reason), 'Expected the failure reason');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.LINKS_EMPTY), TO_UDINT(reason), 'Expected LINKS_EMPTY');
 	THIS^.AssertEquals_UDINT(0, links.count, 'Expected no links left');
 
 	IF pFirst <> 0 THEN pFirst^.delete(pSelf:=pFirst); END_IF
@@ -255,11 +256,11 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testPushRefusesWhenFull');
-	THIS^._buildContext(pDest:=pContext, seed:=16#11, traceFlags:=16#101);
+	THIS^._buildContext(pDest:=pContext, seed:=16#11, traceFlags:=16#101);  // sampled, remoteness known, local
 
 	success := links.push(pValue:=pLink, failureReason=>reason);
 	THIS^.AssertFalse(success, 'Expected a null link to be refused');
-	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.LINK_POINTER_NULL), TO_UDINT(reason), 'Expected the failure reason');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.LINK_POINTER_NULL), TO_UDINT(reason), 'Expected LINK_POINTER_NULL');
 
 	LinkFactory.fromContext(pDest:=pLink, pContext:=pContext);
 	links.push(pValue:=pLink);
@@ -267,7 +268,7 @@ END_VAR
 	pRefused := pLink;
 	success := links.push(pValue:=pLink, failureReason=>reason);
 	THIS^.AssertFalse(success, 'Expected a push beyond maxCount to fail');
-	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.LINK_COUNT_LIMIT_REACHED), TO_UDINT(reason), 'Expected the failure reason');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.LINK_COUNT_LIMIT_REACHED), TO_UDINT(reason), 'Expected LINK_COUNT_LIMIT_REACHED');
 	THIS^.AssertTrue(pLink = pRefused, 'Expected the caller to keep the refused link');
 	THIS^.AssertEquals_UDINT(1, links.count, 'Expected the first link to be kept');
 	THIS^.AssertEquals_UDINT(1, links.droppedCount, 'Expected the refused link to be counted');
@@ -293,7 +294,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testFromLinkCopiesLink');
-	THIS^._buildContext(pDest:=pContext, seed:=5, traceFlags:=1);
+	THIS^._buildContext(pDest:=pContext, seed:=5, traceFlags:=1);  // sampled only
 	LinkFactory.fromContext(pDest:=pLink, pContext:=pContext, failureReason=>reason);
 	THIS^.AssertTrue(pLink <> 0, 'Expected the source link to build');
 	IF pLink <> 0 THEN
@@ -328,7 +329,7 @@ END_VAR
 	THIS^.AssertFalse(LinkFactory.fromLink(pDest:=pDest, pSrc:=0, failureReason=>reason), 'Expected a null source to fail');
 	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.LINK_POINTER_NULL), TO_UDINT(reason), 'Expected LINK_POINTER_NULL');
 
-	pLink := __NEW(FB_Link);
+	pLink := __NEW(FB_Link);  // built by hand: LinkFactory refuses a link with no identity
 	THIS^.AssertFalse(LinkFactory.fromLink(pDest:=pDest, pSrc:=pLink, failureReason=>reason), 'Expected an empty link to fail');
 	THIS^.AssertEquals_UDINT(TO_UDINT(E_LinkFailureReason.CONTEXT_INVALID), TO_UDINT(reason), 'Expected CONTEXT_INVALID');
 

@@ -1,7 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_TestSpanQueue" Id="{eb50bf62-c8b0-4579-96a9-3de783520e6f}" SpecialFunc="None">
-    <Declaration><![CDATA[(* Tests FB_SpanQueue ordering, its bound, and the ownership hand-off on push and pop. *)
+    <Declaration><![CDATA[(* Tests FB_SpanQueue ordering, its bound, and the ownership hand-off on push and pop.
+
+   The spans are opaque queue nodes: the queue only moves and releases pointers, so the tests
+   allocate bare spans with __NEW instead of building them through FB_Tracer. *)
 FUNCTION_BLOCK FB_TestSpanQueue EXTENDS FB_TestSuite
 ]]></Declaration>
     <Implementation>
@@ -28,7 +31,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testPushPopIsFifo');
-	pFirst := __NEW(FB_Span);
+	pFirst := __NEW(FB_Span);  // opaque queue node: the queue needs no span identity
 	pSecond := __NEW(FB_Span);
 	pExpectedFirst := pFirst;
 	pExpectedSecond := pSecond;
@@ -70,7 +73,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testPushDropsOldestWhenFull');
-	pOld := __NEW(FB_Span);
+	pOld := __NEW(FB_Span);  // opaque queue node: the queue needs no span identity
 	pNew := __NEW(FB_Span);
 	pExpected := pNew;
 
@@ -98,8 +101,8 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testPopIntoAssignedDestinationFails');
-	pQueued := __NEW(FB_Span);
-	pOwned := __NEW(FB_Span);
+	pQueued := __NEW(FB_Span);  // opaque queue node: the queue needs no span identity
+	pOwned := __NEW(FB_Span);  // held by the caller, so pop must not overwrite it
 	pExpected := pOwned;
 	queue.push(pValue:=pQueued, failureReason=>reason);
 
@@ -132,7 +135,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testCursorWalksWithoutTakingOwnership');
-	pFirst := __NEW(FB_Span);
+	pFirst := __NEW(FB_Span);  // opaque queue node: the queue needs no span identity
 	pSecond := __NEW(FB_Span);
 	pExpectedFirst := pFirst;
 	pExpectedSecond := pSecond;
@@ -173,10 +176,12 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testTransferToMovesOldestSpans');
+	// opaque queue nodes: the queue needs no span identity
 	p := __NEW(FB_Span); pFirst := p; source.push(pValue:=p, failureReason=>reason);
 	p := __NEW(FB_Span); pSecond := p; source.push(pValue:=p, failureReason=>reason);
 	p := __NEW(FB_Span); pThird := p; source.push(pValue:=p, failureReason=>reason);
 
+	// ask for more than the destination's bound of 2 and more than the source holds
 	THIS^.AssertTrue(source.transferTo(destination:=destination, count:=5, failureReason=>reason), 'Expected transferTo to succeed');
 	THIS^.AssertEquals_UDINT(2, destination.count, 'Expected the destination bound to hold');
 	THIS^.AssertEquals_UDINT(1, source.count, 'Expected one span left behind');
@@ -210,8 +215,9 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testTransferToRejectsInvalidDestination');
+	// opaque queue nodes: the queue needs no span identity
 	p := __NEW(FB_Span); source.push(pValue:=p, failureReason=>reason);
-	p := __NEW(FB_Span); destination.push(pValue:=p, failureReason=>reason);
+	p := __NEW(FB_Span); destination.push(pValue:=p, failureReason=>reason);  // makes the destination non-empty
 
 	THIS^.AssertFalse(source.transferTo(destination:=source, count:=1, failureReason=>reason), 'Expected a self transfer to fail');
 	THIS^.AssertEquals_UDINT(
@@ -235,7 +241,7 @@ TcUnit.TEST_FINISHED();]]></ST>
       <Declaration><![CDATA[(* rotate moves the oldest span to the back without releasing it, and fails on an empty queue. *)
 METHOD testRotateMovesOldestToBack : REFERENCE TO FB_Test
 VAR
-	queue: FB_SpanQueue(maxCount:=0);
+	queue: FB_SpanQueue(maxCount:=0);  // 0 means the default bound, MAX_LOOP_COUNT
 	pSpan: POINTER TO FB_Span;
 	pFirst: POINTER TO FB_Span;
 	pSecond: POINTER TO FB_Span;
@@ -248,7 +254,7 @@ END_VAR
 	THIS^.AssertFalse(queue.rotate(failureReason=>reason), 'Expected rotate on an empty queue to fail');
 	THIS^.AssertEquals_UDINT(TO_UDINT(E_SpanQueueFailureReason.QUEUE_EMPTY), TO_UDINT(reason), 'Expected QUEUE_EMPTY');
 
-	pSpan := __NEW(FB_Span);
+	pSpan := __NEW(FB_Span);  // opaque queue node: the queue needs no span identity
 	pFirst := pSpan;
 	queue.push(pValue:=pSpan);
 	pSpan := __NEW(FB_Span);
