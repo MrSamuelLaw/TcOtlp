@@ -1,0 +1,70 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="F_ParseHttpUrl" Id="{1bb3c92f-17bf-4607-988f-88220a75d343}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Splits a full endpoint URL into scheme, host, port and path, for example
+	'http://192.168.1.10:4318/v1/traces'. The scheme must be lower-case http or https, and
+	IPv6 hosts are not supported. Returns FALSE when the URL cannot be parsed; endpoint then
+	holds no usable host.
+*)
+FUNCTION F_ParseHttpUrl : BOOL
+VAR_INPUT
+	url: T_MaxString;
+END_VAR
+VAR_OUTPUT
+	endpoint: ST_HttpEndpoint;
+END_VAR
+VAR
+	_rest: T_MaxString;
+	_portString: T_MaxString;
+	_pathStart: INT;
+	_colonIdx: INT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[F_ParseHttpUrl := FALSE;
+endpoint.useTls := FALSE;
+endpoint.host := '';
+endpoint.port := 0;
+endpoint.path := '/';
+
+IF FIND(url, 'https://') = 1 THEN
+	endpoint.useTls := TRUE;
+	_rest := RIGHT(url, LEN(url) - 8);
+ELSIF FIND(url, 'http://') = 1 THEN
+	endpoint.useTls := FALSE;
+	_rest := RIGHT(url, LEN(url) - 7);
+ELSE
+	RETURN;
+END_IF
+
+_pathStart := FIND(_rest, '/');
+IF _pathStart > 0 THEN
+	endpoint.host := LEFT(_rest, _pathStart - 1);
+	endpoint.path := RIGHT(_rest, LEN(_rest) - _pathStart + 1);
+ELSE
+	endpoint.host := _rest;
+	endpoint.path := '/';
+END_IF
+
+IF endpoint.useTls THEN
+	endpoint.port := 443;
+ELSE
+	endpoint.port := 80;
+END_IF
+
+_colonIdx := FIND(endpoint.host, ':');
+IF _colonIdx > 0 THEN
+	_portString := RIGHT(endpoint.host, LEN(endpoint.host) - _colonIdx);
+	IF _portString = '' THEN RETURN; END_IF
+	endpoint.port := STRING_TO_UINT(_portString);
+	IF endpoint.port = 0 THEN RETURN; END_IF
+	endpoint.host := LEFT(endpoint.host, _colonIdx - 1);
+END_IF
+
+IF endpoint.host = '' THEN RETURN; END_IF
+
+F_ParseHttpUrl := TRUE;]]></ST>
+    </Implementation>
+  </POU>
+</TcPlcObject>

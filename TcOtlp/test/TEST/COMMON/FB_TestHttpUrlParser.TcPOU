@@ -1,0 +1,134 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestHttpUrlParser" Id="{fd4a6579-122f-4581-aaee-5a4ed1aab431}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Tests F_ParseHttpUrl, which the HTTP log and span exporters use to split their endpoint URL. *)
+FUNCTION_BLOCK FB_TestHttpUrlParser EXTENDS FB_TestSuite
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testHttpWithPortAndPath();
+THIS^.testHttpDefaultsPortAndPath();
+THIS^.testHttpsDefaultsPort();
+THIS^.testRejectsMissingScheme();
+THIS^.testRejectsUpperCaseScheme();
+THIS^.testRejectsEmptyPort();
+THIS^.testRejectsZeroPort();
+THIS^.testRejectsEmptyHost();]]></ST>
+    </Implementation>
+    <Method Name="testHttpWithPortAndPath" Id="{36103b9b-7122-4e41-90f3-4d14ce5805c6}">
+      <Declaration><![CDATA[(* An explicit port and path are split out. *)
+METHOD testHttpWithPortAndPath : REFERENCE TO FB_Test
+VAR
+	endpoint: ST_HttpEndpoint;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testHttpWithPortAndPath');
+	THIS^.AssertEquals_BOOL(TRUE, F_ParseHttpUrl(url:='http://192.168.1.10:4318/v1/traces', endpoint=>endpoint), 'Expected the parse result');
+	THIS^.AssertEquals_BOOL(FALSE, endpoint.useTls, 'Expected the scheme');
+	THIS^.AssertEquals_STRING('192.168.1.10', endpoint.host, 'Expected the host');
+	THIS^.AssertEquals_UINT(4318, endpoint.port, 'Expected the port');
+	THIS^.AssertEquals_STRING('/v1/traces', endpoint.path, 'Expected the path');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testHttpDefaultsPortAndPath" Id="{bac255d6-5472-4ca6-bbf3-0a3b0fad9250}">
+      <Declaration><![CDATA[(* http without a port or path uses port 80 and '/'. *)
+METHOD testHttpDefaultsPortAndPath : REFERENCE TO FB_Test
+VAR
+	endpoint: ST_HttpEndpoint;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testHttpDefaultsPortAndPath');
+	THIS^.AssertEquals_BOOL(TRUE, F_ParseHttpUrl(url:='http://collector', endpoint=>endpoint), 'Expected the parse result');
+	THIS^.AssertEquals_BOOL(FALSE, endpoint.useTls, 'Expected the scheme');
+	THIS^.AssertEquals_STRING('collector', endpoint.host, 'Expected the host');
+	THIS^.AssertEquals_UINT(80, endpoint.port, 'Expected the port');
+	THIS^.AssertEquals_STRING('/', endpoint.path, 'Expected the path');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testHttpsDefaultsPort" Id="{96033edf-ce43-4bb2-a975-a9fe09faefa0}">
+      <Declaration><![CDATA[(* https uses TLS and port 443. *)
+METHOD testHttpsDefaultsPort : REFERENCE TO FB_Test
+VAR
+	endpoint: ST_HttpEndpoint;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testHttpsDefaultsPort');
+	THIS^.AssertEquals_BOOL(TRUE, F_ParseHttpUrl(url:='https://collector/v1/logs', endpoint=>endpoint), 'Expected the parse result');
+	THIS^.AssertEquals_BOOL(TRUE, endpoint.useTls, 'Expected the scheme');
+	THIS^.AssertEquals_STRING('collector', endpoint.host, 'Expected the host');
+	THIS^.AssertEquals_UINT(443, endpoint.port, 'Expected the port');
+	THIS^.AssertEquals_STRING('/v1/logs', endpoint.path, 'Expected the path');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testRejectsMissingScheme" Id="{75bcad19-ec29-4de9-b9ff-0fe681a589ef}">
+      <Declaration><![CDATA[(* A URL without http:// or https:// is rejected. *)
+METHOD testRejectsMissingScheme : REFERENCE TO FB_Test
+VAR
+	endpoint: ST_HttpEndpoint;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testRejectsMissingScheme');
+	THIS^.AssertEquals_BOOL(FALSE, F_ParseHttpUrl(url:='not-a-valid-url', endpoint=>endpoint), 'Expected the parse result');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testRejectsUpperCaseScheme" Id="{ddefebc6-78e3-4c5c-988f-e3eb7ba0a01d}">
+      <Declaration><![CDATA[(* The scheme must be lower case. *)
+METHOD testRejectsUpperCaseScheme : REFERENCE TO FB_Test
+VAR
+	endpoint: ST_HttpEndpoint;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testRejectsUpperCaseScheme');
+	THIS^.AssertEquals_BOOL(FALSE, F_ParseHttpUrl(url:='HTTP://collector', endpoint=>endpoint), 'Expected the parse result');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testRejectsEmptyPort" Id="{59ec2ff7-31a6-459c-bf98-4eb5e60c3267}">
+      <Declaration><![CDATA[(* A colon without a port is rejected. *)
+METHOD testRejectsEmptyPort : REFERENCE TO FB_Test
+VAR
+	endpoint: ST_HttpEndpoint;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testRejectsEmptyPort');
+	THIS^.AssertEquals_BOOL(FALSE, F_ParseHttpUrl(url:='http://collector:/v1/traces', endpoint=>endpoint), 'Expected the parse result');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testRejectsZeroPort" Id="{45201107-0cab-4a50-b607-cef86b169fad}">
+      <Declaration><![CDATA[(* Port 0, or a port that is not a number, is rejected. *)
+METHOD testRejectsZeroPort : REFERENCE TO FB_Test
+VAR
+	endpoint: ST_HttpEndpoint;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testRejectsZeroPort');
+	THIS^.AssertEquals_BOOL(FALSE, F_ParseHttpUrl(url:='http://collector:abc/v1/traces', endpoint=>endpoint), 'Expected the parse result');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testRejectsEmptyHost" Id="{aaf0917b-a040-42b2-bc7e-f7bff1976572}">
+      <Declaration><![CDATA[(* A URL without a host is rejected. *)
+METHOD testRejectsEmptyHost : REFERENCE TO FB_Test
+VAR
+	endpoint: ST_HttpEndpoint;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testRejectsEmptyHost');
+	THIS^.AssertEquals_BOOL(FALSE, F_ParseHttpUrl(url:='http:///v1/traces', endpoint=>endpoint), 'Expected the parse result');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

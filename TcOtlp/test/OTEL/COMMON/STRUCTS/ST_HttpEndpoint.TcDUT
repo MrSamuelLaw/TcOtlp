@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_HttpEndpoint" Id="{6180cf12-87fc-4860-94dd-8bc1e081abf3}">
+    <Declaration><![CDATA[(* An HTTP endpoint split out of a URL by F_ParseHttpUrl. *)
+TYPE ST_HttpEndpoint :
+STRUCT
+	useTls: BOOL;  // TRUE for https
+	host: T_MaxString;
+	port: UINT;  // the explicit port, or 80 for http and 443 for https
+	path: T_MaxString := '/';  // starts with '/'
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

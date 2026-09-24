@@ -9,12 +9,8 @@ END_VAR
 
 VAR
 	_execute: BOOL;
-	_url: T_MaxString;
 	_urlParsed: BOOL;
-	_useTls: BOOL;
-	_host: T_MaxString;
-	_port: UINT;
-	_path: T_MaxString;
+	_endpoint: ST_HttpEndpoint;
 	_len: UDINT;
 	_execRTrig: R_TRIG;
 	_pString: POINTER TO STRING;
@@ -31,65 +27,6 @@ END_VAR
     <Implementation>
       <ST><![CDATA[THIS^.tick(failureReason=>THIS^._callFailureReason);]]></ST>
     </Implementation>
-    <Method Name="_parseUrl" Id="{a934a701-5d23-4b65-8267-d06ee977f33c}">
-      <Declaration><![CDATA[// Splits a full endpoint URL into scheme (http/https), host, port and path.
-// The scheme must be lowercase; IPv6 addresses are not supported.
-METHOD _parseUrl : BOOL
-VAR
-	_rest: T_MaxString;
-	_portString: T_MaxString;
-	_pathStart: INT;
-	_colonIdx: INT;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[_parseUrl := FALSE;
-THIS^._urlParsed := FALSE;
-THIS^._useTls := FALSE;
-THIS^._host := '';
-THIS^._port := 0;
-THIS^._path := '/';
-
-IF FIND(THIS^._url, 'https://') = 1 THEN
-	THIS^._useTls := TRUE;
-	_rest := RIGHT(THIS^._url, LEN(THIS^._url) - 8);
-ELSIF FIND(THIS^._url, 'http://') = 1 THEN
-	THIS^._useTls := FALSE;
-	_rest := RIGHT(THIS^._url, LEN(THIS^._url) - 7);
-ELSE
-	RETURN;
-END_IF
-
-_pathStart := FIND(_rest, '/');
-IF _pathStart > 0 THEN
-	THIS^._host := LEFT(_rest, _pathStart - 1);
-	THIS^._path := RIGHT(_rest, LEN(_rest) - _pathStart + 1);
-ELSE
-	THIS^._host := _rest;
-	THIS^._path := '/';
-END_IF
-
-IF THIS^._useTls THEN
-	THIS^._port := 443;
-ELSE
-	THIS^._port := 80;
-END_IF
-
-_colonIdx := FIND(THIS^._host, ':');
-IF _colonIdx > 0 THEN
-	_portString := RIGHT(THIS^._host, LEN(THIS^._host) - _colonIdx);
-	IF _portString = '' THEN RETURN; END_IF
-	THIS^._port := STRING_TO_UINT(_portString);
-	IF THIS^._port = 0 THEN RETURN; END_IF
-	THIS^._host := LEFT(THIS^._host, _colonIdx - 1);
-END_IF
-
-IF THIS^._host = '' THEN RETURN; END_IF
-
-THIS^._urlParsed := TRUE;
-_parseUrl := TRUE;]]></ST>
-      </Implementation>
-    </Method>
     <Method Name="export" Id="{c1e9c3db-bbd6-4dba-b7b4-d5219023c6d6}">
       <Declaration><![CDATA[METHOD export: BOOL
 VAR_IN_OUT
@@ -154,14 +91,13 @@ END_VAR
         <ST><![CDATA[THIS^.currentState := E_HttpExporterState.idle;
 THIS^._computedState := E_HttpExporterState.idle;
 
-THIS^._url := url;
-THIS^._urlParsed := THIS^._parseUrl();
+THIS^._urlParsed := F_ParseHttpUrl(url:=url, endpoint=>THIS^._endpoint);
 
-THIS^._client.sHostName := THIS^._host;
-THIS^._client.nHostPort := THIS^._port;
+THIS^._client.sHostName := THIS^._endpoint.host;
+THIS^._client.nHostPort := THIS^._endpoint.port;
 THIS^._client.bKeepAlive := TRUE;
 THIS^._client.tConnectionTimeout := T#10S;
-IF THIS^._useTls THEN
+IF THIS^._endpoint.useTls THEN
 	THIS^._client.stTLS.bNoServerCertCheck := bNoServerCertCheck;
 END_IF
 
@@ -235,7 +171,7 @@ CASE currentState OF
 	E_HttpExporterState.sending:
 		IF NOT _request.bBusy THEN
 			IF _request.SendRequest(
-				sUri := THIS^._path,
+				sUri := THIS^._endpoint.path,
 				fbClient := THIS^._client,
 				eRequestType := ETcIotHttpRequestType.HTTP_POST,
 				pContent := _pString,
