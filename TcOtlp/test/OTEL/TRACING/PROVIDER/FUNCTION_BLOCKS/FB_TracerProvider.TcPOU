@@ -1,16 +1,63 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_TracerProvider" Id="{b48a75f0-4a41-4530-9577-d77afb3ee72b}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_TracerProvider
+    <Declaration><![CDATA[(*
+	Owns the ended spans of every tracer created from it and hands them to processors.
+	Stage the processors every scan, then call tick once; tick passes each ended span to
+	every staged processor, releases the span, and clears the staged list.
+
+	Example:
+	provider.stageProcessor(consoleProcessor);
+	// ... tracers start and end spans ...
+	provider.tick(failureReason => reason);
+*)
+FUNCTION_BLOCK FB_TracerProvider
 VAR
 	_resource: REFERENCE TO FB_Resource;  // borrowed; the declaring scope owns its lifetime
 	_idGenerator: REFERENCE TO FB_IdGenerator_Base;  // borrowed; the declaring scope owns its lifetime
 	_spans: FB_SpanQueue(TcOtlp_GVL.MAX_SPAN_RECORDS_PER_SCAN);  // ended spans waiting to be processed
+	_head: POINTER TO ST_LinkedListNode;  // staged processors; the nodes are owned, the processors borrowed
+	_failureReason: E_TracerProviderFailureReason;  // first staging failure since the last tick
+END_VAR
+VAR_OUTPUT
+	stagedProcessorCount: UDINT;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="_freeProcessors" Id="{7d098421-3f28-4074-b093-7b198fc76f6e}">
+      <Declaration><![CDATA[(* Releases the staged-list nodes. The processors themselves are borrowed and untouched. *)
+METHOD _freeProcessors
+VAR
+	_idx: UDINT;
+	_node: POINTER TO ST_LinkedListNode;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
+	IF THIS^._head = 0 THEN
+		EXIT;
+	END_IF
+	_node := THIS^._head^.nxt;
+	__DELETE(THIS^._head);
+	THIS^._head := _node;
+END_FOR
+THIS^.stagedProcessorCount := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Exit" Id="{3862a08d-ca0c-4c94-87c9-51375cc5ca7c}">
+      <Declaration><![CDATA[METHOD FB_Exit : BOOL
+VAR_INPUT
+	bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bInCopyCode THEN
+	THIS^._freeProcessors();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="FB_Init" Id="{f6a38c97-a50d-4983-a41a-6e702d6849d7}">
       <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
 //The return value is not evaluated. For a specific influence, you can also declare the
@@ -44,6 +91,140 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[onEnd := THIS^._spans.push(pValue:=pSpan, failureReason=>_pushFailureReason);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="stageProcessor" Id="{0ae7d757-2fa4-42cf-bb9a-edd28ebf84dd}">
+      <Declaration><![CDATA[(*
+	Adds a processor for the next tick. The processor is borrowed and must outlive the tick.
+	Staging the same processor twice has no effect. Returns the provider so calls can chain.
+*)
+METHOD stageProcessor : REFERENCE TO FB_TracerProvider
+VAR_INPUT
+	processor: REFERENCE TO FB_SpanProcessor_Base;
+END_VAR
+VAR
+	_idx: UDINT;
+	_node: POINTER TO ST_LinkedListNode;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[stageProcessor REF= THIS^;
+
+IF NOT __ISVALIDREF(processor) THEN
+	RETURN;
+END_IF
+
+IF THIS^._head = 0 THEN
+	THIS^._head := __NEW(ST_LinkedListNode);
+	IF THIS^._head = 0 THEN
+		THIS^._failureReason := E_TracerProviderFailureReason.STAGE_PROCESSOR_FAILURE;
+		RETURN;
+	END_IF
+	THIS^._head^.val := processor.pSelf;
+	THIS^.stagedProcessorCount := 1;
+	RETURN;
+END_IF
+
+_node := THIS^._head;
+FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
+	IF _node^.val = processor.pSelf THEN
+		RETURN;
+	ELSIF _node^.nxt = 0 THEN
+		_node^.nxt := __NEW(ST_LinkedListNode);
+		IF _node^.nxt = 0 THEN
+			THIS^._failureReason := E_TracerProviderFailureReason.STAGE_PROCESSOR_FAILURE;
+			RETURN;
+		END_IF
+		_node^.nxt^.val := processor.pSelf;
+		THIS^.stagedProcessorCount := THIS^.stagedProcessorCount + 1;
+		RETURN;
+	END_IF
+	_node := _node^.nxt;
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="tick" Id="{4389ed7d-6a44-4760-adbb-ad0ad20dbd16}">
+      <Declaration><![CDATA[(*
+	Call once per scan, after staging processors. Passes every queued ended span to each staged
+	processor in staging order, releases the span, then ticks the processors and the id
+	generator. The queue and the staged list are always cleared, so spans are never carried
+	into the next scan: with no processors staged they are released unprocessed.
+*)
+METHOD tick : BOOL
+VAR_OUTPUT
+	failureReason: E_TracerProviderFailureReason;
+END_VAR
+VAR
+	_i: UDINT;
+	_j: UDINT;
+	_count: UDINT;
+	_node: POINTER TO ST_LinkedListNode;
+	_processor: POINTER TO FB_SpanProcessor_Base;
+	_span: POINTER TO FB_Span;
+	_popFailureReason: E_SpanQueueFailureReason;
+	_idGenFailureReason: E_IdGenFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[failureReason := THIS^._failureReason;
+IF failureReason <> E_TracerProviderFailureReason.NA THEN
+	JMP _endLabel;
+END_IF
+
+// hand each ended span to every staged processor, then release it
+_count := THIS^._spans.count;
+FOR _i := 1 TO _count DO
+	IF NOT THIS^._spans.pop(pValue:=_span, failureReason=>_popFailureReason) THEN
+		failureReason := E_TracerProviderFailureReason.QUEUE_POP_FAILURE;
+		JMP _endLabel;
+	END_IF
+	_node := THIS^._head;
+	FOR _j := 1 TO THIS^.stagedProcessorCount DO
+		IF _node = 0 THEN
+			failureReason := E_TracerProviderFailureReason.UNEXPECTED_NULL_LINKED_LIST_NODE;
+			JMP _endLabel;
+		END_IF
+		_processor := _node^.val;
+		IF _processor = 0 THEN
+			failureReason := E_TracerProviderFailureReason.UNEXPECTED_NULL_PROCESSOR_POINTER;
+			JMP _endLabel;
+		END_IF
+		_processor^.onEnd(_span^);
+		_node := _node^.nxt;
+	END_FOR
+	_span^.delete(pSelf:=_span);
+END_FOR
+
+// tick each processor
+_node := THIS^._head;
+FOR _j := 1 TO THIS^.stagedProcessorCount DO
+	IF _node = 0 THEN
+		failureReason := E_TracerProviderFailureReason.UNEXPECTED_NULL_LINKED_LIST_NODE;
+		JMP _endLabel;
+	END_IF
+	_processor := _node^.val;
+	IF _processor = 0 THEN
+		failureReason := E_TracerProviderFailureReason.UNEXPECTED_NULL_PROCESSOR_POINTER;
+		JMP _endLabel;
+	END_IF
+	_processor^.tick();
+	_node := _node^.nxt;
+END_FOR
+
+_endLabel:
+IF _span <> 0 THEN _span^.delete(pSelf:=_span); END_IF
+THIS^._spans.free();
+THIS^._freeProcessors();
+THIS^._failureReason := E_TracerProviderFailureReason.NA;
+
+// refill the identifier buffer for the next scan
+IF __ISVALIDREF(THIS^._idGenerator)
+	AND_THEN NOT THIS^._idGenerator.tick(failureReason=>_idGenFailureReason)
+	AND_THEN failureReason = E_TracerProviderFailureReason.NA THEN
+	failureReason := E_TracerProviderFailureReason.ID_GENERATOR_TICK_FAILURE;
+END_IF
+
+tick := failureReason = E_TracerProviderFailureReason.NA;]]></ST>
       </Implementation>
     </Method>
     <Property Name="idGenerator" Id="{a262f1da-df4d-43ee-84b6-b44c18153b89}">

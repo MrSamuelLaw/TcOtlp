@@ -5,7 +5,7 @@ status: partial
 implements:
   - FB_Span
 source: TcOtlp/test/OTEL/TRACING/SPAN/FUNCTION_BLOCKS/FB_Span.TcPOU
-gap: Building, starting and ending are implemented through FB_Tracer; the processors that consume ended spans, setStatusOk and setStatusError are not.
+gap: Building, starting and ending are implemented through FB_Tracer; ended spans reach the staged processors on the provider's tick. setStatusOk and setStatusError are not implemented.
 ---
 
 `FB_Span` is one timed operation in a trace. A log record is complete the moment it is emitted. A span is different because it has a lifecycle: it is built, it runs while the work it measures is in progress, and then it ends. Only an ended span is complete, and only an ended span is exported.
@@ -36,7 +36,7 @@ While the span runs, the caller owns it. The caller can take a context from it f
 
 ### 3. Ended
 
-`tracer.endSpan(pSpan)` stamps the end timestamp, hands the span to [[FB_TracerProvider]] for the processors' `onEnd`, and clears the caller's pointer. From then on the span is immutable. The provider queues it in an `FB_SpanQueue` and will release it once every processor has returned (see [[FB_SpanProcessor_Simple]]). The processors are **not implemented yet**, so ended spans wait in the queue until the provider is released.
+`tracer.endSpan(pSpan)` stamps the end timestamp, hands the span to [[FB_TracerProvider]] for the processors' `onEnd`, and clears the caller's pointer. From then on the span is immutable. The provider queues it in an `FB_SpanQueue` until its next `tick`, which passes it to every staged processor and then releases it (see [[FB_SpanProcessor_Simple]]).
 
 A caller that abandons a running span releases it with `pSpan^.delete(pSelf:=pSpan);`, for example when the PLC program resets. An abandoned span is never exported.
 

@@ -1,0 +1,113 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_SpanProcessor_Console" Id="{939e57e6-0c33-4a87-bf0d-ff246b4b306d}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Simple processor that writes one line per ended span to the TwinCAT ADS log, for
+	development and commissioning. For example:
+	  span "work" trace=0101...01 span=0202020202020202 parent=none kind=SPAN_KIND_INTERNAL status=STATUS_CODE_UNSET duration=500ns
+	Attributes, links, resource and scope are not written. Lines longer than 255 characters
+	are truncated.
+*)
+FUNCTION_BLOCK FB_SpanProcessor_Console EXTENDS FB_SpanProcessor_Simple
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="_hex" Id="{f6a39f1d-c083-4a40-b8a8-68a63c9767d4}">
+      <Declaration><![CDATA[(* Lower-case hex of count bytes; at most 64 bytes are written. *)
+METHOD _hex : T_MaxString
+VAR_INPUT
+	pBytes: POINTER TO BYTE;
+	count: UDINT;
+END_VAR
+VAR CONSTANT
+	MAX_BYTES: UDINT := 64;
+END_VAR
+VAR
+	_i: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_hex := '';
+IF pBytes = 0 THEN
+	RETURN;
+END_IF
+
+FOR _i := 1 TO MIN(count, MAX_BYTES) DO
+	_hex := CONCAT(_hex, BYTE_TO_HEXSTR(in:=pBytes[_i - 1], iPrecision:=2, bLoCase:=TRUE));
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="export" Id="{268110da-e75f-453a-b49f-d7b54e8a9d8e}">
+      <Declaration><![CDATA[(* Writes the span to the ADS log as one line. *)
+METHOD export
+VAR_INPUT
+	span: REFERENCE TO FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT __ISVALIDREF(span) THEN
+	RETURN;
+END_IF
+
+ADSLOGSTR(msgCtrlMask:=ADSLOG_MSGTYPE_HINT, msgFmtStr:='%s', strArg:=THIS^.format(span));]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="format" Id="{4cd90421-d411-4b86-90a3-9ee6fbef1b75}">
+      <Declaration><![CDATA[(* Builds the log line for one span. Missing members are written as empty, none or unset. *)
+METHOD format : T_MaxString
+VAR_INPUT
+	span: REFERENCE TO FB_Span;
+END_VAR
+VAR
+	_name: T_MaxString;
+	_traceId: T_MaxString;
+	_spanId: T_MaxString;
+	_parent: T_MaxString := 'none';
+	_status: E_StatusCode := E_StatusCode.STATUS_CODE_UNSET;
+	_duration: ULINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[format := '';
+IF NOT __ISVALIDREF(span) THEN
+	RETURN;
+END_IF
+
+IF span.name <> 0 AND_THEN span.name^.pString <> 0 THEN
+	_name := span.name^.pString^;
+END_IF
+IF span.traceId <> 0 THEN
+	_traceId := THIS^._hex(pBytes:=ADR(span.traceId^.bytes), count:=SIZEOF(span.traceId^.bytes));
+END_IF
+IF span.spanId <> 0 THEN
+	_spanId := THIS^._hex(pBytes:=ADR(span.spanId^.bytes), count:=SIZEOF(span.spanId^.bytes));
+END_IF
+IF span.parentSpanId <> 0 THEN
+	_parent := THIS^._hex(pBytes:=ADR(span.parentSpanId^.bytes), count:=SIZEOF(span.parentSpanId^.bytes));
+END_IF
+IF span.status <> 0 THEN
+	_status := span.status^.code;
+END_IF
+IF span.endTimestamp > span.startTimestamp THEN
+	_duration := span.endTimestamp - span.startTimestamp;
+END_IF
+
+format := CONCAT('span "', _name);
+format := CONCAT(format, '" trace=');
+format := CONCAT(format, _traceId);
+format := CONCAT(format, ' span=');
+format := CONCAT(format, _spanId);
+format := CONCAT(format, ' parent=');
+format := CONCAT(format, _parent);
+format := CONCAT(format, ' kind=');
+format := CONCAT(format, TO_STRING(span.kind));
+format := CONCAT(format, ' status=');
+format := CONCAT(format, TO_STRING(_status));
+format := CONCAT(format, ' duration=');
+format := CONCAT(format, ULINT_TO_STRING(_duration));
+format := CONCAT(format, 'ns');]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

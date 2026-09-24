@@ -1,11 +1,129 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_TestTracerProvider" Id="{20e8755b-c8f9-49a2-b93e-6f3f0f554892}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK FB_TestTracerProvider
-
+    <Declaration><![CDATA[(* Tests FB_TracerProvider processor staging and the hand-over of ended spans in tick. *)
+FUNCTION_BLOCK FB_TestTracerProvider EXTENDS FB_TestSuite
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[]]></ST>
+      <ST><![CDATA[THIS^.testTickHandsSpansToEachProcessor();
+THIS^.testStageProcessorIgnoresDuplicates();
+THIS^.testTickWithoutProcessorsReleasesSpans();
+THIS^.testProcessorsMustBeStagedEachScan();]]></ST>
     </Implementation>
+    <Method Name="testTickHandsSpansToEachProcessor" Id="{5b30edc3-9036-441a-9c30-62fc4c769911}">
+      <Declaration><![CDATA[(* Every staged processor receives every ended span once; tick then releases the spans. *)
+METHOD testTickHandsSpansToEachProcessor : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	processorA: FB_SpanProcessor_ForInspection;
+	processorB: FB_SpanProcessor_ForInspection;
+	pSpan: POINTER TO FB_Span;
+	success: BOOL;
+	reason: E_TracerProviderFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testTickHandsSpansToEachProcessor');
+	provider.stageProcessor(processorA).stageProcessor(processorB);
+	tracer.startSpan(name:='first').build(pDest:=pSpan);
+	tracer.endSpan(pSpan:=pSpan);
+	tracer.startSpan(name:='second').build(pDest:=pSpan);
+	tracer.endSpan(pSpan:=pSpan);
+
+	success := provider.tick(failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected tick to succeed');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_TracerProviderFailureReason.NA),
+		TO_UDINT(reason),
+		'Expected no failure reason on success'
+	);
+	THIS^.AssertEquals_UDINT(2, processorA.exportedCount, 'Expected processor A to get both spans');
+	THIS^.AssertEquals_UDINT(2, processorB.exportedCount, 'Expected processor B to get both spans');
+	THIS^.AssertEquals_STRING('second', processorA.lastSpanName, 'Expected the spans in the order they ended');
+	THIS^.AssertEquals_UDINT(1, processorA.tickCount, 'Expected each processor to be ticked once');
+	THIS^.AssertEquals_UDINT(0, provider.spans.count, 'Expected the queue to be empty');
+	THIS^.AssertEquals_UDINT(0, provider.stagedProcessorCount, 'Expected the staged list to be cleared');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testStageProcessorIgnoresDuplicates" Id="{87d3dddb-82c7-4706-aed6-93e4693ecb85}">
+      <Declaration><![CDATA[(* Staging the same processor twice gives it each span once. *)
+METHOD testStageProcessorIgnoresDuplicates : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	processor: FB_SpanProcessor_ForInspection;
+	pSpan: POINTER TO FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testStageProcessorIgnoresDuplicates');
+	provider.stageProcessor(processor).stageProcessor(processor);
+	THIS^.AssertEquals_UDINT(1, provider.stagedProcessorCount, 'Expected the duplicate to be ignored');
+
+	tracer.startSpan(name:='work').build(pDest:=pSpan);
+	tracer.endSpan(pSpan:=pSpan);
+	provider.tick();
+	THIS^.AssertEquals_UDINT(1, processor.exportedCount, 'Expected the span exactly once');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testTickWithoutProcessorsReleasesSpans" Id="{75732081-6f8c-43ed-852a-ccd93b6a2013}">
+      <Declaration><![CDATA[(* With no processors staged, tick releases the ended spans instead of keeping them. *)
+METHOD testTickWithoutProcessorsReleasesSpans : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	pSpan: POINTER TO FB_Span;
+	success: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testTickWithoutProcessorsReleasesSpans');
+	tracer.startSpan(name:='work').build(pDest:=pSpan);
+	tracer.endSpan(pSpan:=pSpan);
+	THIS^.AssertEquals_UDINT(1, provider.spans.count, 'Expected the span to be queued');
+
+	success := provider.tick();
+	THIS^.AssertTrue(success, 'Expected tick to succeed');
+	THIS^.AssertEquals_UDINT(0, provider.spans.count, 'Expected the span to be released');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testProcessorsMustBeStagedEachScan" Id="{59b15fe7-edd9-4e1c-8489-6f03454ba818}">
+      <Declaration><![CDATA[(* tick clears the staged list, so a processor that is not staged again gets nothing. *)
+METHOD testProcessorsMustBeStagedEachScan : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	processor: FB_SpanProcessor_ForInspection;
+	pSpan: POINTER TO FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testProcessorsMustBeStagedEachScan');
+	provider.stageProcessor(processor);
+	provider.tick();
+
+	tracer.startSpan(name:='work').build(pDest:=pSpan);
+	tracer.endSpan(pSpan:=pSpan);
+	provider.tick();
+	THIS^.AssertEquals_UDINT(0, processor.exportedCount, 'Expected an unstaged processor to get nothing');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
   </POU>
 </TcPlcObject>

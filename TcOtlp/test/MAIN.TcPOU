@@ -19,6 +19,8 @@ VAR
 	{attribute 'analysis' := '-33'}fbTestSpan: FB_TestSpan();
 	{attribute 'analysis' := '-33'}fbTestTracer: FB_TestTracer();
 	{attribute 'analysis' := '-33'}fbTestSpanQueue: FB_TestSpanQueue();
+	{attribute 'analysis' := '-33'}fbTestSpanProcessors: FB_TestSpanProcessors();
+	{attribute 'analysis' := '-33'}fbTestTracerProvider: FB_TestTracerProvider();
 END_VAR
 ]]></Declaration>
     <Implementation>

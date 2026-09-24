@@ -1,0 +1,81 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_SpanProcessor_Simple" Id="{60eb4cc9-96f9-4fec-956a-893d74d004a7}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Handles each ended span as soon as the provider hands it over: enrich, then export.
+	It keeps nothing between calls. No span exporter exists yet, so export is a no-op here;
+	override it to send spans somewhere, as FB_SpanProcessor_Console does.
+*)
+FUNCTION_BLOCK FB_SpanProcessor_Simple EXTENDS FB_SpanProcessor_Base
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="enrich" Id="{c86369c3-3b2f-4cff-9cae-ac60096fe190}">
+      <Declaration><![CDATA[// no-op; override to change or add to the span before it is exported
+METHOD enrich
+VAR_IN_OUT
+	span: FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="export" Id="{e23aeb4f-0578-4d80-920b-0707ff036a41}">
+      <Declaration><![CDATA[(* Sends one ended span on. The span is borrowed for the duration of the call.
+   No-op until a span exporter exists; override to write the span somewhere. *)
+METHOD export
+VAR_INPUT
+	span: REFERENCE TO FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Exit" Id="{aa794779-2300-4745-90d9-e47ab6a0c9cd}">
+      <Declaration><![CDATA[METHOD FB_Exit : BOOL
+VAR_INPUT
+	bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT bInCopyCode THEN
+	THIS^.free();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{4afad73c-67d9-4058-80c6-cd8d4b6ca5a6}">
+      <Declaration><![CDATA[// the simple processor retains nothing
+METHOD free
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="onEnd" Id="{33e9352a-8eea-463d-a646-7a407c79cc74}">
+      <Declaration><![CDATA[METHOD onEnd
+VAR_INPUT
+	span: REFERENCE TO FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF NOT __ISVALIDREF(span) THEN
+	RETURN;
+END_IF
+
+THIS^.enrich(span);
+THIS^.export(span);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="tick" Id="{ff0bbd46-b17e-4a44-9a5a-c4e4e7871d87}">
+      <Declaration><![CDATA[// the simple processor has no cyclic work
+METHOD tick
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

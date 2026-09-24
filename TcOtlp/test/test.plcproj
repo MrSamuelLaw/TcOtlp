@@ -128,6 +128,18 @@
     <Compile Include="OTEL\TRACING\LINK\FUNCTION_BLOCKS\LinkFactory.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\TRACING\PROCESSORS\FUNCTION_BLOCKS\FB_SpanProcessor_Base.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\TRACING\PROCESSORS\FUNCTION_BLOCKS\FB_SpanProcessor_Console.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\TRACING\PROCESSORS\FUNCTION_BLOCKS\FB_SpanProcessor_Simple.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\TRACING\PROVIDER\ENUMS\E_TracerProviderFailureReason.TcTLEO">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\TRACING\PROVIDER\FUNCTION_BLOCKS\FB_TracerProvider.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -272,6 +284,12 @@
     <Compile Include="TEST\TRACING\ID_GENERATOR\FB_TestIdGenerator.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TEST\TRACING\PROCESSOR\FB_SpanProcessor_ForInspection.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="TEST\TRACING\PROCESSOR\FB_TestSpanProcessors.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="TEST\TRACING\PROVIDER\FB_TestTracerProvider.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -333,9 +351,11 @@
     <Folder Include="OTEL\TRACING\TRACER\ENUMS" />
     <Folder Include="OTEL\TRACING\SAMPLING" />
     <Folder Include="OTEL\TRACING\PROCESSORS" />
+    <Folder Include="OTEL\TRACING\PROCESSORS\FUNCTION_BLOCKS" />
     <Folder Include="OTEL\TRACING\SPAN" />
     <Folder Include="OTEL\TRACING\PROVIDER" />
     <Folder Include="OTEL\TRACING\PROVIDER\FUNCTION_BLOCKS" />
+    <Folder Include="OTEL\TRACING\PROVIDER\ENUMS" />
     <Folder Include="OTEL\TRACING\SERIALIZATION" />
     <Folder Include="OTEL\TRACING\SPAN\FUNCTION_BLOCKS" />
     <Folder Include="OTEL\TRACING\SPAN\ENUMS" />
@@ -367,6 +387,7 @@
     <Folder Include="TEST\LOGGING\SERIALIZATION" />
     <Folder Include="TEST\TRACING" />
     <Folder Include="TEST\TRACING\ID_GENERATOR" />
+    <Folder Include="TEST\TRACING\PROCESSOR" />
     <Folder Include="TEST\TRACING\PROVIDER" />
     <Folder Include="TEST\TRACING\SPAN" />
     <Folder Include="TEST\TRACING\TRACER" />

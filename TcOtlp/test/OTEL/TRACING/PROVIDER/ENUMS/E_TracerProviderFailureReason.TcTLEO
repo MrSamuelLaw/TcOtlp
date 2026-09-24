@@ -1,0 +1,74 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <EnumerationTextList Name="E_TracerProviderFailureReason" Id="{da2ffe3e-0d1f-40b2-acfd-cb83f59e027b}">
+    <Declaration><![CDATA[(* Why FB_TracerProvider.tick failed. *)
+{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_TracerProviderFailureReason :
+(
+	NA := 0,  // No failure occurred.
+	QUEUE_POP_FAILURE,  // An ended span could not be popped from the provider queue.
+	STAGE_PROCESSOR_FAILURE,  // A processor could not be added to the staged list.
+	UNEXPECTED_NULL_PROCESSOR_POINTER,  // A staged processor pointer was null.
+	UNEXPECTED_NULL_LINKED_LIST_NODE,  // The staged list was shorter than stagedProcessorCount.
+	ID_GENERATOR_TICK_FAILURE  // The id generator could not advance.
+) UDINT;
+END_TYPE
+]]></Declaration>
+    <XmlArchive>
+      <Data>
+        <o xml:space="preserve" t="TextListEnumerationTextListObject">
+          <l n="TextList" t="ArrayList" cet="TextListRow">
+            <o>
+              <v n="TextID">"NA"</v>
+              <v n="TextDefault">"0"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"QUEUE_POP_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"STAGE_PROCESSOR_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"UNEXPECTED_NULL_PROCESSOR_POINTER"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"UNEXPECTED_NULL_LINKED_LIST_NODE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"ID_GENERATOR_TICK_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">""</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+          </l>
+          <l n="Languages" t="ArrayList" />
+          <v n="GuidInit">{6bd8593b-c42c-4ece-b8c6-96d1e8104e98}</v>
+          <v n="GuidReInit">{562cbf33-b9c6-4fd8-8c04-edb4a8169e52}</v>
+          <v n="GuidExitX">{24e765f1-a788-45fb-9250-0f44159f444a}</v>
+        </o>
+      </Data>
+      <TypeList>
+        <Type n="ArrayList">System.Collections.ArrayList</Type>
+        <Type n="Guid">System.Guid</Type>
+        <Type n="String">System.String</Type>
+        <Type n="TextListEnumerationTextListObject">{4b60233c-f940-4beb-b331-82133b520151}</Type>
+        <Type n="TextListRow">{53da1be7-ad25-47c3-b0e8-e26286dad2e0}</Type>
+      </TypeList>
+    </XmlArchive>
+  </EnumerationTextList>
+</TcPlcObject>

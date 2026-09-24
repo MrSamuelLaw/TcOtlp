@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_SpanProcessor_ForInspection" Id="{eb9c9fd4-ddec-40c9-a62f-4563a975c8c6}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Processor test double that counts what the simple processor does with each span. *)
+FUNCTION_BLOCK FB_SpanProcessor_ForInspection EXTENDS FB_SpanProcessor_Simple
+VAR_OUTPUT
+	enrichedCount: UDINT;
+	exportedCount: UDINT;
+	tickCount: UDINT;
+	enrichedBeforeExport: BOOL;
+	lastSpanName: T_MaxString;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="enrich" Id="{fded2ebe-3674-4697-8816-96388bc115de}">
+      <Declaration><![CDATA[METHOD enrich
+VAR_IN_OUT
+	span: FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.enrichedCount := THIS^.enrichedCount + 1;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="export" Id="{51792d96-aa8f-4ed6-afbe-c57e4fc200b9}">
+      <Declaration><![CDATA[METHOD export
+VAR_INPUT
+	span: REFERENCE TO FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.exportedCount := THIS^.exportedCount + 1;
+THIS^.enrichedBeforeExport := THIS^.enrichedCount = THIS^.exportedCount;
+IF span.name <> 0 AND_THEN span.name^.pString <> 0 THEN
+	THIS^.lastSpanName := span.name^.pString^;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="tick" Id="{ad98e666-c3e3-4518-9182-8b730792294b}">
+      <Declaration><![CDATA[METHOD tick
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.tickCount := THIS^.tickCount + 1;]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

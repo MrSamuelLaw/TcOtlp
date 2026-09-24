@@ -39,7 +39,7 @@ The tracer builds one span at a time and holds it in `pSpan` until `build`.
 
 A root span sets the sampled bit and bit 8, and leaves bit 9 clear. There is no sampler yet, so every span is recorded.
 
-Processors are not notified when a span is built. The processor contract has an `onStart`, but the provider has no processors yet.
+Processors are not notified when a span is built. The processor contract has no `onStart` yet; processors see a span only once it has ended.
 
 ## Failure reasons
 

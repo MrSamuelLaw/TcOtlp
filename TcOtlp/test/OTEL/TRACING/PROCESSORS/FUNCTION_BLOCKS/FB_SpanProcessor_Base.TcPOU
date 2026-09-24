@@ -1,0 +1,62 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_SpanProcessor_Base" Id="{59b7378e-f835-4bd4-a5bd-0e08f64b62dc}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Contract for span processors. FB_TracerProvider stages processors each scan, then its tick
+	passes every ended span to onEnd of each staged processor and releases the span once they
+	have all returned. The span is borrowed: a processor that keeps it past onEnd must clone it.
+*)
+FUNCTION_BLOCK ABSTRACT FB_SpanProcessor_Base
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="enrich" Id="{82915b2d-b9e0-488c-b46c-2bddccb07065}">
+      <Declaration><![CDATA[(* Extension point that may change the span before it is exported. *)
+METHOD ABSTRACT enrich
+VAR_IN_OUT
+	span: FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{8921e54d-7ee7-4ebc-b99f-15368644b974}">
+      <Declaration><![CDATA[METHOD ABSTRACT free
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="onEnd" Id="{7d1578d8-6be9-45c4-8a55-2d5219356e6c}">
+      <Declaration><![CDATA[(* Called once for each ended span. The span is borrowed and released after the call. *)
+METHOD ABSTRACT onEnd
+VAR_INPUT
+	span: REFERENCE TO FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="pSelf" Id="{747c4406-fcd5-441e-9545-c175f6a7aad9}">
+      <Declaration><![CDATA[PROPERTY pSelf : POINTER TO FB_SpanProcessor_Base]]></Declaration>
+      <Get Name="Get" Id="{50e07d9a-e8c7-4fdb-9304-e250405b4795}">
+        <Declaration><![CDATA[
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[pSelf := THIS;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Method Name="tick" Id="{ab265dbc-fe04-402c-a2ab-a835cd7e80e6}">
+      <Declaration><![CDATA[(* Called once per provider tick, after the ended spans have been handed out. *)
+METHOD ABSTRACT tick
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
