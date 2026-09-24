@@ -14,7 +14,10 @@ TYPE E_SpanExporterFailureReason :
 	BUFFER_ALLOCATION_FAILURE,  // The serialized payload buffer could not be allocated.
 	FILE_OPEN_FAILURE,  // The destination file could not be opened.
 	FILE_WRITE_FAILURE,  // The serialized payload could not be written.
-	FILE_CLOSE_FAILURE  // The destination file could not be closed.
+	FILE_CLOSE_FAILURE,  // The destination file could not be closed.
+	HTTP_URL_PARSE_FAILURE,  // The configured endpoint URL could not be parsed.
+	HTTP_REQUEST_FAILURE,  // The HTTP request could not be sent or completed.
+	HTTP_STATUS_FAILURE  // The server responded with a non-success HTTP status code.
 ) UDINT;
 END_TYPE
 ]]></Declaration>
@@ -59,6 +62,21 @@ END_TYPE
             </o>
             <o>
               <v n="TextID">"FILE_CLOSE_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"HTTP_URL_PARSE_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"HTTP_REQUEST_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"HTTP_STATUS_FAILURE"</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>

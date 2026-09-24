@@ -143,6 +143,12 @@
     <Compile Include="TEST\TRACING\EXPORTING\FB_TestSpanConsoleExporter.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\TRACING\EXPORTING\FUNCTION_BLOCKS\FB_SpanExporter_HTTP.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="TEST\TRACING\EXPORTING\FB_TestSpanHttpExporter.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\TRACING\ID_GENERATION\ENUMS\E_IdGenFailureReason.TcTLEO">
       <SubType>Code</SubType>
     </Compile>

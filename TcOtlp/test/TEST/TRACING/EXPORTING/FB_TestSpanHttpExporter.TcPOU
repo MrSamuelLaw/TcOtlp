@@ -1,0 +1,156 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestSpanHttpExporter" Id="{4c0ac1cb-79bf-4831-b157-e99c03b743e1}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Tests FB_SpanExporter_HTTP without a collector: an invalid URL fails at once, a refused
+	connection is reported as HTTP_REQUEST_FAILURE, and a failed exporter accepts and starts
+	the next batch.
+*)
+FUNCTION_BLOCK FB_TestSpanHttpExporter EXTENDS FB_TestSuite
+VAR
+	_exporterBadUrl: FB_SpanExporter_HTTP(url:='not-a-valid-url', bNoServerCertCheck:=TRUE);
+	_exporterRefused: FB_SpanExporter_HTTP(url:='http://127.0.0.1:1/v1/traces', bNoServerCertCheck:=TRUE);
+	_spans: FB_SpanQueue(maxCount:=0);
+	_resource: FB_Resource('');
+	_idGenerator: FB_MockIdGenerator;
+	_provider: FB_TracerProvider_ForInspection(resource:=_resource, idGenerator:=_idGenerator);
+	_scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	_tracer: FB_Tracer(scope:=_scope, provider:=_provider);
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testInvalidUrlFailsFast();
+THIS^.testConnectionRefusedReportsFailure();]]></ST>
+    </Implementation>
+    <Method Name="queueSpan" Id="{621fc5f5-3ffd-4254-88a9-08c73850bc1c}">
+      <Declaration><![CDATA[(* Builds a span and queues a copy of it in _spans. *)
+METHOD queueSpan
+VAR_INPUT
+	name: STRING;
+END_VAR
+VAR
+	pSpan: POINTER TO FB_Span;
+	queueReason: E_SpanQueueFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_tracer.startSpan(name:=name).build(pDest:=pSpan);
+THIS^._spans.push(pValue:=pSpan, failureReason=>queueReason);
+IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testInvalidUrlFailsFast" Id="{3657001d-3c5d-4c4c-a7a0-642c103d0784}">
+      <Declaration><![CDATA[(* An unparseable URL fails in the first tick without sending, and the batch is released. *)
+METHOD testInvalidUrlFailsFast : REFERENCE TO FB_Test
+VAR
+	exportReason: E_SpanExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testInvalidUrlFailsFast');
+	THIS^.queueSpan('work');
+	THIS^.AssertEquals_UDINT(1, _spans.count, 'Expected one queued span');
+	THIS^.AssertTrue(_exporterBadUrl.export(spans:=_spans, count:=1, failureReason=>exportReason), 'Expected the exporter to accept the batch before checking the URL');
+	THIS^.AssertEquals_UDINT(0, _spans.count, 'Expected the batch to move into the exporter');
+	THIS^.AssertTrue(_exporterBadUrl.isBusy(), 'Expected the exporter to be busy');
+
+	THIS^.AssertFalse(_exporterBadUrl.tick(failureReason=>exportReason), 'Expected tick to report the failure');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_SpanExporterFailureReason.HTTP_URL_PARSE_FAILURE),
+		TO_UDINT(exportReason),
+		'Expected HTTP_URL_PARSE_FAILURE'
+	);
+	THIS^.AssertTrue(_exporterBadUrl.currentState = E_HttpExporterState.error, 'Expected the error state');
+	THIS^.AssertFalse(_exporterBadUrl.isBusy(), 'Expected the failed batch to be released');
+
+	// a failed exporter accepts the next batch
+	THIS^.queueSpan('next');
+	THIS^.AssertTrue(_exporterBadUrl.export(spans:=_spans, count:=1, failureReason=>exportReason), 'Expected the failed exporter to accept the next batch');
+	THIS^.AssertTrue(_exporterBadUrl.currentState = E_HttpExporterState.idle, 'Expected export to reset the exporter to idle');
+
+	_exporterBadUrl.free();
+	_spans.free();
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testConnectionRefusedReportsFailure" Id="{fe339113-019c-4a7d-8127-16a5a46078b7}">
+      <Declaration><![CDATA[(*
+	A refused connection ends in HTTP_REQUEST_FAILURE. A batch accepted in the scan after the
+	failure must start and fail too, rather than wait in idle.
+*)
+METHOD testConnectionRefusedReportsFailure : REFERENCE TO FB_Test
+VAR CONSTANT
+	MAX_CYCLES: UDINT := 60000;
+END_VAR
+VAR_INST
+	_state: USINT;
+	_cycles: UDINT;
+END_VAR
+VAR
+	exportReason: E_SpanExporterFailureReason;
+	tickSucceeded: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testConnectionRefusedReportsFailure');
+	CASE _state OF
+		0: // hand over a batch for the unreachable endpoint
+			_cycles := 0;
+			THIS^.queueSpan('work');
+			THIS^.AssertTrue(_exporterRefused.export(spans:=_spans, count:=1, failureReason=>exportReason), 'Expected the exporter to accept the batch');
+			THIS^.AssertEquals_UDINT(0, _spans.count, 'Expected the batch to move into the exporter');
+
+			// a busy exporter refuses the next batch and leaves it with the caller
+			THIS^.queueSpan('late');
+			THIS^.AssertFalse(_exporterRefused.export(spans:=_spans, count:=1, failureReason=>exportReason), 'Expected a busy exporter to refuse');
+			THIS^.AssertEquals_UDINT(
+				TO_UDINT(E_SpanExporterFailureReason.ACTIVE_EXPORT_IN_PROGRESS),
+				TO_UDINT(exportReason),
+				'Expected ACTIVE_EXPORT_IN_PROGRESS'
+			);
+			THIS^.AssertEquals_UDINT(1, _spans.count, 'Expected the refused span to stay with the caller');
+			_spans.free();
+			_state := 10;
+
+		10: // wait for the refusal; on loopback it is quick
+			tickSucceeded := _exporterRefused.tick(failureReason=>exportReason);
+			_cycles := _cycles + 1;
+			IF NOT tickSucceeded THEN
+				THIS^.AssertEquals_UDINT(
+					TO_UDINT(E_SpanExporterFailureReason.HTTP_REQUEST_FAILURE),
+					TO_UDINT(exportReason),
+					'Expected HTTP_REQUEST_FAILURE for a refused connection'
+				);
+				THIS^.AssertFalse(_exporterRefused.isBusy(), 'Expected the failed batch to be released');
+
+				THIS^.queueSpan('retry');
+				THIS^.AssertTrue(_exporterRefused.export(spans:=_spans, count:=1, failureReason=>exportReason), 'Expected the failed exporter to accept the next batch');
+				_cycles := 0;
+				_state := 20;
+			ELSIF _cycles > MAX_CYCLES THEN
+				THIS^.AssertTrue(FALSE, 'Timed out waiting for the refused connection to fail');
+				_state := 30;
+			END_IF
+
+		20: // the second batch must start and fail as well
+			tickSucceeded := _exporterRefused.tick(failureReason=>exportReason);
+			_cycles := _cycles + 1;
+			IF NOT tickSucceeded THEN
+				THIS^.AssertTrue(_exporterRefused.currentState = E_HttpExporterState.error, 'Expected the second batch to reach the error state');
+				_state := 30;
+			ELSIF _cycles > MAX_CYCLES THEN
+				THIS^.AssertTrue(FALSE, CONCAT('Timed out waiting for the second batch; state ', TO_STRING(_exporterRefused.currentState)));
+				_state := 30;
+			END_IF
+
+		30: // cleanup
+			_exporterRefused.free();
+			_spans.free();
+			THIS^.AssertFalse(_exporterRefused.isBusy(), 'Expected the exporter to hold no batch');
+			_state := 0;
+			TcUnit.TEST_FINISHED();
+	END_CASE]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

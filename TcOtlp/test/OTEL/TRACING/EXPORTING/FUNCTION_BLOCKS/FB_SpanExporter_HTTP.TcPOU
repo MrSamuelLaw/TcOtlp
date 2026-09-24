@@ -1,0 +1,303 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_SpanExporter_HTTP" Id="{f345cdfb-17a2-41e9-81c9-d9480cfbb5ea}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Posts each accepted batch as one OTLP/HTTP ProtoJSON TracesData request to an OTLP
+	collector, for example 'http://192.168.1.10:4318/v1/traces'. Call the instance, or tick,
+	every scan: the exporter is busy from export until currentState reaches done or error.
+	The batch is released at either end, and an error is reported by tick until the next
+	batch is accepted. A response outside 2xx is an error; nothing is retried.
+*)
+FUNCTION_BLOCK FB_SpanExporter_HTTP EXTENDS FB_SpanExporter_Base
+VAR_OUTPUT
+	currentState: E_HttpExporterState;
+	statusCode: UINT;  // the HTTP status code received for the last completed request
+END_VAR
+
+VAR
+	_execute: BOOL;
+	_url: T_MaxString;
+	_urlParsed: BOOL;
+	_useTls: BOOL;
+	_host: T_MaxString;
+	_port: UINT;
+	_path: T_MaxString;
+	_len: UDINT;
+	_execRTrig: R_TRIG;
+	_pString: POINTER TO STRING;
+	_jsonVal: SJsonValue;
+	_computedState: E_HttpExporterState;
+	_failureReason: E_SpanExporterFailureReason;
+	_serializationFailureReason: E_ProtoJsonSerializerFailureReason;
+	_serializer: FB_SpanProtoJsonSerializer;
+	_client: FB_IotHttpClient;
+	_request: FB_IotHttpRequest;
+	_header: FB_IotHttpHeaderFieldMap;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.tick(failureReason=>THIS^._callFailureReason);]]></ST>
+    </Implementation>
+    <Method Name="_parseUrl" Id="{63307e4d-b9f2-46fb-85b9-5e3b930a5410}">
+      <Declaration><![CDATA[// Splits a full endpoint URL into scheme (http/https), host, port and path.
+// The scheme must be lowercase; IPv6 addresses are not supported.
+METHOD _parseUrl : BOOL
+VAR
+	_rest: T_MaxString;
+	_portString: T_MaxString;
+	_pathStart: INT;
+	_colonIdx: INT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_parseUrl := FALSE;
+THIS^._urlParsed := FALSE;
+THIS^._useTls := FALSE;
+THIS^._host := '';
+THIS^._port := 0;
+THIS^._path := '/';
+
+IF FIND(THIS^._url, 'https://') = 1 THEN
+	THIS^._useTls := TRUE;
+	_rest := RIGHT(THIS^._url, LEN(THIS^._url) - 8);
+ELSIF FIND(THIS^._url, 'http://') = 1 THEN
+	THIS^._useTls := FALSE;
+	_rest := RIGHT(THIS^._url, LEN(THIS^._url) - 7);
+ELSE
+	RETURN;
+END_IF
+
+_pathStart := FIND(_rest, '/');
+IF _pathStart > 0 THEN
+	THIS^._host := LEFT(_rest, _pathStart - 1);
+	THIS^._path := RIGHT(_rest, LEN(_rest) - _pathStart + 1);
+ELSE
+	THIS^._host := _rest;
+	THIS^._path := '/';
+END_IF
+
+IF THIS^._useTls THEN
+	THIS^._port := 443;
+ELSE
+	THIS^._port := 80;
+END_IF
+
+_colonIdx := FIND(THIS^._host, ':');
+IF _colonIdx > 0 THEN
+	_portString := RIGHT(THIS^._host, LEN(THIS^._host) - _colonIdx);
+	IF _portString = '' THEN RETURN; END_IF
+	THIS^._port := STRING_TO_UINT(_portString);
+	IF THIS^._port = 0 THEN RETURN; END_IF
+	THIS^._host := LEFT(THIS^._host, _colonIdx - 1);
+END_IF
+
+IF THIS^._host = '' THEN RETURN; END_IF
+
+THIS^._urlParsed := TRUE;
+_parseUrl := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="export" Id="{23053720-09e7-4425-9a75-b490ecc94e69}">
+      <Declaration><![CDATA[METHOD export: BOOL
+VAR_IN_OUT
+	spans: FB_SpanQueue;
+END_VAR
+VAR_INPUT
+	count: UDINT;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_SpanExporterFailureReason;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// a finished exporter accepts the next batch at once
+IF THIS^.currentState = E_HttpExporterState.done OR THIS^.currentState = E_HttpExporterState.error THEN
+	THIS^.currentState := E_HttpExporterState.idle;
+	THIS^._computedState := E_HttpExporterState.idle;
+END_IF
+export := SUPER^.export(
+	spans:=spans,
+	count:=count,
+	failureReason=>failureReason
+);
+IF export THEN
+	THIS^._failureReason := E_SpanExporterFailureReason.NA;
+	THIS^._serializationFailureReason := E_ProtoJsonSerializerFailureReason.NA;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Exit" Id="{f72f4f48-02e2-4781-ac1d-f0952810c37e}">
+      <Declaration><![CDATA[(*
+	Releases a payload buffer that is still in flight. The FB_IotHttpRequest reading it is
+	destroyed with this instance, so nothing uses the buffer afterwards. TwinCAT then
+	runs FB_SpanExporter_Base.FB_Exit, which releases the accepted spans.
+*)
+METHOD FB_Exit : BOOL
+VAR_INPUT
+	bInCopyCode: BOOL;  // TRUE: the instance is being copied during an online change
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// during an online change the copy keeps the buffer, so it must not be released here
+IF NOT bInCopyCode AND _pString <> 0 THEN
+	__DELETE(_pString);
+	_pString := 0;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{8924758c-3494-4d4e-ac99-0029f9c87ef7}">
+      <Declaration><![CDATA[METHOD FB_Init: BOOL
+VAR_INPUT
+	bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+	bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	url: T_MaxString;  // full endpoint URL, e.g. 'http://192.168.1.10:4318/v1/traces'
+	bNoServerCertCheck: BOOL := FALSE;  // allow HTTPS connections to servers with self-signed certificates
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.currentState := E_HttpExporterState.idle;
+THIS^._computedState := E_HttpExporterState.idle;
+
+THIS^._url := url;
+THIS^._urlParsed := THIS^._parseUrl();
+
+THIS^._client.sHostName := THIS^._host;
+THIS^._client.nHostPort := THIS^._port;
+THIS^._client.bKeepAlive := TRUE;
+THIS^._client.tConnectionTimeout := T#10S;
+IF THIS^._useTls THEN
+	THIS^._client.stTLS.bNoServerCertCheck := bNoServerCertCheck;
+END_IF
+
+THIS^._request.sContentType := 'application/json';]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="isBusy" Id="{3c56e687-e28a-4636-8917-4eb786e5a97e}">
+      <Declaration><![CDATA[METHOD isBusy : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[isBusy := THIS^._exportActive;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="tick" Id="{6d675a02-42e2-454b-b95a-21e2bdb2a3a6}">
+      <Declaration><![CDATA[METHOD tick : BOOL
+VAR_OUTPUT
+	failureReason: E_SpanExporterFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[tick := TRUE;
+failureReason := E_SpanExporterFailureReason.NA;
+
+_execute := THIS^._exportActive;
+_execRTrig(CLK := _execute AND_THEN THIS^._spans.count > 0);
+
+CASE currentState OF
+	E_HttpExporterState.idle:
+		IF _execRTrig.Q THEN
+			_failureReason := E_SpanExporterFailureReason.NA;
+			_serializationFailureReason := E_ProtoJsonSerializerFailureReason.NA;
+			IF NOT THIS^._urlParsed THEN
+				_failureReason := E_SpanExporterFailureReason.HTTP_URL_PARSE_FAILURE;
+				_computedState := E_HttpExporterState.error;
+			ELSE
+				_computedState := E_HttpExporterState.serializing;
+			END_IF
+		END_IF
+
+	E_HttpExporterState.serializing:
+		// the serializer drains the batch; buffer the TracesData document as the payload
+		IF NOT _serializer.serializeTracesData(
+			spans:=THIS^._spans,
+			failureReason=>_serializationFailureReason
+		) THEN
+			_failureReason := E_SpanExporterFailureReason.SERIALIZATION_FAILURE;
+			_computedState := E_HttpExporterState.error;
+		ELSE
+			_jsonVal := _serializer.jsonValue;
+			IF _jsonVal = 0 OR_ELSE NOT _serializer.parser.IsObject(_jsonVal) THEN
+				_failureReason := E_SpanExporterFailureReason.SERIALIZATION_FAILURE;
+				_computedState := E_HttpExporterState.error;
+			ELSE
+				_len := _serializer.parser.GetJsonLength(_jsonVal);  // includes the null terminating character
+				IF _len = 0 THEN
+					_failureReason := E_SpanExporterFailureReason.SERIALIZATION_FAILURE;
+					_computedState := E_HttpExporterState.error;
+				ELSE
+					_pString := __NEW(BYTE, _len);
+					IF _pString = 0 THEN
+						_failureReason := E_SpanExporterFailureReason.BUFFER_ALLOCATION_FAILURE;
+						_computedState := E_HttpExporterState.error;
+					ELSE
+						_serializer.parser.CopyJson(_jsonVal, _pString^, _len);
+						_computedState := E_HttpExporterState.sending;
+					END_IF
+				END_IF
+			END_IF
+		END_IF
+
+	E_HttpExporterState.sending:
+		IF NOT _request.bBusy THEN
+			IF _request.SendRequest(
+				sUri := THIS^._path,
+				fbClient := THIS^._client,
+				eRequestType := ETcIotHttpRequestType.HTTP_POST,
+				pContent := _pString,
+				nContentSize := _len - 1,
+				fbHeader := THIS^._header
+			) THEN
+				_computedState := E_HttpExporterState.waiting;
+			ELSE
+				IF _pString <> 0 THEN __DELETE(_pString); _pString := 0; END_IF
+				_failureReason := E_SpanExporterFailureReason.HTTP_REQUEST_FAILURE;
+				_computedState := E_HttpExporterState.error;
+			END_IF
+		END_IF
+
+	E_HttpExporterState.waiting:
+		IF NOT _request.bBusy THEN
+			_computedState := E_HttpExporterState.processing;
+		END_IF
+
+	E_HttpExporterState.processing:
+		IF _request.bError THEN
+			IF _pString <> 0 THEN __DELETE(_pString); _pString := 0; END_IF
+			_failureReason := E_SpanExporterFailureReason.HTTP_REQUEST_FAILURE;
+			_computedState := E_HttpExporterState.error;
+		ELSE
+			statusCode := _request.nStatusCode;
+			IF statusCode < 200 OR_ELSE statusCode >= 300 THEN
+				IF _pString <> 0 THEN __DELETE(_pString); _pString := 0; END_IF
+				_failureReason := E_SpanExporterFailureReason.HTTP_STATUS_FAILURE;
+				_computedState := E_HttpExporterState.error;
+			ELSE
+				IF _pString <> 0 THEN __DELETE(_pString); _pString := 0; END_IF
+				_computedState := E_HttpExporterState.done;
+			END_IF
+		END_IF
+
+	E_HttpExporterState.done:
+		IF NOT _execute THEN
+			_computedState := E_HttpExporterState.idle;
+		END_IF
+
+	E_HttpExporterState.error:
+		// keep the failure until export accepts a new batch
+END_CASE
+
+currentState := _computedState;
+
+IF currentState = E_HttpExporterState.done
+	OR_ELSE currentState = E_HttpExporterState.error THEN
+	THIS^.free();
+END_IF
+
+THIS^._client.Execute();
+
+IF currentState = E_HttpExporterState.error THEN
+	tick := FALSE;
+	failureReason := _failureReason;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
