@@ -10,7 +10,8 @@ THIS^.testSerializeChildSpan();
 THIS^.testSerializeSpanRejectsInvalidInput();
 THIS^.testSerializeTracesDataWithEmptyQueue();
 THIS^.testSerializeTracesDataGroupsByResourceAndScope();
-THIS^.testSerializeSpanLinks();]]></ST>
+THIS^.testSerializeSpanLinks();
+THIS^.testSerializeLongTraceState();]]></ST>
     </Implementation>
     <Method Name="testSerializeRootSpan" Id="{ffa2cc14-29c0-48dc-aa0d-c692404b304a}">
       <Declaration><![CDATA[(* A root span is written with hex identifiers, numeric enums, string timestamps, attributes and status, and no parentSpanId. *)
@@ -393,6 +394,86 @@ END_VAR
 	IF pTriggerContext <> 0 THEN pTriggerContext^.delete(pSelf:=pTriggerContext); END_IF
 	IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
 	IF pTrigger <> 0 THEN pTrigger^.delete(pSelf:=pTrigger); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testSerializeLongTraceState" Id="{fbe0bb89-4af4-4c50-8460-2f8ec01cc66c}">
+      <Declaration><![CDATA[(* A trace state longer than T_MaxString is written whole. W3C asks for at least 512 characters. *)
+METHOD testSerializeLongTraceState : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	serializer: FB_SpanProtoJsonSerializer;
+	header: STRING(600);
+	written: STRING(600);
+	pWritten: POINTER TO STRING;
+	pBytes: POINTER TO BYTE;
+	entry: UDINT;
+	i: UDINT;
+	n: UDINT;
+	traceId: FB_TraceId;
+	spanId: FB_SpanId;
+	pTraceState: POINTER TO FB_TraceState;
+	pRemote: POINTER TO FB_SpanContext;
+	pSpan: POINTER TO FB_Span;
+	root: SJsonValue;
+	spans: SJsonValue;
+	obj: SJsonValue;
+	member: SJsonValue;
+	success: BOOL;
+	reason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testSerializeLongTraceState');
+	// four 128 character entries joined by ',': 515 characters, built byte by byte
+	pBytes := ADR(header);
+	FOR entry := 0 TO 3 DO
+		IF entry > 0 THEN
+			pBytes[n] := 16#2C;
+			n := n + 1;
+		END_IF
+		pBytes[n] := 16#6B;
+		pBytes[n + 1] := 16#30 + TO_BYTE(entry);
+		pBytes[n + 2] := 16#3D;
+		n := n + 3;
+		FOR i := 1 TO 125 DO
+			pBytes[n] := 16#61 + TO_BYTE(i MOD 26);
+			n := n + 1;
+		END_FOR
+	END_FOR
+	pBytes[n] := 0;
+
+	MEMSET(ADR(traceId.bytes), 16#AA, SIZEOF(traceId.bytes));
+	MEMSET(ADR(spanId.bytes), 16#BB, SIZEOF(spanId.bytes));
+	TraceStateFactory.parse(pDest:=pTraceState, pHeader:=ADR(header));
+	ContextFactory.buildContext(pDest:=pRemote, pTraceId:=ADR(traceId), pSpanId:=ADR(spanId), pTraceState:=pTraceState, traceFlags:=16#301);
+	IF pTraceState <> 0 THEN pTraceState^.delete(pSelf:=pTraceState); END_IF
+	tracer.startSpan(name:='remote.child').setParent(pContext:=pRemote).build(pDest:=pSpan);
+	IF pRemote <> 0 THEN pRemote^.delete(pSelf:=pRemote); END_IF
+	THIS^.AssertTrue(pSpan <> 0, 'Expected the span to build');
+
+	IF pSpan <> 0 THEN
+		root := serializer.parser.NewDocument();
+		root := serializer.parser.SetObject(root);
+		spans := serializer.parser.AddArrayMember(root, 'spans', 0);
+		success := serializer.serializeSpan(v:=spans, pSpan:=pSpan, failureReason=>reason);
+		THIS^.AssertTrue(success, 'Expected the span to serialize');
+
+		obj := serializer.parser.GetArrayValueByIdx(spans, 0);
+		member := serializer.parser.FindMember(obj, 'traceState');
+		THIS^.AssertTrue(member <> 0, 'Expected a traceState member');
+		IF member <> 0 THEN
+			THIS^.AssertEquals_UDINT(516, TO_UDINT(serializer.parser.GetStringLength(member)), 'Expected all 515 characters and the terminator');
+			pWritten := ADR(written);  // CopyString takes a STRING reference and a size, so it can fill a longer buffer
+			serializer.parser.CopyString(member, pWritten^, SIZEOF(written));
+			THIS^.AssertTrue(MEMCMP(ADR(written), ADR(header), 516) = 0, 'Expected the trace state unchanged');
+		END_IF
+		pSpan^.delete(pSelf:=pSpan);
+	END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

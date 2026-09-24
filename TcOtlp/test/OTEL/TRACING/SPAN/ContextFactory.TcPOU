@@ -11,7 +11,7 @@
 	Allocates a span context holding copies of the given identity. The caller owns pDest.
 	The identifiers are not validated; producers are responsible for what they build,
 	and a context built from all-zero identifiers is simply not valid.
-	pTraceState is optional; 0 means no trace state.
+	pTraceState is borrowed and copied; 0 means no trace state.
 *)
 METHOD buildContext : BOOL
 VAR_IN_OUT
@@ -20,14 +20,14 @@ END_VAR
 VAR_INPUT
 	pTraceId: POINTER TO FB_TraceId;
 	pSpanId: POINTER TO FB_SpanId;
-	pTraceState: POINTER TO STRING;
+	pTraceState: POINTER TO FB_TraceState;
 	traceFlags: UDINT;
 END_VAR
 VAR_OUTPUT
 	failureReason: E_ContextFactoryFailureReason;
 END_VAR
 VAR
-	_pTraceState: POINTER TO FB_String;
+	_pTraceState: POINTER TO FB_TraceState;
 	_pNew: POINTER TO FB_SpanContext;
 END_VAR
 ]]></Declaration>
@@ -52,7 +52,7 @@ END_IF
 
 // clone all owned data before allocating the context itself
 IF pTraceState <> 0 THEN
-	IF NOT ValueFactory.createString(pDest:=_pTraceState, pString:=pTraceState) THEN
+	IF NOT TraceStateFactory.clone(pDest:=_pTraceState, pSrc:=pTraceState) THEN
 		failureReason := E_ContextFactoryFailureReason.MEMORY_ALLOCATION_FAILURE;
 		RETURN;
 	END_IF

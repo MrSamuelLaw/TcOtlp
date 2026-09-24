@@ -1,0 +1,473 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="TraceStateFactory" Id="{7827010e-e3be-4fc5-83ff-5607fce6b993}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Creates FB_TraceState values: parses a W3C tracestate header, clones a trace state, and
+	truncates one to fit a carrier by the W3C rules. Like ValueFactory, every method returns
+	TRUE on success, takes pDest by reference and never overwrites a pointer that is not 0.
+	No trace state is a 0 pointer, so a method can succeed and leave pDest at 0.
+*)
+PROGRAM TraceStateFactory
+VAR CONSTANT
+	MAX_ENTRIES: UDINT := 32;  // W3C: at most 32 list members
+	MAX_KEY_LENGTH: UDINT := 256;  // W3C key grammar
+	MAX_VALUE_LENGTH: UDINT := 256;  // W3C value grammar
+	MAX_HEADER_LENGTH: UDINT := 16447;  // 32 entries of the longest key and value; bounds every scan
+	CARRIER_LENGTH: UDINT := 512;  // W3C: propagate at least 512 characters
+	LARGE_ENTRY_LENGTH: UDINT := 128;  // W3C: when truncating, remove entries over 128 characters first
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="_build" Id="{7452cf7e-990f-454c-890b-0e1ebf2a5e0c}">
+      <Declaration><![CDATA[(*
+	Allocates a trace state from the kept entries of pSource, joined by ','. Succeeds with pDest
+	left at 0 when no entry is kept. The arrays are primitive scratch data owned by the caller.
+*)
+METHOD _build : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_TraceState;
+	starts: ARRAY[0..MAX_ENTRIES - 1] OF UDINT;
+	lengths: ARRAY[0..MAX_ENTRIES - 1] OF UDINT;
+	keep: ARRAY[0..MAX_ENTRIES - 1] OF BOOL;
+END_VAR
+VAR_INPUT
+	pSource: POINTER TO BYTE;
+	count: UDINT;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_TraceStateFailureReason;
+END_VAR
+VAR
+	_i: UDINT;
+	_kept: UDINT;
+	_length: UDINT;
+	_offset: UDINT;
+	_pBuffer: POINTER TO BYTE;
+	_size: UDINT;
+	_pNew: POINTER TO FB_TraceState;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_build := FALSE;
+failureReason := E_TraceStateFailureReason.NA;
+
+// size the buffer to the kept entries and the commas between them
+WHILE _i < count AND _i < MAX_ENTRIES DO
+	IF keep[_i] THEN
+		_length := _length + lengths[_i];
+		_kept := _kept + 1;
+	END_IF
+	_i := _i + 1;
+END_WHILE
+IF _kept = 0 THEN
+	// nothing left is no trace state, not an empty one
+	_build := TRUE;
+	RETURN;
+END_IF
+_length := _length + _kept - 1;
+
+_size := _length + 1;
+_pBuffer := __NEW(BYTE, _size);
+IF _pBuffer = 0 THEN
+	failureReason := E_TraceStateFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+
+_i := 0;
+WHILE _i < count AND _i < MAX_ENTRIES DO
+	IF keep[_i] THEN
+		IF _offset > 0 THEN
+			_pBuffer[_offset] := 16#2C;  // ','
+			_offset := _offset + 1;
+		END_IF
+		MEMCPY(_pBuffer + _offset, pSource + starts[_i], lengths[_i]);
+		_offset := _offset + lengths[_i];
+	END_IF
+	_i := _i + 1;
+END_WHILE
+_pBuffer[_offset] := 0;
+
+_pNew := __NEW(FB_TraceState(pString:=_pBuffer, length:=_length, count:=_kept));
+IF _pNew = 0 THEN
+	__DELETE(_pBuffer);
+	failureReason := E_TraceStateFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+pDest := _pNew;
+_build := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_isKeyChar" Id="{1619898a-8861-4cd0-8737-d84b2a600eb4}">
+      <Declaration><![CDATA[(* lcalpha / DIGIT / '_' / '-' / '*' / '/' *)
+METHOD _isKeyChar : BOOL
+VAR_INPUT
+	c: BYTE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_isKeyChar := (c >= 16#61 AND c <= 16#7A)  // a-z
+	OR (c >= 16#30 AND c <= 16#39)  // 0-9
+	OR c = 16#5F OR c = 16#2D OR c = 16#2A OR c = 16#2F;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_isValidKey" Id="{1333c3e7-6586-4fa9-abd0-c1a4ae3d41f3}">
+      <Declaration><![CDATA[(*
+	A key is either simple-key, a lower-case letter followed by up to 255 key characters, or
+	multi-tenant-key: tenant-id '@' system-id, where tenant-id is 1-241 key characters starting
+	with a lower-case letter or digit, and system-id is 1-14 key characters starting with a
+	lower-case letter.
+*)
+METHOD _isValidKey : BOOL
+VAR_INPUT
+	pKey: POINTER TO BYTE;
+	length: UDINT;
+END_VAR
+VAR
+	_i: UDINT;
+	_at: UDINT;
+	_hasAt: BOOL;
+	_first: BYTE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_isValidKey := FALSE;
+IF length = 0 OR length > MAX_KEY_LENGTH THEN
+	RETURN;
+END_IF
+
+// bounded by MAX_KEY_LENGTH
+WHILE _i < length DO
+	IF pKey[_i] = 16#40 THEN  // '@'
+		IF _hasAt THEN
+			RETURN;
+		END_IF
+		_hasAt := TRUE;
+		_at := _i;
+	ELSIF NOT TraceStateFactory._isKeyChar(c:=pKey[_i]) THEN
+		RETURN;
+	END_IF
+	_i := _i + 1;
+END_WHILE
+
+_first := pKey[0];
+IF NOT _hasAt THEN
+	_isValidKey := _first >= 16#61 AND _first <= 16#7A;
+ELSIF _at >= 1 AND _at <= 241 AND length - _at - 1 >= 1 AND length - _at - 1 <= 14 THEN
+	_isValidKey := ((_first >= 16#61 AND _first <= 16#7A) OR (_first >= 16#30 AND _first <= 16#39))
+		AND pKey[_at + 1] >= 16#61 AND pKey[_at + 1] <= 16#7A;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_isValidValue" Id="{96a37abd-d97f-4356-8c8e-6bd9585d161a}">
+      <Declaration><![CDATA[(*
+	A value is 1-256 printable ASCII characters other than ',' and '=', and does not end in a
+	space.
+*)
+METHOD _isValidValue : BOOL
+VAR_INPUT
+	pValue: POINTER TO BYTE;
+	length: UDINT;
+END_VAR
+VAR
+	_i: UDINT;
+	_c: BYTE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_isValidValue := FALSE;
+IF length = 0 OR length > MAX_VALUE_LENGTH THEN
+	RETURN;
+END_IF
+IF pValue[length - 1] = 16#20 THEN
+	RETURN;
+END_IF
+
+// bounded by MAX_VALUE_LENGTH
+WHILE _i < length DO
+	_c := pValue[_i];
+	IF _c < 16#20 OR _c > 16#7E OR _c = 16#2C OR _c = 16#3D THEN
+		RETURN;
+	END_IF
+	_i := _i + 1;
+END_WHILE
+_isValidValue := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="clone" Id="{48efffbe-cb38-486d-b382-af6120ca0eb8}">
+      <Declaration><![CDATA[(*
+	Allocates a copy of pSrc. The caller owns pDest.
+*)
+METHOD clone : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_TraceState;
+END_VAR
+VAR_INPUT
+	pSrc: POINTER TO FB_TraceState;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_TraceStateFailureReason;
+END_VAR
+VAR
+	_pBuffer: POINTER TO BYTE;
+	_size: UDINT;
+	_pNew: POINTER TO FB_TraceState;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[clone := FALSE;
+failureReason := E_TraceStateFailureReason.NA;
+
+IF pDest <> 0 THEN
+	failureReason := E_TraceStateFailureReason.DESTINATION_ALREADY_ASSIGNED;
+	RETURN;
+END_IF
+IF pSrc = 0 OR_ELSE pSrc^.pString = 0 THEN
+	failureReason := E_TraceStateFailureReason.SOURCE_POINTER_NULL;
+	RETURN;
+END_IF
+
+// copy by length, terminator included; the string may be longer than T_MaxString
+_size := pSrc^.length + 1;
+_pBuffer := __NEW(BYTE, _size);
+IF _pBuffer = 0 THEN
+	failureReason := E_TraceStateFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+MEMCPY(_pBuffer, pSrc^.pString, pSrc^.length + 1);
+
+_pNew := __NEW(FB_TraceState(pString:=_pBuffer, length:=pSrc^.length, count:=pSrc^.count));
+IF _pNew = 0 THEN
+	__DELETE(_pBuffer);
+	failureReason := E_TraceStateFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+pDest := _pNew;
+clone := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="parse" Id="{7d6159bb-a671-401a-adc8-3edb5980bd29}">
+      <Declaration><![CDATA[(*
+	Parses a W3C tracestate header into a new trace state in canonical form. The caller owns
+	pDest. An empty header, or one of only empty members, is valid and succeeds with pDest left
+	at 0. A header that breaks the grammar, repeats a key or has more than MAX_ENTRIES entries
+	fails, and W3C says it must then not be propagated. The header may be longer than
+	T_MaxString; it is measured with LEN2.
+*)
+METHOD parse : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_TraceState;
+END_VAR
+VAR_INPUT
+	pHeader: POINTER TO STRING;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_TraceStateFailureReason;
+END_VAR
+VAR
+	_pHeader: POINTER TO BYTE;
+	_length: UDINT;
+	_i: UDINT;
+	_j: UDINT;
+	_memberStart: UDINT;
+	_start: UDINT;
+	_end: UDINT;
+	_equals: UDINT;
+	_keyLength: UDINT;
+	_count: UDINT;
+	_starts: ARRAY[0..MAX_ENTRIES - 1] OF UDINT;
+	_lengths: ARRAY[0..MAX_ENTRIES - 1] OF UDINT;
+	_keyLengths: ARRAY[0..MAX_ENTRIES - 1] OF UDINT;
+	_keep: ARRAY[0..MAX_ENTRIES - 1] OF BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[parse := FALSE;
+failureReason := E_TraceStateFailureReason.NA;
+
+IF pDest <> 0 THEN
+	failureReason := E_TraceStateFailureReason.DESTINATION_ALREADY_ASSIGNED;
+	RETURN;
+END_IF
+IF pHeader = 0 THEN
+	failureReason := E_TraceStateFailureReason.HEADER_POINTER_NULL;
+	RETURN;
+END_IF
+
+_pHeader := pHeader;
+_length := TO_UDINT(LEN2(pHeader));
+IF _length > MAX_HEADER_LENGTH THEN
+	failureReason := E_TraceStateFailureReason.HEADER_TOO_LONG;
+	RETURN;
+END_IF
+
+// validate every member before allocating anything; _i = _length closes the last member
+FOR _i := 0 TO _length DO
+	IF _i < _length AND_THEN _pHeader[_i] <> 16#2C THEN  // ','
+		CONTINUE;
+	END_IF
+	_start := _memberStart;
+	_end := _i;
+	_memberStart := _i + 1;
+
+	// strip optional whitespace; an empty member is allowed and dropped
+	WHILE _start < _end AND_THEN (_pHeader[_start] = 16#20 OR _pHeader[_start] = 16#09) DO
+		_start := _start + 1;
+	END_WHILE
+	WHILE _end > _start AND_THEN (_pHeader[_end - 1] = 16#20 OR _pHeader[_end - 1] = 16#09) DO
+		_end := _end - 1;
+	END_WHILE
+	IF _start = _end THEN
+		CONTINUE;
+	END_IF
+
+	IF _count >= MAX_ENTRIES THEN
+		failureReason := E_TraceStateFailureReason.TOO_MANY_ENTRIES;
+		RETURN;
+	END_IF
+
+	_equals := _start;
+	WHILE _equals < _end AND_THEN _pHeader[_equals] <> 16#3D DO  // '='
+		_equals := _equals + 1;
+	END_WHILE
+	_keyLength := _equals - _start;
+	IF NOT TraceStateFactory._isValidKey(pKey:=_pHeader + _start, length:=_keyLength) THEN
+		failureReason := E_TraceStateFailureReason.INVALID_KEY;
+		RETURN;
+	END_IF
+	IF _equals = _end OR_ELSE NOT TraceStateFactory._isValidValue(pValue:=_pHeader + _equals + 1, length:=_end - _equals - 1) THEN
+		failureReason := E_TraceStateFailureReason.INVALID_VALUE;
+		RETURN;
+	END_IF
+
+	_j := 0;
+	WHILE _j < _count DO
+		IF _keyLengths[_j] = _keyLength AND_THEN MEMCMP(_pHeader + _starts[_j], _pHeader + _start, _keyLength) = 0 THEN
+			failureReason := E_TraceStateFailureReason.DUPLICATE_KEY;
+			RETURN;
+		END_IF
+		_j := _j + 1;
+	END_WHILE
+
+	_starts[_count] := _start;
+	_lengths[_count] := _end - _start;
+	_keyLengths[_count] := _keyLength;
+	_keep[_count] := TRUE;
+	_count := _count + 1;
+END_FOR
+
+parse := TraceStateFactory._build(
+	pDest:=pDest,
+	starts:=_starts,
+	lengths:=_lengths,
+	keep:=_keep,
+	pSource:=_pHeader,
+	count:=_count,
+	failureReason=>failureReason
+);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="truncate" Id="{f5d2e4a9-85b0-4c23-be0a-6a3938f5a57d}">
+      <Declaration><![CDATA[(*
+	Allocates a copy of pSrc that is at most maxLength characters long, for a carrier of
+	limited size, following W3C: entries over LARGE_ENTRY_LENGTH characters are removed first,
+	then entries are removed from the right. An entry is removed whole, never cut. Succeeds with
+	pDest left at 0 when no entry fits.
+*)
+METHOD truncate : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_TraceState;
+END_VAR
+VAR_INPUT
+	pSrc: POINTER TO FB_TraceState;
+	maxLength: UDINT;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_TraceStateFailureReason;
+END_VAR
+VAR
+	_pSource: POINTER TO BYTE;
+	_i: UDINT;
+	_start: UDINT;
+	_count: UDINT;
+	_kept: UDINT;
+	_sum: UDINT;
+	_total: UDINT;
+	_starts: ARRAY[0..MAX_ENTRIES - 1] OF UDINT;
+	_lengths: ARRAY[0..MAX_ENTRIES - 1] OF UDINT;
+	_keep: ARRAY[0..MAX_ENTRIES - 1] OF BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[truncate := FALSE;
+failureReason := E_TraceStateFailureReason.NA;
+
+IF pDest <> 0 THEN
+	failureReason := E_TraceStateFailureReason.DESTINATION_ALREADY_ASSIGNED;
+	RETURN;
+END_IF
+IF pSrc = 0 OR_ELSE pSrc^.pString = 0 THEN
+	failureReason := E_TraceStateFailureReason.SOURCE_POINTER_NULL;
+	RETURN;
+END_IF
+
+IF pSrc^.length <= maxLength THEN
+	truncate := TraceStateFactory.clone(pDest:=pDest, pSrc:=pSrc, failureReason=>failureReason);
+	RETURN;
+END_IF
+
+// split the canonical string: entries joined by ',', no whitespace, at most MAX_ENTRIES
+_pSource := pSrc^.pString;
+FOR _i := 0 TO pSrc^.length DO
+	IF _i = pSrc^.length OR_ELSE _pSource[_i] = 16#2C THEN
+		IF _count < MAX_ENTRIES THEN
+			_starts[_count] := _start;
+			_lengths[_count] := _i - _start;
+			_keep[_count] := TRUE;
+			_sum := _sum + _i - _start;
+			_count := _count + 1;
+		END_IF
+		_start := _i + 1;
+	END_IF
+END_FOR
+_kept := _count;
+_total := pSrc^.length;
+
+// first remove the large entries, from the right
+_i := _count;
+WHILE _i > 0 AND _total > maxLength DO
+	_i := _i - 1;
+	IF _lengths[_i] > LARGE_ENTRY_LENGTH THEN
+		_keep[_i] := FALSE;
+		_sum := _sum - _lengths[_i];
+		_kept := _kept - 1;
+		_total := SEL(_kept > 0, 0, _sum + _kept - 1);
+	END_IF
+END_WHILE
+
+// then any entry, from the right
+_i := _count;
+WHILE _i > 0 AND _total > maxLength DO
+	_i := _i - 1;
+	IF _keep[_i] THEN
+		_keep[_i] := FALSE;
+		_sum := _sum - _lengths[_i];
+		_kept := _kept - 1;
+		_total := SEL(_kept > 0, 0, _sum + _kept - 1);
+	END_IF
+END_WHILE
+
+truncate := TraceStateFactory._build(
+	pDest:=pDest,
+	starts:=_starts,
+	lengths:=_lengths,
+	keep:=_keep,
+	pSource:=_pSource,
+	count:=_count,
+	failureReason=>failureReason
+);]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

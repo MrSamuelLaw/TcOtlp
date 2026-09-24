@@ -1,0 +1,137 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TraceState" Id="{63509cd3-1f92-4e6b-b263-7bd3150adb75}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Immutable W3C tracestate, created through TraceStateFactory and released with
+	p^.delete(pSelf:=p). Holds the header in canonical form: its entries joined by ',', with
+	optional whitespace and empty members removed. It always holds at least one valid entry,
+	so no trace state is a 0 pointer, never an empty object. The string may be longer than
+	T_MaxString: measure and copy it by length, never by assigning it to a STRING.
+*)
+{attribute 'enable_dynamic_creation'}
+FUNCTION_BLOCK FB_TraceState
+VAR
+	_pString: POINTER TO STRING;
+	_length: UDINT;
+	_count: UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="delete" Id="{1564c6d5-a520-4110-88b1-af47d7e76dc3}">
+      <Declaration><![CDATA[(*
+	Releases this trace state and clears the caller's pointer to it: call it as p^.delete(pSelf:=p).
+	pSelf is cleared before the trace state is freed, so the caller never keeps a dangling pointer.
+	A pointer to any other object is refused and left untouched, and nothing is released.
+*)
+METHOD delete : BOOL
+VAR_IN_OUT
+	pSelf: POINTER TO FB_TraceState;
+END_VAR
+VAR
+	_pThis: POINTER TO FB_TraceState;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_pThis := THIS;
+IF pSelf <> _pThis THEN
+	RETURN;
+END_IF
+
+pSelf := 0;
+__DELETE(_pThis);
+delete := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Exit" Id="{9b786ae8-6148-4f5c-9893-add52fefe08c}">
+      <Declaration><![CDATA[//FB_Exit must be implemented explicitly. If there is an implementation, then the
+//method is called before the controller removes the code of the function block instance
+//(implicit call). The return value is not evaluated.
+METHOD FB_Exit: BOOL
+VAR_INPUT
+    bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// during an online change the copy keeps the string pointer, so it must not be released here
+IF NOT bInCopyCode THEN
+	THIS^.free();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{1850091a-89d1-41ee-929f-0749531edfaf}">
+      <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
+//The return value is not evaluated. For a specific influence, you can also declare the
+//methods explicitly and provide additional code there with the standard initialization
+//code. You can evaluate the return value.
+METHOD FB_Init: BOOL
+VAR_INPUT
+    bInitRetains: BOOL; // TRUE: the retain variables are initialized (reset warm / reset cold)
+    bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	pString: POINTER TO STRING;  // canonical, null terminated; ownership transfers to the trace state
+	length: UDINT;  // characters in pString, without the terminator
+	count: UDINT;  // entries in pString
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[(*
+Parsing, validation and allocation are done by TraceStateFactory and not the trace state
+itself, that way a trace state is never allocated for a header that is not valid.
+*)
+THIS^._pString := pString;
+THIS^._length := length;
+THIS^._count := count;
+FB_Init := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="free" Id="{cb05bda5-b440-4e48-9a08-b0f6e7981b01}">
+      <Declaration><![CDATA[(*
+	Releases the string. Safe to call more than once.
+*)
+METHOD free
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF THIS^._pString <> 0 THEN
+	__DELETE(THIS^._pString);
+	THIS^._pString := 0;
+END_IF
+THIS^._length := 0;
+THIS^._count := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Property Name="count" Id="{a1eab595-f348-4fb1-94ab-aeb04fcce2da}">
+      <Declaration><![CDATA[(* The number of entries. *)
+PROPERTY count : UDINT]]></Declaration>
+      <Get Name="Get" Id="{a4b04758-fe5d-4de6-808f-761af596c44d}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[count := THIS^._count;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="length" Id="{2a06c61a-a1c9-434d-a155-3ee9d61fc3cc}">
+      <Declaration><![CDATA[(* The number of characters in the canonical string, without the terminator. *)
+PROPERTY length : UDINT]]></Declaration>
+      <Get Name="Get" Id="{babb1681-6ec9-411e-934a-f6d9ac5dfba3}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[length := THIS^._length;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="pString" Id="{7943a886-f644-4e0d-9637-51f1e5ac5891}">
+      <Declaration><![CDATA[(* The canonical header string. Read only: the trace state owns it and never changes it. *)
+PROPERTY pString : POINTER TO STRING]]></Declaration>
+      <Get Name="Get" Id="{abd2d7f9-1d76-47ae-8760-295f23b48ad2}">
+        <Declaration><![CDATA[VAR
+END_VAR
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[pString := THIS^._pString;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+  </POU>
+</TcPlcObject>

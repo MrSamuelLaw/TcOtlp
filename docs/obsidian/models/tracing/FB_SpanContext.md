@@ -29,7 +29,7 @@ ok := ContextFactory.buildContext(
 	pDest:=pContext,            // VAR_IN_OUT, must be 0
 	pTraceId:=ADR(traceId),
 	pSpanId:=ADR(spanId),
-	pTraceState:=ADR(state),    // optional; 0 means none
+	pTraceState:=pTraceState,   // borrowed and copied; 0 means none
 	traceFlags:=flags,
 	failureReason=>reason);
 ```
@@ -43,7 +43,7 @@ ok := ContextFactory.buildContext(
 | `SPAN_ID_POINTER_NULL` | `pSpanId` was `0`. |
 | `MEMORY_ALLOCATION_FAILURE` | The trace state copy or the context itself could not be allocated. |
 
-The trace state is copied first, through `ValueFactory.createString`, and the context is allocated last. If allocating the context fails, the factory deletes the trace state copy, so a failed call leaves nothing allocated and `pDest` still `0`.
+The trace state is copied first, through `TraceStateFactory.clone`, and the context is allocated last. If allocating the context fails, the factory deletes the trace state copy, so a failed call leaves nothing allocated and `pDest` still `0`.
 
 On success the caller owns the context and releases it exactly once:
 
@@ -65,9 +65,9 @@ The 16-byte identifier of the trace this span belongs to, copied from the span. 
 
 The 8-byte identifier of the span itself. Unique within the trace; this is the value a child span or a link points back to as its parent. The property returns a reference.
 
-### traceState: POINTER TO FB_String
+### traceState: POINTER TO FB_TraceState
 
-The W3C `tracestate` list — vendor-specific key/value pairs carried along the trace untouched. It is optional and often empty; `0` means the context carries none. The pointer is borrowed: the context owns the string and releases it.
+The W3C `tracestate` list — vendor-specific key/value pairs carried along the trace untouched. It is optional and often empty; `0` means the context carries none. The pointer is borrowed: the context owns the [[FB_TraceState]] and releases it.
 
 ### traceFlags: UDINT
 

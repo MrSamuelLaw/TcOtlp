@@ -10,7 +10,7 @@ FUNCTION_BLOCK FB_SpanContext
 VAR
 	_traceId: FB_TraceId;
 	_spanId: FB_SpanId;
-	_traceState: POINTER TO FB_String;
+	_traceState: POINTER TO FB_TraceState;
 	_traceFlags: UDINT;
 END_VAR
 ]]></Declaration>
@@ -89,7 +89,7 @@ VAR_INPUT
     bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
 	pTraceId: POINTER TO FB_TraceId;  // copied
 	pSpanId: POINTER TO FB_SpanId;  // copied
-	pTraceState: POINTER TO FB_String;  // ownership transfers to the context; 0 means none
+	pTraceState: POINTER TO FB_TraceState;  // ownership transfers to the context; 0 means none
 	traceFlags: UDINT;
 END_VAR]]></Declaration>
       <Implementation>
@@ -187,7 +187,7 @@ METHOD isValid : BOOL
     </Property>
     <Property Name="traceState" Id="{c41eee4f-4355-47a1-8e2c-83ab681255ff}">
       <Declaration><![CDATA[// borrowed; 0 when the context carries no trace state. The context owns and releases it.
-PROPERTY traceState : POINTER TO FB_String]]></Declaration>
+PROPERTY traceState : POINTER TO FB_TraceState]]></Declaration>
       <Get Name="Get" Id="{2bdadfbd-495f-4b25-b861-a6f5573bba15}">
         <Declaration><![CDATA[]]></Declaration>
         <Implementation>

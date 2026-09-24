@@ -53,6 +53,7 @@ VAR
 	traceId: FB_TraceId;
 	spanId: FB_SpanId;
 	traceStateText: T_MaxString := 'vendor=abc';
+	pTraceState: POINTER TO FB_TraceState;
 	success: BOOL;
 	reason: E_LinkFailureReason;
 END_VAR
@@ -61,13 +62,15 @@ END_VAR
         <ST><![CDATA[TcUnit.TEST('testFromContextCopiesIdentity');
 	MEMSET(ADR(traceId.bytes), 16#AA, SIZEOF(traceId.bytes));
 	MEMSET(ADR(spanId.bytes), 16#BB, SIZEOF(spanId.bytes));
+	TraceStateFactory.parse(pDest:=pTraceState, pHeader:=ADR(traceStateText));
 	ContextFactory.buildContext(
 		pDest:=pContext,
 		pTraceId:=ADR(traceId),
 		pSpanId:=ADR(spanId),
-		pTraceState:=ADR(traceStateText),
+		pTraceState:=pTraceState,
 		traceFlags:=16#301
 	);
+	IF pTraceState <> 0 THEN pTraceState^.delete(pSelf:=pTraceState); END_IF
 
 	success := LinkFactory.fromContext(pDest:=pLink, pContext:=pContext, failureReason=>reason);
 	THIS^.AssertTrue(success, 'Expected the link to build');

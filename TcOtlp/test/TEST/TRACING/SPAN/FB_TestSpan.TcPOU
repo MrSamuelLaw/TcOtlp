@@ -28,7 +28,7 @@ END_VAR
 VAR_INPUT
 	pTraceId: POINTER TO FB_TraceId;
 	pSpanId: POINTER TO FB_SpanId;
-	pTraceState: POINTER TO FB_String;
+	pTraceState: POINTER TO FB_TraceState;
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -70,7 +70,7 @@ VAR
 	pContext: POINTER TO FB_SpanContext;
 	traceId: FB_TraceId;
 	spanId: FB_SpanId;
-	pTraceState: POINTER TO FB_String;
+	pTraceState: POINTER TO FB_TraceState;
 	traceStateText: T_MaxString := 'vendor=abc';
 	success: BOOL;
 	failureReason: E_ContextFactoryFailureReason;
@@ -79,7 +79,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testGetContextCopiesIdentity');
 	THIS^._fillIds(traceId:=traceId, spanId:=spanId);
-	ValueFactory.createString(pDest:=pTraceState, pString:=ADR(traceStateText));
+	TraceStateFactory.parse(pDest:=pTraceState, pHeader:=ADR(traceStateText));
 	THIS^._setIdentity(span:=span, pTraceId:=ADR(traceId), pSpanId:=ADR(spanId), pTraceState:=pTraceState);
 
 	success := span.getContext(pDest:=pContext, failureReason=>failureReason);
@@ -110,7 +110,7 @@ END_VAR
 
 	// the span's trace state is released first; the context must not depend on it
 	THIS^._setIdentity(span:=span, pTraceId:=0, pSpanId:=0, pTraceState:=0);
-	pTraceState^.delete(pSelf:=pTraceState);
+	IF pTraceState <> 0 THEN pTraceState^.delete(pSelf:=pTraceState); END_IF
 	IF pContext <> 0 AND_THEN pContext^.traceState <> 0 THEN
 		THIS^.AssertEquals_STRING('vendor=abc', pContext^.traceState^.pString^, 'Expected the context to outlive the span$'s trace state');
 	END_IF

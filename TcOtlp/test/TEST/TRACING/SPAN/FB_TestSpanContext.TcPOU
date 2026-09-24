@@ -72,12 +72,14 @@ VAR
 	expectedTraceId: FB_TraceId;
 	expectedSpanId: FB_SpanId;
 	traceState: T_MaxString := 'vendor=abc';
+	pTraceState: POINTER TO FB_TraceState;
 	success: BOOL;
 	failureReason: E_ContextFactoryFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testBuildsCopiesOfItsInputs');
+	TraceStateFactory.parse(pDest:=pTraceState, pHeader:=ADR(traceState));
 	THIS^._fillIds(traceId:=traceId, spanId:=spanId, seed:=0);
 	THIS^._fillIds(traceId:=expectedTraceId, spanId:=expectedSpanId, seed:=0);
 
@@ -85,10 +87,12 @@ END_VAR
 		pDest:=pContext,
 		pTraceId:=ADR(traceId),
 		pSpanId:=ADR(spanId),
-		pTraceState:=ADR(traceState),
+		pTraceState:=pTraceState,
 		traceFlags:=1,
 		failureReason=>failureReason
 	);
+	// the trace state is borrowed, so the caller releases its own copy at once
+	IF pTraceState <> 0 THEN pTraceState^.delete(pSelf:=pTraceState); END_IF
 	THIS^.AssertTrue(success, 'Expected buildContext to succeed');
 	THIS^.AssertEquals_UDINT(
 		TO_UDINT(E_ContextFactoryFailureReason.NA),
@@ -105,7 +109,6 @@ END_VAR
 
 	// change every source after the fact
 	THIS^._fillIds(traceId:=traceId, spanId:=spanId, seed:=16#80);
-	traceState := 'changed=1';
 
 	THIS^.AssertTrue(
 		MEMCMP(ADR(pContext^.traceId.bytes), ADR(expectedTraceId.bytes), SIZEOF(expectedTraceId.bytes)) = 0,
@@ -117,8 +120,7 @@ END_VAR
 	);
 	THIS^.AssertTrue(pContext^.traceState <> 0, 'Expected the trace state to be stored');
 	IF pContext^.traceState <> 0 THEN
-		THIS^.AssertTrue(pContext^.traceState^.pString <> ADR(traceState), 'Expected the trace state to be copied, not borrowed');
-		THIS^.AssertEquals_STRING('vendor=abc', pContext^.traceState^.pString^, 'Expected the trace state to keep its original value');
+		THIS^.AssertEquals_STRING('vendor=abc', pContext^.traceState^.pString^, 'Expected the trace state to outlive its source');
 	END_IF
 
 	THIS^._release(pContext:=pContext);
@@ -206,19 +208,22 @@ VAR
 	traceId: FB_TraceId;
 	spanId: FB_SpanId;
 	traceState: T_MaxString := 'vendor=abc';
+	pTraceState: POINTER TO FB_TraceState;
 	deleted: BOOL;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testDeleteClearsTheCallersPointer');
+	TraceStateFactory.parse(pDest:=pTraceState, pHeader:=ADR(traceState));
 	THIS^._fillIds(traceId:=traceId, spanId:=spanId, seed:=0);
 	ContextFactory.buildContext(
 		pDest:=pContext,
 		pTraceId:=ADR(traceId),
 		pSpanId:=ADR(spanId),
-		pTraceState:=ADR(traceState),
+		pTraceState:=pTraceState,
 		traceFlags:=0
 	);
+	IF pTraceState <> 0 THEN pTraceState^.delete(pSelf:=pTraceState); END_IF
 	IF pContext = 0 THEN
 		THIS^.AssertTrue(FALSE, 'Expected buildContext to succeed');
 		TcUnit.TEST_FINISHED();
@@ -278,19 +283,22 @@ VAR
 	traceId: FB_TraceId;
 	spanId: FB_SpanId;
 	traceState: T_MaxString := 'vendor=abc';
+	pTraceState: POINTER TO FB_TraceState;
 	success: BOOL;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testFreeClearsTheContext');
+	TraceStateFactory.parse(pDest:=pTraceState, pHeader:=ADR(traceState));
 	THIS^._fillIds(traceId:=traceId, spanId:=spanId, seed:=0);
 	success := ContextFactory.buildContext(
 		pDest:=pContext,
 		pTraceId:=ADR(traceId),
 		pSpanId:=ADR(spanId),
-		pTraceState:=ADR(traceState),
+		pTraceState:=pTraceState,
 		traceFlags:=16#301
 	);
+	IF pTraceState <> 0 THEN pTraceState^.delete(pSelf:=pTraceState); END_IF
 	THIS^.AssertTrue(success, 'Expected buildContext to succeed');
 	IF pContext = 0 THEN
 		TcUnit.TEST_FINISHED();
@@ -364,12 +372,16 @@ VAR
 	otherSpanId: FB_SpanId;
 	traceState: T_MaxString := 'vendor=abc';
 	otherTraceState: T_MaxString := 'vendor=xyz';
+	pTraceState: POINTER TO FB_TraceState;
+	pOtherTraceState: POINTER TO FB_TraceState;
 	success: BOOL;
 	failureReason: E_ContextFactoryFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testRejectsAssignedDestination');
+	TraceStateFactory.parse(pDest:=pTraceState, pHeader:=ADR(traceState));
+	TraceStateFactory.parse(pDest:=pOtherTraceState, pHeader:=ADR(otherTraceState));
 	THIS^._fillIds(traceId:=traceId, spanId:=spanId, seed:=0);
 	THIS^._fillIds(traceId:=otherTraceId, spanId:=otherSpanId, seed:=16#80);
 
@@ -377,11 +389,13 @@ END_VAR
 		pDest:=pContext,
 		pTraceId:=ADR(traceId),
 		pSpanId:=ADR(spanId),
-		pTraceState:=ADR(traceState),
+		pTraceState:=pTraceState,
 		traceFlags:=1
 	);
+	IF pTraceState <> 0 THEN pTraceState^.delete(pSelf:=pTraceState); END_IF
 	THIS^.AssertTrue(success, 'Expected the first build to succeed');
 	IF pContext = 0 THEN
+		IF pOtherTraceState <> 0 THEN pOtherTraceState^.delete(pSelf:=pOtherTraceState); END_IF
 		TcUnit.TEST_FINISHED();
 		RETURN;
 	END_IF
@@ -391,10 +405,11 @@ END_VAR
 		pDest:=pContext,
 		pTraceId:=ADR(otherTraceId),
 		pSpanId:=ADR(otherSpanId),
-		pTraceState:=ADR(otherTraceState),
+		pTraceState:=pOtherTraceState,
 		traceFlags:=0,
 		failureReason=>failureReason
 	);
+	IF pOtherTraceState <> 0 THEN pOtherTraceState^.delete(pSelf:=pOtherTraceState); END_IF
 	THIS^.AssertFalse(success, 'Expected a build into an assigned destination to fail');
 	THIS^.AssertEquals_UDINT(
 		TO_UDINT(E_ContextFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED),
@@ -426,19 +441,21 @@ VAR
 	traceId: FB_TraceId;
 	spanId: FB_SpanId;
 	traceState: T_MaxString := 'vendor=abc';
+	pTraceState: POINTER TO FB_TraceState;
 	success: BOOL;
 	failureReason: E_ContextFactoryFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testRejectsNullIdentifiers');
+	TraceStateFactory.parse(pDest:=pTraceState, pHeader:=ADR(traceState));
 	THIS^._fillIds(traceId:=traceId, spanId:=spanId, seed:=0);
 
 	success := ContextFactory.buildContext(
 		pDest:=pContext,
 		pTraceId:=0,
 		pSpanId:=ADR(spanId),
-		pTraceState:=ADR(traceState),
+		pTraceState:=pTraceState,
 		traceFlags:=1,
 		failureReason=>failureReason
 	);
@@ -454,7 +471,7 @@ END_VAR
 		pDest:=pContext,
 		pTraceId:=ADR(traceId),
 		pSpanId:=0,
-		pTraceState:=ADR(traceState),
+		pTraceState:=pTraceState,
 		traceFlags:=1,
 		failureReason=>failureReason
 	);
@@ -466,6 +483,7 @@ END_VAR
 	);
 	THIS^.AssertTrue(pContext = 0, 'Expected a rejected build to leave the destination unassigned');
 
+	IF pTraceState <> 0 THEN pTraceState^.delete(pSelf:=pTraceState); END_IF
 	THIS^._release(pContext:=pContext);
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>

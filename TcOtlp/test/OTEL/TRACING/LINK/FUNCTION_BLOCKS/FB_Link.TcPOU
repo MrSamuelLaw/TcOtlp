@@ -12,7 +12,7 @@ VAR_INPUT
 	// written by LinkFactory
 	traceId: POINTER TO FB_TraceId;
 	spanId: POINTER TO FB_SpanId;
-	traceState: POINTER TO FB_String;  // optional; 0 means none
+	traceState: POINTER TO FB_TraceState;  // optional; 0 means none
 
 	// the linked context's trace flags and remoteness; see E_SpanFlags
 	flags: UDINT;

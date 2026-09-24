@@ -70,7 +70,7 @@ _copied := ValueFactory.createTraceId(
 		pDest:=_pNew^.spanId,
 		pBytes:=ADR(_ctxSpanId.bytes),
 		nSize:=SIZEOF(_ctxSpanId.bytes))
-	AND_THEN (pContext^.traceState = 0 OR_ELSE ValueFactory.cloneString(
+	AND_THEN (pContext^.traceState = 0 OR_ELSE TraceStateFactory.clone(
 		pDest:=_pNew^.traceState,
 		pSrc:=pContext^.traceState));
 IF NOT _copied THEN
@@ -193,7 +193,7 @@ _copied := ValueFactory.createTraceId(
 		pDest:=_pNew^.spanId,
 		pBytes:=ADR(pSrc^.spanId^.bytes),
 		nSize:=SIZEOF(pSrc^.spanId^.bytes))
-	AND_THEN (pSrc^.traceState = 0 OR_ELSE ValueFactory.cloneString(
+	AND_THEN (pSrc^.traceState = 0 OR_ELSE TraceStateFactory.clone(
 		pDest:=_pNew^.traceState,
 		pSrc:=pSrc^.traceState));
 IF NOT _copied THEN

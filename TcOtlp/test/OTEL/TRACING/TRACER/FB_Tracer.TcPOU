@@ -404,10 +404,11 @@ VAR
 	_ctxSpanId: REFERENCE TO FB_SpanId;
 	_pTraceId: POINTER TO FB_TraceId;
 	_pParentSpanId: POINTER TO FB_SpanId;
-	_pTraceState: POINTER TO FB_String;
+	_pTraceState: POINTER TO FB_TraceState;
 	_copied: BOOL;
 	_flags: UDINT;
 	_factoryFailureReason: E_ValueFactoryFailureReason;
+	_traceStateFailureReason: E_TraceStateFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -442,17 +443,19 @@ _copied := ValueFactory.createTraceId(
 		pBytes:=ADR(_ctxSpanId.bytes),
 		nSize:=SIZEOF(_ctxSpanId.bytes),
 		failureReason=>_factoryFailureReason)
-	AND_THEN (pContext^.traceState = 0 OR_ELSE ValueFactory.cloneString(
+	AND_THEN (pContext^.traceState = 0 OR_ELSE TraceStateFactory.clone(
 		pDest:=_pTraceState,
 		pSrc:=pContext^.traceState,
-		failureReason=>_factoryFailureReason));
+		failureReason=>_traceStateFailureReason));
 
 IF NOT _copied THEN
 	IF _pTraceId <> 0 THEN _pTraceId^.delete(pSelf:=_pTraceId); END_IF
 	IF _pParentSpanId <> 0 THEN _pParentSpanId^.delete(pSelf:=_pParentSpanId); END_IF
 	IF _pTraceState <> 0 THEN _pTraceState^.delete(pSelf:=_pTraceState); END_IF
 	THIS^._failed := TRUE;
-	IF _factoryFailureReason = E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE THEN
+	IF _factoryFailureReason = E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE
+		OR _traceStateFailureReason = E_TraceStateFailureReason.MEMORY_ALLOCATION_FAILURE
+	THEN
 		THIS^._failureReason := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
 	ELSE
 		THIS^._failureReason := E_TracerFailureReason.PARENT_CONTEXT_INVALID;

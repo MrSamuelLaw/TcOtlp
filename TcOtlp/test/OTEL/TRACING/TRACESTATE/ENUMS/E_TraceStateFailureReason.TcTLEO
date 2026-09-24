@@ -1,0 +1,98 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <EnumerationTextList Name="E_TraceStateFailureReason" Id="{35e6b0b3-9989-4b4f-a2f2-90bce258c6da}">
+    <Declaration><![CDATA[(* Why TraceStateFactory could not produce a trace state. *)
+{attribute 'qualified_only'}
+{attribute 'strict'}
+{attribute 'to_string'}
+TYPE E_TraceStateFailureReason :
+(
+	NA := 0,  // No failure.
+	DESTINATION_ALREADY_ASSIGNED,  // The destination pointer already holds a trace state.
+	SOURCE_POINTER_NULL,  // The source trace state is missing or has been freed.
+	HEADER_POINTER_NULL,  // The header pointer is 0.
+	HEADER_TOO_LONG,  // The header is longer than TraceStateFactory.MAX_HEADER_LENGTH.
+	INVALID_KEY,  // An entry has a key that does not follow the W3C key grammar.
+	INVALID_VALUE,  // An entry has no '=' or a value that does not follow the W3C value grammar.
+	DUPLICATE_KEY,  // Two entries have the same key.
+	TOO_MANY_ENTRIES,  // The header has more than TraceStateFactory.MAX_ENTRIES entries.
+	MEMORY_ALLOCATION_FAILURE  // The trace state could not be allocated.
+) UDINT;
+END_TYPE
+]]></Declaration>
+    <XmlArchive>
+      <Data>
+        <o xml:space="preserve" t="TextListEnumerationTextListObject">
+          <l n="TextList" t="ArrayList" cet="TextListRow">
+            <o>
+              <v n="TextID">"NA"</v>
+              <v n="TextDefault">"0"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"DESTINATION_ALREADY_ASSIGNED"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SOURCE_POINTER_NULL"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"HEADER_POINTER_NULL"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"HEADER_TOO_LONG"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"INVALID_KEY"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"INVALID_VALUE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"DUPLICATE_KEY"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"TOO_MANY_ENTRIES"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"MEMORY_ALLOCATION_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">""</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+          </l>
+          <l n="Languages" t="ArrayList" />
+          <v n="GuidInit">{b1776cf3-2a6c-4aa8-bbe6-4de1106a23f7}</v>
+          <v n="GuidReInit">{07c25327-d650-4198-b163-bb5a76315d09}</v>
+          <v n="GuidExitX">{345b838c-fe9f-4842-badc-915de7ce8b8b}</v>
+        </o>
+      </Data>
+      <TypeList>
+        <Type n="ArrayList">System.Collections.ArrayList</Type>
+        <Type n="Guid">System.Guid</Type>
+        <Type n="String">System.String</Type>
+        <Type n="TextListEnumerationTextListObject">{4b60233c-f940-4beb-b331-82133b520151}</Type>
+        <Type n="TextListRow">{53da1be7-ad25-47c3-b0e8-e26286dad2e0}</Type>
+      </TypeList>
+    </XmlArchive>
+  </EnumerationTextList>
+</TcPlcObject>

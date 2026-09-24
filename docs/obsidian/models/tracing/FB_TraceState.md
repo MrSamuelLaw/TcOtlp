@@ -1,16 +1,16 @@
 ---
 type: model
 domain: tracing
-status: design
+status: implemented
 implements:
   - FB_TraceState
   - TraceStateFactory
   - E_TraceStateFailureReason
 source: TcOtlp/test/OTEL/TRACING/TRACESTATE/
-gap: nothing implemented. Spans, links and contexts still hold trace state as POINTER TO FB_String.
+gap: TraceContextPropagator (extract/inject) does not exist yet, so nothing parses or truncates at a carrier boundary outside tests.
 ---
 
-`FB_TraceState` is the immutable VALUE OBJECT for the W3C `tracestate` header: an ordered list of up to 32 vendor `key=value` entries that travels next to `traceparent`. It is its own submodule because it has its own grammar, validation, mutation rules and length limits. Those are more than a plain string can express, and they are not attribute semantics either.
+`FB_TraceState` is the immutable VALUE OBJECT for the W3C `tracestate` header: an ordered list of up to 32 vendor `key=value` entries that travels next to `traceparent`. It is its own submodule because it has its own grammar, validation and length limits. Those are more than a plain string can express, and they are not attribute semantics either.
 
 ## Why not attributes
 
@@ -33,14 +33,14 @@ The last two rows decide the design. Both wire forms are the **same canonical st
 
 - Clone is one allocation and one `MEMCPY`, which is the same cost as the `FB_String` it replaces.
 - OTLP serialization and `inject` write the buffer as it is. Nothing is rebuilt from a list.
-- `get`, `put` and `delete` scan the buffer. The scan is bounded by the 32-entry limit, and so by `MAX_LOOP_COUNT`.
+- `truncate` splits the buffer on `,`. The scan is bounded by the string length, and the entry table by the 32-entry limit.
 - There is no per-entry allocation. A full list would otherwise cost 32 node allocations on every span that carries it.
 
-The alternative is a linked list of entries, following [[FB_Attributes]]. It only pays off if the PLC edits trace state often. On a PLC, trace state is almost always passed through unchanged, so the string form wins.
+The alternative is a linked list of entries, following [[FB_Attributes]]. It only pays off if the PLC edits trace state often. The PLC never adds or edits an entry of its own, so trace state is only ever passed through, and the string form wins.
 
 ## Invariants
 
-- Immutable. `put` and `delete` build a **new** `FB_TraceState`, as the OpenTelemetry API requires; the original is untouched.
+- Immutable. Nothing edits an `FB_TraceState` after construction; `truncate` builds a **new** one, as the OpenTelemetry API requires.
 - Always valid. Anything that fails the grammar is rejected before any allocation happens.
 - Never empty. An absent or empty header means `pTraceState = 0` on the holder, not an empty object. W3C: accept empty headers, but do not send them.
 - At most 32 entries, and no duplicate keys.
@@ -54,44 +54,41 @@ A `PROGRAM` factory. Like `ValueFactory` and `LinkFactory`, each method returns 
   - Validation covers the key and value grammar, the 32-entry limit and duplicate keys.
   - An empty or whitespace-only header succeeds with `pDest = 0`.
   - An invalid header fails. W3C says an unparseable tracestate must not be propagated, so the caller drops it and keeps the `traceparent`.
-- **`clone(pDest, pSrc, failureReason)`**. Makes one copy of the buffer. This replaces `ValueFactory.cloneString` in `LinkFactory`, `FB_Span` and `FB_Tracer`.
-- **`put(pDest, pSrc, pKey, pValue, failureReason)`**. Returns a copy with the entry at the **front**. An existing entry with that key is moved and updated. If adding the entry would exceed 32 entries, the rightmost entry is dropped. `pSrc` may be `0`.
-- **`delete(pDest, pSrc, pKey, failureReason)`**. Returns a copy without that key. If no entries remain, it succeeds with `pDest = 0`.
-- **`truncate(pDest, pSrc, maxLength, failureReason)`**. Applies the W3C rules for a limited carrier: remove entries longer than 128 characters first, then remove entries from the right, until the whole string fits. Entries are always removed whole and never cut.
+- **`clone(pDest, pSrc, failureReason)`**. Makes one copy of the buffer. `ContextFactory`, `LinkFactory`, `FB_Span` and `FB_Tracer` use it.
+- **`truncate(pDest, pSrc, maxLength, failureReason)`**. Applies the W3C rules for a limited carrier: remove entries longer than 128 characters first, then remove entries from the right, until the whole string fits. Entries are always removed whole and never cut. If nothing fits, it succeeds with `pDest = 0`; if everything fits, it is a `clone`.
 
-`FB_TraceState` itself exposes `length`, `count`, `get(pKey, pValue out)` and `pString`, a read-only view for serializers. Release it with `pTraceState^.delete(pSelf:=pTraceState)`.
+`FB_TraceState` itself exposes `length`, `count` and `pString`, a read-only view for serializers. Release it with `pTraceState^.delete(pSelf:=pTraceState)`.
 
 ## Limits
 
 | Constant | Value | Source |
 | --- | --- | --- |
-| `TRACE_STATE_MAX_ENTRIES` | 32 | W3C list limit |
-| `TRACE_STATE_MAX_KEY_LENGTH` | 256 | W3C key grammar |
-| `TRACE_STATE_MAX_VALUE_LENGTH` | 256 | W3C value grammar |
-| `TRACE_STATE_CARRIER_LENGTH` | 512 | W3C §3.3.1.5: SHOULD propagate at least 512 characters |
-| `TRACE_STATE_LARGE_ENTRY` | 128 | W3C truncation: remove entries over 128 characters first |
+| `MAX_ENTRIES` | 32 | W3C list limit |
+| `MAX_KEY_LENGTH` | 256 | W3C key grammar |
+| `MAX_VALUE_LENGTH` | 256 | W3C value grammar |
+| `MAX_HEADER_LENGTH` | 16447 | 32 full entries, plus separators; bounds the `parse` loop |
+| `CARRIER_LENGTH` | 512 | W3C §3.3.1.5: SHOULD propagate at least 512 characters |
+| `LARGE_ENTRY_LENGTH` | 128 | W3C truncation: remove entries over 128 characters first |
 
-The carrier type at the RPC boundary is `STRING(512)`. `parse` accepts any length it is given. The 512 limit is only for fixed carriers: the RPC input, and the output of `inject`.
+These are `VAR CONSTANT` on `TraceStateFactory`. The carrier type at the RPC boundary is `STRING(512)`. `parse` accepts any header up to `MAX_HEADER_LENGTH`. The 512 limit is only for fixed carriers: the RPC input, and the output of `inject`.
 
-## Changes to existing code
+## Holders
 
-These are mechanical once the submodule exists:
+- `FB_SpanContext`, `FB_Span` and `FB_Link` store `traceState: POINTER TO FB_TraceState` and release it in `free`.
+- `ContextFactory.buildContext` takes `pTraceState: POINTER TO FB_TraceState`. The pointer is borrowed and cloned, so the caller still owns and releases its own trace state.
+- `LinkFactory`, `FB_Span` and `FB_Tracer.setParent` copy through `TraceStateFactory.clone`.
+- `FB_SpanProtoJsonSerializer` writes `traceState` from `pTraceState^.pString`. It still emits a single JSON string, and the wire output does not change. A 515-character state is written whole (`testSerializeLongTraceState`).
 
-- `FB_SpanContext`, `FB_Span` and `FB_Link` store `traceState: POINTER TO FB_TraceState` in place of `POINTER TO FB_String`. Getters and `free` follow.
-- `ContextFactory.buildContext`, `LinkFactory` and `FB_Tracer` call `TraceStateFactory.clone`.
-- `FB_SpanProtoJsonSerializer` writes `traceState` from `pTraceState^.pString`. It still emits a single JSON string, and the wire output does not change.
+## Propagation (not built yet)
+
 - `TraceContextPropagator.extract` takes `tracestate: STRING(512)` and calls `TraceStateFactory.parse`. A bad trace state is dropped without failing extraction. A bad traceparent drops the trace state as well.
 - `inject` writes the canonical string, truncated to 512 characters. It writes nothing when trace state is absent.
 
-## Tests to write first
+## Tests
 
-- Round trip: parse, then serialize, gives the canonical string. Includes whitespace around `,`.
-- A 512-character state survives clone, span, link and the ProtoJSON serializer without being cut. This also checks that the `pString^` dereference in `serializeStringValue` is safe for long strings.
-- Rejection: an upper-case key, `=` in a value, a trailing space in a value, 33 entries, a duplicate key.
-- `put` moves an existing key to the front. `put` on a full list drops the rightmost entry.
-- `truncate` removes large entries first, then entries from the right, and never cuts an entry.
+`FB_TestTraceState` covers canonicalisation (whitespace and empty members), empty headers, key and value rejections, duplicate keys, the 32-entry limit, a 515-character header, `clone` independence and `truncate`. `FB_TestSpanProtoJsonSerializer.testSerializeLongTraceState` checks a 515-character state through a remote context, a span and the serializer.
 
-## Open questions
+## Decisions
 
-- **A carrier truncated in transport.** If the RPC `STRING(512)` fills exactly, the sender may have cut an entry in half, and the cut entry may still parse. Either the caller (Ignition) must truncate by the W3C rules before it sends, or the PLC treats a full buffer as suspect and drops the last entry. The first is cleaner.
-- **A PLC vendor entry.** Does this controller ever `put` its own key? If not, `put` and `delete` can wait, and the first slice is `parse`, `clone`, `truncate` and serialization.
+- **The PLC never adds its own entry.** So there is no `put`, `delete` or `get`. Add them only if a PLC vendor key is ever needed.
+- **The sender truncates.** Ignition truncates by the W3C rules before it fills the `STRING(512)` carrier. The PLC does not treat a full buffer as suspect. `truncate` applies the same rules to what the PLC sends out.

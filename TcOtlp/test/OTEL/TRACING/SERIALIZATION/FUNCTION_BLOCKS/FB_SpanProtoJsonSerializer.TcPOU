@@ -65,7 +65,7 @@ FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
 	END_IF
 	IF _pLink^.traceId <> 0 AND_THEN NOT THIS^.serializeTraceIdValue(_obj, _pLink^.traceId, failureReason=>failureReason) THEN RETURN; END_IF
 	IF _pLink^.spanId <> 0 AND_THEN NOT THIS^.serializeSpanIdValue(_obj, _pLink^.spanId, failureReason=>failureReason) THEN RETURN; END_IF
-	IF _pLink^.traceState <> 0 AND_THEN NOT THIS^.serializeStringValue(_obj, ADR('traceState'), _pLink^.traceState, failureReason=>failureReason) THEN RETURN; END_IF
+	IF _pLink^.traceState <> 0 AND_THEN NOT THIS^._serializeTraceState(_obj, _pLink^.traceState, failureReason=>failureReason) THEN RETURN; END_IF
 	IF _pLink^.attributes.count > 0 AND_THEN NOT THIS^.serializeKeyValues(_obj, ADR('attributes'), ADR(_pLink^.attributes), failureReason=>failureReason) THEN RETURN; END_IF
 	IF _pLink^.attributes.droppedCount > 0 AND_THEN NOT THIS^.serializeUint32Value(
 		_obj,
@@ -167,7 +167,7 @@ END_IF
 // identity; a root span has no parentSpanId
 IF pSpan^.traceId <> 0 AND_THEN NOT THIS^.serializeTraceIdValue(_obj, pSpan^.traceId, failureReason=>failureReason) THEN RETURN; END_IF
 IF pSpan^.spanId <> 0 AND_THEN NOT THIS^.serializeSpanIdValue(_obj, pSpan^.spanId, failureReason=>failureReason) THEN RETURN; END_IF
-IF pSpan^.traceState <> 0 AND_THEN NOT THIS^.serializeStringValue(_obj, ADR('traceState'), pSpan^.traceState, failureReason=>failureReason) THEN RETURN; END_IF
+IF pSpan^.traceState <> 0 AND_THEN NOT THIS^._serializeTraceState(_obj, pSpan^.traceState, failureReason=>failureReason) THEN RETURN; END_IF
 IF pSpan^.parentSpanId <> 0 THEN
 	IF NOT THIS^._serializeBytes(
 		ADR(pSpan^.parentSpanId^.bytes),
@@ -587,6 +587,38 @@ END_IF
 
 spans.free();
 serializeTracesData := failureReason = E_ProtoJsonSerializerFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_serializeTraceState" Id="{26dc0e4e-98b7-4984-8000-28b068a6c34a}">
+      <Declaration><![CDATA[(*
+	Writes a trace state as the traceState string member of v. OTLP carries the canonical W3C
+	header as one string, which may be longer than T_MaxString.
+*)
+METHOD _serializeTraceState : BOOL
+VAR_IN_OUT
+	v: SJsonValue;
+END_VAR
+VAR_INPUT
+	pTraceState: POINTER TO FB_TraceState;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+VAR
+	_pText: POINTER TO STRING;
+	_member: SJsonValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_serializeTraceState := FALSE;
+failureReason := E_ProtoJsonSerializerFailureReason.NA;
+IF v = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_VALUE_INVALID; RETURN; END_IF
+IF pTraceState = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.VALUE_POINTER_NULL; RETURN; END_IF
+_pText := pTraceState^.pString;
+IF _pText = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.STRING_POINTER_NULL; RETURN; END_IF
+_member := THIS^.parser.AddStringMember(v, 'traceState', _pText^);
+IF _member = 0 THEN failureReason := E_ProtoJsonSerializerFailureReason.JSON_OPERATION_FAILURE; RETURN; END_IF
+_serializeTraceState := TRUE;]]></ST>
       </Implementation>
     </Method>
   </POU>

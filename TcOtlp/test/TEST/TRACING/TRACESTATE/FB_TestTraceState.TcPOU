@@ -1,0 +1,331 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestTraceState" Id="{d8831749-ac67-47d0-81b5-f23d1c358f8d}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Tests TraceStateFactory and FB_TraceState against the W3C tracestate rules. *)
+FUNCTION_BLOCK FB_TestTraceState EXTENDS FB_TestSuite
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testParseCanonicalises();
+THIS^.testParseEmptyHeader();
+THIS^.testParseRejectsInvalidHeaders();
+THIS^.testParseEntryLimit();
+THIS^.testParseLongHeader();
+THIS^.testCloneIsIndependent();
+THIS^.testTruncateFollowsW3C();]]></ST>
+    </Implementation>
+    <Method Name="_expectRejected" Id="{281c949b-dbf8-4b32-b67e-ab855dbe103f}">
+      <Declaration><![CDATA[(* Asserts that parse rejects header with the expected reason and allocates nothing. *)
+METHOD _expectRejected
+VAR_INPUT
+	header: T_MaxString;
+	expected: E_TraceStateFailureReason;
+END_VAR
+VAR
+	_pTraceState: POINTER TO FB_TraceState;
+	_success: BOOL;
+	_reason: E_TraceStateFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_success := TraceStateFactory.parse(pDest:=_pTraceState, pHeader:=ADR(header), failureReason=>_reason);
+THIS^.AssertFalse(_success, CONCAT('Expected parse to reject: ', header));
+THIS^.AssertEquals_UDINT(TO_UDINT(expected), TO_UDINT(_reason), CONCAT('Expected the failure reason for: ', header));
+THIS^.AssertTrue(_pTraceState = 0, CONCAT('Expected nothing to be allocated for: ', header));
+IF _pTraceState <> 0 THEN _pTraceState^.delete(pSelf:=_pTraceState); END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_fillLongHeader" Id="{d14f2e73-81c8-4b26-8ee5-31ce21273733}">
+      <Declaration><![CDATA[(*
+	Writes a valid 515 character header: four 128 character entries k0..k3 joined by ','.
+	It is built byte by byte because STRING functions stop at 255 characters.
+*)
+METHOD _fillLongHeader
+VAR_IN_OUT
+	header: STRING(600);
+END_VAR
+VAR
+	_p: POINTER TO BYTE;
+	_entry: UDINT;
+	_i: UDINT;
+	_n: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_p := ADR(header);
+FOR _entry := 0 TO 3 DO
+	IF _entry > 0 THEN
+		_p[_n] := 16#2C;  // ','
+		_n := _n + 1;
+	END_IF
+	_p[_n] := 16#6B;  // 'k'
+	_p[_n + 1] := 16#30 + TO_BYTE(_entry);
+	_p[_n + 2] := 16#3D;  // '='
+	_n := _n + 3;
+	FOR _i := 1 TO 125 DO
+		_p[_n] := 16#61 + TO_BYTE(_i MOD 26);
+		_n := _n + 1;
+	END_FOR
+END_FOR
+_p[_n] := 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testParseCanonicalises" Id="{dda5dce9-fe1b-465b-8580-81f5e7ad81f9}">
+      <Declaration><![CDATA[(* parse drops empty members and the optional whitespace around ',' and keeps the order. *)
+METHOD testParseCanonicalises : REFERENCE TO FB_Test
+VAR
+	header: T_MaxString := ' vendor=abc ,, rojo=00f067aa0ba902b7$T, congo@t61rcwkgmze=x ';
+	expected: T_MaxString := 'vendor=abc,rojo=00f067aa0ba902b7,congo@t61rcwkgmze=x';
+	pTraceState: POINTER TO FB_TraceState;
+	success: BOOL;
+	reason: E_TraceStateFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testParseCanonicalises');
+	success := TraceStateFactory.parse(pDest:=pTraceState, pHeader:=ADR(header), failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected a valid header to parse');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_TraceStateFailureReason.NA), TO_UDINT(reason), 'Expected no failure reason');
+	THIS^.AssertTrue(pTraceState <> 0, 'Expected a trace state');
+	IF pTraceState <> 0 THEN
+		THIS^.AssertEquals_STRING(expected, pTraceState^.pString^, 'Expected the canonical header');
+		THIS^.AssertEquals_UDINT(TO_UDINT(LEN(expected)), pTraceState^.length, 'Expected the canonical length');
+		THIS^.AssertEquals_UDINT(3, pTraceState^.count, 'Expected three entries');
+		pTraceState^.delete(pSelf:=pTraceState);
+		THIS^.AssertTrue(pTraceState = 0, 'Expected delete to clear the pointer');
+	END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testParseEmptyHeader" Id="{4511c1db-dc5b-470e-815c-d3e1349eeb8e}">
+      <Declaration><![CDATA[(* An empty header, or one of only empty members, is valid but holds nothing, so no trace state is allocated. *)
+METHOD testParseEmptyHeader : REFERENCE TO FB_Test
+VAR
+	empty: T_MaxString := '';
+	blank: T_MaxString := ' , ,,$T';
+	pTraceState: POINTER TO FB_TraceState;
+	success: BOOL;
+	reason: E_TraceStateFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testParseEmptyHeader');
+	success := TraceStateFactory.parse(pDest:=pTraceState, pHeader:=ADR(empty), failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected an empty header to be accepted');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_TraceStateFailureReason.NA), TO_UDINT(reason), 'Expected no failure reason');
+	THIS^.AssertTrue(pTraceState = 0, 'Expected no trace state for an empty header');
+
+	success := TraceStateFactory.parse(pDest:=pTraceState, pHeader:=ADR(blank), failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected a header of empty members to be accepted');
+	THIS^.AssertTrue(pTraceState = 0, 'Expected no trace state for a header of empty members');
+	IF pTraceState <> 0 THEN pTraceState^.delete(pSelf:=pTraceState); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testParseRejectsInvalidHeaders" Id="{68a1b068-28d8-433e-b993-0a907c45b45a}">
+      <Declaration><![CDATA[(* Anything that breaks the W3C key or value grammar, or repeats a key, is rejected whole. *)
+METHOD testParseRejectsInvalidHeaders : REFERENCE TO FB_Test
+VAR
+	pTraceState: POINTER TO FB_TraceState;
+	pOther: POINTER TO FB_TraceState;
+	header: T_MaxString := 'vendor=abc';
+	success: BOOL;
+	reason: E_TraceStateFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testParseRejectsInvalidHeaders');
+	THIS^._expectRejected(header:='Vendor=abc', expected:=E_TraceStateFailureReason.INVALID_KEY);
+	THIS^._expectRejected(header:='1vendor=x', expected:=E_TraceStateFailureReason.INVALID_KEY);
+	THIS^._expectRejected(header:='=x', expected:=E_TraceStateFailureReason.INVALID_KEY);
+	THIS^._expectRejected(header:='@sys=x', expected:=E_TraceStateFailureReason.INVALID_KEY);
+	THIS^._expectRejected(header:='tenant@=x', expected:=E_TraceStateFailureReason.INVALID_KEY);
+	THIS^._expectRejected(header:='tenant@1sys=x', expected:=E_TraceStateFailureReason.INVALID_KEY);
+	THIS^._expectRejected(header:='a@b@c=x', expected:=E_TraceStateFailureReason.INVALID_KEY);
+	THIS^._expectRejected(header:='ven dor=x', expected:=E_TraceStateFailureReason.INVALID_KEY);
+	THIS^._expectRejected(header:='vendor', expected:=E_TraceStateFailureReason.INVALID_VALUE);
+	THIS^._expectRejected(header:='vendor=', expected:=E_TraceStateFailureReason.INVALID_VALUE);
+	THIS^._expectRejected(header:='vendor=a=b', expected:=E_TraceStateFailureReason.INVALID_VALUE);
+	THIS^._expectRejected(header:='vendor=a$Tb', expected:=E_TraceStateFailureReason.INVALID_VALUE);
+	THIS^._expectRejected(header:='good=1,vendor=a=b', expected:=E_TraceStateFailureReason.INVALID_VALUE);
+	THIS^._expectRejected(header:='a=1,b=2,a=3', expected:=E_TraceStateFailureReason.DUPLICATE_KEY);
+
+	success := TraceStateFactory.parse(pDest:=pTraceState, pHeader:=0, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected a null header pointer to be rejected');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_TraceStateFailureReason.HEADER_POINTER_NULL), TO_UDINT(reason), 'Expected HEADER_POINTER_NULL');
+
+	TraceStateFactory.parse(pDest:=pTraceState, pHeader:=ADR(header));
+	pOther := pTraceState;
+	success := TraceStateFactory.parse(pDest:=pTraceState, pHeader:=ADR(header), failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected an assigned destination to be rejected');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_TraceStateFailureReason.DESTINATION_ALREADY_ASSIGNED), TO_UDINT(reason), 'Expected DESTINATION_ALREADY_ASSIGNED');
+	THIS^.AssertTrue(pTraceState = pOther, 'Expected the destination to be left alone');
+	IF pTraceState <> 0 THEN pTraceState^.delete(pSelf:=pTraceState); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testParseEntryLimit" Id="{aab2d02f-0b1b-4edf-899c-2b921a434e0c}">
+      <Declaration><![CDATA[(* W3C allows at most 32 entries; a 33rd is rejected. *)
+METHOD testParseEntryLimit : REFERENCE TO FB_Test
+VAR
+	header: T_MaxString;
+	i: UDINT;
+	pTraceState: POINTER TO FB_TraceState;
+	success: BOOL;
+	reason: E_TraceStateFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testParseEntryLimit');
+	header := 'k0=1';
+	FOR i := 1 TO 31 DO
+		header := CONCAT(header, CONCAT(CONCAT(',k', UDINT_TO_STRING(i)), '=1'));
+	END_FOR
+	success := TraceStateFactory.parse(pDest:=pTraceState, pHeader:=ADR(header), failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected 32 entries to be accepted');
+	IF pTraceState <> 0 THEN
+		THIS^.AssertEquals_UDINT(32, pTraceState^.count, 'Expected 32 entries');
+		pTraceState^.delete(pSelf:=pTraceState);
+	END_IF
+
+	header := CONCAT(header, ',k32=1');
+	success := TraceStateFactory.parse(pDest:=pTraceState, pHeader:=ADR(header), failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected 33 entries to be rejected');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_TraceStateFailureReason.TOO_MANY_ENTRIES), TO_UDINT(reason), 'Expected TOO_MANY_ENTRIES');
+	THIS^.AssertTrue(pTraceState = 0, 'Expected nothing to be allocated');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testParseLongHeader" Id="{8966139f-e2ac-4a4d-895f-674ce953a984}">
+      <Declaration><![CDATA[(* A header longer than T_MaxString is kept whole; W3C asks for at least 512 characters. *)
+METHOD testParseLongHeader : REFERENCE TO FB_Test
+VAR
+	header: STRING(600);
+	pTraceState: POINTER TO FB_TraceState;
+	success: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testParseLongHeader');
+	THIS^._fillLongHeader(header:=header);
+	THIS^.AssertEquals_UDINT(515, TO_UDINT(LEN2(ADR(header))), 'Expected a 515 character test header');
+	success := TraceStateFactory.parse(pDest:=pTraceState, pHeader:=ADR(header));
+	THIS^.AssertTrue(success, 'Expected the long header to parse');
+	IF pTraceState <> 0 THEN
+		THIS^.AssertEquals_UDINT(515, pTraceState^.length, 'Expected all 515 characters');
+		THIS^.AssertEquals_UDINT(4, pTraceState^.count, 'Expected four entries');
+		THIS^.AssertTrue(MEMCMP(pTraceState^.pString, ADR(header), 516) = 0, 'Expected the header unchanged, with its terminator');
+		pTraceState^.delete(pSelf:=pTraceState);
+	END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testCloneIsIndependent" Id="{df7e5e99-41e7-4ce5-9351-04eefe88c98f}">
+      <Declaration><![CDATA[(* clone owns its own buffer, so it outlives the source. *)
+METHOD testCloneIsIndependent : REFERENCE TO FB_Test
+VAR
+	header: T_MaxString := 'vendor=abc,rojo=1';
+	pSource: POINTER TO FB_TraceState;
+	pClone: POINTER TO FB_TraceState;
+	pOther: POINTER TO FB_TraceState;
+	success: BOOL;
+	reason: E_TraceStateFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testCloneIsIndependent');
+	TraceStateFactory.parse(pDest:=pSource, pHeader:=ADR(header));
+	success := TraceStateFactory.clone(pDest:=pClone, pSrc:=pSource, failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected clone to succeed');
+	THIS^.AssertTrue(pClone <> 0 AND pClone <> pSource, 'Expected a new trace state');
+	IF pSource <> 0 AND pClone <> 0 THEN
+		THIS^.AssertTrue(pClone^.pString <> pSource^.pString, 'Expected the clone to own its own buffer');
+	END_IF
+
+	success := TraceStateFactory.clone(pDest:=pClone, pSrc:=pSource, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected clone into an assigned destination to fail');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_TraceStateFailureReason.DESTINATION_ALREADY_ASSIGNED), TO_UDINT(reason), 'Expected DESTINATION_ALREADY_ASSIGNED');
+	success := TraceStateFactory.clone(pDest:=pOther, pSrc:=0, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected clone of a null source to fail');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_TraceStateFailureReason.SOURCE_POINTER_NULL), TO_UDINT(reason), 'Expected SOURCE_POINTER_NULL');
+
+	IF pSource <> 0 THEN pSource^.delete(pSelf:=pSource); END_IF
+	IF pClone <> 0 THEN
+		THIS^.AssertEquals_STRING('vendor=abc,rojo=1', pClone^.pString^, 'Expected the clone to outlive its source');
+		THIS^.AssertEquals_UDINT(2, pClone^.count, 'Expected the entry count to be copied');
+		pClone^.delete(pSelf:=pClone);
+	END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testTruncateFollowsW3C" Id="{04c9e3ed-adcb-4052-b6cf-b43ce78f7a2e}">
+      <Declaration><![CDATA[(* truncate removes entries over 128 characters first, then entries from the right, and never cuts an entry. *)
+METHOD testTruncateFollowsW3C : REFERENCE TO FB_Test
+VAR
+	header: STRING(600);
+	pBytes: POINTER TO BYTE;
+	i: UDINT;
+	pSource: POINTER TO FB_TraceState;
+	pResult: POINTER TO FB_TraceState;
+	success: BOOL;
+	reason: E_TraceStateFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testTruncateFollowsW3C');
+	// a=1,big=<130 characters>,b=2,c=3
+	header := 'a=1,big=';
+	pBytes := ADR(header);
+	FOR i := 8 TO 137 DO
+		pBytes[i] := 16#78;  // 'x'
+	END_FOR
+	pBytes[138] := 0;
+	MEMCPY(pBytes + 138, ADR(',b=2,c=3'), 9);
+	success := TraceStateFactory.parse(pDest:=pSource, pHeader:=ADR(header));
+	THIS^.AssertTrue(success AND pSource <> 0, 'Expected the header to parse');
+	IF pSource = 0 THEN
+		TcUnit.TEST_FINISHED();
+		RETURN;
+	END_IF
+	THIS^.AssertEquals_UDINT(146, pSource^.length, 'Expected a 146 character test header');
+
+	success := TraceStateFactory.truncate(pDest:=pResult, pSrc:=pSource, maxLength:=1000, failureReason=>reason);
+	THIS^.AssertTrue(success AND pResult <> 0, 'Expected a header that fits to be copied');
+	IF pResult <> 0 THEN
+		THIS^.AssertTrue(pResult <> pSource AND pResult^.length = 146, 'Expected a whole copy');
+		pResult^.delete(pSelf:=pResult);
+	END_IF
+
+	success := TraceStateFactory.truncate(pDest:=pResult, pSrc:=pSource, maxLength:=20, failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected truncate to succeed');
+	IF pResult <> 0 THEN
+		THIS^.AssertEquals_STRING('a=1,b=2,c=3', pResult^.pString^, 'Expected the large entry to go first');
+		THIS^.AssertEquals_UDINT(3, pResult^.count, 'Expected three entries');
+		pResult^.delete(pSelf:=pResult);
+	ELSE
+		THIS^.AssertTrue(FALSE, 'Expected a truncated trace state');
+	END_IF
+
+	success := TraceStateFactory.truncate(pDest:=pResult, pSrc:=pSource, maxLength:=7, failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected truncate to succeed');
+	IF pResult <> 0 THEN
+		THIS^.AssertEquals_STRING('a=1,b=2', pResult^.pString^, 'Expected entries to go from the right next');
+		pResult^.delete(pSelf:=pResult);
+	ELSE
+		THIS^.AssertTrue(FALSE, 'Expected a truncated trace state');
+	END_IF
+
+	success := TraceStateFactory.truncate(pDest:=pResult, pSrc:=pSource, maxLength:=2, failureReason=>reason);
+	THIS^.AssertTrue(success, 'Expected truncate to succeed when nothing fits');
+	THIS^.AssertTrue(pResult = 0, 'Expected no trace state when no entry fits');
+	IF pResult <> 0 THEN pResult^.delete(pSelf:=pResult); END_IF
+
+	success := TraceStateFactory.truncate(pDest:=pResult, pSrc:=0, maxLength:=512, failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected a null source to be rejected');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_TraceStateFailureReason.SOURCE_POINTER_NULL), TO_UDINT(reason), 'Expected SOURCE_POINTER_NULL');
+
+	pSource^.delete(pSelf:=pSource);
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>
