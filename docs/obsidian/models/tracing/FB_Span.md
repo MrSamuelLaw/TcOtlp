@@ -1,11 +1,10 @@
 ---
 type: model
 domain: tracing
-status: partial
+status: implemented
 implements:
   - FB_Span
 source: TcOtlp/test/OTEL/TRACING/SPAN/FUNCTION_BLOCKS/FB_Span.TcPOU
-gap: Building, starting and ending are implemented through FB_Tracer; ended spans reach the staged processors on the provider's tick. setStatusOk and setStatusError are not implemented.
 ---
 
 `FB_Span` is one timed operation in a trace. A log record is complete the moment it is emitted. A span is different because it has a lifecycle: it is built, it runs while the work it measures is in progress, and then it ends. Only an ended span is complete, and only an ended span is exported.
@@ -55,7 +54,7 @@ The fields the tracer writes during building are `VAR_INPUT`, as on `FB_LogRecor
 | `parentSpanId: POINTER TO FB_SpanId` | yes | `setParent`; `0` for a root span |
 | `traceState: POINTER TO FB_String` | yes | `setParent`, copied from the parent |
 | `flags: UDINT` | — | `setParent`, or `build` for a root span |
-| `status: POINTER TO FB_Status` | yes | not implemented |
+| `status: POINTER TO FB_Status` | yes | `setStatusOk` and `setStatusError` on a running span |
 | `attributes`, `links`, `resource`, `scope` | yes | setters and `addLink`, or `links.push` on a running span; `startSpan` snapshots the resource and scope |
 
 `free` releases everything the span owns, and `FB_Exit` calls it. `delete` releases the span itself and clears the caller's pointer; it is called as `pSpan^.delete(pSelf:=pSpan)` and refuses any pointer other than one to the span itself.
@@ -88,7 +87,19 @@ A span's `flags` describe its parent, so a context taken from a local span is lo
 
 ### setStatusOk, setStatusError
 
-Fluent setters for a running span. Both are empty shells for now.
+Fluent setters for a running span; both return the span, so they chain. They follow the OpenTelemetry status rules:
+
+- `setStatusOk()` sets `STATUS_CODE_OK` with no message. OK is final: it replaces an earlier error and its message.
+- `setStatusError(message)` sets `STATUS_CODE_ERROR` and keeps its own copy of `message`. An empty message leaves the status without one. A later error replaces an earlier one. On a span that is already OK, the error is ignored and `failureReason` is `STATUS_ALREADY_OK`.
+
+Both build the new `FB_Status` before releasing the old one. If memory runs out, the previous status is kept and `failureReason` is `MEMORY_ALLOCATION_FAILURE`. A span that never sets a status is exported without one, which means unset.
+
+```iec
+pStep^.setStatusOk();
+pStep^.setStatusError('setpoint not reached');
+```
+
+`FB_TestSpanSimulation` ends step-a as OK, and step-b and the process as errors.
 
 ## TODO
 
@@ -96,7 +107,7 @@ Fluent setters for a running span. Both are empty shells for now.
 - [x] Test a span whose parent is remote. The span's flags have bits 8 and 9 set plus the sampled bit. `getContext` must keep the sampled bit, set bit 8 and clear bit 9, and the context's `isRemote()` must return `FALSE`. `FB_TestTracer` covers this.
 - [x] [[FB_Tracer]] sets bits 8 and 9 on a span whose parent is a remote context.
 - [x] `tracer.endSpan(pSpan)`: stamp the end timestamp, hand the span to the provider, and clear the caller's pointer.
-- [ ] `setStatusOk` and `setStatusError`.
+- [x] `setStatusOk` and `setStatusError`.
 - [x] Adding links to a building span with `addLink`, or to a running span with `links.push`. See [[FB_Link]].
 
 `ContextFactory` intentionally does not enforce remoteness; it stores whatever flags it is given. Tests verify that `getContext` always produces a local context. Only `TraceContextPropagator.extract` should produce a remote one. See [[FB_SpanContext]].

@@ -136,26 +136,81 @@ getContext := ContextFactory.buildContext(
       </Implementation>
     </Method>
     <Method Name="setStatusError" Id="{c18bedc1-4f05-4485-a503-1630f73f361d}">
-      <Declaration><![CDATA[METHOD setStatusError : REFERENCE TO FB_Span
+      <Declaration><![CDATA[(*
+	Marks the running span as failed, with a message saying why. An empty message leaves the
+	status without one. OK is final, so an error on a span that is already OK is ignored and
+	reported as STATUS_ALREADY_OK. A later error replaces an earlier one. If memory runs out
+	the previous status is kept.
+*)
+METHOD setStatusError : REFERENCE TO FB_Span
 VAR_INPUT
 	message: T_MaxString;
 END_VAR
+VAR_OUTPUT
+	failureReason: E_SpanStatusFailureReason;
+END_VAR
+VAR
+	_pMessage: POINTER TO FB_String;
+	_pStatus: POINTER TO FB_Status;
+END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[// uses the fluent API to set the status to error with the message for why it failed
-setStatusError REF= THIS^;
+        <ST><![CDATA[setStatusError REF= THIS^;
+failureReason := E_SpanStatusFailureReason.NA;
 
-// try to create the object with using short circuit evaluation]]></ST>
+IF THIS^.status <> 0 AND_THEN THIS^.status^.code = E_StatusCode.STATUS_CODE_OK THEN
+	failureReason := E_SpanStatusFailureReason.STATUS_ALREADY_OK;
+	RETURN;
+END_IF
+
+IF LEN(message) > 0 AND_THEN NOT ValueFactory.createString(pDest:=_pMessage, pString:=ADR(message)) THEN
+	failureReason := E_SpanStatusFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+
+// build the new status before releasing the old one, so a failure keeps the old status
+_pStatus := __NEW(FB_Status(code:=E_StatusCode.STATUS_CODE_ERROR, message:=_pMessage));
+IF _pStatus = 0 THEN
+	IF _pMessage <> 0 THEN _pMessage^.delete(pSelf:=_pMessage); END_IF
+	failureReason := E_SpanStatusFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+_pMessage := 0;  // moved into the status
+
+IF THIS^.status <> 0 THEN THIS^.status^.delete(pSelf:=THIS^.status); END_IF
+THIS^.status := _pStatus;]]></ST>
       </Implementation>
     </Method>
     <Method Name="setStatusOk" Id="{51e24243-7fdc-4bd7-ac3c-dc78a2884df3}">
-      <Declaration><![CDATA[METHOD setStatusOk : REFERENCE TO FB_Span
+      <Declaration><![CDATA[(*
+	Marks the running span as having completed successfully. OK is final: it replaces an
+	earlier error and its message, and later calls to setStatusError are ignored. If memory
+	runs out the previous status is kept.
+*)
+METHOD setStatusOk : REFERENCE TO FB_Span
+VAR_OUTPUT
+	failureReason: E_SpanStatusFailureReason;
+END_VAR
+VAR
+	_pStatus: POINTER TO FB_Status;
+END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[// uses the fluent API to set the status to OK
-setStatusOk REF= THIS^;
+        <ST><![CDATA[setStatusOk REF= THIS^;
+failureReason := E_SpanStatusFailureReason.NA;
 
-// try to create the object with using short circuit evaluation]]></ST>
+IF THIS^.status <> 0 AND_THEN THIS^.status^.code = E_StatusCode.STATUS_CODE_OK THEN
+	RETURN;
+END_IF
+
+_pStatus := __NEW(FB_Status(code:=E_StatusCode.STATUS_CODE_OK, message:=0));
+IF _pStatus = 0 THEN
+	failureReason := E_SpanStatusFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+
+IF THIS^.status <> 0 THEN THIS^.status^.delete(pSelf:=THIS^.status); END_IF
+THIS^.status := _pStatus;]]></ST>
       </Implementation>
     </Method>
     <Method Name="cloneTo" Id="{8a52cd95-727f-4d26-979c-15f2ccdc0c38}">

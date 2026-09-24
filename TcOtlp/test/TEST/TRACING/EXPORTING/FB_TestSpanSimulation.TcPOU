@@ -4,7 +4,8 @@
     <Declaration><![CDATA[(*
 	Runs the manufacturing process from the tracing research notes through the whole pipeline:
 	a root span, step-a as its child, then step-b as a child linked to step-a. Each step runs
-	for STEP_CYCLES scans, and step-b and the process end in the same scan. Processors are
+	for STEP_CYCLES scans, and step-b and the process end in the same scan. step-a succeeds,
+	and step-b fails, which fails the process. Processors are
 	staged and the provider ticked every scan, and spans go through FB_SpanProcessor_Batch to
 	FB_SpanExporter_File. The file is left on disk so the exported JSON can be inspected.
 *)
@@ -86,6 +87,7 @@ END_VAR
 		2: // step1Done: end step-a, keeping its context to link the next step to it
 			_stepCycles := _stepCycles + 1;
 			IF _stepCycles >= STEP_CYCLES THEN
+				_pCurrent^.setStatusOk();
 				_pCurrent^.getContext(pDest:=_pStepContext);
 				IF _tracer.endSpan(pSpan:=_pCurrent, failureReason=>tracerReason) THEN
 					_endedCount := _endedCount + 1;
@@ -106,9 +108,11 @@ END_VAR
 				_step := 4;
 			END_IF
 
-		4: // step2Done, processDone: end step-b and the process in the same scan
+		4: // step2Fault, processDone: step-b fails, and the process ends with it in the same scan
 			_stepCycles := _stepCycles + 1;
 			IF _stepCycles >= STEP_CYCLES THEN
+				_pCurrent^.setStatusError('setpoint not reached');
+				_pRoot^.setStatusError('step-b failed');
 				IF _tracer.endSpan(pSpan:=_pCurrent, failureReason=>tracerReason) THEN
 					_endedCount := _endedCount + 1;
 				END_IF

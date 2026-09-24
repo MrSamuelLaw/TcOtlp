@@ -14,7 +14,10 @@ THIS^.testGetContextIsLocal();
 THIS^.testGetContextRejectsAssignedDestination();
 THIS^.testGetContextOnUnstartedSpan();
 THIS^.testCloneToCopiesEveryMember();
-THIS^.testCloneToRejectsAssignedDestination();]]></ST>
+THIS^.testCloneToRejectsAssignedDestination();
+THIS^.testSetStatusOk();
+THIS^.testSetStatusError();
+THIS^.testSetStatusOkIsFinal();]]></ST>
     </Implementation>
     <Method Name="_setIdentity" Id="{b85f5bb5-bb70-4b48-812a-1abcdb4179c1}">
       <Declaration><![CDATA[(* Points the span's identity outputs at the given values; pass 0 to clear them. *)
@@ -325,6 +328,93 @@ END_VAR
 		THIS^.AssertTrue(pDest = pSpan, 'Expected the destination to be left alone');
 		pSpan^.delete(pSelf:=pSpan);
 	END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testSetStatusOk" Id="{2de4799a-adb9-48f4-95ac-9c2793c4f7f2}">
+      <Declaration><![CDATA[(* setStatusOk gives a span with no status an OK status without a message. *)
+METHOD testSetStatusOk : REFERENCE TO FB_Test
+VAR
+	span: FB_Span;
+	failureReason: E_SpanStatusFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testSetStatusOk');
+	span.setStatusOk(failureReason=>failureReason);
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_SpanStatusFailureReason.NA), TO_UDINT(failureReason), 'Expected no failure');
+	THIS^.AssertTrue(span.status <> 0, 'Expected a status');
+	IF span.status <> 0 THEN
+		THIS^.AssertEquals_UDINT(TO_UDINT(E_StatusCode.STATUS_CODE_OK), TO_UDINT(span.status^.code), 'Expected an OK code');
+		THIS^.AssertTrue(span.status^.message = 0, 'Expected no message');
+	END_IF
+	span.free();
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testSetStatusError" Id="{673707f4-e35c-4fbf-9d4e-ef63d10db63c}">
+      <Declaration><![CDATA[(* setStatusError keeps its own copy of the message, a later error replaces it, and an empty
+   message leaves the status without one. *)
+METHOD testSetStatusError : REFERENCE TO FB_Test
+VAR
+	span: FB_Span;
+	message: T_MaxString := 'motor over temp';
+	failureReason: E_SpanStatusFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testSetStatusError');
+	span.setStatusError(message:=message, failureReason=>failureReason);
+	message := 'changed by the caller';
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_SpanStatusFailureReason.NA), TO_UDINT(failureReason), 'Expected no failure');
+	THIS^.AssertTrue(span.status <> 0, 'Expected a status');
+	IF span.status <> 0 THEN
+		THIS^.AssertEquals_UDINT(TO_UDINT(E_StatusCode.STATUS_CODE_ERROR), TO_UDINT(span.status^.code), 'Expected an error code');
+		THIS^.AssertTrue(span.status^.message <> 0, 'Expected a message');
+		IF span.status^.message <> 0 THEN
+			THIS^.AssertEquals_STRING('motor over temp', span.status^.message^.pString^, 'Expected the span to keep its own copy of the message');
+		END_IF
+	END_IF
+
+	span.setStatusError(message:='second fault');
+	IF span.status <> 0 AND_THEN span.status^.message <> 0 THEN
+		THIS^.AssertEquals_STRING('second fault', span.status^.message^.pString^, 'Expected a later error to replace the message');
+	END_IF
+
+	span.setStatusError(message:='', failureReason=>failureReason);
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_SpanStatusFailureReason.NA), TO_UDINT(failureReason), 'Expected no failure for an empty message');
+	IF span.status <> 0 THEN
+		THIS^.AssertEquals_UDINT(TO_UDINT(E_StatusCode.STATUS_CODE_ERROR), TO_UDINT(span.status^.code), 'Expected an error code without a message');
+		THIS^.AssertTrue(span.status^.message = 0, 'Expected an empty message to leave no message');
+	END_IF
+	span.free();
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testSetStatusOkIsFinal" Id="{56989a55-e9fd-41d6-bd39-0212e5cbb58f}">
+      <Declaration><![CDATA[(* OK replaces an error and its message, and an error after OK is ignored and reported. *)
+METHOD testSetStatusOkIsFinal : REFERENCE TO FB_Test
+VAR
+	span: FB_Span;
+	failureReason: E_SpanStatusFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testSetStatusOkIsFinal');
+	span.setStatusError(message:='transient fault').setStatusOk(failureReason=>failureReason);
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_SpanStatusFailureReason.NA), TO_UDINT(failureReason), 'Expected OK to replace the error');
+	IF span.status <> 0 THEN
+		THIS^.AssertEquals_UDINT(TO_UDINT(E_StatusCode.STATUS_CODE_OK), TO_UDINT(span.status^.code), 'Expected an OK code');
+		THIS^.AssertTrue(span.status^.message = 0, 'Expected OK to drop the error message');
+	END_IF
+
+	span.setStatusError(message:='late fault', failureReason=>failureReason);
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_SpanStatusFailureReason.STATUS_ALREADY_OK), TO_UDINT(failureReason), 'Expected the error to be refused');
+	IF span.status <> 0 THEN
+		THIS^.AssertEquals_UDINT(TO_UDINT(E_StatusCode.STATUS_CODE_OK), TO_UDINT(span.status^.code), 'Expected the status to stay OK');
+		THIS^.AssertTrue(span.status^.message = 0, 'Expected no message after the refused error');
+	END_IF
+	span.free();
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
