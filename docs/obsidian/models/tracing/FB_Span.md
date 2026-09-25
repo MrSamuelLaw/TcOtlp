@@ -63,7 +63,7 @@ The fields the tracer writes during building are `VAR_INPUT`, as on `FB_LogRecor
 
 A span's `flags` describe its **parent's** remoteness, not its own:
 
-- **Bits 0–7** are the W3C trace flags, inherited from the parent. There is no sampler yet and every span is recorded, so a root span sets the sampled bit.
+- **Bits 0–7** are the W3C trace flags, inherited from the parent. Bit 0 is the sampled flag, read with `isSampled()` and written with `setSampled(sampled)`. The provider's [[FB_Sampler]] decides it when the span is built, and may clear it when the span ends; a span without it is not exported.
 - **Bit 8** (`SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK`) is always set, because the tracer always knows where the parent came from.
 - **Bit 9** (`SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK`) is set when the parent context is remote, meaning it came from `TraceContextPropagator.extract`.
 

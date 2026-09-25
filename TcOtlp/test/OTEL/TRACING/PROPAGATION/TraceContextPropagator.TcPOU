@@ -35,8 +35,9 @@ END_VAR
 	tracestate is never cut mid-entry. W3C asks for at least 512 tracestate characters to be
 	kept and allows only whole entries to be dropped, so every entry is kept here; a carrier of
 	limited size uses TraceStateFactory.truncate when the context is sent on. An invalid
-	tracestate is dropped without failing the extraction. The context is marked remote, and its
-	sampled bit is advisory: the PLC makes its own sampling decision.
+	tracestate is dropped without failing the extraction. The context is marked remote. The
+	default sampler follows its sampled bit for a span that takes it as a parent, and ignores it
+	for a span that only links to it.
 *)
 METHOD extract : BOOL
 VAR_IN_OUT

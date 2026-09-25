@@ -108,7 +108,7 @@ TcUnit.TEST_FINISHED();]]></ST>
     <Method Name="testKeepsUnsampledFlag" Id="{54948a8a-2037-43ae-b761-f4ecd54df969}">
       <Declaration><![CDATA[(*
 	A caller that did not sample its own trace still produces a context: the sampled bit is
-	carried as sent and only advises the PLC, which decides its own sampling.
+	carried as sent, and the default sampler does not sample a child of the context.
 *)
 METHOD testKeepsUnsampledFlag : REFERENCE TO FB_Test
 VAR

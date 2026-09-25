@@ -7,7 +7,7 @@ VAR
 	// kept across scans by testBatchExportsAfterScheduledDelay
 	_resource: FB_Resource('');
 	_idGenerator: FB_MockIdGenerator;
-	_provider: FB_TracerProvider_ForInspection(resource:=_resource, idGenerator:=_idGenerator);
+	_provider: FB_TracerProvider_ForInspection(resource:=_resource, idGenerator:=_idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	_scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	_tracer: FB_Tracer(scope:=_scope, provider:=_provider);
 	_exporter: FB_SpanExporter_ForInspection;
@@ -30,7 +30,7 @@ METHOD testSimpleEnrichesThenExports : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	processor: FB_SpanProcessor_ForInspection(exporter:=0);
@@ -58,7 +58,7 @@ METHOD testSimpleHandsCloneToExporter : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	exporter: FB_SpanExporter_ForInspection;
@@ -96,7 +96,7 @@ METHOD testSimpleDropsSpanWhenExporterBusy : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	exporter: FB_SpanExporter_ForInspection;
@@ -124,7 +124,7 @@ METHOD testBatchWaitsForFullBatch : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	exporter: FB_SpanExporter_ForInspection;
@@ -170,7 +170,7 @@ METHOD testBatchKeepsSpansWhileExporterBusy : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	exporter: FB_SpanExporter_ForInspection;
@@ -227,7 +227,7 @@ METHOD testBatchDropsOldestWhenFull : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	exporter: FB_SpanExporter_ForInspection;
@@ -278,7 +278,7 @@ METHOD testBatchIgnoresSpansWithoutExporter : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	exporter: FB_SpanExporter_ForInspection;

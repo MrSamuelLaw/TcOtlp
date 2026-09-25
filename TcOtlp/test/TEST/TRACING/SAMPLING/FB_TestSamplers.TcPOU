@@ -1,0 +1,237 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_TestSamplers" Id="{75aa802b-3c16-4530-9767-0d05c8b17040}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Tests the span samplers: onStart makes the head decision when a span is built, and
+   FB_TracerProvider asks onEnd only about spans that are still sampled. *)
+FUNCTION_BLOCK FB_TestSamplers EXTENDS FB_TestSuite
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[THIS^.testDefaultSamplerFollowsParent();
+THIS^.testAlwaysOnSamplesChildOfUnsampledParent();
+THIS^.testErrorsOnlyKeepsFailedSpans();
+THIS^.testOnEndCannotKeepSpanDroppedOnStart();
+THIS^.testLinkDoesNotAffectSampling();]]></ST>
+    </Implementation>
+    <Method Name="_endSpan" Id="{aa2f3eb9-1faf-4af8-8738-5bf6ce1e1007}">
+      <Declaration><![CDATA[(* Builds a root span, or a child of pParent, gives it a status, and ends it. Returns endSpan's
+   result, or FALSE when the span could not be built. *)
+METHOD _endSpan : BOOL
+VAR_INPUT
+	tracer: REFERENCE TO FB_Tracer;
+	name: T_MaxString;
+	statusCode: E_StatusCode;
+	pParent: POINTER TO FB_SpanContext;  // 0 for a root span
+END_VAR
+VAR
+	_pSpan: POINTER TO FB_Span;
+	_built: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pParent = 0 THEN
+	_built := tracer.startSpan(name:=name).build(pDest:=_pSpan);
+ELSE
+	_built := tracer.startSpan(name:=name).setParent(pContext:=pParent).build(pDest:=_pSpan);
+END_IF
+IF NOT _built THEN
+	RETURN;
+END_IF
+
+CASE statusCode OF
+	E_StatusCode.STATUS_CODE_OK:
+		_pSpan^.setStatusOk();
+	E_StatusCode.STATUS_CODE_ERROR:
+		_pSpan^.setStatusError(message:='boom');
+END_CASE
+_endSpan := tracer.endSpan(pSpan:=_pSpan);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testDefaultSamplerFollowsParent" Id="{bb8144a0-4b05-4c35-b13a-8800cb2eca16}">
+      <Declaration><![CDATA[(* The default sampler is ParentBased(root=AlwaysOn): a root span is sampled, the child of a
+   sampled remote parent is sampled, and the child of an unsampled one is not. Status does not
+   matter to it. *)
+METHOD testDefaultSamplerFollowsParent : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
+	scope: FB_InstrumentationScope('sampler.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	processor: FB_SpanProcessor_ForInspection(exporter:=0);
+	sampled: STRING(55) := '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01';
+	unsampled: STRING(55) := '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00';
+	pSampledParent: POINTER TO FB_SpanContext;
+	pUnsampledParent: POINTER TO FB_SpanContext;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testDefaultSamplerFollowsParent');
+	TraceContextPropagator.extract(pDest:=pSampledParent, traceparent:=sampled, tracestate:='');
+	TraceContextPropagator.extract(pDest:=pUnsampledParent, traceparent:=unsampled, tracestate:='');
+	THIS^.AssertTrue(pSampledParent <> 0 AND pUnsampledParent <> 0, 'Expected both parents to be extracted');
+
+	provider.stageProcessor(processor);
+	THIS^._endSpan(tracer:=tracer, name:='root.failed', statusCode:=E_StatusCode.STATUS_CODE_ERROR, pParent:=0);
+	THIS^._endSpan(tracer:=tracer, name:='root.ok', statusCode:=E_StatusCode.STATUS_CODE_OK, pParent:=0);
+	THIS^._endSpan(tracer:=tracer, name:='unsampled.child', statusCode:=E_StatusCode.STATUS_CODE_UNSET, pParent:=pUnsampledParent);
+	THIS^._endSpan(tracer:=tracer, name:='sampled.child', statusCode:=E_StatusCode.STATUS_CODE_UNSET, pParent:=pSampledParent);
+	provider.tick();
+
+	THIS^.AssertEquals_UDINT(3, processor.exportedCount, 'Expected both roots and the sampled child to be processed');
+	THIS^.AssertEquals_STRING('sampled.child', processor.lastSpanName, 'Expected the sampled child to be processed last');
+
+	IF pSampledParent <> 0 THEN pSampledParent^.delete(pSelf:=pSampledParent); END_IF
+	IF pUnsampledParent <> 0 THEN pUnsampledParent^.delete(pSelf:=pUnsampledParent); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testAlwaysOnSamplesChildOfUnsampledParent" Id="{8a906d0c-6641-41fa-bbe1-7246e4d0918e}">
+      <Declaration><![CDATA[(* The always-on sampler samples every span, even the child of a parent that was not sampled,
+   and the decision is carried into the span's context. *)
+METHOD testAlwaysOnSamplesChildOfUnsampledParent : REFERENCE TO FB_Test
+VAR
+	alwaysOn: FB_Sampler_AlwaysOn;
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=alwaysOn);
+	scope: FB_InstrumentationScope('sampler.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	processor: FB_SpanProcessor_ForInspection(exporter:=0);
+	unsampled: STRING(55) := '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00';
+	pParent: POINTER TO FB_SpanContext;
+	pSpan: POINTER TO FB_Span;
+	pContext: POINTER TO FB_SpanContext;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testAlwaysOnSamplesChildOfUnsampledParent');
+	TraceContextPropagator.extract(pDest:=pParent, traceparent:=unsampled, tracestate:='');
+	THIS^.AssertTrue(pParent <> 0, 'Expected the unsampled parent to be extracted');
+
+	provider.stageProcessor(processor);
+	tracer.startSpan(name:='child').setParent(pContext:=pParent).build(pDest:=pSpan);
+	THIS^.AssertTrue(pSpan <> 0, 'Expected the child to be built');
+	IF pSpan <> 0 THEN
+		pSpan^.getContext(pDest:=pContext);
+		THIS^.AssertTrue(pContext <> 0 AND_THEN (pContext^.traceFlags AND 16#01) <> 0, 'Expected the child$'s context to carry the sampled bit');
+	END_IF
+	tracer.endSpan(pSpan:=pSpan);
+	provider.tick();
+
+	THIS^.AssertEquals_UDINT(1, processor.exportedCount, 'Expected the child to be processed');
+
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
+	IF pParent <> 0 THEN pParent^.delete(pSelf:=pParent); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testErrorsOnlyKeepsFailedSpans" Id="{4944c7b5-586b-4552-9825-07de976a7add}">
+      <Declaration><![CDATA[(* The errors-only sampler keeps a span that ended with an error status and releases the
+   others. Dropping a span is not a failure, so endSpan still succeeds. *)
+METHOD testErrorsOnlyKeepsFailedSpans : REFERENCE TO FB_Test
+VAR
+	errorsOnly: FB_Sampler_ErrorsOnly;
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=errorsOnly);
+	scope: FB_InstrumentationScope('sampler.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	processor: FB_SpanProcessor_ForInspection(exporter:=0);
+	endedUnset: BOOL;
+	endedOk: BOOL;
+	endedFailed: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testErrorsOnlyKeepsFailedSpans');
+	provider.stageProcessor(processor);
+	endedUnset := THIS^._endSpan(tracer:=tracer, name:='unset', statusCode:=E_StatusCode.STATUS_CODE_UNSET, pParent:=0);
+	endedOk := THIS^._endSpan(tracer:=tracer, name:='ok', statusCode:=E_StatusCode.STATUS_CODE_OK, pParent:=0);
+	endedFailed := THIS^._endSpan(tracer:=tracer, name:='failed', statusCode:=E_StatusCode.STATUS_CODE_ERROR, pParent:=0);
+
+	THIS^.AssertTrue(endedUnset AND endedOk AND endedFailed, 'Expected endSpan to succeed for kept and dropped spans');
+	THIS^.AssertEquals_UDINT(1, provider.spans.count, 'Expected only the failed span to be queued');
+
+	provider.tick();
+	THIS^.AssertEquals_UDINT(1, processor.exportedCount, 'Expected one span to reach the processor');
+	THIS^.AssertEquals_STRING('failed', processor.lastSpanName, 'Expected the failed span to be the one kept');
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testOnEndCannotKeepSpanDroppedOnStart" Id="{b97f8d47-68e4-4bae-affa-5ad22c170d74}">
+      <Declaration><![CDATA[(* A span dropped by onStart is released when it ends without asking onEnd, so onEnd cannot
+   sample it again. The start decision also reaches the span's context. *)
+METHOD testOnEndCannotKeepSpanDroppedOnStart : REFERENCE TO FB_Test
+VAR
+	sampler: FB_Sampler_ForInspection;
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=sampler);
+	scope: FB_InstrumentationScope('sampler.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	processor: FB_SpanProcessor_ForInspection(exporter:=0);
+	pSpan: POINTER TO FB_Span;
+	pContext: POINTER TO FB_SpanContext;
+	ended: BOOL;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testOnEndCannotKeepSpanDroppedOnStart');
+	sampler.dropOnStart := TRUE;
+	sampler.sampleOnEnd := TRUE;
+	provider.stageProcessor(processor);
+
+	tracer.startSpan(name:='work').build(pDest:=pSpan);
+	THIS^.AssertEquals_UDINT(1, sampler.startCount, 'Expected build to call onStart once');
+	THIS^.AssertTrue(pSpan <> 0, 'Expected the span to be built');
+	IF pSpan <> 0 THEN
+		pSpan^.getContext(pDest:=pContext);
+		THIS^.AssertTrue(pContext <> 0 AND_THEN (pContext^.traceFlags AND 16#01) = 0, 'Expected the context to carry the start decision');
+	END_IF
+
+	ended := tracer.endSpan(pSpan:=pSpan);
+	THIS^.AssertTrue(ended, 'Expected endSpan to succeed for a span that is sampled out');
+	THIS^.AssertEquals_UDINT(0, sampler.endCount, 'Expected onEnd not to be asked about an unsampled span');
+	THIS^.AssertEquals_UDINT(0, provider.spans.count, 'Expected the unsampled span not to be queued');
+
+	provider.tick();
+	THIS^.AssertEquals_UDINT(0, processor.exportedCount, 'Expected the unsampled span not to reach the processor');
+
+	IF pContext <> 0 THEN pContext^.delete(pSelf:=pContext); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testLinkDoesNotAffectSampling" Id="{b8924015-8245-4829-b8ff-62b519ccd50f}">
+      <Declaration><![CDATA[(* A root span that only links to an unsampled context is still sampled: a link carries no
+   sampling decision into the PLC's trace. *)
+METHOD testLinkDoesNotAffectSampling : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	idGenerator: FB_MockIdGenerator;
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
+	scope: FB_InstrumentationScope('sampler.test', '1.0.0', '');
+	tracer: FB_Tracer(scope:=scope, provider:=provider);
+	processor: FB_SpanProcessor_ForInspection(exporter:=0);
+	unsampled: STRING(55) := '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00';
+	pTrigger: POINTER TO FB_SpanContext;
+	pSpan: POINTER TO FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testLinkDoesNotAffectSampling');
+	TraceContextPropagator.extract(pDest:=pTrigger, traceparent:=unsampled, tracestate:='');
+	THIS^.AssertTrue(pTrigger <> 0, 'Expected the trigger context to be extracted');
+
+	provider.stageProcessor(processor);
+	tracer.startSpan(name:='linked.root').addLink(pContext:=pTrigger).build(pDest:=pSpan);
+	tracer.endSpan(pSpan:=pSpan);
+	provider.tick();
+
+	THIS^.AssertEquals_UDINT(1, processor.exportedCount, 'Expected the linked root span to be processed');
+
+	IF pTrigger <> 0 THEN pTrigger^.delete(pSelf:=pTrigger); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

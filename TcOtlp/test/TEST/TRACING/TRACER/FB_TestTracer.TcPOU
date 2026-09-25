@@ -32,7 +32,7 @@ METHOD testBuildsRootSpan : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	pSpan: POINTER TO FB_Span;
@@ -81,7 +81,7 @@ METHOD testBuildsChildOfLocalParent : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	pRoot: POINTER TO FB_Span;
@@ -146,7 +146,7 @@ METHOD testChildOfRemoteParent : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	pChild: POINTER TO FB_Span;
@@ -217,7 +217,7 @@ METHOD testRejectsInvalidParent : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	pSpan: POINTER TO FB_Span;
@@ -253,7 +253,7 @@ METHOD testKeepsFirstFailure : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	pSpan: POINTER TO FB_Span;
@@ -289,7 +289,7 @@ METHOD testRejectsEmptyName : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	pSpan: POINTER TO FB_Span;
@@ -317,7 +317,7 @@ METHOD testRejectsUnspecifiedKind : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	pSpan: POINTER TO FB_Span;
@@ -345,7 +345,7 @@ METHOD testBuildWithoutStartFails : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	pSpan: POINTER TO FB_Span;
@@ -373,7 +373,7 @@ METHOD testStartingSecondSpanFails : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	pSpan: POINTER TO FB_Span;
@@ -403,7 +403,7 @@ METHOD testBuildIntoAssignedDestinationFails : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	pSpan: POINTER TO FB_Span;
@@ -436,7 +436,7 @@ METHOD testNoIdentifiersAvailable : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	pSpan: POINTER TO FB_Span;
@@ -466,7 +466,7 @@ METHOD testSetsAttributes : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	pSpan: POINTER TO FB_Span;
@@ -502,7 +502,7 @@ METHOD testEndSpanQueuesSpan : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	processor: FB_SpanProcessor_ForInspection(exporter:=0);
@@ -551,7 +551,7 @@ METHOD testEndSpanRejectsNull : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	pSpan: POINTER TO FB_Span;
@@ -578,7 +578,7 @@ METHOD testEndSpanWithoutProcessorsReleasesSpan : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	pSpan: POINTER TO FB_Span;
@@ -611,7 +611,7 @@ METHOD testAddsLinks : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	pTrigger: POINTER TO FB_Span;
@@ -668,7 +668,7 @@ METHOD testRejectsInvalidLink : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	pSpan: POINTER TO FB_Span;

@@ -50,9 +50,6 @@ VAR
 	_idGenFailureReason: E_IdGenFailureReason;
 	_factoryFailureReason: E_ValueFactoryFailureReason;
 END_VAR
-VAR CONSTANT
-	TRACE_FLAG_SAMPLED: UDINT := 16#01;
-END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[_assignIdentity := FALSE;
@@ -95,9 +92,9 @@ END_IF
 IF _pTraceId <> 0 THEN
 	THIS^.pSpan^.traceId := _pTraceId;
 	_pTraceId := 0;
-	// a root span has no parent, so remoteness is known and not remote; every span is
-	// sampled until there is a sampler
-	THIS^.pSpan^.flags := TRACE_FLAG_SAMPLED OR TO_UDINT(E_SpanFlags.SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK);
+	// a root span has no parent, so remoteness is known and not remote; the sampler
+	// decides the sampled bit in build
+	THIS^.pSpan^.flags := TO_UDINT(E_SpanFlags.SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK);
 END_IF
 THIS^.pSpan^.spanId := _pSpanId;
 _pSpanId := 0;
@@ -202,7 +199,8 @@ END_CASE]]></ST>
 	Ends the chain. On success the span is running and owned by the caller: it moves to pDest,
 	which must be 0, and pSpan is cleared. On failure the incomplete span is released, pDest is
 	left alone, and the first failure in the chain is reported. Identifiers are only taken once
-	everything before them has succeeded.
+	everything before them has succeeded. The provider's sampler then makes the head sampling
+	decision through onStart, with the parent, links and attributes already in place.
 *)
 METHOD build : BOOL
 VAR_IN_OUT
@@ -233,6 +231,7 @@ IF THIS^._failed THEN
 	IF THIS^.pSpan <> 0 THEN THIS^.pSpan^.delete(pSelf:=THIS^.pSpan); END_IF
 	failureReason := THIS^._failureReason;
 ELSE
+	THIS^._provider.sampler.onStart(span:=THIS^.pSpan^);
 	// transfer ownership to the caller; the span is now running
 	pDest := THIS^.pSpan;
 	THIS^.pSpan := 0;

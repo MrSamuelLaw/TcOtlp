@@ -336,5 +336,31 @@ _pClone := 0;
 cloneTo := TRUE;]]></ST>
       </Implementation>
     </Method>
+    <Method Name="isSampled" Id="{c684c80b-3a08-4158-b7a3-910a9b9edce5}">
+      <Declaration><![CDATA[(* TRUE when bit 0 of the trace flags, the W3C sampled flag, is set. *)
+METHOD isSampled : BOOL
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[isSampled := (THIS^.flags AND 16#01) <> 0;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setSampled" Id="{fefa0288-660b-4380-939e-fbe700e49687}">
+      <Declaration><![CDATA[(* Sets or clears bit 0 of the trace flags, the W3C sampled flag, and leaves the other bits. *)
+METHOD setSampled
+VAR_INPUT
+	sampled: BOOL;
+END_VAR
+VAR CONSTANT
+	TRACE_FLAG_SAMPLED: UDINT := 16#01;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF sampled THEN
+	THIS^.flags := THIS^.flags OR TRACE_FLAG_SAMPLED;
+ELSE
+	THIS^.flags := THIS^.flags AND NOT TRACE_FLAG_SAMPLED;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
   </POU>
 </TcPlcObject>

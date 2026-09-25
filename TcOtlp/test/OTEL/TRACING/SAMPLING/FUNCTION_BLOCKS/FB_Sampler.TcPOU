@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Sampler" Id="{f0d2f74e-bcf8-4f9e-bae7-6bd2ff6133a9}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Decides which spans are sampled, through the sampled bit of the span's trace flags. The
+	tracer calls onStart when it builds a span, and FB_TracerProvider calls onEnd when the span
+	ends. A span is processed only if its sampled bit is still set after both.
+
+	Used as is, this is the OpenTelemetry default ParentBased(root=AlwaysOn): a root span is
+	sampled, and a child keeps its parent's decision, including a remote parent's. Extend it and
+	override either method to change the policy:
+	  onStart - the head decision. It can set or clear the bit, and the bit is carried into the
+	            span's context, so children and injected carriers inherit it.
+	  onEnd   - a later decision, made once the span's status is known. The provider calls it only
+	            for spans that are still sampled, so it can drop a span but never keep one that
+	            onStart dropped.
+	Both methods borrow the span for the call and must not keep it.
+*)
+FUNCTION_BLOCK FB_Sampler
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="onStart" Id="{10873a17-51df-4df2-a230-067f2356e55e}">
+      <Declaration><![CDATA[(* Samples a root span; a child keeps the sampled bit it copied from its parent. *)
+METHOD onStart
+VAR_INPUT
+	span: REFERENCE TO FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF span.parentSpanId = 0 THEN
+	span.setSampled(TRUE);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="onEnd" Id="{f91ee67f-58f0-44bc-a59a-443736544576}">
+      <Declaration><![CDATA[(* Keeps every span that is still sampled. *)
+METHOD onEnd
+VAR_INPUT
+	span: REFERENCE TO FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

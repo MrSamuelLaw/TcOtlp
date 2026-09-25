@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Sampler_ErrorsOnly" Id="{78f38867-4b1a-4331-88a2-cd489d2db9ea}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Keeps only the sampled spans that end with STATUS_CODE_ERROR, so a controller exports the
+	operations that failed and nothing else. The start decision is the default one, so a failed
+	span whose parent was not sampled is still dropped.
+*)
+FUNCTION_BLOCK FB_Sampler_ErrorsOnly EXTENDS FB_Sampler
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="onEnd" Id="{2c91cd47-a069-4f0a-a400-772ce5183603}">
+      <Declaration><![CDATA[(* Drops a span that has no status or ended with an OK status. *)
+METHOD onEnd
+VAR_INPUT
+	span: REFERENCE TO FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF span.status = 0 OR_ELSE span.status^.code <> E_StatusCode.STATUS_CODE_ERROR THEN
+	span.setSampled(FALSE);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

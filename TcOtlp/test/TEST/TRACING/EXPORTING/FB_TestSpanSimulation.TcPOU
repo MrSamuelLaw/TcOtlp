@@ -13,7 +13,7 @@ FUNCTION_BLOCK FB_TestSpanSimulation EXTENDS FB_TestSuite
 VAR
 	_resource: FB_Resource('');
 	_idGenerator: FB_IdGenerator(nTraceIds:=4, nSpanIds:=16);
-	_provider: FB_TracerProvider(resource:=_resource, idGenerator:=_idGenerator);
+	_provider: FB_TracerProvider(resource:=_resource, idGenerator:=_idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	_scope: FB_InstrumentationScope('line1.process', '1.0.0', '');
 	_tracer: FB_Tracer(scope:=_scope, provider:=_provider);
 	_exporter: FB_SpanExporter_File(filepath:='C:\Users\samue\Desktop\programming projects\TcOtlp\simulation_spans.jsonl');

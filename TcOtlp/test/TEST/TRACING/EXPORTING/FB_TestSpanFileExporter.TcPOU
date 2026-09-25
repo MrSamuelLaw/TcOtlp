@@ -11,7 +11,7 @@ VAR
 	_spans: FB_SpanQueue(maxCount:=0);
 	_resource: FB_Resource('');
 	_idGenerator: FB_MockIdGenerator;
-	_provider: FB_TracerProvider_ForInspection(resource:=_resource, idGenerator:=_idGenerator);
+	_provider: FB_TracerProvider_ForInspection(resource:=_resource, idGenerator:=_idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	_scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	_tracer: FB_Tracer(scope:=_scope, provider:=_provider);
 END_VAR

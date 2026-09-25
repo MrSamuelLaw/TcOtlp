@@ -5,6 +5,7 @@
 	Owns the ended spans of every tracer created from it and hands them to processors.
 	Stage the processors every scan, then call tick once; tick passes each ended span to
 	every staged processor, releases the span, and clears the staged list.
+	The sampler decides which ended spans reach the processors; see onEnd.
 
 	Example:
 	provider.stageProcessor(consoleProcessor);
@@ -15,6 +16,7 @@ FUNCTION_BLOCK FB_TracerProvider
 VAR
 	_resource: REFERENCE TO FB_Resource;  // borrowed; the declaring scope owns its lifetime
 	_idGenerator: REFERENCE TO FB_IdGenerator_Base;  // borrowed; the declaring scope owns its lifetime
+	_sampler: REFERENCE TO FB_Sampler;  // borrowed; the declaring scope owns its lifetime
 	_spans: FB_SpanQueue(TcOtlp_GVL.MAX_SPAN_RECORDS_PER_SCAN);  // ended spans waiting to be processed
 	_head: POINTER TO ST_LinkedListNode;  // staged processors; the nodes are owned, the processors borrowed
 	_failureReason: E_TracerProviderFailureReason;  // first staging failure since the last tick
@@ -72,17 +74,22 @@ VAR_INPUT
     bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
 	resource: REFERENCE TO FB_Resource;
 	idGenerator: REFERENCE TO FB_IdGenerator_Base;  // the source of identifiers for every tracer of this provider
+	sampler: REFERENCE TO FB_Sampler;  // decides which spans are sampled; TcOtlp_GVL.defaultSampler is the OpenTelemetry default
 END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[THIS^._resource REF= resource;
-THIS^._idGenerator REF= idGenerator;]]></ST>
+THIS^._idGenerator REF= idGenerator;
+THIS^._sampler REF= sampler;]]></ST>
       </Implementation>
     </Method>
     <Method Name="onEnd" Id="{0aaebea3-418a-4f50-b3b0-6f1a94c96d96}">
       <Declaration><![CDATA[(*
 	Takes ownership of an ended span and queues it for processing. On success pSpan is
 	cleared; on failure it is left unchanged and still owned by the caller.
+	A span that is not sampled is released instead, and that counts as success. The sampler's
+	onEnd is asked only about spans that are still sampled, so it can drop a span but never
+	keep one that its onStart dropped.
 *)
 METHOD onEnd : BOOL
 VAR_IN_OUT
@@ -93,7 +100,21 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[onEnd := THIS^._spans.push(pValue:=pSpan, failureReason=>_pushFailureReason);]]></ST>
+        <ST><![CDATA[IF pSpan = 0 THEN
+	RETURN;
+END_IF
+
+IF pSpan^.isSampled() THEN
+	THIS^.sampler.onEnd(span:=pSpan^);
+END_IF
+
+IF NOT pSpan^.isSampled() THEN
+	pSpan^.delete(pSelf:=pSpan);
+	onEnd := TRUE;
+	RETURN;
+END_IF
+
+onEnd := THIS^._spans.push(pValue:=pSpan, failureReason=>_pushFailureReason);]]></ST>
       </Implementation>
     </Method>
     <Method Name="stageProcessor" Id="{0ae7d757-2fa4-42cf-bb9a-edd28ebf84dd}">
@@ -252,6 +273,20 @@ tick := failureReason = E_TracerProviderFailureReason.NA;]]></ST>
         <Declaration><![CDATA[]]></Declaration>
         <Implementation>
           <ST><![CDATA[resource REF= THIS^._resource;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="sampler" Id="{33b6b075-deed-496d-bb0b-7e81c1bfe2e7}">
+      <Declaration><![CDATA[(* The sampler given to FB_Init, or TcOtlp_GVL.defaultSampler if that reference is invalid. *)
+PROPERTY sampler : REFERENCE TO FB_Sampler]]></Declaration>
+      <Get Name="Get" Id="{65cd22d8-90df-4796-87be-ce24b5fd71ec}">
+        <Declaration><![CDATA[]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[IF __ISVALIDREF(THIS^._sampler) THEN
+	sampler REF= THIS^._sampler;
+ELSE
+	sampler REF= TcOtlp_GVL.defaultSampler;
+END_IF]]></ST>
         </Implementation>
       </Get>
     </Property>

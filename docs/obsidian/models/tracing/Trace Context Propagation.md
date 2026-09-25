@@ -150,11 +150,11 @@ Span contexts are always dynamically allocated, so `extract` builds its result t
 - **A malformed carrier must not fail the process.** It is treated as though no context arrived: the PLC starts an unlinked root trace and reports the failure reason. Refusing to start a chiller because a trace header was mangled would make observability a source of downtime.
 - On success, both `SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK` and `SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK` are set, so `isRemote` reports `TRUE` for an extracted context and `FALSE` for anything a local [[FB_Tracer]] produced. This is the case that bit pair exists for.
 
-## Sampling is decided locally
+## Sampling follows the parent, not the link
 
-The sampled bit on an inbound link is advisory. The PLC makes its own sampling decision for its own trace.
+The default [[FB_Sampler]] follows the OpenTelemetry default, `ParentBased(root=AlwaysOn)`. A span that takes an inbound context as its **parent** keeps that context's sampled bit, so a child of an unsampled remote parent is not exported. A span that only **links** to an inbound context makes its own decision: a root span is sampled whatever the linked context says.
 
-This is a consequence of the two-trace model rather than an extra rule, and it is the point of it operationally: a minutes-long startup sequence should not be discarded because the gateway that triggered it samples writes at a low rate. It is also the first concrete requirement for the sampling design.
+In the two-trace model an inbound trigger is linked, not parented, so the PLC still decides the sampling of its own trace. Operationally, that is the point: a minutes-long startup sequence should not be discarded because the gateway that triggered it samples writes at a low rate. A blocking request/response call that uses the caller as parent follows the caller's decision, as the specification expects. `FB_Sampler_AlwaysOn` samples every span regardless.
 
 ## Domain placement
 

@@ -185,6 +185,21 @@
     <Compile Include="OTEL\TRACING\PROPAGATION\STRUCTS\ST_TraceContextCarrier.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="OTEL\TRACING\SAMPLING\FUNCTION_BLOCKS\FB_Sampler.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\TRACING\SAMPLING\FUNCTION_BLOCKS\FB_Sampler_AlwaysOn.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="OTEL\TRACING\SAMPLING\FUNCTION_BLOCKS\FB_Sampler_ErrorsOnly.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="TEST\TRACING\SAMPLING\FB_Sampler_ForInspection.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="TEST\TRACING\SAMPLING\FB_TestSamplers.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="OTEL\TRACING\ID_GENERATION\ENUMS\E_IdGenFailureReason.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
@@ -424,6 +439,8 @@
     <Folder Include="OTEL\LOGGING\SERIALIZATION" />
     <Folder Include="OTEL\LOGGING\SERIALIZATION\FUNCTION_BLOCKS" />
     <Folder Include="OTEL\TRACING" />
+    <Folder Include="TEST\TRACING\SAMPLING" />
+    <Folder Include="OTEL\TRACING\SAMPLING\FUNCTION_BLOCKS" />
     <Folder Include="OTEL\TRACING\PROPAGATION\STRUCTS" />
     <Folder Include="TEST\TRACING\PROPAGATION" />
     <Folder Include="OTEL\TRACING\PROPAGATION\ENUMS" />

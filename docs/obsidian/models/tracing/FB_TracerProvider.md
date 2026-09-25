@@ -13,14 +13,18 @@ The `FB_TracerProvider` is instantiated with a reference to a `FB_Resource` and 
 The provider is also instantiated with a reference to an [[FB_IdGenerator]] (any `FB_IdGenerator_Base`), and exposes it through its `idGenerator` property:
 
 ```iec
-tracerProvider: FB_TracerProvider(resource := resource, idGenerator := idGenerator);
+tracerProvider: FB_TracerProvider(resource := resource, idGenerator := idGenerator, sampler := TcOtlp_GVL.defaultSampler);
 ```
+
+The third parameter is a borrowed [[FB_Sampler]], exposed through the `sampler` property. `TcOtlp_GVL.defaultSampler` gives the OpenTelemetry default, `ParentBased(root=AlwaysOn)`. If the reference is invalid, the property returns the default instead.
 
 The generator buffers identifiers ahead of time. [[FB_Tracer]]`.build` takes a span ID from it, plus a trace ID for a root span. When the buffer is empty, `build` fails with `IDENTIFIERS_UNAVAILABLE`, which the caller can retry on a later cycle. The provider's `tick` calls the generator's `tick` once per scan to refill the buffer.
 
 ## Ended spans
 
 [[FB_Tracer]]`.endSpan` hands each ended span to the provider through `onEnd(pSpan)`. `onEnd` takes ownership and clears the caller's pointer on success; on failure the pointer is left unchanged and the caller still owns the span.
+
+Before queuing, `onEnd` applies sampling. If the span is still sampled, it asks the sampler's `onEnd`, which may clear the bit. A span that is not sampled after that is released and `onEnd` returns `TRUE`, because dropping it is not a failure. A span that was not sampled on arrival is released without asking the sampler, so a sampler can never keep a span that head sampling dropped. See [[FB_Sampler]].
 
 The provider keeps ended spans in an `FB_SpanQueue` bounded by `TcOtlp_GVL.MAX_SPAN_RECORDS_PER_SCAN`, mirroring the log-record queue in `FB_LoggerProvider`. A full queue releases its oldest span and counts it in `droppedCount`. The queue releases whatever is left when the provider is destroyed.
 

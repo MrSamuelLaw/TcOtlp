@@ -38,7 +38,7 @@ The tracer builds one span at a time and holds it in `pSpan` until `build`.
 - **`setStringAttribute(key, value)`** and **`setNumberAttribute(key, value)`** add attributes, with the same limits as the logger.
 - **`build(pDest, failureReason) : BOOL`** ends the chain. It takes a new span ID from the provider's [[FB_IdGenerator]], and a new trace ID as well for a root span. Identifiers are taken only when everything before them has succeeded, so a failed chain does not consume any. On success the span moves to `pDest`, which is `VAR_IN_OUT` and must be `0` on entry, and `pSpan` is cleared. On failure the incomplete span is released, `pDest` stays `0`, and the first failure in the chain is reported.
 
-A root span sets the sampled bit and bit 8, and leaves bit 9 clear. There is no sampler yet, so every span is recorded.
+A root span sets bit 8 and leaves bit 9 clear. Once the span is complete, `build` calls the provider's sampler `onStart`, which decides the sampled bit; the default samples a root span and leaves a child with its parent's bit. See [[FB_Sampler]].
 
 Processors are not notified when a span is built. The processor contract has no `onStart` yet; processors see a span only once it has ended.
 

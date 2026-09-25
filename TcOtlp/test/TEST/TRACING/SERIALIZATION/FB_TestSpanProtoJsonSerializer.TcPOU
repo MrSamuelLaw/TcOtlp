@@ -19,7 +19,7 @@ METHOD testSerializeRootSpan : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	serializer: FB_SpanProtoJsonSerializer;
@@ -88,7 +88,7 @@ METHOD testSerializeChildSpan : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	serializer: FB_SpanProtoJsonSerializer;
@@ -141,7 +141,7 @@ METHOD testSerializeSpanRejectsInvalidInput : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	serializer: FB_SpanProtoJsonSerializer;
@@ -207,9 +207,9 @@ VAR
 	resourceB: FB_Resource('resource.b');
 	resourceA: FB_Resource('resource.a');
 	resourceC: FB_Resource('resource.c');
-	providerB: FB_TracerProvider_ForInspection(resource:=resourceB, idGenerator:=idGenerator);
-	providerA: FB_TracerProvider_ForInspection(resource:=resourceA, idGenerator:=idGenerator);
-	providerC: FB_TracerProvider_ForInspection(resource:=resourceC, idGenerator:=idGenerator);
+	providerB: FB_TracerProvider_ForInspection(resource:=resourceB, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
+	providerA: FB_TracerProvider_ForInspection(resource:=resourceA, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
+	providerC: FB_TracerProvider_ForInspection(resource:=resourceC, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scopeB: FB_InstrumentationScope('scope.b', '1.0.0', 'scope.b.schema');
 	scopeA: FB_InstrumentationScope('scope.a', '1.0.0', 'scope.a.schema');
 	scopeC: FB_InstrumentationScope('scope.c', '1.0.0', 'scope.c.schema');
@@ -333,7 +333,7 @@ METHOD testSerializeSpanLinks : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	serializer: FB_SpanProtoJsonSerializer;
@@ -418,7 +418,7 @@ METHOD testSerializeLongTraceState : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	serializer: FB_SpanProtoJsonSerializer;

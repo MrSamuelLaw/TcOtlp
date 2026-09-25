@@ -16,7 +16,7 @@ METHOD testTickHandsSpansToEachProcessor : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	processorA: FB_SpanProcessor_ForInspection(exporter:=0);
@@ -56,7 +56,7 @@ METHOD testStageProcessorIgnoresDuplicates : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	processor: FB_SpanProcessor_ForInspection(exporter:=0);
@@ -81,7 +81,7 @@ METHOD testTickWithoutProcessorsSucceeds : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	pSpan: POINTER TO FB_Span;
@@ -105,7 +105,7 @@ METHOD testProcessorsMustBeStagedEachScan : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	processor: FB_SpanProcessor_ForInspection(exporter:=0);

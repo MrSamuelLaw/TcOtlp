@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Sampler_ForInspection" Id="{6b42640f-b420-4746-9a33-dcb83742479f}" SpecialFunc="None">
+    <Declaration><![CDATA[(* Sampler test double that counts its calls and can be told to drop spans on start and to
+   try to sample them again on end. *)
+FUNCTION_BLOCK FB_Sampler_ForInspection EXTENDS FB_Sampler
+VAR_INPUT
+	dropOnStart: BOOL;  // clear the sampled bit in onStart
+	sampleOnEnd: BOOL;  // set the sampled bit in onEnd
+END_VAR
+VAR_OUTPUT
+	startCount: UDINT;
+	endCount: UDINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="onStart" Id="{22ae475f-7bf7-4866-89e6-05e57fe578e7}">
+      <Declaration><![CDATA[METHOD onStart
+VAR_INPUT
+	span: REFERENCE TO FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.startCount := THIS^.startCount + 1;
+SUPER^.onStart(span:=span);
+IF THIS^.dropOnStart THEN
+	span.setSampled(FALSE);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="onEnd" Id="{b16b0db0-b370-4093-93f9-4ea352af9b79}">
+      <Declaration><![CDATA[METHOD onEnd
+VAR_INPUT
+	span: REFERENCE TO FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^.endCount := THIS^.endCount + 1;
+IF THIS^.sampleOnEnd THEN
+	span.setSampled(TRUE);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

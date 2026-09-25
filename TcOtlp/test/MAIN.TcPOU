@@ -24,6 +24,7 @@ VAR
 	{attribute 'analysis' := '-33'}fbTestSpanQueue: FB_TestSpanQueue();
 	{attribute 'analysis' := '-33'}fbTestSpanProcessors: FB_TestSpanProcessors();
 	{attribute 'analysis' := '-33'}fbTestTracerProvider: FB_TestTracerProvider();
+	{attribute 'analysis' := '-33'}fbTestSamplers: FB_TestSamplers();
 	{attribute 'analysis' := '-33'}fbTestSpanProtoJsonSerializer: FB_TestSpanProtoJsonSerializer();
 	{attribute 'analysis' := '-33'}fbTestLinks: FB_TestLinks();
 	{attribute 'analysis' := '-33'}fbTestSpanFileExporter: FB_TestSpanFileExporter();

@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_Sampler_AlwaysOn" Id="{7902e1e9-d6cf-4e8b-a557-a46c357aa6c9}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	Samples every span, as the OpenTelemetry AlwaysOn sampler does, even the child of a parent
+	that was not sampled.
+*)
+FUNCTION_BLOCK FB_Sampler_AlwaysOn EXTENDS FB_Sampler
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[]]></ST>
+    </Implementation>
+    <Method Name="onStart" Id="{baf77f4c-0401-4f86-812f-9ccb21a900e3}">
+      <Declaration><![CDATA[METHOD onStart
+VAR_INPUT
+	span: REFERENCE TO FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[span.setSampled(TRUE);]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

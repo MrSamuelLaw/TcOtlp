@@ -16,7 +16,7 @@ METHOD testFormatsRootSpan : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	exporter: FB_SpanExporter_Console;
@@ -49,7 +49,7 @@ METHOD testFormatsChildSpan : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	exporter: FB_SpanExporter_Console;
@@ -94,7 +94,7 @@ METHOD testExportWritesAndReleasesBatch : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	exporter: FB_SpanExporter_Console;
@@ -129,7 +129,7 @@ METHOD testSimpleProcessorExportsEverySpan : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
-	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator);
+	provider: FB_TracerProvider_ForInspection(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	exporter: FB_SpanExporter_Console;

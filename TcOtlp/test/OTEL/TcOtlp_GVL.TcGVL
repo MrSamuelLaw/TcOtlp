@@ -12,6 +12,7 @@ VAR_GLOBAL CONSTANT
 END_VAR
 VAR_GLOBAL
 	_ID: UDINT := 1;
+	defaultSampler: FB_Sampler;  // ParentBased(root=AlwaysOn); stateless, so providers share it
 END_VAR]]></Declaration>
     <Property Name="NEXT_ID" Id="{66a2dc14-5b7c-4295-87ce-3f72d7397f26}">
       <Declaration><![CDATA[PROPERTY NEXT_ID : UDINT]]></Declaration>
