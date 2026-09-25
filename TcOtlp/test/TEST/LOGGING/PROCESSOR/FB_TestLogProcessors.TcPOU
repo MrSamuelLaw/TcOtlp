@@ -15,7 +15,8 @@ THIS^.testProcessorsSkipBusyExporter();]]></ST>
 	the head), dropping the oldest when the queue is full. Flushing moves
 	the oldest maxExportBatchSize records into the exporter's queue, on a
 	full batch or when the schedule delay elapses, so records leave in order
-	and memory stays bounded however fast the PLC logs.
+	and memory stays bounded however fast the PLC logs. queuedCount reports
+	the records waiting for export, and droppedCount the records lost.
 
 	FB_LoggerProvider.tick() unstages every processor, so a processor must be
 	staged again before each tick.
@@ -95,6 +96,8 @@ END_VAR
 		.tick();
 	THIS^.AssertTrue(processor.lastOperationSucceeded, 'Expected the last emit to succeed');
 	THIS^.AssertEquals_UDINT(5, processor.records.count, 'Expected five queued records');
+	THIS^.AssertEquals_UDINT(5, processor.queuedCount, 'Expected queuedCount to report the five queued records');
+	THIS^.AssertEquals_UDINT(0, processor.droppedCount, 'Expected droppedCount to be zero before the queue fills');
 
 	// the queue keeps arrival order per provider, oldest at the head
 	processor.records.reset();
@@ -117,6 +120,7 @@ END_VAR
 		.stageProcessor(processor)
 		.tick();
 	THIS^.AssertEquals_UDINT(0, processor.records.count, 'Expected zero records left after a full batch flush');
+	THIS^.AssertEquals_UDINT(0, processor.queuedCount, 'Expected queuedCount to drop to zero once the batch leaves');
 	THIS^.AssertEquals_UDINT(6, exporter.records.count, 'Expected six records in the exported batch');
 
 	// exported batch preserves arrival order
@@ -177,6 +181,8 @@ END_VAR
 		.tick();
 	THIS^.AssertEquals_UDINT(2, boundedProcessor.records.count, 'Expected the queue to stay at maxQueueSize');
 	THIS^.AssertEquals_UDINT(1, boundedProcessor.records.droppedCount, 'Expected the oldest record to be dropped');
+	THIS^.AssertEquals_UDINT(2, boundedProcessor.queuedCount, 'Expected queuedCount to stay at maxQueueSize');
+	THIS^.AssertEquals_UDINT(1, boundedProcessor.droppedCount, 'Expected droppedCount to include the evicted record');
 	boundedProcessor.records.reset();
 	pRec := boundedProcessor.records.next();
 	THIS^.AssertTrue(pRec <> 0 AND_THEN pRec^.timestamp = 10, 'Expected ts9 to be dropped and ts10 at the head');
@@ -190,6 +196,7 @@ END_VAR
 		.stageProcessor(timerProcessor)
 		.tick();
 	THIS^.AssertEquals_UDINT(0, timerProcessor.records.count, 'Expected the elapsed timer to flush a partial batch');
+	THIS^.AssertEquals_UDINT(0, timerProcessor.queuedCount, 'Expected queuedCount to be zero after the timer flush');
 	THIS^.AssertEquals_UDINT(1, timerExporter.records.count, 'Expected one record in the timer-triggered batch');
 	timerExporter.records.reset();
 	pRec := timerExporter.records.next();
@@ -291,6 +298,8 @@ END_VAR
 	THIS^.AssertEquals_UDINT(0, simpleExporter.records.count, 'Expected the busy simple exporter to receive nothing');
 	THIS^.AssertEquals_UDINT(0, batchExporter.callsWhileBusy, 'Expected the batch processor not to call a busy exporter');
 	THIS^.AssertEquals_UDINT(1, batchProcessor.records.count, 'Expected the full batch to wait in the processor');
+	THIS^.AssertEquals_UDINT(1, batchProcessor.queuedCount, 'Expected queuedCount to include the batch held for a busy exporter');
+	THIS^.AssertEquals_UDINT(0, batchProcessor.droppedCount, 'Expected a busy exporter not to make the batch processor drop records');
 
 	batchExporter.busy := FALSE;
 	provider
@@ -298,6 +307,7 @@ END_VAR
 		.tick();
 	THIS^.AssertEquals_UDINT(1, batchExporter.records.count, 'Expected the batch once the exporter is idle');
 	THIS^.AssertEquals_UDINT(0, batchProcessor.records.count, 'Expected the processor queue to be empty');
+	THIS^.AssertEquals_UDINT(0, batchProcessor.queuedCount, 'Expected queuedCount to be zero once the held batch is exported');
 	simpleExporter.free();
 	batchExporter.free();
 	batchProcessor.free();
