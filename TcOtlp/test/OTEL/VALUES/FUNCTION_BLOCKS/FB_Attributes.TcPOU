@@ -20,6 +20,14 @@ END_VAR
     <Implementation>
       <ST><![CDATA[]]></ST>
     </Implementation>
+    <Method Name="_capacity" Id="{5d7c2e1a-8b43-4f6e-9a1d-3c2b7e9f0a64}">
+      <Declaration><![CDATA[(* The enforced bound: maxCount, held to MAX_LOOP_COUNT so free always reaches the end. *)
+METHOD _capacity : UDINT
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_capacity := MIN(THIS^.maxCount, TcOtlp_GVL.MAX_LOOP_COUNT);]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="_mapValueFactoryFailure" Id="{b07c94f0-2f89-4b83-a86c-5297aea8b765}">
       <Declaration><![CDATA[METHOD _mapValueFactoryFailure : E_AttributesFailureReason
 VAR_INPUT
@@ -68,7 +76,7 @@ failureReason := E_AttributesFailureReason.NA;
 
 THIS^.droppedCount := THIS^.droppedCount + src.droppedCount;
 src.reset();
-FOR _idx := 0 TO THIS^.maxCount DO
+FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
 	_pSrc := src.next();
 	IF _pSrc = 0 THEN
 		copyFrom := failureReason = E_AttributesFailureReason.NA;
@@ -119,7 +127,13 @@ END_VAR
       </Implementation>
     </Method>
     <Method Name="free" Id="{cac7191c-0f7c-4339-b12b-895becc570f8}">
-      <Declaration><![CDATA[METHOD free
+      <Declaration><![CDATA[(*
+	Releases every owned attribute. setAttribute holds count to MAX_LOOP_COUNT, so the loop
+	always reaches the end, even if maxCount is lowered after attributes were added. If it ever
+	stops early, the unreleased nodes stay in the collection and free returns FALSE, so a later
+	call can finish the job.
+*)
+METHOD free : BOOL
 VAR
 	_idx: UDINT;
 	_node: POINTER TO ST_LinkedListNode;
@@ -127,7 +141,7 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[FOR _idx := 0 TO THIS^.maxCount DO
+        <ST><![CDATA[FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
 	IF THIS^._head = 0 THEN
 		EXIT;
 	END_IF
@@ -140,12 +154,18 @@ END_VAR
 		_kv^.delete(pSelf:=_kv);
 	END_IF
 	__DELETE(_node);
+	_node := 0;
+	IF THIS^.count > 0 THEN
+		THIS^.count := THIS^.count - 1;
+	END_IF
 END_FOR
 
-THIS^._head := 0;
-THIS^._tail := 0;
-THIS^._cursor := 0;
-THIS^.count := 0;]]></ST>
+IF THIS^._head = 0 THEN
+	THIS^._tail := 0;
+	THIS^.count := 0;
+END_IF
+THIS^._cursor := THIS^._head;
+free := THIS^._head = 0;]]></ST>
       </Implementation>
     </Method>
     <Method Name="next" Id="{a8ca5105-d23e-40b3-adba-9bbe23230589}">
@@ -218,7 +238,7 @@ FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
 	_node := _node^.nxt;
 END_FOR
 
-IF THIS^.count >= THIS^.maxCount THEN
+IF THIS^.count >= THIS^._capacity() THEN
 	failureReason := E_AttributesFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED;
 	THIS^.droppedCount := THIS^.droppedCount + 1;
 	RETURN;
