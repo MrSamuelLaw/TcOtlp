@@ -144,6 +144,22 @@ THIS^._failureReason := E_LoggerFailureReason.NA;
 ]]></ST>
       </Implementation>
     </Method>
+    <Method Name="FB_Exit" Id="{d1c987c0-02e1-4df2-8722-fb82546f68b2}">
+      <Declaration><![CDATA[//FB_Exit must be implemented explicitly. If there is an implementation, then the
+//method is called before the controller removes the code of the function block instance
+//(implicit call). The return value is not evaluated.
+METHOD FB_Exit: BOOL
+VAR_INPUT
+    bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// during an online change the copied instance keeps pLogRecord, so the record must survive
+IF NOT bInCopyCode THEN
+	THIS^.free();
+END_IF]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="FB_Init" Id="{8c3c5b34-9fb4-4244-bcbe-417c9db34dca}">
       <Declaration><![CDATA[//FB_Init is always available implicitly and it is used primarily for initialization.
 //The return value is not evaluated. For a specific influence, you can also declare the

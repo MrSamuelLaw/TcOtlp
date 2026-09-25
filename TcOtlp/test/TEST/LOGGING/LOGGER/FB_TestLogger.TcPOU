@@ -13,6 +13,7 @@ THIS^.testStartLogRecordStampsUnixEpochNanos();
 THIS^.testSetTraceContextFromSpanCopiesIdsAndFlags();
 THIS^.testSetTraceContextFromSpanWithoutSpanIsNoOp();
 THIS^.testSetFlagsStoresTraceFlags();
+THIS^.testExitReleasesRecordUnlessCopied();
 ]]></ST>
     </Implementation>
     <Method Name="testEmitReturnsFirstFluentFailure" Id="{22b29b23-959e-4f62-a5d9-51b7a540587f}">
@@ -72,6 +73,32 @@ END_VAR
 		failureResult = E_LoggerFailureReason.LOG_RECORD_NOT_STARTED,
 		'Expected emit without a started record to report LOG_RECORD_NOT_STARTED'
 	);
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testExitReleasesRecordUnlessCopied" Id="{c1976cd6-4423-4012-885c-d93d45891d38}">
+      <Declaration><![CDATA[(*
+	FB_Exit releases a record still being built, so a logger removed mid-chain does not leak it.
+	During an online change the copied instance keeps the record, so FB_Exit leaves it alone.
+*)
+METHOD testExitReleasesRecordUnlessCopied : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	provider: FB_LoggerProvider(resource);
+	scope: FB_InstrumentationScope('name', 'version', '');
+	logger: FB_Logger(scope, provider);
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testExitReleasesRecordUnlessCopied');
+	logger.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_INFO);
+	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected the logger to hold the record');
+
+	logger.FB_Exit(bInCopyCode:=TRUE);
+	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected an online change to keep the record');
+
+	logger.FB_Exit(bInCopyCode:=FALSE);
+	THIS^.AssertTrue(logger.pLogRecord = 0, 'Expected FB_Exit to release the record');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
