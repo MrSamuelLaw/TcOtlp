@@ -24,6 +24,10 @@ Two things depend on this:
 
 A caller that still needs the records after serialization must clone them first. The serializer never changes the content of what it writes.
 
+## Trace context
+
+`traceId` and `flags` are written only for a record that has a trace id, and `spanId` only for one that has a span id. `flags` is the record's W3C trace flags in its low 8 bits, copied from the span by `setTraceContextFromSpan`, so bit 0 is set only when the span was sampled. See [[FB_Logger#Correlating with a span]].
+
 ## Grouping and order
 
 Records are grouped globally rather than only by adjacent runs:

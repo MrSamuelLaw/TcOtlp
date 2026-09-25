@@ -37,6 +37,8 @@ Both methods borrow the span for the call and must not keep it.
 
 `FB_Sampler_ErrorsOnly` keeps the default start decision, so a failed span whose parent was not sampled is still dropped. Unlike the OpenTelemetry `ShouldSample`, which runs before a span exists, its decision is made at the end. OpenTelemetry leaves error sampling to tail sampling in the Collector; here it is done per span in the PLC.
 
+Logs only see the start decision. `FB_Logger.setTraceContextFromSpan` copies the span's sampled bit into the log record when the log is written, before `onEnd` runs, so a log from a span that `onEnd` later drops is still marked sampled. The OpenTelemetry SDK behaves the same way. See [[FB_Logger#Correlating with a span]].
+
 ## Custom samplers
 
 Extend `FB_Sampler` and override either method. Call `SUPER^.onStart(span := span)` to keep the default start decision and add to it.

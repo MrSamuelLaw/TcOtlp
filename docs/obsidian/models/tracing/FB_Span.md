@@ -67,6 +67,20 @@ A span's `flags` describe its **parent's** remoteness, not its own:
 - **Bit 8** (`SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK`) is always set, because the tracer always knows where the parent came from.
 - **Bit 9** (`SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK`) is set when the parent context is remote, meaning it came from `TraceContextPropagator.extract`.
 
+## Correlating logs
+
+A log written during a span's work names the span with [[FB_Logger]]`.setTraceContextFromSpan(pSpan)`:
+
+```iec
+logger
+    .startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_WARN)
+    .setBody('setpoint not reached')
+    .setTraceContextFromSpan(pStep)
+    .emit(failureResult => failureResult);
+```
+
+The record gets its own copies of the span's ids, and the span's W3C trace flags (bits 0–7) become the record's `flags`, so a log is marked sampled exactly when its span is. A null span is a no-op. See [[FB_Logger#Correlating with a span]].
+
 ## Methods
 
 ### getContext

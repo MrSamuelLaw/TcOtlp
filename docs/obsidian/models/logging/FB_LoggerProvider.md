@@ -9,7 +9,7 @@ source: TcOtlp/test/OTEL/LOGGING/PROVIDER/FUNCTION_BLOCKS/FB_LoggerProvider.TcPO
 
 `FB_LoggerProvider` is the context object that owns the per-scan log record buffer and drives the processing pipeline. It exposes the `FB_Resource` used by its loggers and provides the cyclic entry point for the whole logging domain.
 
-The provider borrows the resource reference supplied to `FB_Init`; the scope that declares the resource remains responsible for its lifetime. A logger likewise borrows a reference to the provider, so both the provider and its resource must remain valid while that logger can start log records.
+The provider borrows the resource reference supplied to `FB_Init`; the scope that declares the resource remains responsible for its lifetime. A [[FB_Logger|logger]] likewise borrows a reference to the provider, so both the provider and its resource must remain valid while that logger can start log records.
 
 When a logger creates a log record, it copies the current resource and instrumentation scope into the record. Processors can therefore retain a cloned record without retaining the logger, provider, resource, or scope that created it.
 
