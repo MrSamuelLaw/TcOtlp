@@ -7,6 +7,7 @@ FUNCTION_BLOCK FB_TestProtoJsonSerializer EXTENDS FB_TestSuite
     <Implementation>
       <ST><![CDATA[THIS^.testSerializeNumberValues();
 THIS^.testSerializeLogRecord();
+THIS^.testSerializeLogRecordWithoutTraceIdOmitsFlags();
 THIS^.testSerializeRejectsNullInputs();
 THIS^.testSerializeLogsDataGroupsByResourceAndScope();]]></ST>
     </Implementation>
@@ -98,8 +99,9 @@ END_VAR
 		.setTimestamp(timestamp)
 		.setEventName('Serialization Event')
 		.setBody('This is a body string value')
-		.setTraceId(ADR(traceId), SIZEOF(traceId))
-		.setSpanId(ADR(spanId), SIZEOF(spanId))
+		._setTraceId(ADR(traceId), SIZEOF(traceId))
+		._setSpanId(ADR(spanId), SIZEOF(spanId))
+		._setFlags(16#01)  // sampled
 		.setStringAttribute('stats.label', 'pVal')
 		.setNumberAttribute('stats.duration_ms', durationMs)
 		.setNumberAttribute('stats.temperature', temperature);
@@ -137,7 +139,7 @@ END_VAR
 		THIS^.AssertTrue(serializer.parser.IsObject(obj), 'Expected the logRecords array to hold one LogRecord object');
 
 		// OTLP/JSON encodes enums and fixed32 values as numbers.
-		// 5 is SEVERITY_NUMBER_DEBUG; flags 1 is the sampled bit, set because the record has a trace id.
+		// 5 is SEVERITY_NUMBER_DEBUG; flags 1 is the sampled trace flag of the record's span.
 		member := serializer.parser.FindMember(obj, 'severityNumber');
 		THIS^.AssertEquals_UDINT(5, serializer.parser.GetUint(member), 'Expected severityNumber 5 (DEBUG) as a JSON number');
 		actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'severityText'));
@@ -188,6 +190,62 @@ END_VAR
 
 TcUnit.TEST_FINISHED();
 ]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testSerializeLogRecordWithoutTraceIdOmitsFlags" Id="{e1cf92e3-492f-4c8f-9263-cefaa68cf72c}">
+      <Declaration><![CDATA[(* A record without a trace id belongs to no trace, so the serializer leaves out flags even when the record holds some,
+   along with traceId and spanId. The record stores flags as set; omitting them is the serializer's decision. *)
+METHOD testSerializeLogRecordWithoutTraceIdOmitsFlags : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource(schemaUrl:='');
+	provider: FB_LoggerProvider(resource:=resource);
+	scope: FB_InstrumentationScope(name:='motor1', version:='0.0.1a', schemaUrl:='');
+	logger: FB_Logger(scope:=scope, provider:=provider);
+	processor: FB_LogRecordProcessor_ForRecordInspection(0);
+	serializer: FB_LogRecordProtoJsonSerializer();
+	emitSuccess: BOOL;
+	emitFailureResult: E_LoggerFailureReason;
+	pRecord: POINTER TO FB_LogRecord;
+	root: SJsonValue;
+	records: SJsonValue;
+	obj: SJsonValue;
+	serializationSucceeded: BOOL;
+	serializerFailureReason: E_ProtoJsonSerializerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testSerializeLogRecordWithoutTraceIdOmitsFlags');
+	emitSuccess := logger
+		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO)
+		._setFlags(16#01)  // sampled, but no trace id
+		.emit(failureResult=>emitFailureResult);
+	THIS^.AssertTrue(emitSuccess, 'Expected log record emission to succeed');
+	provider
+		.stageProcessor(processor)
+		.tick();
+	pRecord := processor.pop();
+	THIS^.AssertTrue(pRecord <> 0, 'Expected the processor to return the emitted record');
+	IF pRecord <> 0 THEN
+		THIS^.AssertEquals_UDINT(1, pRecord^.flags, 'Expected the record to keep the flags it was given');
+
+		root := serializer.parser.NewDocument();
+		serializer.parser.SetObject(root);
+		records := serializer.parser.AddArrayMember(root, 'logRecords', 0);
+		serializationSucceeded := serializer.serializeLogRecord(
+			v:=records,
+			pLogRecord:=pRecord,
+			failureReason=>serializerFailureReason
+		);
+		THIS^.AssertTrue(serializationSucceeded, 'Expected LogRecord serialization to succeed');
+		obj := serializer.parser.GetArrayValueByIdx(records, 0);
+		THIS^.AssertTrue(serializer.parser.IsObject(obj), 'Expected the logRecords array to hold one LogRecord object');
+		THIS^.AssertTrue(serializer.parser.FindMember(obj, 'flags') = 0, 'Expected no flags member without a trace id');
+		THIS^.AssertTrue(serializer.parser.FindMember(obj, 'traceId') = 0, 'Expected no traceId member');
+		THIS^.AssertTrue(serializer.parser.FindMember(obj, 'spanId') = 0, 'Expected no spanId member');
+		pRecord^.delete(pSelf:=pRecord);
+	END_IF
+	processor.free();
+TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
     <Method Name="testSerializeLogsDataGroupsByResourceAndScope" Id="{3baae409-f1cd-4ee8-b8e2-c63cbc28a66d}">

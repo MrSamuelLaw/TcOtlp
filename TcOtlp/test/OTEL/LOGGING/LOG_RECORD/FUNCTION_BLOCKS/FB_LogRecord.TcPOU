@@ -12,6 +12,7 @@ VAR_INPUT
 	eventName: 	POINTER TO FB_String; 
 	traceId: 	POINTER TO FB_TraceId;
 	spanId: 	POINTER TO FB_SpanId;
+	flags: UDINT;  // OTLP fixed32: bits 0-7 are the W3C trace flags of the record's span (bit 0 is sampled), bits 8-31 are reserved
 	body: 		POINTER TO FB_AnyValue;
 	droppedAttributesCount: UDINT;
 END_VAR
@@ -57,6 +58,7 @@ IF _pClone = 0 THEN
 END_IF
 
 _pClone^.droppedAttributesCount := THIS^.droppedAttributesCount;
+_pClone^.flags := THIS^.flags;
 
 IF THIS^.eventName <> 0 THEN
 	IF NOT ValueFactory.cloneString(
@@ -224,29 +226,9 @@ THIS^.timestamp := timestamp;
 ]]></ST>
       </Implementation>
     </Method>
-    <Property Name="flags" Id="{a9c4956e-f0c6-4536-ad66-38edc18fb1a7}">
-      <Declaration><![CDATA[PROPERTY flags : UDINT]]></Declaration>
-      <Get Name="Get" Id="{8c04f953-3bf1-49c1-b437-47a1efbbfde3}">
-        <Declaration><![CDATA[VAR
-	traceFlags: BYTE;
-END_VAR
-]]></Declaration>
-        <Implementation>
-          <ST><![CDATA[// bit 0 is the sampled flag, bits 1-7 are reserved for future use according to the spec
-traceFlags := SEL(THIS^.traceId<>0, 2#00000000, 2#00000001);
-
-// the otel spec reserves an additional 24 bits that are all set to zero thus flags is a 32bit field
-// that we "or" together with the traceFlags to create the final 32 it array. 
-flags := (flags AND E_LogRecordFlag.LOG_RECORD_FLAGS_TRACE_FLAGS_MASK) OR traceFlags;
-]]></ST>
-        </Implementation>
-      </Get>
-    </Property>
     <Method Name="free" Id="{541f418c-aa49-48c2-ae9d-c6d4738509a3}">
       <Declaration><![CDATA[METHOD free
-VAR
-	_pTraceFlags: POINTER TO UDINT;
-END_VAR]]></Declaration>
+]]></Declaration>
       <Implementation>
         <ST><![CDATA[IF THIS^.eventName <> 0 THEN THIS^.eventName^.delete(pSelf:=THIS^.eventName); END_IF
 IF THIS^.traceId <> 0 THEN THIS^.traceId^.delete(pSelf:=THIS^.traceId); END_IF

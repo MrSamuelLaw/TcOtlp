@@ -335,6 +335,36 @@ THIS^.pLogRecord^.eventName := _pDest;
 _pDest := 0;]]></ST>
       </Implementation>
     </Method>
+    <Method Name="setTraceContextFromSpan" Id="{36041dd5-74db-47b9-b0fd-9548a818f495}">
+      <Declaration><![CDATA[(*
+	Fills the record's trace context from the span: the trace id, span id and W3C trace flags, the parts of the
+	span context that the log data model carries. Trace state and remoteness are not copied.
+	The log then correlates with the span and carries its sampled bit. The span is borrowed for the call only.
+	A null span, or a span without ids, is a no-op rather than a failure, so the same chain works inside and outside a span.
+*)
+METHOD setTraceContextFromSpan: REFERENCE TO FB_Logger
+VAR_INPUT
+	pSpan: POINTER TO FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setTraceContextFromSpan REF= THIS^;
+
+IF THIS^._shouldReturnEarly() THEN
+	RETURN;
+END_IF
+
+// every span has both ids, so a span without them is not worth failing the log over
+IF pSpan = 0 OR_ELSE pSpan^.traceId = 0 OR_ELSE pSpan^.spanId = 0 THEN
+	RETURN;
+END_IF
+
+THIS^._setTraceId(pBytes:=ADR(pSpan^.traceId^.bytes), nSize:=SIZEOF(pSpan^.traceId^.bytes));
+THIS^._setSpanId(pBytes:=ADR(pSpan^.spanId^.bytes), nSize:=SIZEOF(pSpan^.spanId^.bytes));
+// bits 0-7 of the span flags are the W3C trace flags, the rest describe the parent and stay on the span
+THIS^._setFlags(traceFlags:=TO_BYTE(pSpan^.flags AND TO_UDINT(E_SpanFlags.SPAN_FLAGS_TRACE_FLAGS_MASK)));]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="setNumberAttribute" Id="{6e8ebb16-a1b8-4ed2-891a-240f2408bf80}">
       <Declaration><![CDATA[METHOD setNumberAttribute: REFERENCE TO FB_Logger
 VAR_INPUT
@@ -373,8 +403,29 @@ IF NOT _attributesSuccess THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="setSpanId" Id="{14f48eeb-ffc5-4e13-838f-969f880e1995}">
-      <Declaration><![CDATA[METHOD setSpanId: REFERENCE TO FB_Logger
+    <Method Name="_setFlags" Id="{0dc1cddd-5b1b-4536-8a5b-948dc8e977e4}">
+      <Declaration><![CDATA[(*
+	Sets the record's W3C trace flags; bit 0 is sampled. Application code uses setTraceContextFromSpan; this setter is
+	for tests and for setTraceContextFromSpan itself. A BYTE keeps the reserved bits 8-31 of the record's flags zero.
+*)
+METHOD _setFlags: REFERENCE TO FB_Logger
+VAR_INPUT
+	traceFlags: BYTE;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_setFlags REF= THIS^;
+
+IF THIS^._shouldReturnEarly() THEN
+	RETURN;
+END_IF
+
+THIS^.pLogRecord^.flags := TO_UDINT(traceFlags);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_setSpanId" Id="{14f48eeb-ffc5-4e13-838f-969f880e1995}">
+      <Declaration><![CDATA[(* Sets the record's span id from raw bytes. Application code uses setTraceContextFromSpan; this setter is for tests and for setTraceContextFromSpan itself. *)
+METHOD _setSpanId: REFERENCE TO FB_Logger
 VAR_INPUT
 	pBytes: POINTER TO BYTE;
 	nSize: UDINT;
@@ -385,7 +436,7 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[setSpanId REF= THIS^;
+        <ST><![CDATA[_setSpanId REF= THIS^;
 
 IF THIS^._shouldReturnEarly() THEN
 	RETURN;
@@ -476,8 +527,9 @@ END_IF
 THIS^.pLogRecord^.timestamp := timestamp;]]></ST>
       </Implementation>
     </Method>
-    <Method Name="setTraceId" Id="{ca3f3acd-d52b-46f3-b0a6-82a2580b7b9b}">
-      <Declaration><![CDATA[METHOD setTraceId: REFERENCE TO FB_Logger
+    <Method Name="_setTraceId" Id="{ca3f3acd-d52b-46f3-b0a6-82a2580b7b9b}">
+      <Declaration><![CDATA[(* Sets the record's trace id from raw bytes. Application code uses setTraceContextFromSpan; this setter is for tests and for setTraceContextFromSpan itself. *)
+METHOD _setTraceId: REFERENCE TO FB_Logger
 VAR_INPUT
 	pBytes: POINTER TO BYTE;
 	nSize: UDINT;
@@ -488,7 +540,7 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[setTraceId REF= THIS^;
+        <ST><![CDATA[_setTraceId REF= THIS^;
 
 IF THIS^._shouldReturnEarly() THEN
 	RETURN;
@@ -528,15 +580,16 @@ _pDest := 0;]]></ST>
     <Method Name="startLogRecord" Id="{eaefc3eb-aea0-4067-8396-a0c5d23f5ac3}">
       <Declaration><![CDATA[(*
 	This method starts the build process with the required log record state.
-	Use the fluent setter and adder methods for optional fields.
+	Use the fluent setter methods for optional fields.
 	
 	Example:
 	IF NOT logger
 		.startLogRecord(severityNumber := E_SeverityNumber.SEVERITY_NUMBER_WARNING)
 		.setBody('process cycle amps warning, motor fault imminent')
-		.addNumberAttribute('motor.amps.min', minAmps)
-		.addNumberAttribute('motor.amps.max', maxAmps)
-		.addNumberAttribute('motor.amps.avg', avgAmps)
+		.setTraceContextFromSpan(pSpan)  // a no-op when pSpan is 0
+		.setNumberAttribute('motor.amps.min', minAmps)
+		.setNumberAttribute('motor.amps.max', maxAmps)
+		.setNumberAttribute('motor.amps.avg', avgAmps)
 		.emit(failureResult=>failureResult) THEN
 		// CASE failureResult OF ...
 	END_IF

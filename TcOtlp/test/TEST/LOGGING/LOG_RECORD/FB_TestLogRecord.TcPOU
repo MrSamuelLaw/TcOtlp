@@ -62,8 +62,9 @@ END_VAR
 		.setTimestamp(timestamp)
 		.setEventName('record.event')
 		.setBody('record.body')
-		.setTraceId(ADR(traceIdBytes), SIZEOF(traceIdBytes))
-		.setSpanId(ADR(spanIdBytes), SIZEOF(spanIdBytes))
+		._setTraceId(ADR(traceIdBytes), SIZEOF(traceIdBytes))
+		._setSpanId(ADR(spanIdBytes), SIZEOF(spanIdBytes))
+		._setFlags(16#01)  // sampled
 		.setStringAttribute('record.key', 'record.value');
 	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected startLogRecord to build a source log record');
 
@@ -106,7 +107,7 @@ END_VAR
 		THIS^.AssertEquals_STRING(logger.pLogRecord^.eventName^.pString^, pClone^.eventName^.pString^, 'Expected event name value to be cloned');
 		THIS^.AssertTrue(pClone^.traceId <> logger.pLogRecord^.traceId, 'Expected trace ID allocation to be cloned');
 		THIS^.AssertTrue(MEMCMP(ADR(pClone^.traceId^.bytes), ADR(logger.pLogRecord^.traceId^.bytes), SIZEOF(pClone^.traceId^.bytes)) = 0, 'Expected trace ID value to be cloned');
-		THIS^.AssertTrue(pClone^.flags = logger.pLogRecord^.flags, 'Expected flags value to be cloned');
+		THIS^.AssertEquals_UDINT(1, pClone^.flags, 'Expected the sampled trace flag to be cloned');
 		THIS^.AssertTrue(pClone^.spanId <> logger.pLogRecord^.spanId, 'Expected span ID allocation to be cloned');
 		THIS^.AssertTrue(MEMCMP(ADR(pClone^.spanId^.bytes), ADR(logger.pLogRecord^.spanId^.bytes), SIZEOF(pClone^.spanId^.bytes)) = 0, 'Expected span ID value to be cloned');
 		THIS^.AssertTrue(pClone^.body <> logger.pLogRecord^.body, 'Expected body allocation to be cloned');

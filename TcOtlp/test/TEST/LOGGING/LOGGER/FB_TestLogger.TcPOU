@@ -10,6 +10,9 @@ FUNCTION_BLOCK FB_TestLogger EXTENDS FB_TestSuite
 THIS^.testEmitReturnsFirstFluentFailure();
 THIS^.testStartingSecondRecordReturnsFailure();
 THIS^.testStartLogRecordStampsUnixEpochNanos();
+THIS^.testSetTraceContextFromSpanCopiesIdsAndFlags();
+THIS^.testSetTraceContextFromSpanWithoutSpanIsNoOp();
+THIS^.testSetFlagsStoresTraceFlags();
 ]]></ST>
     </Implementation>
     <Method Name="testEmitReturnsFirstFluentFailure" Id="{22b29b23-959e-4f62-a5d9-51b7a540587f}">
@@ -32,8 +35,8 @@ END_VAR
 	// both setters get a deliberately null pointer; the span ID failure comes first
 	logger
 		.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_ERROR)
-		.setSpanId(pBytes:=0, nSize:=0)
-		.setTraceId(pBytes:=0, nSize:=0);
+		._setSpanId(pBytes:=0, nSize:=0)
+		._setTraceId(pBytes:=0, nSize:=0);
 
 	success := logger.emit(failureResult=>failureResult);
 	THIS^.AssertFalse(success, 'Expected the invalid Span ID to fail emission');
@@ -69,6 +72,156 @@ END_VAR
 		failureResult = E_LoggerFailureReason.LOG_RECORD_NOT_STARTED,
 		'Expected emit without a started record to report LOG_RECORD_NOT_STARTED'
 	);
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testSetFlagsStoresTraceFlags" Id="{6c04f632-3f5b-40e3-bc5a-8ab02628c5f1}">
+      <Declaration><![CDATA[(*
+	_setFlags stores the W3C trace flags in the record's flags, and a later call replaces them.
+	The serializer, not the record, leaves flags out for a record without a trace id.
+*)
+METHOD testSetFlagsStoresTraceFlags : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	provider: FB_LoggerProvider(resource);
+	scope: FB_InstrumentationScope('name', 'version', '');
+	logger: FB_Logger(scope, provider);
+	success: BOOL;
+	failureResult: E_LoggerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testSetFlagsStoresTraceFlags');
+	logger
+		.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_INFO)
+		._setFlags(16#FF);
+	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected the logger to hold the record');
+	IF logger.pLogRecord <> 0 THEN
+		THIS^.AssertEquals_UDINT(16#FF, logger.pLogRecord^.flags, 'Expected _setFlags to store all eight trace flag bits');
+	END_IF
+
+	logger._setFlags(16#01);  // sampled
+	IF logger.pLogRecord <> 0 THEN
+		THIS^.AssertEquals_UDINT(1, logger.pLogRecord^.flags, 'Expected a later _setFlags to replace the trace flags');
+	END_IF
+
+	success := logger.emit(failureResult=>failureResult);
+	THIS^.AssertTrue(success, 'Expected the record to be emitted');
+	provider.tick();
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testSetTraceContextFromSpanCopiesIdsAndFlags" Id="{9738cce3-695a-4961-8670-de7c92125c74}">
+      <Declaration><![CDATA[(*
+	setTraceContextFromSpan copies the span's trace id, span id and W3C trace flags onto the record, so a log
+	correlates with its span and is marked sampled only when the span is.
+*)
+METHOD testSetTraceContextFromSpanCopiesIdsAndFlags : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	loggerProvider: FB_LoggerProvider(resource);
+	scope: FB_InstrumentationScope('name', 'version', '');
+	logger: FB_Logger(scope, loggerProvider);
+	idGenerator: FB_MockIdGenerator;
+	tracerProvider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
+	tracer: FB_Tracer(scope:=scope, provider:=tracerProvider);
+	unsampled: STRING(55) := '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00';
+	pUnsampledParent: POINTER TO FB_SpanContext;
+	pSampledSpan: POINTER TO FB_Span;
+	pUnsampledSpan: POINTER TO FB_Span;
+	success: BOOL;
+	failureResult: E_LoggerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testSetTraceContextFromSpanCopiesIdsAndFlags');
+	// the default sampler samples a root span and keeps the child of an unsampled parent unsampled
+	TraceContextPropagator.extract(pDest:=pUnsampledParent, traceparent:=unsampled, tracestate:='');
+	tracer.startSpan(name:='sampled').build(pDest:=pSampledSpan);
+	tracer.startSpan(name:='unsampled').setParent(pContext:=pUnsampledParent).build(pDest:=pUnsampledSpan);
+	THIS^.AssertTrue(pSampledSpan <> 0 AND pUnsampledSpan <> 0, 'Expected both spans to be built');
+
+	IF pSampledSpan <> 0 THEN
+		logger
+			.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_INFO)
+			.setTraceContextFromSpan(pSampledSpan);
+		THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected the logger to hold the record from the sampled span');
+		IF logger.pLogRecord <> 0 THEN
+			THIS^.AssertTrue(
+				logger.pLogRecord^.traceId <> 0 AND_THEN logger.pLogRecord^.traceId <> pSampledSpan^.traceId
+				AND_THEN MEMCMP(ADR(logger.pLogRecord^.traceId^.bytes), ADR(pSampledSpan^.traceId^.bytes), SIZEOF(pSampledSpan^.traceId^.bytes)) = 0,
+				'Expected the record to own a copy of the span trace id'
+			);
+			THIS^.AssertTrue(
+				logger.pLogRecord^.spanId <> 0 AND_THEN logger.pLogRecord^.spanId <> pSampledSpan^.spanId
+				AND_THEN MEMCMP(ADR(logger.pLogRecord^.spanId^.bytes), ADR(pSampledSpan^.spanId^.bytes), SIZEOF(pSampledSpan^.spanId^.bytes)) = 0,
+				'Expected the record to own a copy of the span id'
+			);
+			THIS^.AssertEquals_UDINT(1, logger.pLogRecord^.flags, 'Expected a record from a sampled span to carry the sampled flag');
+		END_IF
+		success := logger.emit(failureResult=>failureResult);
+		THIS^.AssertTrue(success, 'Expected the record from the sampled span to be emitted');
+	END_IF
+
+	IF pUnsampledSpan <> 0 THEN
+		logger
+			.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_INFO)
+			.setTraceContextFromSpan(pUnsampledSpan);
+		THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected the logger to hold the record from the unsampled span');
+		IF logger.pLogRecord <> 0 THEN
+			THIS^.AssertTrue(logger.pLogRecord^.traceId <> 0, 'Expected a record from an unsampled span to keep its trace id');
+			THIS^.AssertEquals_UDINT(0, logger.pLogRecord^.flags, 'Expected a record from an unsampled span not to carry the sampled flag');
+		END_IF
+		success := logger.emit(failureResult=>failureResult);
+		THIS^.AssertTrue(success, 'Expected the record from the unsampled span to be emitted');
+	END_IF
+
+	loggerProvider.tick();
+	IF pSampledSpan <> 0 THEN pSampledSpan^.delete(pSelf:=pSampledSpan); END_IF
+	IF pUnsampledSpan <> 0 THEN pUnsampledSpan^.delete(pSelf:=pUnsampledSpan); END_IF
+	IF pUnsampledParent <> 0 THEN pUnsampledParent^.delete(pSelf:=pUnsampledParent); END_IF
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testSetTraceContextFromSpanWithoutSpanIsNoOp" Id="{a6aa1651-f73f-4d89-8244-a3908cba084c}">
+      <Declaration><![CDATA[(*
+	setTraceContextFromSpan with a null span, or a span that has no ids, leaves the record without ids and does
+	not fail the chain, so the same logging code works inside and outside a span.
+*)
+METHOD testSetTraceContextFromSpanWithoutSpanIsNoOp : REFERENCE TO FB_Test
+VAR
+	resource: FB_Resource('');
+	provider: FB_LoggerProvider(resource);
+	scope: FB_InstrumentationScope('name', 'version', '');
+	logger: FB_Logger(scope, provider);
+	spanWithoutIds: FB_Span;  // declared directly because the tracer never builds a span without ids
+	success: BOOL;
+	failureResult: E_LoggerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testSetTraceContextFromSpanWithoutSpanIsNoOp');
+	logger
+		.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_INFO)
+		.setTraceContextFromSpan(0);
+	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected the logger to hold the record after a null span');
+	IF logger.pLogRecord <> 0 THEN
+		THIS^.AssertTrue(logger.pLogRecord^.traceId = 0 AND logger.pLogRecord^.spanId = 0, 'Expected a null span to leave the record without ids');
+	END_IF
+	success := logger.emit(failureResult=>failureResult);
+	THIS^.AssertTrue(success, 'Expected a null span not to fail emission');
+
+	logger
+		.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_INFO)
+		.setTraceContextFromSpan(ADR(spanWithoutIds));
+	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected the logger to hold the record after a span without ids');
+	IF logger.pLogRecord <> 0 THEN
+		THIS^.AssertTrue(logger.pLogRecord^.traceId = 0 AND logger.pLogRecord^.spanId = 0, 'Expected a span without ids to leave the record without ids');
+	END_IF
+	success := logger.emit(failureResult=>failureResult);
+	THIS^.AssertTrue(success, 'Expected a span without ids not to fail emission');
+
+	provider.tick();
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

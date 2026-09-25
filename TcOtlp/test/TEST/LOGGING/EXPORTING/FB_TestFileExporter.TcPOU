@@ -78,8 +78,8 @@ END_VAR]]></Declaration>
 				.setTimestamp(_timestamp)
 				.setBody('First batched log record')
 				.setEventName('BatchRecord1')
-				.setTraceId(ADR(_traceId), SIZEOF(_traceId))
-				.setSpanId(ADR(_spanId), SIZEOF(_spanId))
+				._setTraceId(ADR(_traceId), SIZEOF(_traceId))
+				._setSpanId(ADR(_spanId), SIZEOF(_spanId))
 				.setStringAttribute('batch.position', 'first')
 				.setNumberAttribute('batch.positionNum', _num)
 				.emit(failureResult=>_loggerFailureResult);
