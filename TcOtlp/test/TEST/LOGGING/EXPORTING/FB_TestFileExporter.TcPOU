@@ -74,7 +74,7 @@ END_VAR]]></Declaration>
 			END_IF
 			_num := 1;
 			_firstEmitSucceeded := _logger1
-				.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG)
+				.startLogRecord(severityNumber:=E_SeverityNumber.DEBUG)
 				.setTimestamp(_timestamp)
 				.setBody('First batched log record')
 				.setEventName('BatchRecord1')
@@ -85,7 +85,7 @@ END_VAR]]></Declaration>
 				.emit(failureResult=>_loggerFailureResult);
 			_num := 2;
 			_secondEmitSucceeded := _logger2
-				.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO)
+				.startLogRecord(severityNumber:=E_SeverityNumber.INFO)
 				.setTimestamp(_timestamp)
 				.setBody('Second batched log record')
 				.setEventName('BatchRecord2')
@@ -94,7 +94,7 @@ END_VAR]]></Declaration>
 				.emit(failureResult=>_loggerFailureResult);
 			_num := 3;
 			_thirdEmitSucceeded := _logger1
-				.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_WARN)
+				.startLogRecord(severityNumber:=E_SeverityNumber.WARN)
 				.setTimestamp(_timestamp)
 				.setBody('Third batched log record')
 				.setEventName('BatchRecord3')
@@ -149,7 +149,7 @@ END_VAR]]></Declaration>
 				// hand over the next batch in the same scan; the exporter must still start it
 				_redelivered := TRUE;
 				_logger2
-					.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO)
+					.startLogRecord(severityNumber:=E_SeverityNumber.INFO)
 					.setTimestamp(_timestamp)
 					.setBody('Batch exported the scan the previous one finished')
 					.emit(failureResult=>_loggerFailureResult);

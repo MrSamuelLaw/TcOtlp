@@ -73,7 +73,7 @@ A log written during a span's work names the span with [[FB_Logger]]`.setTraceCo
 
 ```iec
 logger
-    .startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_WARN)
+    .startLogRecord(E_SeverityNumber.WARN)
     .setBody('setpoint not reached')
     .setTraceContextFromSpan(pStep)
     .emit(failureResult => failureResult);

@@ -59,7 +59,7 @@ IF motorSpeedSetpoint <> motorSpeedSetpointLast  THEN
 	motorSpeedSetpointLast := motorSpeedSetpoint;
 	formatter(sFormat:='motor speed setpoint changed to %0.2f', arg1:=F_REAL(motorSpeedSetpoint), sOut=>body);
 	motorLogger
-		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO)
+		.startLogRecord(severityNumber:=E_SeverityNumber.INFO)
 		.setEventName('motor.speedSetpointChanged')
 		.setBody(body)
 		.setStringAttribute('speed.units', 'Hz')
@@ -73,7 +73,7 @@ motorTemp := motorTempFaultLimit * TO_REAL(motorTempTimer.ET) / TO_REAL(motorTem
 
 IF motorTemp > motorTempWarningLimit AND NOT motorWarningFlag THEN
 	motorLogger
-		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_WARN)
+		.startLogRecord(severityNumber:=E_SeverityNumber.WARN)
 		.setEventName('motor.overTempWarning')
 		.setBody('Motor experienced an over temp alarm, continued temperature rise will result in automatic shutdown!')
 		.setStringAttribute('temperature.units', '°F')
@@ -85,7 +85,7 @@ motorWarningFlag := motorTemp >= motorTempWarningLimit;
 
 IF motorTemp > motorTempFaultLimit AND NOT motorFaultFlag THEN
 	motorLogger
-		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_FATAL)
+		.startLogRecord(severityNumber:=E_SeverityNumber.FATAL)
 		.setEventName('motor.overTempFault')
 		.setBody('Motor experienced an over temp fault... initiating auto shutdown sequence!')
 		.setStringAttribute('temperature.units', '°F')
@@ -98,7 +98,7 @@ firstScan := FALSE;
 
 IF motorFaultFlag AND NOT valveAlarmFlag THEN
 	valveLogger
-		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_FATAL)
+		.startLogRecord(severityNumber:=E_SeverityNumber.FATAL)
 		.setEventName('valve.emergencyClose')
 		.setBody('Motor has stopped running, closing valve to prevent flooding!')
 		.setStringAttribute('position.units', '%')
@@ -112,7 +112,7 @@ valvePosFeedback := SEL(valveClosedFlag, 70.0, 0.0);
 valveClosingTimer(IN:=valveAlarmFlag);
 IF valveClosingTimer.Q AND NOT valveClosedFlag THEN
 	valveLogger
-		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO)
+		.startLogRecord(severityNumber:=E_SeverityNumber.INFO)
 		.setEventName('valve.emergencyCloseComplete')
 		.setBody('Motor has stopped running, valve is interlocked closed prevent flooding!')
 		.setStringAttribute('position.units', '%')

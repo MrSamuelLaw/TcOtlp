@@ -181,7 +181,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[_exportOneRecord := FALSE;
 emitSucceeded := logger
-	.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO)
+	.startLogRecord(severityNumber:=E_SeverityNumber.INFO)
 	.setTimestamp(timestamp)
 	.emit(failureResult=>emitFailureReason);
 provider

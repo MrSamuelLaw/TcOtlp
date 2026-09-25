@@ -29,7 +29,7 @@ A record is built in one chain that starts with `startLogRecord`, sets optional 
 
 ```iec
 IF NOT logger
-    .startLogRecord(severityNumber := E_SeverityNumber.SEVERITY_NUMBER_WARN)
+    .startLogRecord(severityNumber := E_SeverityNumber.WARN)
     .setBody('process cycle amps warning, motor fault imminent')
     .setEventName('motor.amps.warning')
     .setTraceContextFromSpan(pSpan)  // a no-op when pSpan is 0

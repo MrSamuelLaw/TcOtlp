@@ -33,7 +33,7 @@ END_VAR]]></Declaration>
 	provider.stageProcessor(processorA);
 	provider.stageProcessor(processorB);
 
-	logger.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).emit();
+	logger.startLogRecord(severityNumber:=E_SeverityNumber.INFO).emit();
 	provider.tick();
 
 	THIS^.AssertEquals_UDINT(1, exporterA.records.count, 'Expected one record in exporter A');
@@ -62,7 +62,7 @@ END_VAR]]></Declaration>
 	provider.stageProcessor(processor);
 	THIS^.AssertEquals_UDINT(1, provider.stagedProcessorCount, 'Expected staging the same processor twice to leave one staged processor');
 
-	logger.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).emit();
+	logger.startLogRecord(severityNumber:=E_SeverityNumber.INFO).emit();
 	provider.tick();
 
 	THIS^.AssertEquals_UDINT(1, exporter.records.count, 'Expected exactly one record in exporter, not two');
@@ -153,7 +153,7 @@ END_VAR]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testTickReportsSuccess');
 	// a single staged processor walks the list to its tail on the first iteration
-	logger.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).emit();
+	logger.startLogRecord(severityNumber:=E_SeverityNumber.INFO).emit();
 	tickSucceeded := provider
 		.stageProcessor(processorA)
 		.tick(failureReason=>tickFailureReason);
@@ -165,7 +165,7 @@ END_VAR]]></Declaration>
 	);
 
 	// tick unstages every processor, so both must be staged again
-	logger.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).emit();
+	logger.startLogRecord(severityNumber:=E_SeverityNumber.INFO).emit();
 	tickSucceeded := provider
 		.stageProcessor(processorA)
 		.stageProcessor(processorB)

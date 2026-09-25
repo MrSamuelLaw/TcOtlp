@@ -600,7 +600,7 @@ _pDest := 0;]]></ST>
 	
 	Example:
 	IF NOT logger
-		.startLogRecord(severityNumber := E_SeverityNumber.SEVERITY_NUMBER_WARNING)
+		.startLogRecord(severityNumber := E_SeverityNumber.WARN)
 		.setBody('process cycle amps warning, motor fault imminent')
 		.setTraceContextFromSpan(pSpan)  // a no-op when pSpan is 0
 		.setNumberAttribute('motor.amps.min', minAmps)

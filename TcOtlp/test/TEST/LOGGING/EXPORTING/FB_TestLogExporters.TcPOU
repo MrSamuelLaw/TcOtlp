@@ -43,7 +43,7 @@ END_VAR
 	processor.free();
 	FOR _idx := 1 TO RECORD_COUNT DO
 		emitSucceeded := logger
-			.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO)
+			.startLogRecord(severityNumber:=E_SeverityNumber.INFO)
 			.setTimestamp(TO_ULINT(_idx))
 			.emit(failureResult=>emitFailureReason);
 		THIS^.AssertTrue(emitSucceeded, 'Expected the logger to emit the record');

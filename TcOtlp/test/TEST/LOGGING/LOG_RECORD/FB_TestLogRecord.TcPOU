@@ -58,7 +58,7 @@ END_VAR
 	THIS^.AssertTrue(attributesSuccess, 'Expected scope attribute creation to succeed');
 
 	logger
-		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO)
+		.startLogRecord(severityNumber:=E_SeverityNumber.INFO)
 		.setTimestamp(timestamp)
 		.setEventName('record.event')
 		.setBody('record.body')

@@ -95,7 +95,7 @@ END_VAR
 
 	// Create a representative record through the public logger API.
 	logger
-		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_DEBUG)
+		.startLogRecord(severityNumber:=E_SeverityNumber.DEBUG)
 		.setTimestamp(timestamp)
 		.setEventName('Serialization Event')
 		.setBody('This is a body string value')
@@ -139,11 +139,11 @@ END_VAR
 		THIS^.AssertTrue(serializer.parser.IsObject(obj), 'Expected the logRecords array to hold one LogRecord object');
 
 		// OTLP/JSON encodes enums and fixed32 values as numbers.
-		// 5 is SEVERITY_NUMBER_DEBUG; flags 1 is the sampled trace flag of the record's span.
+		// 5 is DEBUG; flags 1 is the sampled trace flag of the record's span.
 		member := serializer.parser.FindMember(obj, 'severityNumber');
 		THIS^.AssertEquals_UDINT(5, serializer.parser.GetUint(member), 'Expected severityNumber 5 (DEBUG) as a JSON number');
 		actualString := serializer.parser.GetString(serializer.parser.FindMember(obj, 'severityText'));
-		THIS^.AssertEquals_STRING('SEVERITY_NUMBER_DEBUG', actualString, 'Expected severityText to be the severity enum name');
+		THIS^.AssertEquals_STRING('DEBUG', actualString, 'Expected severityText to be the severity enum name');
 		THIS^.AssertEquals_UDINT(1, serializer.parser.GetUint(serializer.parser.FindMember(obj, 'flags')), 'Expected flags 1 (sampled) as a JSON number');
 		THIS^.AssertEquals_UDINT(2, serializer.parser.GetUint(serializer.parser.FindMember(obj, 'droppedAttributesCount')), 'Expected droppedAttributesCount 2 as a JSON number');
 
@@ -216,7 +216,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testSerializeLogRecordWithoutTraceIdOmitsFlags');
 	emitSuccess := logger
-		.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO)
+		.startLogRecord(severityNumber:=E_SeverityNumber.INFO)
 		._setFlags(16#01)  // sampled, but no trace id
 		.emit(failureResult=>emitFailureResult);
 	THIS^.AssertTrue(emitSuccess, 'Expected log record emission to succeed');
@@ -507,7 +507,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[_emitRecord := logger
-	.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO)
+	.startLogRecord(severityNumber:=E_SeverityNumber.INFO)
 	.setTimestamp(timestamp)
 	.emit(failureResult=>emitFailureReason);
 _emitRecord := _emitRecord AND_THEN provider

@@ -28,7 +28,7 @@ END_VAR
         <ST><![CDATA[TcUnit.TEST('testAllowsUnboundedLength');
 	FOR _idx := 1 TO 3 DO
 		// opaque queue node: no factory hands a test an owned FB_LogRecord
-		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=_idx));
+		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.INFO, timestamp:=_idx));
 		success := queue.push(pValue:=pRecord, failureReason=>failureReason);
 		THIS^.AssertTrue(success AND_THEN pRecord = 0, 'Expected the unbounded queue to take ownership');
 	END_FOR
@@ -53,7 +53,7 @@ END_VAR
         <ST><![CDATA[TcUnit.TEST('testDropsOldestRecordFirst');
 	FOR _idx := 1 TO 3 DO
 		// opaque queue node: no factory hands a test an owned FB_LogRecord
-		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=_idx));
+		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.INFO, timestamp:=_idx));
 		success := queue.push(pValue:=pRecord, failureReason=>failureReason);
 		THIS^.AssertTrue(success, 'Expected push to succeed');
 	END_FOR
@@ -82,7 +82,7 @@ END_VAR
         <ST><![CDATA[TcUnit.TEST('testEnforcesMaximumSize');
 	FOR _idx := 1 TO 3 DO
 		// opaque queue node: no factory hands a test an owned FB_LogRecord
-		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=_idx));
+		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.INFO, timestamp:=_idx));
 		success := queue.push(pValue:=pRecord, failureReason=>failureReason);
 		THIS^.AssertTrue(success AND_THEN pRecord = 0, 'Expected push to take ownership');
 		THIS^.AssertTrue(queue.count <= queue.maxCount, 'Expected count not to exceed maxSize');
@@ -108,7 +108,7 @@ END_VAR
         <ST><![CDATA[TcUnit.TEST('testPushAndPopTransferRecordOwnership');
 	noFailure := E_LogRecordQueueFailureReason.NA;
 	// opaque queue node: no factory hands a test an owned FB_LogRecord
-	pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=42));
+	pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.INFO, timestamp:=42));
 	pOriginal := pRecord;
 	success := queue.push(pValue:=pRecord, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN failureReason = noFailure, 'Expected push to succeed without a failure reason');
@@ -145,13 +145,13 @@ END_VAR
 	THIS^.AssertTrue(failureReason = E_LogRecordQueueFailureReason.QUEUE_EMPTY, 'Expected the empty queue failure reason');
 
 	// opaque queue node: no factory hands a test an owned FB_LogRecord
-	pAssigned := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=2));
+	pAssigned := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.INFO, timestamp:=2));
 	success := queue.pop(pValue:=pAssigned, failureReason=>failureReason);
 	THIS^.AssertFalse(success, 'Expected pop into an assigned pointer to fail');
 	THIS^.AssertTrue(failureReason = E_LogRecordQueueFailureReason.DESTINATION_ALREADY_ASSIGNED, 'Expected the assigned destination failure reason');
 	IF pAssigned <> 0 THEN pAssigned^.delete(pSelf:=pAssigned); END_IF
 
-	pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=5));
+	pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.INFO, timestamp:=5));
 	success := queue.push(pValue:=pRecord, failureReason=>failureReason);
 	THIS^.AssertTrue(success AND_THEN failureReason = noFailure, 'Expected success to clear the previous failure reason');
 TcUnit.TEST_FINISHED();]]></ST>
@@ -177,7 +177,7 @@ END_VAR
 	noFailure := E_LogRecordQueueFailureReason.NA;
 	FOR _idx := 1 TO 2 DO
 		// opaque queue node: no factory hands a test an owned FB_LogRecord
-		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=_idx));
+		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.INFO, timestamp:=_idx));
 		IF _idx = 1 THEN
 			pFirstOriginal := pRecord;
 		ELSE
@@ -218,7 +218,7 @@ END_VAR
 	noFailure := E_LogRecordQueueFailureReason.NA;
 	FOR _idx := 1 TO 3 DO
 		// opaque queue node: no factory hands a test an owned FB_LogRecord
-		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO, timestamp:=_idx));
+		pRecord := __NEW(FB_LogRecord(severityNumber:=E_SeverityNumber.INFO, timestamp:=_idx));
 		success := source.push(pValue:=pRecord, failureReason=>failureReason);
 		THIS^.AssertTrue(success, 'Expected source push to succeed');
 	END_FOR

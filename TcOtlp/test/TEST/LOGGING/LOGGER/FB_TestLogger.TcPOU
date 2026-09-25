@@ -35,7 +35,7 @@ END_VAR
         <ST><![CDATA[TcUnit.TEST('testEmitReturnsFirstFluentFailure');
 	// both setters get a deliberately null pointer; the span ID failure comes first
 	logger
-		.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_ERROR)
+		.startLogRecord(E_SeverityNumber.ERROR)
 		._setSpanId(pBytes:=0, nSize:=0)
 		._setTraceId(pBytes:=0, nSize:=0);
 
@@ -91,7 +91,7 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testExitReleasesRecordUnlessCopied');
-	logger.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_INFO);
+	logger.startLogRecord(E_SeverityNumber.INFO);
 	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected the logger to hold the record');
 
 	logger.FB_Exit(bInCopyCode:=TRUE);
@@ -120,7 +120,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testSetFlagsStoresTraceFlags');
 	logger
-		.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_INFO)
+		.startLogRecord(E_SeverityNumber.INFO)
 		._setFlags(16#FF);
 	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected the logger to hold the record');
 	IF logger.pLogRecord <> 0 THEN
@@ -170,7 +170,7 @@ END_VAR
 
 	IF pSampledSpan <> 0 THEN
 		logger
-			.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_INFO)
+			.startLogRecord(E_SeverityNumber.INFO)
 			.setTraceContextFromSpan(pSampledSpan);
 		THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected the logger to hold the record from the sampled span');
 		IF logger.pLogRecord <> 0 THEN
@@ -192,7 +192,7 @@ END_VAR
 
 	IF pUnsampledSpan <> 0 THEN
 		logger
-			.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_INFO)
+			.startLogRecord(E_SeverityNumber.INFO)
 			.setTraceContextFromSpan(pUnsampledSpan);
 		THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected the logger to hold the record from the unsampled span');
 		IF logger.pLogRecord <> 0 THEN
@@ -229,7 +229,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testSetTraceContextFromSpanWithoutSpanIsNoOp');
 	logger
-		.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_INFO)
+		.startLogRecord(E_SeverityNumber.INFO)
 		.setTraceContextFromSpan(0);
 	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected the logger to hold the record after a null span');
 	IF logger.pLogRecord <> 0 THEN
@@ -239,7 +239,7 @@ END_VAR
 	THIS^.AssertTrue(success, 'Expected a null span not to fail emission');
 
 	logger
-		.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_INFO)
+		.startLogRecord(E_SeverityNumber.INFO)
 		.setTraceContextFromSpan(ADR(spanWithoutIds));
 	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected the logger to hold the record after a span without ids');
 	IF logger.pLogRecord <> 0 THEN
@@ -269,9 +269,9 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testStartingSecondRecordReturnsFailure');
-	logger.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_INFO);
+	logger.startLogRecord(E_SeverityNumber.INFO);
 	// deliberately start a second record before the first is emitted
-	logger.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_WARN);
+	logger.startLogRecord(E_SeverityNumber.WARN);
 
 	success := logger.emit(failureResult=>failureResult);
 	THIS^.AssertFalse(success, 'Expected starting a second record to fail emission');
@@ -307,7 +307,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testStartLogRecordStampsUnixEpochNanos');
 	beforeNs := (F_GetSystemTime() - UNIX_EPOCH_DIFF) * 100;
-	logger.startLogRecord(E_SeverityNumber.SEVERITY_NUMBER_INFO);
+	logger.startLogRecord(E_SeverityNumber.INFO);
 	afterNs := (F_GetSystemTime() - UNIX_EPOCH_DIFF) * 100;
 
 	THIS^.AssertTrue(logger.pLogRecord <> 0, 'Expected startLogRecord to allocate a record');

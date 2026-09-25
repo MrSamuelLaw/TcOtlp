@@ -81,11 +81,11 @@ END_VAR
 
 	// --- Scenario: records queue in arrival order ---
 	// emit interleaved across (resource, scope) pairs
-	loggerBA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts1).emit();
-	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts2).emit();
-	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts3).emit();
-	loggerBA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts4).emit();
-	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts5).emit();
+	loggerBA.startLogRecord(severityNumber:=E_SeverityNumber.INFO).setTimestamp(ts1).emit();
+	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.INFO).setTimestamp(ts2).emit();
+	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.INFO).setTimestamp(ts3).emit();
+	loggerBA.startLogRecord(severityNumber:=E_SeverityNumber.INFO).setTimestamp(ts4).emit();
+	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.INFO).setTimestamp(ts5).emit();
 	// note, it's bad practice to associate processors with multiple providers
 	providerA
 		.stageProcessor(processor)
@@ -112,7 +112,7 @@ END_VAR
 
 	// --- Scenario: a full batch flushes to the exporter in order ---
 	// emit one more to reach maxExportBatchSize, triggering a flush
-	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts6).emit();
+	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.INFO).setTimestamp(ts6).emit();
 	providerA
 		.stageProcessor(processor)
 		.tick();
@@ -138,7 +138,7 @@ END_VAR
 	// --- Scenario: a busy exporter holds records in the queue ---
 	// the processor still queues records, but no batch leaves
 	exporter.busy := TRUE;
-	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts7).emit();
+	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.INFO).setTimestamp(ts7).emit();
 	providerA
 		.stageProcessor(processor)
 		.tick();
@@ -156,7 +156,7 @@ END_VAR
 
 	// --- Scenario: no exporter, no queue ---
 	// without a bound exporter onEmit only enriches, so nothing is cloned or queued
-	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts8).emit();
+	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.INFO).setTimestamp(ts8).emit();
 	providerA
 		.stageProcessor(orphanProcessor)
 		.tick();
@@ -166,9 +166,9 @@ END_VAR
 	// --- Scenario: a full queue drops the oldest record ---
 	// boundedProcessor holds 2 records, so the third emit pushes out the first
 	THIS^.AssertEquals_UDINT(2, boundedProcessor.records.maxCount, 'Expected the internal queue to be bounded to maxQueueSize');
-	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts9).emit();
-	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts10).emit();
-	loggerBA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts11).emit();
+	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.INFO).setTimestamp(ts9).emit();
+	loggerAB.startLogRecord(severityNumber:=E_SeverityNumber.INFO).setTimestamp(ts10).emit();
+	loggerBA.startLogRecord(severityNumber:=E_SeverityNumber.INFO).setTimestamp(ts11).emit();
 	providerA
 		.stageProcessor(boundedProcessor)
 		.tick();
@@ -185,7 +185,7 @@ END_VAR
 
 	// --- Scenario: the schedule timer flushes a partial batch ---
 	// timerProcessor has an unbounded queue (maxQueueSize 0) and a 0 ms delay, so one record is enough to flush
-	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setTimestamp(ts12).emit();
+	loggerAA.startLogRecord(severityNumber:=E_SeverityNumber.INFO).setTimestamp(ts12).emit();
 	providerA
 		.stageProcessor(timerProcessor)
 		.tick();
@@ -228,7 +228,7 @@ END_VAR
         <ST><![CDATA[TcUnit.TEST('testSimpleProcessorExportsEachRecord');
 	resource.attributes.setStringAttribute('plc.name', 'sim.plc');
 	logger.startLogRecord(
-			severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_ERROR
+			severityNumber:=E_SeverityNumber.ERROR
 		)
 		.setBody('this is a test')
 		.emit();
@@ -242,7 +242,7 @@ END_VAR
 	THIS^.AssertTrue(pRec <> 0, 'Expected the exporter to hold the exported record');
 	IF pRec <> 0 THEN
 		THIS^.AssertTrue(
-			pRec^.severityNumber = E_SeverityNumber.SEVERITY_NUMBER_ERROR,
+			pRec^.severityNumber = E_SeverityNumber.ERROR,
 			'Expected the exported record to keep its ERROR severity'
 		);
 		THIS^.AssertTrue(
@@ -282,7 +282,7 @@ END_VAR
         <ST><![CDATA[TcUnit.TEST('testProcessorsSkipBusyExporter');
 	simpleExporter.busy := TRUE;
 	batchExporter.busy := TRUE;
-	logger.startLogRecord(severityNumber:=E_SeverityNumber.SEVERITY_NUMBER_INFO).setBody('work').emit();
+	logger.startLogRecord(severityNumber:=E_SeverityNumber.INFO).setBody('work').emit();
 	provider
 		.stageProcessor(simpleProcessor)
 		.stageProcessor(batchProcessor)
