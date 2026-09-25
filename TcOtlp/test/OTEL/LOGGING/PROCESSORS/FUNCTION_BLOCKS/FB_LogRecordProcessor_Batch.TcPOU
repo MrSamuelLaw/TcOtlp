@@ -17,6 +17,7 @@ VAR
 	_scheduleDelayTimer: TON;
 	_records: FB_LogRecordQueue(maxCount:=0);  // set again during THIS^.FB_Init
 	_exporter: REFERENCE TO FB_LogRecordExporter_Base;
+	_rejectedCount: UDINT;  // records that could not be cloned or queued
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -133,6 +134,7 @@ IF __ISVALIDREF(THIS^._exporter) THEN
 	_pRecord := 0;
 	IF NOT logRecord.cloneTo(pDest:=_pRecord, failureReason=>_cloneFailureResult) THEN
 		IF _pRecord <> 0 THEN _pRecord^.delete(pSelf:=_pRecord); END_IF
+		THIS^._rejectedCount := THIS^._rejectedCount + 1;
 		THIS^.lastOperationSucceeded := FALSE;
 		THIS^.failureResult := E_LogRecordProcessorFailureReason.RECORD_CLONE_FAILURE;
 		RETURN;
@@ -140,6 +142,7 @@ IF __ISVALIDREF(THIS^._exporter) THEN
 	
 	IF NOT THIS^._records.push(pValue:=_pRecord, failureReason=>_queueFailureReason) THEN
 		_pRecord^.delete(pSelf:=_pRecord);
+		THIS^._rejectedCount := THIS^._rejectedCount + 1;
 		THIS^.lastOperationSucceeded := FALSE;
 		THIS^.failureResult := E_LogRecordProcessorFailureReason.QUEUE_PUSH_FAILURE;
 		RETURN;
@@ -168,5 +171,27 @@ IF __ISVALIDREF(THIS^._exporter) THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
+    <Property Name="droppedCount" Id="{ed729752-7b74-4e0a-9963-6ad4aaec6062}">
+      <Declaration><![CDATA[(* Records lost so far: evicted from a full queue, or not cloned or queued. *)
+PROPERTY droppedCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{47f1e96e-54ee-453d-a0d3-809aa8416382}">
+        <Declaration><![CDATA[
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[droppedCount := THIS^._records.droppedCount + THIS^._rejectedCount;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
+    <Property Name="queuedCount" Id="{98393c3e-b6b5-44af-b991-f83094a1eeb9}">
+      <Declaration><![CDATA[(* Records waiting for export. *)
+PROPERTY queuedCount : UDINT]]></Declaration>
+      <Get Name="Get" Id="{d0c264ce-15f6-43dd-a92b-238b6beb096c}">
+        <Declaration><![CDATA[
+]]></Declaration>
+        <Implementation>
+          <ST><![CDATA[queuedCount := THIS^._records.count;]]></ST>
+        </Implementation>
+      </Get>
+    </Property>
   </POU>
 </TcPlcObject>
