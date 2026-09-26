@@ -4,45 +4,65 @@
     <Declaration><![CDATA[PROGRAM SIM_MAIN
 
 VAR
-	// logging config
+	// shared otel configs
 	resource: FB_Resource(schemaUrl:='');
-	provider: FB_LoggerProvider(resource:=resource);
+	
+	// logging config, note that loggers are oriented on a per entity (device) basis.
+	loggerProvider: FB_LoggerProvider(resource:=resource);
 	motorScope: FB_InstrumentationScope(name:='motor', version:='0.0.0a', schemaUrl:='');
-	motorLogger: FB_Logger(provider:=provider, scope:=motorScope);
 	valveScope: FB_InstrumentationScope(name:='valve', version:='0.0.0a', schemaUrl:='');
-	valveLogger: FB_Logger(provider:=provider, scope:=valveScope);
-	// 	exporter: FB_LogRecordExporter_File(filepath:='/tmp/logs.jsonl');
-	exporter: FB_LogRecordExporter_HTTP('http://127.0.0.1:4318/v1/logs', TRUE);
+	motorLogger: FB_Logger(provider:=loggerProvider, scope:=motorScope);
+	valveLogger: FB_Logger(provider:=loggerProvider, scope:=valveScope);
 	signozProcessor: FB_LogRecordProcessor_Signoz(0);
 	consoleProcessor: FB_LogRecordProcessor_ConsolePrinter(0);
-	batchProcessor: FB_LogRecordProcessor_Batch(500, 1500, 100, exporter);
-	processors: ARRAY [0..2] OF I_LogRecordProcessor;
+	logExporter: FB_LogRecordExporter_HTTP('http://192.168.97.55:4318/v1/logs', TRUE);
+	logBatchProcessor: FB_LogRecordProcessor_Batch(maxQueueSize:=500, scheduledDelayMillis:=1500, 
+												maxExportBatchSize:=500, exporter:=logExporter);
+	
+	// tracing config, note that tracers are oriented per service basis.
+	sampler: FB_Sampler_AlwaysOn();
+	idGenerator: FB_IdGenerator(nTraceIds:=5, nSpanIds:=5);
+	tracerProvider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator, sampler:=sampler);
+	skidScope: FB_InstrumentationScope(name:='skid', version:='0.0.0a', schemaUrl:='');
+	tracer: FB_Tracer(scope:=skidScope, provider:=tracerProvider);
+	spanExporter: FB_SpanExporter_HTTP('http://192.168.97.55:4318/v1/traces', TRUE);
+	spanBatchProcessor: FB_SpanProcessor_Batch(maxQueueSize:=500, scheduledDelayMillis:=1500, 
+										   maxExportBatchSize:=500, exporter:=spanExporter);
+	pRootSpan: 			POINTER TO FB_Span;
+	pPumpStageSpan: 	POINTER TO FB_Span;
+	pValveStageSpan: 	POINTER TO FB_Span;
+	pContext: 			POINTER TO FB_SpanContext;
+	
 	
 	// initialization setup
 	firstScan: BOOL := TRUE;
 	
+	// simulated faults
+	simulateValveFailure: BOOL;
+	simulateMotorFailure: BOOL;
+	
+	// process inputs (in a real sitation these would likely come from SCADA)
+	cmdStageUp: BOOL := FALSE;  // when true the skid will attempt to stage up
+	cmdFlowRate: REAL := 700;  // GPM
+	
+	// process outputs
+	currentState: 	USINT;
+	flowRate: 		REAL;
+	valvePosition: 	REAL;
+	pumpError: 		BOOL;
+	valveError: 	BOOL;
+	
 	// program variables
-	_idx: DINT;
-	motorFaultFlag: BOOL;
-	motorWarningFlag: BOOL;
-	valveAlarmFlag: BOOL;
-	valveClosedFlag: BOOL;
-	valvePosFeedback: 	REAL := 70.0;
- 	valvePosCommand: 	REAL := 0.0;
-	{attribute 'OPC.UA.DA' := '1'}
-	motorSpeedSetpoint: REAL := 50.0;
-	motorSpeedSetpointLast: REAL := 50.0;
-	{attribute 'OPC.UA.DA' := '1'}
-	motorTemp: REAL;
-	motorTempWarningLimit: REAL := 100.00; // °F 
-	motorTempFaultLimit: REAL := 135.00;  // °F
+	_computedState: 	USINT;
+	_stateChangeTrig: 	R_TRIG;
+	formatter: 			FB_FormatString();
+	body: 				T_MaxString;
 	
-	formatter: FB_FormatString();
-	body: T_MaxString;
-	
-	// simulate a delayed rising temp once speed gets too hot
-	motorTempTimer: TON := (PT:=T#1M);
-	valveClosingTimer: TON := (PT:=T#30S);
+	// simulation ramp rates
+	flowRampRate: 	REAL := 20;  // gpm/sec
+	valveRampRate: 	REAL := 2;  // %/sec
+	pumpRampTON: 	TON := (PT:=T#1S);
+	valveRampTON: 	TON := (PT:=T#1S);
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -50,77 +70,153 @@ END_VAR
 	resource.attributes.setStringAttribute('name', 'PLC1');
 END_IF
 	
-processors[0] := signozProcessor;
-processors[1] := consoleProcessor;
-processors[2] := batchProcessor;
-provider.tick(processors);
+// run the logger every tick
+loggerProvider
+	.stageProcessor(signozProcessor)
+	.stageProcessor(consoleProcessor)
+	.stageProcessor(logBatchProcessor)
+	.tick();
+	
+// run the tracer every tick
+tracerProvider
+	.stageProcessor(spanBatchProcessor)
+	.tick();
+	
+CASE currentState OF
+	0:  // shutdown state
+		IF _stateChangeTrig.Q AND (NOT cmdStageUp) AND pRootSpan <> 0 THEN
+			pRootSpan^.setStatusOk();
+			tracer.endSpan(pRootSpan);
+		END_IF
+		
+		IF cmdStageUp THEN
+			IF pRootSpan <> 0 THEN pRootSpan^.delete(pRootSpan); END_IF
+			tracer
+				.startSpan('skid.staging.stage_up')
+				.setNumberAttribute('flow.target', cmdFlowRate)
+				.build(pRootSpan);
+			_computedState := 1;
+		END_IF
+		
+	1:  // stage pump up/down
+		IF _stateChangeTrig.Q THEN
+			IF pRootSpan <> 0 THEN
+				IF cmdStageUp THEN
+					tracer.startSpan('skid.staging.pump_stage_up');
+				ELSE
+					tracer.startSpan('skid.staging.pump_stage_down');
+				END_IF
+				IF pContext <> 0 THEN pContext^.delete(pContext); END_IF
+				pRootSpan^.getContext(pContext);
+				tracer.setParent(pContext);
+				tracer.build(pPumpStageSpan);
+			END_IF
+			motorLogger
+				.startLogRecord(E_SeverityNumber.TRACE)
+				.setBody(SEL(cmdStageUp, 'stopping pump', 'starting pump'))
+				.setNumberAttribute('flow.target', cmdFlowRate)
+				.setTraceContextFromSpan(pPumpStageSpan)
+				.emit();
+		END_IF
+		
+		// ramp up the flow if staging up, otherwise stage down
+		IF pumpRampTON.Q THEN
+			IF cmdStageUp THEN
+				flowRate := flowRate + flowRampRate;
+			ELSE
+				flowRate := flowRate - flowRampRate;
+			END_IF
+		END_IF
+		
+		// go to adjacent states based on command
+		IF (NOT cmdStageUp) AND flowRate <= 0 THEN
+			_computedState := 0;
+			pPumpStageSpan^.setStatusOk();
+		ELSIF cmdStageUp THEN
+			IF NOT simulateMotorFailure AND flowRate >= cmdFlowRate THEN
+				_computedState := 2;
+			ELSIF simulateMotorFailure AND flowRate >= cmdFlowRate * 0.5 THEN
+				_computedState := 0;
+				flowRate := 0;
+				cmdStageUp := FALSE;
+				pPumpStageSpan^.setStatusError('pump motor failure');
+				pRootSpan^.setStatusError('pump motor failure');
+				motorLogger
+					.startLogRecord(E_SeverityNumber.FATAL)
+					.setBody('pump failure detected, stopping pump!')
+					.setNumberAttribute('flow.target', cmdFlowRate)
+					.setNumberAttribute('flow.actual', flowRate)
+					.setTraceContextFromSpan(pPumpStageSpan)
+					.emit();
+			END_IF
+		END_IF
+		
+		IF _computedState <> currentState AND pPumpStageSpan <> 0 THEN
+			tracer.endSpan(pPumpStageSpan);
+		END_IF
+		
+	2:  // open isolation valve
+		IF _stateChangeTrig.Q THEN
+			IF pRootSpan <> 0 THEN
+				IF cmdStageUp THEN
+					tracer.startSpan('skid.staging.valve_open');
+				ELSE
+					tracer.startSpan('skid.staging.valve_close');
+				END_IF
+				IF pContext <> 0 THEN pContext^.delete(pContext); END_IF
+				pRootSpan^.getContext(pContext);
+				tracer.setParent(pContext);
+				tracer.build(pValveStageSpan);
+			END_IF
+			valveLogger
+				.startLogRecord(E_SeverityNumber.TRACE)
+				.setBody(SEL(cmdStageUp, 'closing valve', 'opening valve'))
+				.setNumberAttribute('flow.target', cmdFlowRate)
+				.setTraceContextFromSpan(pPumpStageSpan)
+				.emit();
+		END_IF
+		
+		IF valveRampTON.Q THEN
+			IF cmdStageUp THEN
+				valvePosition := valvePosition + valveRampRate;
+			ELSE
+				valvePosition := valvePosition - valveRampRate;
+			END_IF
+		END_IF
+		
+		IF (NOT cmdStageUp) AND valvePosition <= 0.0 THEN
+			_computedState := 1;
+		ELSIF cmdStageUp AND valvePosition >= 100.0 THEN
+			_computedState := 3;
+		END_IF
+		
+		IF _computedState <> currentState AND pValveStageSpan <> 0 THEN
+			pValveStageSpan^.setStatusOk();
+			tracer.endSpan(pValveStageSpan);
+		END_IF
+		
+	3: // staged up
+		IF _stateChangeTrig.Q AND cmdStageUp AND pRootSpan <> 0 THEN
+			pRootSpan^.setStatusOk();
+			tracer.endSpan(pRootSpan);
+		END_IF
+		
+		IF (NOT cmdStageUp) THEN
+			IF pRootSpan <> 0 THEN pRootSpan^.delete(pRootSpan); END_IF
+			tracer
+				.startSpan('skid.staging.stage_down')
+				.build(pRootSpan);
+			_computedState := 2;
+		END_IF
+END_CASE
 
-IF motorSpeedSetpoint <> motorSpeedSetpointLast  THEN
-	motorSpeedSetpointLast := motorSpeedSetpoint;
-	formatter(sFormat:='motor speed setpoint changed to %0.2f', arg1:=F_REAL(motorSpeedSetpoint), sOut=>body);
-	motorLogger
-		.startLogRecord(severityNumber:=E_SeverityNumber.INFO)
-		.setEventName('motor.speedSetpointChanged')
-		.setBody(body)
-		.setStringAttribute('speed.units', 'Hz')
-		.setNumberAttribute('speed.setpoint', motorSpeedSetpoint)
-		.emit();
-END_IF
+_stateChangeTrig(CLK:=currentState <> _computedState);
+currentState := _computedState;
 
-// simulate a cascading failure due to a high setpoint
-motorTempTimer(IN:=motorSpeedSetpoint > 75.0);
-motorTemp := motorTempFaultLimit * TO_REAL(motorTempTimer.ET) / TO_REAL(motorTempTimer.PT);
-
-IF motorTemp > motorTempWarningLimit AND NOT motorWarningFlag THEN
-	motorLogger
-		.startLogRecord(severityNumber:=E_SeverityNumber.WARN)
-		.setEventName('motor.overTempWarning')
-		.setBody('Motor experienced an over temp alarm, continued temperature rise will result in automatic shutdown!')
-		.setStringAttribute('temperature.units', '°F')
-		.setNumberAttribute('temperature.alarmLimit', motorTempWarningLimit)
-		.setNumberAttribute('temperature.processValue', motorTemp)
-		.emit();
-END_IF
-motorWarningFlag := motorTemp >= motorTempWarningLimit;
-
-IF motorTemp > motorTempFaultLimit AND NOT motorFaultFlag THEN
-	motorLogger
-		.startLogRecord(severityNumber:=E_SeverityNumber.FATAL)
-		.setEventName('motor.overTempFault')
-		.setBody('Motor experienced an over temp fault... initiating auto shutdown sequence!')
-		.setStringAttribute('temperature.units', '°F')
-		.setNumberAttribute('temperature.alarmLimit', motorTempFaultLimit)
-		.setNumberAttribute('temperature.processValue', motorTemp)
-		.emit();
-END_IF
-motorFaultFlag := motorTemp >= motorTempFaultLimit;
-firstScan := FALSE;
-
-IF motorFaultFlag AND NOT valveAlarmFlag THEN
-	valveLogger
-		.startLogRecord(severityNumber:=E_SeverityNumber.FATAL)
-		.setEventName('valve.emergencyClose')
-		.setBody('Motor has stopped running, closing valve to prevent flooding!')
-		.setStringAttribute('position.units', '%')
-		.setNumberAttribute('position.currentValue', valvePosFeedback)
-		.setNumberAttribute('position.commandedValue', valvePosCommand)
-		.emit();
-END_IF
-valveAlarmFlag := motorFaultFlag;
-valvePosFeedback := SEL(valveClosedFlag, 70.0, 0.0);
-
-valveClosingTimer(IN:=valveAlarmFlag);
-IF valveClosingTimer.Q AND NOT valveClosedFlag THEN
-	valveLogger
-		.startLogRecord(severityNumber:=E_SeverityNumber.INFO)
-		.setEventName('valve.emergencyCloseComplete')
-		.setBody('Motor has stopped running, valve is interlocked closed prevent flooding!')
-		.setStringAttribute('position.units', '%')
-		.setNumberAttribute('position.currentValue', valvePosFeedback)
-		.setNumberAttribute('position.commandedValue', valvePosCommand)
-		.emit();
-END_IF
-valveClosedFlag := valveClosingTimer.Q;]]></ST>
+pumpRampTON(IN:=currentState=1 AND NOT pumpRampTON.Q);
+valveRampTON(IN:=currentState=2 AND NOT valveRampTON.Q);
+	
+]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>
