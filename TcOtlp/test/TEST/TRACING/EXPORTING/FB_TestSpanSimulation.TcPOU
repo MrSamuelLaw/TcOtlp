@@ -3,8 +3,9 @@
   <POU Name="FB_TestSpanSimulation" Id="{176e32a6-c7c8-44d8-b313-652cb89b8d64}" SpecialFunc="None">
     <Declaration><![CDATA[(*
 	Runs the manufacturing process from the tracing research notes through the whole pipeline:
-	a root span that starts its own trace linked to an upstream caller's span, step-a as its child, then step-b as a child linked to step-a. Each step runs
-	for STEP_CYCLES scans, and step-b and the process end in the same scan. step-a succeeds,
+	a root span that starts its own trace linked to an upstream caller's span, then step-a and step-b as its children.
+	The steps are siblings: the root groups them, and their timestamps show that step-b follows step-a, so no link
+	joins them. Each step runs for STEP_CYCLES scans, and step-b and the process end in the same scan. step-a succeeds,
 	and step-b fails, which fails the process. Each step also writes logs that carry its span's trace context,
 	so the logs and spans tell the same story. Processors are staged and both providers ticked every scan;
 	spans go through FB_SpanProcessor_Batch to FB_SpanExporter_File, and logs through FB_LogRecordProcessor_Batch
@@ -70,7 +71,7 @@ END_IF]]></ST>
     </Method>
     <Method Name="testManufacturingProcess" Id="{32199410-40a9-42ca-999f-041d77c20028}">
       <Declaration><![CDATA[(*
-	A multi-scan process with a parent, a child and a linked child runs end to end through the
+	A multi-scan process with a parent and two sequential children runs end to end through the
 	real provider, batch processor and file exporter: every span ends, none is dropped, and the
 	file export reports no error. Every log the steps write carries its span's trace id and span id,
 	reaches the log file, and none is dropped. An upstream caller's traceparent and tracestate headers are
@@ -95,7 +96,6 @@ VAR_INST
 	_pRoot: POINTER TO FB_Span;
 	_pCurrent: POINTER TO FB_Span;
 	_pRootContext: POINTER TO FB_SpanContext;
-	_pStepContext: POINTER TO FB_SpanContext;
 	_pRemoteContext: POINTER TO FB_SpanContext;
 	_extractAttempted: BOOL;  // extract once; if it fails, the process starts without a link
 	_rootStartedOwnTrace: BOOL;
@@ -213,7 +213,7 @@ END_VAR
 				END_IF
 			END_IF
 
-		2: // step1Done: end step-a, keeping its context to link the next step to it
+		2: // step1Done: end step-a
 			_stepCycles := _stepCycles + 1;
 			IF _stepCycles >= STEP_CYCLES THEN
 				_pCurrent^.setStatusOk();
@@ -223,18 +223,16 @@ END_VAR
 					body:='step-a reached setpoint 42',
 					pSpan:=_pCurrent
 				);
-				_pCurrent^.getContext(pDest:=_pStepContext);
 				IF _tracer.endSpan(pSpan:=_pCurrent, failureReason=>tracerReason) THEN
 					_endedCount := _endedCount + 1;
 				END_IF
 				_step := 3;
 			END_IF
 
-		3: // start step-b as a child of the process, linked to step-a
+		3: // start step-b as the next child of the process
 			setpoint := 17;
 			_tracer.startSpan(name:='step-b')
 				.setParent(pContext:=_pRootContext)
-				.addLink(pContext:=_pStepContext)
 				.setNumberAttribute('setpoint', setpoint)
 				.build(pDest:=_pCurrent, failureReason=>tracerReason);
 			IF _pCurrent <> 0 THEN
@@ -244,7 +242,6 @@ END_VAR
 					body:='step-b started with setpoint 17',
 					pSpan:=_pCurrent
 				);
-				_pStepContext^.delete(pSelf:=_pStepContext);
 				_stepCycles := 0;
 				_step := 4;
 			END_IF
@@ -310,7 +307,6 @@ END_VAR
 		IF _pCurrent <> 0 THEN _pCurrent^.delete(pSelf:=_pCurrent); END_IF
 		IF _pRoot <> 0 THEN _pRoot^.delete(pSelf:=_pRoot); END_IF
 		IF _pRootContext <> 0 THEN _pRootContext^.delete(pSelf:=_pRootContext); END_IF
-		IF _pStepContext <> 0 THEN _pStepContext^.delete(pSelf:=_pStepContext); END_IF
 		IF _pRemoteContext <> 0 THEN _pRemoteContext^.delete(pSelf:=_pRemoteContext); END_IF
 		_extractAttempted := FALSE;
 		_rootStartedOwnTrace := FALSE;
