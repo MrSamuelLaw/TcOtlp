@@ -21,7 +21,7 @@ THIS^.testNoIdentifiersAvailable();
 THIS^.testSetsAttributes();
 THIS^.testEndSpanQueuesSpan();
 THIS^.testEndSpanRejectsNull();
-THIS^.testEndSpanWithoutProcessorsReleasesSpan();
+THIS^.testEndSpanWithoutProcessorsQueuesSpan();
 THIS^.testAddsLinks();
 THIS^.testRejectsInvalidLink();]]></ST>
     </Implementation>
@@ -572,9 +572,9 @@ END_VAR
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
-    <Method Name="testEndSpanWithoutProcessorsReleasesSpan" Id="{32597e59-8288-4682-aa64-c6a3846181b6}">
-      <Declaration><![CDATA[(* With no processor staged, endSpan releases the span instead of queuing it, and succeeds. *)
-METHOD testEndSpanWithoutProcessorsReleasesSpan : REFERENCE TO FB_Test
+    <Method Name="testEndSpanWithoutProcessorsQueuesSpan" Id="{32597e59-8288-4682-aa64-c6a3846181b6}">
+      <Declaration><![CDATA[(* With no processor staged yet, endSpan still queues the span for the provider's next tick. *)
+METHOD testEndSpanWithoutProcessorsQueuesSpan : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
@@ -587,7 +587,7 @@ VAR
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('testEndSpanWithoutProcessorsReleasesSpan');
+        <ST><![CDATA[TcUnit.TEST('testEndSpanWithoutProcessorsQueuesSpan');
 	tracer.startSpan(name:='work').build(pDest:=pSpan);
 	THIS^.AssertTrue(pSpan <> 0, 'Expected the span to build');
 
@@ -599,7 +599,7 @@ END_VAR
 		'Expected no failure reason'
 	);
 	THIS^.AssertTrue(pSpan = 0, 'Expected endSpan to clear the caller$'s pointer');
-	THIS^.AssertEquals_UDINT(0, provider.spans.count, 'Expected nothing to be queued');
+	THIS^.AssertEquals_UDINT(1, provider.spans.count, 'Expected the span to be queued');
 	IF pSpan <> 0 THEN pSpan^.delete(pSelf:=pSpan); END_IF
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
