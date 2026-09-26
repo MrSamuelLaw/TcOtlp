@@ -24,7 +24,7 @@ The LinkFactory creates links and keeps their invariants: a link always points a
 Creates an `FB_Link` from an [[FB_SpanContext]], such as one extracted from a SCADA request. The context is borrowed, so it can be released straight after. Rejects a null context and one whose `isValid()` is `FALSE`.
 
 ### fromSpan
-Creates an `FB_Link` to an [[FB_Span]] the caller holds, through the span's `getContext`. The span is unchanged, and the link is local: bit 8 set, bit 9 clear.
+Creates an `FB_Link` to an [[FB_Span]] the caller holds, through `ContextFactory.fromSpan`. The span is unchanged, and the link is local: bit 8 set, bit 9 clear.
 
 `E_LinkFailureReason`:
 
@@ -45,13 +45,11 @@ Creates an `FB_Link` to an [[FB_Span]] the caller holds, through the span's `get
 - **`free`** releases every link and clears `droppedCount`. `FB_Span.free` calls it.
 
 # Adding links to a span
-[[FB_Tracer]]`.addLink(pContext)` links the span being built; see the chain there. A link with attributes is built with `LinkFactory`, given attributes, and pushed to the running span:
+[[FB_Tracer]]`.addLink(pContext)` links the span being built; see the chain there. `addSpanLink(pSpan, pContext)` does the same for a running span. A link with attributes is built with `LinkFactory`, given attributes, and pushed to the running span with `pushSpanLink`, which takes the link whether or not it succeeds:
 
 ```iec
 IF LinkFactory.fromSpan(pDest := pLink, pSpan := pScadaSpan) THEN
 	pLink^.attributes.setStringAttribute(key := 'trigger', value := 'setpoint');
-	IF NOT pSpan^.links.push(pValue := pLink) THEN
-		pLink^.delete(pSelf := pLink);  // refused links stay with the caller
-	END_IF
 END_IF
+tracer.pushSpanLink(pSpan := pSpan, pLink := pLink);  // pLink is 0 afterwards
 ```

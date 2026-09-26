@@ -39,9 +39,9 @@ END_IF
 
 CASE statusCode OF
 	E_StatusCode.STATUS_CODE_OK:
-		_pSpan^.setStatusOk();
+		tracer.setSpanStatusOk(pSpan:=_pSpan);
 	E_StatusCode.STATUS_CODE_ERROR:
-		_pSpan^.setStatusError(message:='boom');
+		tracer.setSpanStatusError(pSpan:=_pSpan, message:='boom');
 END_CASE
 _endSpan := tracer.endSpan(pSpan:=_pSpan);]]></ST>
       </Implementation>
@@ -112,7 +112,7 @@ END_VAR
 	tracer.startSpan(name:='child').setParentUsingContext(pContext:=pParent).build(pDest:=pSpan);
 	THIS^.AssertTrue(pSpan <> 0, 'Expected the child to be built');
 	IF pSpan <> 0 THEN
-		pSpan^.getContext(pDest:=pContext);
+		tracer.getSpanContext(pSpan:=pSpan, pDest:=pContext);
 		THIS^.AssertTrue(pContext <> 0 AND_THEN (pContext^.traceFlags AND 16#01) <> 0, 'Expected the child$'s context to carry the sampled bit');
 	END_IF
 	tracer.endSpan(pSpan:=pSpan);
@@ -185,7 +185,7 @@ END_VAR
 	THIS^.AssertEquals_UDINT(1, sampler.startCount, 'Expected build to call onStart once');
 	THIS^.AssertTrue(pSpan <> 0, 'Expected the span to be built');
 	IF pSpan <> 0 THEN
-		pSpan^.getContext(pDest:=pContext);
+		tracer.getSpanContext(pSpan:=pSpan, pDest:=pContext);
 		THIS^.AssertTrue(pContext <> 0 AND_THEN (pContext^.traceFlags AND 16#01) = 0, 'Expected the context to carry the start decision');
 	END_IF
 

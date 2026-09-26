@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
   <POU Name="FB_TestSpanContext" Id="{2260e012-71c8-4553-a96c-039e0b4a8e23}" SpecialFunc="None">
-    <Declaration><![CDATA[(* Tests the span context value object and ContextFactory.buildContext: that a context holds
+    <Declaration><![CDATA[(* Tests the span context value object and ContextFactory.buildContext and fromSpan: that a context holds
    copies of what it is built from, does not validate its identity, decodes remoteness from both
    flag bits, and releases its trace state.
 
@@ -14,6 +14,7 @@ THIS^.testBuildsWithoutTraceState();
 THIS^.testBuildsFromZeroIdentifiers();
 THIS^.testRejectsAssignedDestination();
 THIS^.testRejectsNullIdentifiers();
+THIS^.testFromSpanRejectsNullSpan();
 THIS^.testIsRemoteNeedsBothBits();
 THIS^.testFreeClearsTheContext();
 THIS^.testDeleteClearsTheCallersPointer();
@@ -486,6 +487,28 @@ END_VAR
 
 	IF pTraceState <> 0 THEN pTraceState^.delete(pSelf:=pTraceState); END_IF
 	THIS^._release(pContext:=pContext);
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testFromSpanRejectsNullSpan" Id="{11ef19a3-9260-4d01-8ceb-be7b25de3883}">
+      <Declaration><![CDATA[(* fromSpan refuses a null span without allocating anything. *)
+METHOD testFromSpanRejectsNullSpan : REFERENCE TO FB_Test
+VAR
+	pContext: POINTER TO FB_SpanContext;
+	success: BOOL;
+	failureReason: E_ContextFactoryFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testFromSpanRejectsNullSpan');
+	success := ContextFactory.fromSpan(pDest:=pContext, pSpan:=0, failureReason=>failureReason);
+	THIS^.AssertFalse(success, 'Expected fromSpan to refuse a null span');
+	THIS^.AssertEquals_UDINT(
+		TO_UDINT(E_ContextFactoryFailureReason.SPAN_POINTER_NULL),
+		TO_UDINT(failureReason),
+		'Expected SPAN_POINTER_NULL'
+	);
+	THIS^.AssertTrue(pContext = 0, 'Expected the destination to stay unassigned');
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

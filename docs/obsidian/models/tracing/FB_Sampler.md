@@ -16,7 +16,7 @@ A sampler decides which spans are exported. It does this through one bit: bit 0 
 
 `FB_Sampler` has two methods, and a span is processed only if its sampled bit is still set after both:
 
-- **`onStart(span)`** is the head decision. [[FB_Tracer]]`.build` calls it once the span has its identifiers, parent, links and attributes, just before handing the span to the caller. The bit it leaves is carried into the span's context by `getContext`, so children and injected carriers inherit it.
+- **`onStart(span)`** is the head decision. [[FB_Tracer]]`.build` calls it once the span has its identifiers, parent, links and attributes, just before handing the span to the caller. The bit it leaves is carried into the span's context by `getSpanContext`, so children and injected carriers inherit it.
 - **`onEnd(span)`** is a later decision, made once the span's status is known. [[FB_TracerProvider]]`.onEnd` calls it when the span ends, before the span is queued for the processors.
 
 The provider asks `onEnd` only about spans that are still sampled, and releases the rest without asking. So `onEnd` can drop a span but never keep one that `onStart` dropped. This follows OpenTelemetry: the SDK specification says exporters should not receive spans without the sampled flag, and the sampling concepts page places error-based sampling after head sampling, working only on what head sampling kept.

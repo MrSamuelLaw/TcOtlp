@@ -31,13 +31,13 @@ startSpan ──► building ──► build(pDest) ──► running ──► 
 
 This is where spans differ from the logging pipeline. A log record is *emitted* to the provider at the end of its chain. A span is *returned* to the caller, because its work has only just begun.
 
-While the span runs, the caller owns it. The caller can take a context from it for a child span or a link (`getContext`), set its status, add attributes, and push links. Processors cannot see a running span yet.
+While the span runs, the caller owns it, but reads and changes it only through [[FB_Tracer]]: it can take a context from it for a child span or a link, set its status, add attributes, and add links. Every one of those tracer methods refuses a null span, so the caller never dereferences the span or checks the pointer itself. See [[FB_Tracer#Working with a running span]]. Processors cannot see a running span yet.
 
 ### 3. Ended
 
 `tracer.endSpan(pSpan)` stamps the end timestamp, hands the span to [[FB_TracerProvider]] for the processors' `onEnd`, and clears the caller's pointer. From then on the span is immutable. The provider queues it in an `FB_SpanQueue` until its next `tick`, which passes it to every staged processor and then releases it (see [[FB_SpanProcessor_Simple]]).
 
-A caller that abandons a running span releases it with `pSpan^.delete(pSelf:=pSpan);`, for example when the PLC program resets. An abandoned span is never exported.
+A caller that abandons a running span releases it with `tracer.discardSpan(pSpan)`, for example when the PLC program resets. An abandoned span is never exported.
 
 ## Members
 
@@ -54,10 +54,10 @@ The fields the tracer writes during building are `VAR_INPUT`, as on `FB_LogRecor
 | `parentSpanId: POINTER TO FB_SpanId` | yes | `setParentUsingContext` or `setParentUsingSpan`; `0` for a root span |
 | `traceState: POINTER TO FB_TraceState` | yes | `setParentUsingContext` or `setParentUsingSpan`, copied from the parent |
 | `flags: UDINT` | — | `setParentUsingContext` or `setParentUsingSpan`, or `build` for a root span |
-| `status: POINTER TO FB_Status` | yes | `setStatusOk` and `setStatusError` on a running span |
-| `attributes`, `links`, `resource`, `scope` | yes | setters and `addLink`, or `links.push` on a running span; `startSpan` snapshots the resource and scope |
+| `status: POINTER TO FB_Status` | yes | [[FB_Tracer]]'s `setSpanStatusOk` and `setSpanStatusError` on a running span |
+| `attributes`, `links`, `resource`, `scope` | yes | setters and `addLink`, or the tracer's `setSpanStringAttribute`, `setSpanNumberAttribute`, `addSpanLink` and `pushSpanLink` on a running span; `startSpan` snapshots the resource and scope |
 
-`free` releases everything the span owns, and `FB_Exit` calls it. `delete` releases the span itself and clears the caller's pointer; it is called as `pSpan^.delete(pSelf:=pSpan)` and refuses any pointer other than one to the span itself.
+`free` releases everything the span owns, and `FB_Exit` calls it. `delete` releases the span itself and clears the caller's pointer; it is called as `pSpan^.delete(pSelf:=pSpan)` and refuses any pointer other than one to the span itself. These, `cloneTo`, `isSampled` and `setSampled` belong to the tracing pipeline: the provider, samplers and processors. Application code uses the tracer instead.
 
 ## Flags
 
@@ -81,47 +81,22 @@ logger
 
 The record gets its own copies of the span's ids, and the span's W3C trace flags (bits 0–7) become the record's `flags`, so a log is marked sampled exactly when its span is. A null span is a no-op. See [[FB_Logger#Correlating with a span]].
 
-## Methods
+## Taking a context
 
-### getContext
+[[FB_Tracer]]`.getSpanContext(pDest, pSpan)` creates an [[FB_SpanContext]], an immutable VALUE OBJECT that snapshots the span's identity. It goes through `ContextFactory.fromSpan`, which `LinkFactory.fromSpan` also uses. `pDest` is `VAR_IN_OUT` and must be `0` on entry. On success the caller owns the context and releases it exactly once with `pContext^.delete(pSelf:=pContext);`.
 
-Creates an [[FB_SpanContext]], an immutable VALUE OBJECT that snapshots this span's identity.
+The span is the producer, so it is responsible for its identifiers being valid. They come from [[FB_IdGenerator]], which only hands out valid ones, so they are not checked again. A span that has not been built has none, and the tracer refuses it with `SPAN_INVALID`.
 
-The context is dynamically allocated through `ContextFactory.buildContext`, following the factory idiom:
-
-```iec
-getContext(pDest: POINTER TO FB_SpanContext, failureReason) : BOOL
-```
-
-`pDest` is `VAR_IN_OUT` and must be `0` on entry. On success the caller owns the context and releases it exactly once with `pContext^.delete(pSelf:=pContext);`.
-
-The span is the producer, so it is responsible for its identifiers being valid. They come from [[FB_IdGenerator]], which only hands out valid ones, so `getContext` does not check them again.
-
-A span's `flags` describe its parent, so a context taken from a local span is local whatever its parent was. `getContext` keeps only the W3C trace flags (bits 0–7), sets `SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK` and leaves `SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK` clear. That means remoteness is known, and the span is not remote.
-
-### setStatusOk, setStatusError
-
-Fluent setters for a running span; both return the span, so they chain. They follow the OpenTelemetry status rules:
-
-- `setStatusOk()` sets `STATUS_CODE_OK` with no message. OK is final: it replaces an earlier error and its message.
-- `setStatusError(message)` sets `STATUS_CODE_ERROR` and keeps its own copy of `message`. An empty message leaves the status without one. A later error replaces an earlier one. On a span that is already OK, the error is ignored and `failureReason` is `STATUS_ALREADY_OK`.
-
-Both build the new `FB_Status` before releasing the old one. If memory runs out, the previous status is kept and `failureReason` is `MEMORY_ALLOCATION_FAILURE`. A span that never sets a status is exported without one, which means unset.
-
-```iec
-pStep^.setStatusOk();
-pStep^.setStatusError('setpoint not reached');
-```
-
-`FB_TestSpanSimulation` ends step-a as OK, and step-b and the process as errors.
+A span's `flags` describe its parent, so a context taken from a local span is local whatever its parent was. The context keeps only the W3C trace flags (bits 0–7), sets `SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK` and leaves `SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK` clear. That means remoteness is known, and the span is not remote.
 
 ## TODO
 
 - [x] Give `flags` backing storage. `flags` is now a field that the tracer sets from the parent.
-- [x] Test a span whose parent is remote. The span's flags have bits 8 and 9 set plus the sampled bit. `getContext` must keep the sampled bit, set bit 8 and clear bit 9, and the context's `isRemote()` must return `FALSE`. `FB_TestTracer` covers this.
+- [x] Test a span whose parent is remote. The span's flags have bits 8 and 9 set plus the sampled bit. Its context must keep the sampled bit, set bit 8 and clear bit 9, and the context's `isRemote()` must return `FALSE`. `FB_TestTracer` covers this.
 - [x] [[FB_Tracer]] sets bits 8 and 9 on a span whose parent is a remote context.
 - [x] `tracer.endSpan(pSpan)`: stamp the end timestamp, hand the span to the provider, and clear the caller's pointer.
-- [x] `setStatusOk` and `setStatusError`.
-- [x] Adding links to a building span with `addLink`, or to a running span with `links.push`. See [[FB_Link]].
+- [x] Status setters, now `setSpanStatusOk` and `setSpanStatusError` on [[FB_Tracer]].
+- [x] Adding links to a building span with `addLink`, or to a running span with the tracer's `addSpanLink` and `pushSpanLink`. See [[FB_Link]].
+- [x] Every method for a running span lives on [[FB_Tracer]] and refuses a null span.
 
-`ContextFactory` intentionally does not enforce remoteness; it stores whatever flags it is given. Tests verify that `getContext` always produces a local context. Only `TraceContextPropagator.extract` should produce a remote one. See [[FB_SpanContext]].
+`ContextFactory` intentionally does not enforce remoteness; it stores whatever flags it is given. Tests verify that `ContextFactory.fromSpan` always produces a local context. Only `TraceContextPropagator.extract` should produce a remote one. See [[FB_SpanContext]].

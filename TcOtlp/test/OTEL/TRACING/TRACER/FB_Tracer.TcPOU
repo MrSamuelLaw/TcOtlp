@@ -19,7 +19,14 @@
 		// CASE reason OF ...
 	END_IF
 	// ... the work the span measures ...
+	tracer.setSpanStatusOk(pSpan := pSpan);
 	tracer.endSpan(pSpan := pSpan);
+
+	A running span is read and changed only through the tracer, never through the span pointer:
+	getSpanContext, addSpanLink, pushSpanLink, setSpanStringAttribute, setSpanNumberAttribute,
+	setSpanStatusOk, setSpanStatusError, endSpan and discardSpan. The caller does not need to
+	check the pointer first, because each refuses a null span with SPAN_POINTER_NULL. None of
+	them is part of the fluent chain, so they leave a span being built untouched.
 *)
 FUNCTION_BLOCK FB_Tracer
 VAR_OUTPUT
@@ -102,6 +109,25 @@ _pSpanId := 0;
 _assignIdentity := TRUE;]]></ST>
       </Implementation>
     </Method>
+    <Method Name="_mapAttributesFailure" Id="{ee682f42-b93c-489e-90fa-7ef0b9526bc6}">
+      <Declaration><![CDATA[METHOD _mapAttributesFailure : E_TracerFailureReason
+VAR_INPUT
+	reason: E_AttributesFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE reason OF
+	E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE:
+		_mapAttributesFailure := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
+	E_AttributesFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED:
+		_mapAttributesFailure := E_TracerFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED;
+	E_AttributesFailureReason.KV_VALUE_TYPE_UNSUPPORTED:
+		_mapAttributesFailure := E_TracerFailureReason.ATTRIBUTE_VALUE_TYPE_UNSUPPORTED;
+ELSE
+	_mapAttributesFailure := E_TracerFailureReason.ATTRIBUTE_VALUE_INVALID;
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="_mapIdGenFailure" Id="{3ca36015-f2e6-4b32-a77c-317ea2398a78}">
       <Declaration><![CDATA[METHOD _mapIdGenFailure : E_TracerFailureReason
 VAR_INPUT
@@ -116,6 +142,27 @@ ELSIF reason = E_IdGenFailureReason.MEMORY_ALLOCATION_FAILURE THEN
 ELSE
 	_mapIdGenFailure := E_TracerFailureReason.ID_GENERATION_FAILURE;
 END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_mapLinkFailure" Id="{5dcfaca9-6471-413d-a911-4e1830b22161}">
+      <Declaration><![CDATA[METHOD _mapLinkFailure : E_TracerFailureReason
+VAR_INPUT
+	reason: E_LinkFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE reason OF
+	E_LinkFailureReason.CONTEXT_POINTER_NULL:
+		_mapLinkFailure := E_TracerFailureReason.LINK_CONTEXT_POINTER_NULL;
+	E_LinkFailureReason.CONTEXT_INVALID:
+		_mapLinkFailure := E_TracerFailureReason.LINK_CONTEXT_INVALID;
+	E_LinkFailureReason.LINK_COUNT_LIMIT_REACHED:
+		_mapLinkFailure := E_TracerFailureReason.LINK_COUNT_LIMIT_REACHED;
+	E_LinkFailureReason.LINK_POINTER_NULL:
+		_mapLinkFailure := E_TracerFailureReason.LINK_POINTER_NULL;
+ELSE
+	_mapLinkFailure := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
+END_CASE]]></ST>
       </Implementation>
     </Method>
     <Method Name="_now" Id="{da29f1f9-ee74-40a9-a16d-2bf3b2bd3607}">
@@ -236,8 +283,8 @@ _shouldReturnEarly := FALSE;]]></ST>
 	in another trace. The context is borrowed: the link keeps its own copies. Links keep the
 	order they are added in. A span holds at most TcOtlp_GVL.DEFAULT_MAX_LINK_COUNT links;
 	adding one more fails the chain with LINK_COUNT_LIMIT_REACHED.
-	To give a link attributes, build it with LinkFactory and push it to the running span's
-	links instead.
+	To give a link attributes, build it with LinkFactory and add it to the running span with
+	pushSpanLink instead.
 *)
 METHOD addLink : REFERENCE TO FB_Tracer
 VAR_INPUT
@@ -263,16 +310,46 @@ END_IF
 // push leaves a refused link with the caller
 IF _pLink <> 0 THEN _pLink^.delete(pSelf:=_pLink); END_IF
 THIS^._failed := TRUE;
-CASE _linkFailureReason OF
-	E_LinkFailureReason.CONTEXT_POINTER_NULL:
-		THIS^._failureReason := E_TracerFailureReason.LINK_CONTEXT_POINTER_NULL;
-	E_LinkFailureReason.CONTEXT_INVALID:
-		THIS^._failureReason := E_TracerFailureReason.LINK_CONTEXT_INVALID;
-	E_LinkFailureReason.LINK_COUNT_LIMIT_REACHED:
-		THIS^._failureReason := E_TracerFailureReason.LINK_COUNT_LIMIT_REACHED;
-ELSE
-	THIS^._failureReason := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
-END_CASE]]></ST>
+THIS^._failureReason := THIS^._mapLinkFailure(_linkFailureReason);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="addSpanLink" Id="{eb4e30c0-8f24-4a8f-8062-f3e33c1914e1}">
+      <Declaration><![CDATA[(*
+	Links a running span to another span's context. The context is borrowed: the link keeps its
+	own copies. A span holds at most TcOtlp_GVL.DEFAULT_MAX_LINK_COUNT links; one more is
+	refused with LINK_COUNT_LIMIT_REACHED. A null span is refused with SPAN_POINTER_NULL.
+*)
+METHOD addSpanLink : BOOL
+VAR_INPUT
+	pSpan: POINTER TO FB_Span;
+	pContext: POINTER TO FB_SpanContext;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_TracerFailureReason;
+END_VAR
+VAR
+	_pLink: POINTER TO FB_Link;
+	_linkFailureReason: E_LinkFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[addSpanLink := FALSE;
+failureReason := E_TracerFailureReason.NA;
+
+IF pSpan = 0 THEN
+	failureReason := E_TracerFailureReason.SPAN_POINTER_NULL;
+	RETURN;
+END_IF
+
+IF LinkFactory.fromContext(pDest:=_pLink, pContext:=pContext, failureReason=>_linkFailureReason)
+	AND_THEN pSpan^.links.push(pValue:=_pLink, failureReason=>_linkFailureReason) THEN
+	addSpanLink := TRUE;
+	RETURN;
+END_IF
+
+// push leaves a refused link with the caller
+IF _pLink <> 0 THEN _pLink^.delete(pSelf:=_pLink); END_IF
+failureReason := THIS^._mapLinkFailure(_linkFailureReason);]]></ST>
       </Implementation>
     </Method>
     <Method Name="build" Id="{3c8e8a79-eb89-4c0f-8f0e-dcaaee758df5}">
@@ -321,6 +398,32 @@ END_IF
 
 THIS^._failed := FALSE;
 THIS^._failureReason := E_TracerFailureReason.NA;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="discardSpan" Id="{742b2544-3074-4090-bcc6-0ece59c9e504}">
+      <Declaration><![CDATA[(*
+	Releases a running span without ending it, so it is never exported, and clears the caller's
+	pointer. Use it to abandon work, for example when the PLC program resets. A null span is
+	refused with SPAN_POINTER_NULL, so the caller does not need to check it first.
+*)
+METHOD discardSpan : BOOL
+VAR_IN_OUT
+	pSpan: POINTER TO FB_Span;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_TracerFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[discardSpan := FALSE;
+failureReason := E_TracerFailureReason.NA;
+
+IF pSpan = 0 THEN
+	failureReason := E_TracerFailureReason.SPAN_POINTER_NULL;
+	RETURN;
+END_IF
+
+discardSpan := pSpan^.delete(pSelf:=pSpan);]]></ST>
       </Implementation>
     </Method>
     <Method Name="endSpan" Id="{cb0a5ab4-6cec-411b-9a0a-a4cb42e8d8a6}">
@@ -424,6 +527,93 @@ THIS^._failureReason := E_TracerFailureReason.NA;]]></ST>
         </Implementation>
       </Get>
     </Property>
+    <Method Name="getSpanContext" Id="{563be6d0-2a22-48ad-877d-9d21a17d943f}">
+      <Declaration><![CDATA[(*
+	Allocates a snapshot of a running span's identity, for a child span, a link, or a carrier
+	to inject. The caller owns pDest, which must be 0, and releases it once. The context is
+	always local, and it outlives the span. A null span is refused with SPAN_POINTER_NULL, and
+	a span that has not been built with SPAN_INVALID.
+*)
+METHOD getSpanContext : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_SpanContext;
+END_VAR
+VAR_INPUT
+	pSpan: POINTER TO FB_Span;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_TracerFailureReason;
+END_VAR
+VAR
+	_contextFailureReason: E_ContextFactoryFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getSpanContext := FALSE;
+failureReason := E_TracerFailureReason.NA;
+
+IF pSpan = 0 THEN
+	failureReason := E_TracerFailureReason.SPAN_POINTER_NULL;
+	RETURN;
+END_IF
+
+IF ContextFactory.fromSpan(pDest:=pDest, pSpan:=pSpan, failureReason=>_contextFailureReason) THEN
+	getSpanContext := TRUE;
+	RETURN;
+END_IF
+
+CASE _contextFailureReason OF
+	E_ContextFactoryFailureReason.DESTINATION_ALREADY_ASSIGNED:
+		failureReason := E_TracerFailureReason.DESTINATION_ALREADY_ASSIGNED;
+	E_ContextFactoryFailureReason.TRACE_ID_POINTER_NULL, E_ContextFactoryFailureReason.SPAN_ID_POINTER_NULL:
+		failureReason := E_TracerFailureReason.SPAN_INVALID;
+ELSE
+	failureReason := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="pushSpanLink" Id="{a5b7c70e-bc63-4d45-bbc9-b514a357d0b0}">
+      <Declaration><![CDATA[(*
+	Adds a link built with LinkFactory to a running span, for a link that needs attributes.
+	The tracer takes the link in every case and clears pLink: the span owns it on success, and
+	it is released on failure, so the caller never has a link left to clean up. A null span is
+	refused with SPAN_POINTER_NULL, a null link with LINK_POINTER_NULL, and a link past
+	TcOtlp_GVL.DEFAULT_MAX_LINK_COUNT with LINK_COUNT_LIMIT_REACHED.
+*)
+METHOD pushSpanLink : BOOL
+VAR_IN_OUT
+	pLink: POINTER TO FB_Link;
+END_VAR
+VAR_INPUT
+	pSpan: POINTER TO FB_Span;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_TracerFailureReason;
+END_VAR
+VAR
+	_linkFailureReason: E_LinkFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[pushSpanLink := FALSE;
+failureReason := E_TracerFailureReason.NA;
+
+IF pSpan = 0 THEN
+	IF pLink <> 0 THEN pLink^.delete(pSelf:=pLink); END_IF
+	failureReason := E_TracerFailureReason.SPAN_POINTER_NULL;
+	RETURN;
+END_IF
+
+// push clears pLink on success and leaves a refused link with the caller
+IF pSpan^.links.push(pValue:=pLink, failureReason=>_linkFailureReason) THEN
+	pushSpanLink := TRUE;
+	RETURN;
+END_IF
+
+IF pLink <> 0 THEN pLink^.delete(pSelf:=pLink); END_IF
+failureReason := THIS^._mapLinkFailure(_linkFailureReason);]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="setNumberAttribute" Id="{29ef0315-92a8-46d7-aa7d-02fe8142dfe3}">
       <Declaration><![CDATA[METHOD setNumberAttribute: REFERENCE TO FB_Tracer
 VAR_INPUT
@@ -449,16 +639,7 @@ _attributesSuccess := THIS^.pSpan^.attributes.setNumberAttribute_AnyType(
 );
 IF NOT _attributesSuccess THEN
 	THIS^._failed := TRUE;
-	CASE _attributesFailureReason OF
-		E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE:
-			THIS^._failureReason := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
-		E_AttributesFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED:
-			THIS^._failureReason := E_TracerFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED;
-		E_AttributesFailureReason.KV_VALUE_TYPE_UNSUPPORTED:
-			THIS^._failureReason := E_TracerFailureReason.ATTRIBUTE_VALUE_TYPE_UNSUPPORTED;
-	ELSE
-		THIS^._failureReason := E_TracerFailureReason.ATTRIBUTE_VALUE_INVALID;
-	END_CASE
+	THIS^._failureReason := THIS^._mapAttributesFailure(_attributesFailureReason);
 END_IF]]></ST>
       </Implementation>
     </Method>
@@ -552,6 +733,184 @@ THIS^._setParent(
 );]]></ST>
       </Implementation>
     </Method>
+    <Method Name="setSpanNumberAttribute" Id="{839302a3-b94e-4d55-ba0c-bda03cb17805}">
+      <Declaration><![CDATA[(*
+	Sets a number attribute on a running span. Attributes known when the span starts belong in
+	the fluent chain instead, where the sampler can see them. A null span is refused with
+	SPAN_POINTER_NULL.
+*)
+METHOD setSpanNumberAttribute : BOOL
+VAR_INPUT
+	pSpan: POINTER TO FB_Span;
+	key: T_MaxString;
+	value: ANY_NUM;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_TracerFailureReason;
+END_VAR
+VAR
+	_attributesFailureReason: E_AttributesFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setSpanNumberAttribute := FALSE;
+failureReason := E_TracerFailureReason.NA;
+
+IF pSpan = 0 THEN
+	failureReason := E_TracerFailureReason.SPAN_POINTER_NULL;
+	RETURN;
+END_IF
+
+IF NOT pSpan^.attributes.setNumberAttribute_AnyType(
+	key:=key,
+	value:=value,
+	failureReason=>_attributesFailureReason
+) THEN
+	failureReason := THIS^._mapAttributesFailure(_attributesFailureReason);
+	RETURN;
+END_IF
+
+setSpanNumberAttribute := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setSpanStatusError" Id="{4092588f-85ea-4124-91f3-09000d032a90}">
+      <Declaration><![CDATA[(*
+	Marks a running span as failed, with a message saying why. An empty message leaves the
+	status without one. OK is final, so an error on a span that is already OK is ignored and
+	reported as SPAN_STATUS_ALREADY_OK. A later error replaces an earlier one. If memory runs
+	out the previous status is kept. The span is borrowed, and a null span is refused.
+	Not part of the fluent chain, so it leaves a span being built untouched.
+*)
+METHOD setSpanStatusError : BOOL
+VAR_INPUT
+	pSpan: POINTER TO FB_Span;
+	message: T_MaxString;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_TracerFailureReason;
+END_VAR
+VAR
+	_pMessage: POINTER TO FB_String;
+	_pStatus: POINTER TO FB_Status;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setSpanStatusError := FALSE;
+failureReason := E_TracerFailureReason.NA;
+
+IF pSpan = 0 THEN
+	failureReason := E_TracerFailureReason.SPAN_POINTER_NULL;
+	RETURN;
+END_IF
+
+IF pSpan^.status <> 0 AND_THEN pSpan^.status^.code = E_StatusCode.STATUS_CODE_OK THEN
+	failureReason := E_TracerFailureReason.SPAN_STATUS_ALREADY_OK;
+	RETURN;
+END_IF
+
+IF LEN(message) > 0 AND_THEN NOT ValueFactory.createString(pDest:=_pMessage, pString:=ADR(message)) THEN
+	failureReason := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+
+// build the new status before releasing the old one, so a failure keeps the old status
+_pStatus := __NEW(FB_Status(code:=E_StatusCode.STATUS_CODE_ERROR, message:=_pMessage));
+IF _pStatus = 0 THEN
+	IF _pMessage <> 0 THEN _pMessage^.delete(pSelf:=_pMessage); END_IF
+	failureReason := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+_pMessage := 0;  // moved into the status
+
+IF pSpan^.status <> 0 THEN pSpan^.status^.delete(pSelf:=pSpan^.status); END_IF
+pSpan^.status := _pStatus;
+setSpanStatusError := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setSpanStatusOk" Id="{5571f693-bd3a-46ce-b4eb-e4a3bd1f2529}">
+      <Declaration><![CDATA[(*
+	Marks a running span as having completed successfully. OK is final: it replaces an earlier
+	error and its message, and later calls to setSpanStatusError are ignored. If memory runs out
+	the previous status is kept. The span is borrowed, and a null span is refused.
+	Not part of the fluent chain, so it leaves a span being built untouched.
+*)
+METHOD setSpanStatusOk : BOOL
+VAR_INPUT
+	pSpan: POINTER TO FB_Span;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_TracerFailureReason;
+END_VAR
+VAR
+	_pStatus: POINTER TO FB_Status;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setSpanStatusOk := FALSE;
+failureReason := E_TracerFailureReason.NA;
+
+IF pSpan = 0 THEN
+	failureReason := E_TracerFailureReason.SPAN_POINTER_NULL;
+	RETURN;
+END_IF
+
+// OK is final, so a span that is already OK needs nothing more
+IF pSpan^.status <> 0 AND_THEN pSpan^.status^.code = E_StatusCode.STATUS_CODE_OK THEN
+	setSpanStatusOk := TRUE;
+	RETURN;
+END_IF
+
+_pStatus := __NEW(FB_Status(code:=E_StatusCode.STATUS_CODE_OK, message:=0));
+IF _pStatus = 0 THEN
+	failureReason := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
+	RETURN;
+END_IF
+
+IF pSpan^.status <> 0 THEN pSpan^.status^.delete(pSelf:=pSpan^.status); END_IF
+pSpan^.status := _pStatus;
+setSpanStatusOk := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setSpanStringAttribute" Id="{8fee46bd-5ae3-43ac-8ec4-484901911049}">
+      <Declaration><![CDATA[(*
+	Sets a string attribute on a running span. Attributes known when the span starts belong in
+	the fluent chain instead, where the sampler can see them. A null span is refused with
+	SPAN_POINTER_NULL.
+*)
+METHOD setSpanStringAttribute : BOOL
+VAR_INPUT
+	pSpan: POINTER TO FB_Span;
+	key: T_MaxString;
+	value: T_MaxString;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_TracerFailureReason;
+END_VAR
+VAR
+	_attributesFailureReason: E_AttributesFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setSpanStringAttribute := FALSE;
+failureReason := E_TracerFailureReason.NA;
+
+IF pSpan = 0 THEN
+	failureReason := E_TracerFailureReason.SPAN_POINTER_NULL;
+	RETURN;
+END_IF
+
+IF NOT pSpan^.attributes.setStringAttribute(
+	key:=key,
+	value:=value,
+	failureReason=>_attributesFailureReason
+) THEN
+	failureReason := THIS^._mapAttributesFailure(_attributesFailureReason);
+	RETURN;
+END_IF
+
+setSpanStringAttribute := TRUE;]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="setStringAttribute" Id="{99f75826-e10b-4b72-90de-ece62d760792}">
       <Declaration><![CDATA[METHOD setStringAttribute: REFERENCE TO FB_Tracer
 VAR_INPUT
@@ -577,16 +936,7 @@ _attributesSuccess := THIS^.pSpan^.attributes.setStringAttribute(
 );
 IF NOT _attributesSuccess THEN
 	THIS^._failed := TRUE;
-	CASE _attributesFailureReason OF
-		E_AttributesFailureReason.MEMORY_ALLOCATION_FAILURE:
-			THIS^._failureReason := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
-		E_AttributesFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED:
-			THIS^._failureReason := E_TracerFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED;
-		E_AttributesFailureReason.KV_VALUE_TYPE_UNSUPPORTED:
-			THIS^._failureReason := E_TracerFailureReason.ATTRIBUTE_VALUE_TYPE_UNSUPPORTED;
-	ELSE
-		THIS^._failureReason := E_TracerFailureReason.ATTRIBUTE_VALUE_INVALID;
-	END_CASE
+	THIS^._failureReason := THIS^._mapAttributesFailure(_attributesFailureReason);
 END_IF]]></ST>
       </Implementation>
     </Method>

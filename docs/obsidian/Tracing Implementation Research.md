@@ -35,7 +35,7 @@ CASE currentStep OF
 	0:
 		IF processInit THEN
 			IF tracer.startSpan('rootSpan', rootSpan, ctx:=0) THEN
-				IF rootSpan.getContext(ctx) THEN
+				IF tracer.getSpanContext(ctx, rootSpan) THEN
 					// ctx would need to be VAR_IN_OUT so it could be zeroed out
 					tracer.startSpan('step1Span', currentSpan, ctx=ctx);
 				END_IF
@@ -45,10 +45,10 @@ CASE currentStep OF
 	1:
 		IF step1Done THEN
 			IF currentSpan <> 0 THEN
-				currentSpan.setStatusOk();
+				tracer.setSpanStatusOk(currentSpan);
 				tracer.endSpan(currentSpan);
 				// step2 is a sibling of step1 under the root span, not linked to it
-				rootSpan.getContext(ctx);
+				tracer.getSpanContext(ctx, rootSpan);
 				IF ctx <> 0 THEN
 					tracer.startSpan('step2Span', currentSpan, ctx=ctx)
 				END_IF
@@ -73,7 +73,7 @@ IF motorTemp > motorTempLimit THEN
 		.setEventName('motor.overTempError')
 		.setBody('motor over temp limit, initiating auto shutdown')
 	IF currentSpan <> 0 THEN
-		span.setStatusError('Failed with motor over temp fault')
+		tracer.setSpanStatusError(currentSpan, 'Failed with motor over temp fault')
 		logger.setSpanData(currentSpan);
 		tracer.end(currentSpan);
 		tracer.end(rootSpan);

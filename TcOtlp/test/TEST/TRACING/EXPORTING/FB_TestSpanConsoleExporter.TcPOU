@@ -62,7 +62,7 @@ END_VAR
         <ST><![CDATA[TcUnit.TEST('testFormatsChildSpan');
 	tracer.startSpan(name:='root').build(pDest:=pRoot);
 	IF pRoot <> 0 THEN
-		pRoot^.getContext(pDest:=pContext);
+		tracer.getSpanContext(pSpan:=pRoot, pDest:=pContext);
 	END_IF
 	tracer
 		.startSpan(name:='child', kind:=E_SpanKind.SPAN_KIND_CLIENT)

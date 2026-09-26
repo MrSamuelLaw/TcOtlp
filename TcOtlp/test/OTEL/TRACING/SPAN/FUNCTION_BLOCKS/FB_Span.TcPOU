@@ -6,7 +6,10 @@
 	  building - FB_Tracer owns it while the fluent chain fills it in,
 	  running  - build hands it to the caller, who owns it while the work runs,
 	  ended    - FB_Tracer.endSpan hands it to the provider for processing.
-	The span owns every pointer member and releases them in free.
+	The span owns every pointer member and releases them in free. A running span is read and
+	changed only through FB_Tracer, such as getSpanContext, setSpanStatusOk and discardSpan,
+	so callers never dereference it themselves. The methods left here belong to the tracing
+	pipeline: the provider, samplers and processors.
 *)
 {attribute 'enable_dynamic_creation'}
 FUNCTION_BLOCK FB_Span
@@ -95,117 +98,6 @@ THIS^.attributes.free();
 THIS^.links.free();
 THIS^.scope.free();
 THIS^.resource.free();]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="getContext" Id="{c5876f4b-23a6-45db-a39c-b8f6e2695806}">
-      <Declaration><![CDATA[(*
-	Allocates a snapshot of this span's identity through ContextFactory. The caller owns pDest.
-	The span is the producer, and its identifiers come from the id generator, which only hands
-	out valid ones, so they are not checked again here.
-*)
-METHOD getContext : BOOL
-VAR_IN_OUT
-	pDest: POINTER TO FB_SpanContext;
-END_VAR
-VAR_OUTPUT
-	failureReason: E_ContextFactoryFailureReason;
-END_VAR
-VAR
-	_traceFlags: UDINT;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[// a span's own flags describe its parent's remoteness; its context is local, so keep only
-// the W3C trace flags and mark remoteness as known and not remote
-_traceFlags := (THIS^.flags AND TO_UDINT(E_SpanFlags.SPAN_FLAGS_TRACE_FLAGS_MASK))
-	OR TO_UDINT(E_SpanFlags.SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK);
-
-getContext := ContextFactory.buildContext(
-	pDest:=pDest,
-	pTraceId:=THIS^.traceId,
-	pSpanId:=THIS^.spanId,
-	pTraceState:=THIS^.traceState,
-	traceFlags:=_traceFlags,
-	failureReason=>failureReason
-);]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="setStatusError" Id="{c18bedc1-4f05-4485-a503-1630f73f361d}">
-      <Declaration><![CDATA[(*
-	Marks the running span as failed, with a message saying why. An empty message leaves the
-	status without one. OK is final, so an error on a span that is already OK is ignored and
-	reported as STATUS_ALREADY_OK. A later error replaces an earlier one. If memory runs out
-	the previous status is kept.
-*)
-METHOD setStatusError : REFERENCE TO FB_Span
-VAR_INPUT
-	message: T_MaxString;
-END_VAR
-VAR_OUTPUT
-	failureReason: E_SpanStatusFailureReason;
-END_VAR
-VAR
-	_pMessage: POINTER TO FB_String;
-	_pStatus: POINTER TO FB_Status;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[setStatusError REF= THIS^;
-failureReason := E_SpanStatusFailureReason.NA;
-
-IF THIS^.status <> 0 AND_THEN THIS^.status^.code = E_StatusCode.STATUS_CODE_OK THEN
-	failureReason := E_SpanStatusFailureReason.STATUS_ALREADY_OK;
-	RETURN;
-END_IF
-
-IF LEN(message) > 0 AND_THEN NOT ValueFactory.createString(pDest:=_pMessage, pString:=ADR(message)) THEN
-	failureReason := E_SpanStatusFailureReason.MEMORY_ALLOCATION_FAILURE;
-	RETURN;
-END_IF
-
-// build the new status before releasing the old one, so a failure keeps the old status
-_pStatus := __NEW(FB_Status(code:=E_StatusCode.STATUS_CODE_ERROR, message:=_pMessage));
-IF _pStatus = 0 THEN
-	IF _pMessage <> 0 THEN _pMessage^.delete(pSelf:=_pMessage); END_IF
-	failureReason := E_SpanStatusFailureReason.MEMORY_ALLOCATION_FAILURE;
-	RETURN;
-END_IF
-_pMessage := 0;  // moved into the status
-
-IF THIS^.status <> 0 THEN THIS^.status^.delete(pSelf:=THIS^.status); END_IF
-THIS^.status := _pStatus;]]></ST>
-      </Implementation>
-    </Method>
-    <Method Name="setStatusOk" Id="{51e24243-7fdc-4bd7-ac3c-dc78a2884df3}">
-      <Declaration><![CDATA[(*
-	Marks the running span as having completed successfully. OK is final: it replaces an
-	earlier error and its message, and later calls to setStatusError are ignored. If memory
-	runs out the previous status is kept.
-*)
-METHOD setStatusOk : REFERENCE TO FB_Span
-VAR_OUTPUT
-	failureReason: E_SpanStatusFailureReason;
-END_VAR
-VAR
-	_pStatus: POINTER TO FB_Status;
-END_VAR
-]]></Declaration>
-      <Implementation>
-        <ST><![CDATA[setStatusOk REF= THIS^;
-failureReason := E_SpanStatusFailureReason.NA;
-
-IF THIS^.status <> 0 AND_THEN THIS^.status^.code = E_StatusCode.STATUS_CODE_OK THEN
-	RETURN;
-END_IF
-
-_pStatus := __NEW(FB_Status(code:=E_StatusCode.STATUS_CODE_OK, message:=0));
-IF _pStatus = 0 THEN
-	failureReason := E_SpanStatusFailureReason.MEMORY_ALLOCATION_FAILURE;
-	RETURN;
-END_IF
-
-IF THIS^.status <> 0 THEN THIS^.status^.delete(pSelf:=THIS^.status); END_IF
-THIS^.status := _pStatus;]]></ST>
       </Implementation>
     </Method>
     <Method Name="cloneTo" Id="{8a52cd95-727f-4d26-979c-15f2ccdc0c38}">

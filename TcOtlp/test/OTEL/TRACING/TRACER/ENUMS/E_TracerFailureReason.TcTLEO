@@ -21,13 +21,16 @@ TYPE E_TracerFailureReason :
 	ID_GENERATION_FAILURE,  // The id generator failed for another reason.
 	SNAPSHOT_COPY_FAILURE,  // The resource or instrumentation-scope snapshot could not be copied.
 	MEMORY_ALLOCATION_FAILURE,  // Dynamic memory allocation failed.
-	SPAN_POINTER_NULL,  // endSpan was given a null span pointer.
+	SPAN_POINTER_NULL,  // A method for a running span, such as endSpan, was given a null span pointer.
 	TRANSFER_TO_PROVIDER_FAILURE,  // The provider could not queue the ended span, so it was released.
 	LINK_CONTEXT_POINTER_NULL,  // addLink was given a null span context pointer.
 	LINK_CONTEXT_INVALID,  // The linked context has an all zero trace id or span id.
 	LINK_COUNT_LIMIT_REACHED,  // The span cannot own another link.
 	PARENT_SPAN_POINTER_NULL,  // setParentUsingSpan was given a null span pointer.
-	PARENT_SPAN_INVALID  // The parent span has not been built, so it has no trace id or span id.
+	PARENT_SPAN_INVALID,  // The parent span has not been built, so it has no trace id or span id.
+	SPAN_STATUS_ALREADY_OK,  // The span is already OK, which is final, so the error was ignored.
+	SPAN_INVALID,  // The span has not been built, so it has no trace id or span id.
+	LINK_POINTER_NULL  // pushSpanLink was given a null link pointer.
 ) UDINT;
 END_TYPE
 ]]></Declaration>
@@ -142,6 +145,21 @@ END_TYPE
             </o>
             <o>
               <v n="TextID">"PARENT_SPAN_INVALID"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SPAN_STATUS_ALREADY_OK"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SPAN_INVALID"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"LINK_POINTER_NULL"</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>

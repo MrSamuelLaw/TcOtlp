@@ -44,6 +44,35 @@ A root span sets bit 8 and leaves bit 9 clear. Once the span is complete, `build
 
 Processors are not notified when a span is built. The processor contract has no `onStart` yet; processors see a span only once it has ended.
 
+## Working with a running span
+
+A running span is read and changed only through the tracer, never through the span pointer. Each of these methods returns `FALSE` and refuses a null pointer with `SPAN_POINTER_NULL`, so the application does not need its own null checks. None of them is part of the fluent chain, so they can be called while another span is being built.
+
+| Method | What it does |
+| --- | --- |
+| `getSpanContext(pDest, pSpan)` | Allocates a local [[FB_SpanContext]] for a child span, a link or a carrier. The caller owns `pDest`, which must be `0`. A span that has not been built fails with `SPAN_INVALID`. |
+| `addSpanLink(pSpan, pContext)` | Links the span to a borrowed context, like `addLink` in the chain. |
+| `pushSpanLink(pSpan, pLink)` | Adds a link built with `LinkFactory`, for a link with attributes. The tracer takes the link in every case and clears `pLink`: the span owns it on success, and it is released on failure. A null link fails with `LINK_POINTER_NULL`. |
+| `setSpanStringAttribute(pSpan, key, value)`, `setSpanNumberAttribute(pSpan, key, value)` | Sets an attribute. Attributes known at the start belong in the chain, where the sampler sees them. |
+| `setSpanStatusOk(pSpan)`, `setSpanStatusError(pSpan, message)` | Sets the status; see below. |
+| `endSpan(pSpan)` | Ends the span and hands it to the provider. Clears the caller's pointer. |
+| `discardSpan(pSpan)` | Releases the span without exporting it, for abandoned work. Clears the caller's pointer. |
+
+The status setters follow the OpenTelemetry status rules:
+
+- `setSpanStatusOk(pSpan)` sets `STATUS_CODE_OK` with no message. OK is final: it replaces an earlier error and its message.
+- `setSpanStatusError(pSpan, message)` sets `STATUS_CODE_ERROR` and keeps its own copy of `message`. An empty message leaves the status without one. A later error replaces an earlier one. On a span that is already OK, the error is ignored and `failureReason` is `SPAN_STATUS_ALREADY_OK`.
+
+Both build the new `FB_Status` before releasing the old one. If memory runs out, the previous status is kept and `failureReason` is `MEMORY_ALLOCATION_FAILURE`. A span that never sets a status is exported without one, which means unset.
+
+```iec
+tracer.setSpanStatusOk(pStep);
+tracer.setSpanStatusError(pStep, 'setpoint not reached');
+tracer.endSpan(pStep);
+```
+
+`FB_TestSpanSimulation` ends step-a as OK, and step-b and the process as errors.
+
 ## Failure reasons
 
 `E_TracerFailureReason` reports the first failure in the chain:
@@ -64,13 +93,16 @@ Processors are not notified when a span is built. The processor contract has no 
 | `ID_GENERATION_FAILURE` | The generator failed for another reason. |
 | `SNAPSHOT_COPY_FAILURE` | The resource or scope could not be copied. |
 | `MEMORY_ALLOCATION_FAILURE` | Dynamic memory allocation failed. |
-| `SPAN_POINTER_NULL` | `endSpan` was given a null pointer. |
+| `SPAN_POINTER_NULL` | A method for a running span, such as `endSpan`, was given a null pointer. |
 | `TRANSFER_TO_PROVIDER_FAILURE` | The provider could not queue the ended span, so it was released. |
 | `LINK_CONTEXT_POINTER_NULL` | `addLink` was given a null pointer. |
 | `LINK_CONTEXT_INVALID` | The linked context has an all-zero trace ID or span ID. |
 | `LINK_COUNT_LIMIT_REACHED` | The span cannot own another link. |
 | `PARENT_SPAN_POINTER_NULL` | `setParentUsingSpan` was given a null pointer. |
 | `PARENT_SPAN_INVALID` | The parent span has not been built, so it has no trace ID or span ID. |
+| `SPAN_STATUS_ALREADY_OK` | `setSpanStatusError` was called on a span that is already OK, which is final. |
+| `SPAN_INVALID` | `getSpanContext` was given a span that has not been built, so it has no trace ID or span ID. |
+| `LINK_POINTER_NULL` | `pushSpanLink` was given a null link pointer. |
 
 ## endSpan
 

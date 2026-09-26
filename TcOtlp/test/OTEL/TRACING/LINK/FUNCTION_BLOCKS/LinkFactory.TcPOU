@@ -130,7 +130,7 @@ IF pSpan^.traceId = 0 OR pSpan^.spanId = 0 THEN
 	RETURN;
 END_IF
 
-IF NOT pSpan^.getContext(pDest:=_pContext) THEN
+IF NOT ContextFactory.fromSpan(pDest:=_pContext, pSpan:=pSpan) THEN
 	IF _pContext <> 0 THEN _pContext^.delete(pSelf:=_pContext); END_IF
 	failureReason := E_LinkFailureReason.MEMORY_ALLOCATION_FAILURE;
 	RETURN;

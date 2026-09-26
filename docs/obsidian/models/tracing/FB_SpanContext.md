@@ -6,12 +6,12 @@ implements:
   - FB_SpanContext
   - ContextFactory
 source: TcOtlp/test/OTEL/TRACING/SPAN/
-gap: FB_Span.getContext is implemented; TraceContextPropagator.extract is not. The parent-remote flags case is untested (see FB_Span TODO).
+gap: FB_Tracer.getSpanContext is implemented; TraceContextPropagator.extract is not. The parent-remote flags case is untested (see FB_Span TODO).
 ---
 
 `FB_SpanContext` is the immutable VALUE OBJECT that identifies a span well enough for something outside this PLC to place it in the same trace. It is what crosses a boundary: it is serialized and propagated alongside a distributed context, attached to a [[FB_Link]], and quoted by a log record for correlation.
 
-The distinction that matters is that a context is not a span. A [[FB_Span]] is mutable, has a duration, and is still being written to; a context is a fixed snapshot of the identity of one span, taken with `getContext` and valid after the span it came from has ended. Nothing on a context can be edited after it is created, so a holder never has to ask whether the span it came from has moved on.
+The distinction that matters is that a context is not a span. A [[FB_Span]] is mutable, has a duration, and is still being written to; a context is a fixed snapshot of the identity of one span, taken with [[FB_Tracer]]`.getSpanContext` and valid after the span it came from has ended. Nothing on a context can be edited after it is created, so a holder never has to ask whether the span it came from has moved on.
 
 ## Invariants
 
@@ -104,7 +104,7 @@ Releases the context itself and clears the caller's pointer: `pContext^.delete(p
 
 A context is produced in exactly two ways. Both go through `ContextFactory.buildContext` and both hand the caller an owned pointer:
 
-- **`FB_Span.getContext`** takes a snapshot of a local span. The context is always local: bit 8 set, bit 9 clear. The factory does not enforce this; `FB_TestSpan` does. The case where the span's parent is remote is not tested yet; see the TODO in [[FB_Span]].
+- **`ContextFactory.fromSpan`**, behind [[FB_Tracer]]`.getSpanContext`, takes a snapshot of a local span. The context is always local: bit 8 set, bit 9 clear. `buildContext` does not enforce this; `FB_TestTracer` does. The case where the span's parent is remote is not tested yet; see the TODO in [[FB_Span]].
 - **`TraceContextPropagator.extract`** rebuilds a remote context from a W3C traceparent, setting both remoteness bits. It validates the carrier before building anything. See [[Trace Context Propagation]].
 
 ## Open questions

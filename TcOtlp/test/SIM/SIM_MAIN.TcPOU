@@ -83,13 +83,13 @@ tracerProvider
 	
 CASE currentState OF
 	0:  // shutdown state
-		IF _stateChangeTrig.Q AND (NOT cmdStageUp) AND pRootSpan <> 0 THEN
-			pRootSpan^.setStatusOk();
+		IF _stateChangeTrig.Q AND (NOT cmdStageUp) THEN
+			tracer.setSpanStatusOk(pRootSpan);
 			tracer.endSpan(pRootSpan);
 		END_IF
 		
 		IF cmdStageUp THEN
-			IF pRootSpan <> 0 THEN pRootSpan^.delete(pRootSpan); END_IF
+			tracer.discardSpan(pRootSpan);
 			tracer
 				.startSpan('skid.staging.stage_up')
 				.setNumberAttribute('flow.target', cmdFlowRate)
@@ -128,7 +128,7 @@ CASE currentState OF
 		// go to adjacent states based on command
 		IF (NOT cmdStageUp) AND flowRate <= 0 THEN
 			_computedState := 0;
-			pPumpStageSpan^.setStatusOk();
+			tracer.setSpanStatusOk(pPumpStageSpan);
 		ELSIF cmdStageUp THEN
 			IF NOT simulateMotorFailure AND flowRate >= cmdFlowRate THEN
 				_computedState := 2;
@@ -136,8 +136,8 @@ CASE currentState OF
 				_computedState := 0;
 				flowRate := 0;
 				cmdStageUp := FALSE;
-				pPumpStageSpan^.setStatusError('pump motor failure');
-				pRootSpan^.setStatusError('pump motor failure');
+				tracer.setSpanStatusError(pPumpStageSpan, 'pump motor failure');
+				tracer.setSpanStatusError(pRootSpan, 'pump motor failure');
 				motorLogger
 					.startLogRecord(E_SeverityNumber.FATAL)
 					.setBody('pump failure detected, stopping pump!')
@@ -185,19 +185,19 @@ CASE currentState OF
 			_computedState := 3;
 		END_IF
 		
-		IF _computedState <> currentState AND pValveStageSpan <> 0 THEN
-			pValveStageSpan^.setStatusOk();
+		IF _computedState <> currentState THEN
+			tracer.setSpanStatusOk(pValveStageSpan);
 			tracer.endSpan(pValveStageSpan);
 		END_IF
 		
 	3: // staged up
-		IF _stateChangeTrig.Q AND cmdStageUp AND pRootSpan <> 0 THEN
-			pRootSpan^.setStatusOk();
+		IF _stateChangeTrig.Q AND cmdStageUp THEN
+			tracer.setSpanStatusOk(pRootSpan);
 			tracer.endSpan(pRootSpan);
 		END_IF
 		
 		IF (NOT cmdStageUp) THEN
-			IF pRootSpan <> 0 THEN pRootSpan^.delete(pRootSpan); END_IF
+			tracer.discardSpan(pRootSpan);
 			tracer
 				.startSpan('skid.staging.stage_down')
 				.build(pRootSpan);

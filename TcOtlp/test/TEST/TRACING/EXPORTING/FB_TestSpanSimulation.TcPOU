@@ -212,7 +212,7 @@ END_VAR
 		2: // step1Done: end step-a
 			_stepCycles := _stepCycles + 1;
 			IF _stepCycles >= STEP_CYCLES THEN
-				_pCurrent^.setStatusOk();
+				_tracer.setSpanStatusOk(pSpan:=_pCurrent);
 				THIS^._log(
 					severity:=E_SeverityNumber.INFO,
 					eventName:='step.completed',
@@ -245,8 +245,8 @@ END_VAR
 		4: // step2Fault, processDone: step-b fails, and the process ends with it in the same scan
 			_stepCycles := _stepCycles + 1;
 			IF _stepCycles >= STEP_CYCLES THEN
-				_pCurrent^.setStatusError('setpoint not reached');
-				_pRoot^.setStatusError('step-b failed');
+				_tracer.setSpanStatusError(pSpan:=_pCurrent, message:='setpoint not reached');
+				_tracer.setSpanStatusError(pSpan:=_pRoot, message:='step-b failed');
 				THIS^._log(
 					severity:=E_SeverityNumber.ERROR,
 					eventName:='step.failed',

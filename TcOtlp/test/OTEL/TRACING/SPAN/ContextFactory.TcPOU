@@ -75,5 +75,50 @@ buildContext := failureReason = E_ContextFactoryFailureReason.NA;
 ]]></ST>
       </Implementation>
     </Method>
+    <Method Name="fromSpan" Id="{f7f7f5f2-0b21-4cce-8675-bb1ea9059427}">
+      <Declaration><![CDATA[(*
+	Allocates a snapshot of a span's identity. The caller owns pDest, which must be 0; the span
+	is borrowed and unchanged. The span is the producer, and its identifiers come from the id
+	generator, which only hands out valid ones, so they are not checked again here. A span that
+	has not been built has no identifiers and is refused with TRACE_ID_POINTER_NULL.
+	The context is always local: a span's own flags describe its parent's remoteness, so only
+	the W3C trace flags are kept, and remoteness is marked as known and not remote.
+*)
+METHOD fromSpan : BOOL
+VAR_IN_OUT
+	pDest: POINTER TO FB_SpanContext;
+END_VAR
+VAR_INPUT
+	pSpan: POINTER TO FB_Span;
+END_VAR
+VAR_OUTPUT
+	failureReason: E_ContextFactoryFailureReason;
+END_VAR
+VAR
+	_traceFlags: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[fromSpan := FALSE;
+failureReason := E_ContextFactoryFailureReason.NA;
+
+IF pSpan = 0 THEN
+	failureReason := E_ContextFactoryFailureReason.SPAN_POINTER_NULL;
+	RETURN;
+END_IF
+
+_traceFlags := (pSpan^.flags AND TO_UDINT(E_SpanFlags.SPAN_FLAGS_TRACE_FLAGS_MASK))
+	OR TO_UDINT(E_SpanFlags.SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK);
+
+fromSpan := ContextFactory.buildContext(
+	pDest:=pDest,
+	pTraceId:=pSpan^.traceId,
+	pSpanId:=pSpan^.spanId,
+	pTraceState:=pSpan^.traceState,
+	traceFlags:=_traceFlags,
+	failureReason=>failureReason
+);]]></ST>
+      </Implementation>
+    </Method>
   </POU>
 </TcPlcObject>

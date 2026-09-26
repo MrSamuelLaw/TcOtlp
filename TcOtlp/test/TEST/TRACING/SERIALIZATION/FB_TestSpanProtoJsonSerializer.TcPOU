@@ -44,7 +44,7 @@ END_VAR
 		// no builder sets timestamps; fixed values replace the clock so the output is known
 		pSpan^.startTimestamp := 1000;
 		pSpan^.endTimestamp := 1581452773000000789;
-		pSpan^.setStatusError(message:='motor stalled');
+		tracer.setSpanStatusError(pSpan:=pSpan, message:='motor stalled');
 
 		root := serializer.parser.NewDocument();
 		root := serializer.parser.SetObject(root);
@@ -105,7 +105,7 @@ END_VAR
         <ST><![CDATA[TcUnit.TEST('testSerializeChildSpan');
 	tracer.startSpan(name:='root').build(pDest:=pRoot);
 	IF pRoot <> 0 THEN
-		pRoot^.getContext(pDest:=pContext);
+		tracer.getSpanContext(pSpan:=pRoot, pDest:=pContext);
 	END_IF
 	tracer
 		.startSpan(name:='child', kind:=E_SpanKind.SPAN_KIND_CLIENT)
@@ -354,7 +354,7 @@ END_VAR
       <Implementation>
         <ST><![CDATA[TcUnit.TEST('testSerializeSpanLinks');
 	tracer.startSpan(name:='trigger').build(pDest:=pTrigger);
-	IF pTrigger <> 0 THEN pTrigger^.getContext(pDest:=pTriggerContext); END_IF
+	IF pTrigger <> 0 THEN tracer.getSpanContext(pSpan:=pTrigger, pDest:=pTriggerContext); END_IF
 	tracer.startSpan(name:='work').addLink(pContext:=pTriggerContext).build(pDest:=pSpan);
 	THIS^.AssertTrue(pSpan <> 0, 'Expected the linked span to build');
 
@@ -363,9 +363,7 @@ END_VAR
 	IF pLink <> 0 THEN
 		pLink^.attributes.setStringAttribute(key:='link.reason', value:='retry');
 	END_IF
-	IF pSpan <> 0 AND pLink <> 0 THEN
-		pSpan^.links.push(pValue:=pLink);
-	END_IF
+	tracer.pushSpanLink(pSpan:=pSpan, pLink:=pLink);
 
 	IF pSpan <> 0 AND pTrigger <> 0 THEN
 		root := serializer.parser.NewDocument();

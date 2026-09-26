@@ -10,7 +10,8 @@ TYPE E_ContextFactoryFailureReason :
 	DESTINATION_ALREADY_ASSIGNED,  // The destination pointer was already assigned when the operation began.
 	TRACE_ID_POINTER_NULL,  // The trace ID pointer is null.
 	SPAN_ID_POINTER_NULL,  // The span ID pointer is null.
-	MEMORY_ALLOCATION_FAILURE  // Dynamic memory allocation failed.
+	MEMORY_ALLOCATION_FAILURE,  // Dynamic memory allocation failed.
+	SPAN_POINTER_NULL  // fromSpan was given a null span pointer.
 );
 END_TYPE
 ]]></Declaration>
@@ -40,6 +41,11 @@ END_TYPE
             </o>
             <o>
               <v n="TextID">"MEMORY_ALLOCATION_FAILURE"</v>
+              <v n="TextDefault">""</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"SPAN_POINTER_NULL"</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>

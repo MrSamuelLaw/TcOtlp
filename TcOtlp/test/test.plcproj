@@ -134,9 +134,6 @@
     <Compile Include="OTEL\TRACING\PROCESSORS\FUNCTION_BLOCKS\FB_SpanProcessor_Batch.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\TRACING\SPAN\ENUMS\E_SpanStatusFailureReason.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="OTEL\TRACING\EXPORTING\FUNCTION_BLOCKS\FB_SpanExporter_Console.TcPOU">
       <SubType>Code</SubType>
     </Compile>
