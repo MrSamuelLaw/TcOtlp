@@ -58,12 +58,12 @@ A running span is read and changed only through the tracer, never through the sp
 | `endSpan(pSpan)` | Ends the span and hands it to the provider. Clears the caller's pointer. |
 | `discardSpan(pSpan)` | Releases the span without exporting it, for abandoned work. Clears the caller's pointer. |
 
-The status setters follow the OpenTelemetry status rules:
+The first status set wins. Once a span has a status, OK or ERROR, both setters refuse it with `SPAN_STATUS_ALREADY_SET` and leave the status and its message unchanged. An error in a child step can therefore mark its parent as failed, and a later `setSpanStatusOk` on the parent does not hide it.
 
-- `setSpanStatusOk(pSpan)` sets `STATUS_CODE_OK` with no message. OK is final: it replaces an earlier error and its message.
-- `setSpanStatusError(pSpan, message)` sets `STATUS_CODE_ERROR` and keeps its own copy of `message`. An empty message leaves the status without one. A later error replaces an earlier one. On a span that is already OK, the error is ignored and `failureReason` is `SPAN_STATUS_ALREADY_OK`.
+- `setSpanStatusOk(pSpan)` sets `STATUS_CODE_OK` with no message.
+- `setSpanStatusError(pSpan, message)` sets `STATUS_CODE_ERROR` and keeps its own copy of `message`. An empty message leaves the status without one.
 
-Both build the new `FB_Status` before releasing the old one. If memory runs out, the previous status is kept and `failureReason` is `MEMORY_ALLOCATION_FAILURE`. A span that never sets a status is exported without one, which means unset.
+If memory runs out, the span is left without a status and `failureReason` is `MEMORY_ALLOCATION_FAILURE`. A span that never sets a status is exported without one, which means unset.
 
 ```iec
 tracer.setSpanStatusOk(pStep);
@@ -100,7 +100,7 @@ tracer.endSpan(pStep);
 | `LINK_COUNT_LIMIT_REACHED` | The span cannot own another link. |
 | `PARENT_SPAN_POINTER_NULL` | `setParentUsingSpan` was given a null pointer. |
 | `PARENT_SPAN_INVALID` | The parent span has not been built, so it has no trace ID or span ID. |
-| `SPAN_STATUS_ALREADY_OK` | `setSpanStatusError` was called on a span that is already OK, which is final. |
+| `SPAN_STATUS_ALREADY_SET` | `setSpanStatusOk` or `setSpanStatusError` was called on a span that already has a status. The first one set wins. |
 | `SPAN_INVALID` | `getSpanContext` was given a span that has not been built, so it has no trace ID or span ID. |
 | `LINK_POINTER_NULL` | `pushSpanLink` was given a null link pointer. |
 

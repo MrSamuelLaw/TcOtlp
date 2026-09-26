@@ -28,7 +28,7 @@ TYPE E_TracerFailureReason :
 	LINK_COUNT_LIMIT_REACHED,  // The span cannot own another link.
 	PARENT_SPAN_POINTER_NULL,  // setParentUsingSpan was given a null span pointer.
 	PARENT_SPAN_INVALID,  // The parent span has not been built, so it has no trace id or span id.
-	SPAN_STATUS_ALREADY_OK,  // The span is already OK, which is final, so the error was ignored.
+	SPAN_STATUS_ALREADY_SET,  // The span already has a status, and the first one set wins.
 	SPAN_INVALID,  // The span has not been built, so it has no trace id or span id.
 	LINK_POINTER_NULL  // pushSpanLink was given a null link pointer.
 ) UDINT;
@@ -149,7 +149,7 @@ END_TYPE
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
-              <v n="TextID">"SPAN_STATUS_ALREADY_OK"</v>
+              <v n="TextID">"SPAN_STATUS_ALREADY_SET"</v>
               <v n="TextDefault">""</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>

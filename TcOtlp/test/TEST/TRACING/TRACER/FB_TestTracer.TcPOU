@@ -27,7 +27,7 @@ THIS^.testEndSpanRejectsNull();
 THIS^.testEndSpanWithoutProcessorsQueuesSpan();
 THIS^.testSetSpanStatusOk();
 THIS^.testSetSpanStatusError();
-THIS^.testSetSpanStatusOkIsFinal();
+THIS^.testSetSpanStatusFirstWins();
 THIS^.testGetSpanContextCopiesIdentity();
 THIS^.testGetSpanContextIsLocal();
 THIS^.testGetSpanContextRejectsAssignedDestination();
@@ -763,8 +763,8 @@ TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
     <Method Name="testSetSpanStatusError" Id="{0ce5308d-63c9-46d6-b96f-12ee8cd9425b}">
-      <Declaration><![CDATA[(* setSpanStatusError keeps its own copy of the message, a later error replaces it, and an
-   empty message leaves the status without one. *)
+      <Declaration><![CDATA[(* setSpanStatusError keeps its own copy of the message, and an empty message leaves the
+   status without one. *)
 METHOD testSetSpanStatusError : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
@@ -773,6 +773,7 @@ VAR
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
 	span: FB_Span;  // a bare span: the status setters need no identity
+	emptySpan: FB_Span;
 	message: T_MaxString := 'motor over temp';
 	success: BOOL;
 	reason: E_TracerFailureReason;
@@ -793,54 +794,71 @@ END_VAR
 		END_IF
 	END_IF
 
-	tracer.setSpanStatusError(pSpan:=ADR(span), message:='second fault');
-	IF span.status <> 0 AND_THEN span.status^.message <> 0 THEN
-		THIS^.AssertEquals_STRING('second fault', span.status^.message^.pString^, 'Expected a later error to replace the message');
-	END_IF
-
-	success := tracer.setSpanStatusError(pSpan:=ADR(span), message:='', failureReason=>reason);
+	success := tracer.setSpanStatusError(pSpan:=ADR(emptySpan), message:='', failureReason=>reason);
 	THIS^.AssertTrue(success, 'Expected an empty message to succeed');
 	THIS^.AssertEquals_UDINT(TO_UDINT(E_TracerFailureReason.NA), TO_UDINT(reason), 'Expected no failure for an empty message');
-	IF span.status <> 0 THEN
-		THIS^.AssertEquals_UDINT(TO_UDINT(E_StatusCode.STATUS_CODE_ERROR), TO_UDINT(span.status^.code), 'Expected an error code without a message');
-		THIS^.AssertTrue(span.status^.message = 0, 'Expected an empty message to leave no message');
+	IF emptySpan.status <> 0 THEN
+		THIS^.AssertEquals_UDINT(TO_UDINT(E_StatusCode.STATUS_CODE_ERROR), TO_UDINT(emptySpan.status^.code), 'Expected an error code without a message');
+		THIS^.AssertTrue(emptySpan.status^.message = 0, 'Expected an empty message to leave no message');
 	END_IF
 	span.free();
+	emptySpan.free();
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>
-    <Method Name="testSetSpanStatusOkIsFinal" Id="{e7e2ab03-09bb-4e06-b053-a4d4f75dfe75}">
-      <Declaration><![CDATA[(* OK replaces an error and its message, and an error after OK is ignored and reported. *)
-METHOD testSetSpanStatusOkIsFinal : REFERENCE TO FB_Test
+    <Method Name="testSetSpanStatusFirstWins" Id="{e7e2ab03-09bb-4e06-b053-a4d4f75dfe75}">
+      <Declaration><![CDATA[(* The first status set wins: any later setSpanStatusOk or setSpanStatusError is refused
+   with SPAN_STATUS_ALREADY_SET and leaves the status and its message unchanged. *)
+METHOD testSetSpanStatusFirstWins : REFERENCE TO FB_Test
 VAR
 	resource: FB_Resource('');
 	idGenerator: FB_MockIdGenerator;
 	provider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator, sampler:=TcOtlp_GVL.defaultSampler);
 	scope: FB_InstrumentationScope('tracer.test', '1.0.0', '');
 	tracer: FB_Tracer(scope:=scope, provider:=provider);
-	span: FB_Span;  // a bare span: the status setters need no identity
+	errorSpan: FB_Span;  // bare spans: the status setters need no identity
+	okSpan: FB_Span;
 	success: BOOL;
 	reason: E_TracerFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[TcUnit.TEST('testSetSpanStatusOkIsFinal');
-	tracer.setSpanStatusError(pSpan:=ADR(span), message:='transient fault');
-	success := tracer.setSpanStatusOk(pSpan:=ADR(span), failureReason=>reason);
-	THIS^.AssertTrue(success, 'Expected OK to replace the error');
-	IF span.status <> 0 THEN
-		THIS^.AssertEquals_UDINT(TO_UDINT(E_StatusCode.STATUS_CODE_OK), TO_UDINT(span.status^.code), 'Expected an OK code');
-		THIS^.AssertTrue(span.status^.message = 0, 'Expected OK to drop the error message');
+        <ST><![CDATA[TcUnit.TEST('testSetSpanStatusFirstWins');
+	tracer.setSpanStatusError(pSpan:=ADR(errorSpan), message:='first fault');
+
+	success := tracer.setSpanStatusOk(pSpan:=ADR(errorSpan), failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected OK after an error to be refused');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_TracerFailureReason.SPAN_STATUS_ALREADY_SET), TO_UDINT(reason), 'Expected SPAN_STATUS_ALREADY_SET for OK after an error');
+
+	success := tracer.setSpanStatusError(pSpan:=ADR(errorSpan), message:='second fault', failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected a second error to be refused');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_TracerFailureReason.SPAN_STATUS_ALREADY_SET), TO_UDINT(reason), 'Expected SPAN_STATUS_ALREADY_SET for a second error');
+
+	THIS^.AssertTrue(errorSpan.status <> 0, 'Expected the first status to remain');
+	IF errorSpan.status <> 0 THEN
+		THIS^.AssertEquals_UDINT(TO_UDINT(E_StatusCode.STATUS_CODE_ERROR), TO_UDINT(errorSpan.status^.code), 'Expected the status to stay ERROR');
+		THIS^.AssertTrue(errorSpan.status^.message <> 0, 'Expected the first message to remain');
+		IF errorSpan.status^.message <> 0 THEN
+			THIS^.AssertEquals_STRING('first fault', errorSpan.status^.message^.pString^, 'Expected the first message to win');
+		END_IF
 	END_IF
 
-	success := tracer.setSpanStatusError(pSpan:=ADR(span), message:='late fault', failureReason=>reason);
-	THIS^.AssertFalse(success, 'Expected the error to be refused');
-	THIS^.AssertEquals_UDINT(TO_UDINT(E_TracerFailureReason.SPAN_STATUS_ALREADY_OK), TO_UDINT(reason), 'Expected SPAN_STATUS_ALREADY_OK');
-	IF span.status <> 0 THEN
-		THIS^.AssertEquals_UDINT(TO_UDINT(E_StatusCode.STATUS_CODE_OK), TO_UDINT(span.status^.code), 'Expected the status to stay OK');
-		THIS^.AssertTrue(span.status^.message = 0, 'Expected no message after the refused error');
+	tracer.setSpanStatusOk(pSpan:=ADR(okSpan));
+
+	success := tracer.setSpanStatusError(pSpan:=ADR(okSpan), message:='late fault', failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected an error after OK to be refused');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_TracerFailureReason.SPAN_STATUS_ALREADY_SET), TO_UDINT(reason), 'Expected SPAN_STATUS_ALREADY_SET for an error after OK');
+
+	success := tracer.setSpanStatusOk(pSpan:=ADR(okSpan), failureReason=>reason);
+	THIS^.AssertFalse(success, 'Expected a second OK to be refused');
+	THIS^.AssertEquals_UDINT(TO_UDINT(E_TracerFailureReason.SPAN_STATUS_ALREADY_SET), TO_UDINT(reason), 'Expected SPAN_STATUS_ALREADY_SET for a second OK');
+
+	IF okSpan.status <> 0 THEN
+		THIS^.AssertEquals_UDINT(TO_UDINT(E_StatusCode.STATUS_CODE_OK), TO_UDINT(okSpan.status^.code), 'Expected the status to stay OK');
+		THIS^.AssertTrue(okSpan.status^.message = 0, 'Expected no message after the refused error');
 	END_IF
-	span.free();
+	errorSpan.free();
+	okSpan.free();
 TcUnit.TEST_FINISHED();]]></ST>
       </Implementation>
     </Method>

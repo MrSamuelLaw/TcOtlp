@@ -776,9 +776,9 @@ setSpanNumberAttribute := TRUE;]]></ST>
     <Method Name="setSpanStatusError" Id="{4092588f-85ea-4124-91f3-09000d032a90}">
       <Declaration><![CDATA[(*
 	Marks a running span as failed, with a message saying why. An empty message leaves the
-	status without one. OK is final, so an error on a span that is already OK is ignored and
-	reported as SPAN_STATUS_ALREADY_OK. A later error replaces an earlier one. If memory runs
-	out the previous status is kept. The span is borrowed, and a null span is refused.
+	status without one. The first status set wins: a span that already has one, OK or ERROR,
+	is refused with SPAN_STATUS_ALREADY_SET and keeps it. If memory runs out the span is left
+	without a status. The span is borrowed, and a null span is refused.
 	Not part of the fluent chain, so it leaves a span being built untouched.
 *)
 METHOD setSpanStatusError : BOOL
@@ -803,8 +803,8 @@ IF pSpan = 0 THEN
 	RETURN;
 END_IF
 
-IF pSpan^.status <> 0 AND_THEN pSpan^.status^.code = E_StatusCode.STATUS_CODE_OK THEN
-	failureReason := E_TracerFailureReason.SPAN_STATUS_ALREADY_OK;
+IF pSpan^.status <> 0 THEN
+	failureReason := E_TracerFailureReason.SPAN_STATUS_ALREADY_SET;
 	RETURN;
 END_IF
 
@@ -813,7 +813,6 @@ IF LEN(message) > 0 AND_THEN NOT ValueFactory.createString(pDest:=_pMessage, pSt
 	RETURN;
 END_IF
 
-// build the new status before releasing the old one, so a failure keeps the old status
 _pStatus := __NEW(FB_Status(code:=E_StatusCode.STATUS_CODE_ERROR, message:=_pMessage));
 IF _pStatus = 0 THEN
 	IF _pMessage <> 0 THEN _pMessage^.delete(pSelf:=_pMessage); END_IF
@@ -821,17 +820,16 @@ IF _pStatus = 0 THEN
 	RETURN;
 END_IF
 _pMessage := 0;  // moved into the status
-
-IF pSpan^.status <> 0 THEN pSpan^.status^.delete(pSelf:=pSpan^.status); END_IF
 pSpan^.status := _pStatus;
 setSpanStatusError := TRUE;]]></ST>
       </Implementation>
     </Method>
     <Method Name="setSpanStatusOk" Id="{5571f693-bd3a-46ce-b4eb-e4a3bd1f2529}">
       <Declaration><![CDATA[(*
-	Marks a running span as having completed successfully. OK is final: it replaces an earlier
-	error and its message, and later calls to setSpanStatusError are ignored. If memory runs out
-	the previous status is kept. The span is borrowed, and a null span is refused.
+	Marks a running span as having completed successfully. The first status set wins: a span
+	that already has one, OK or ERROR, is refused with SPAN_STATUS_ALREADY_SET and keeps it.
+	If memory runs out the span is left without a status. The span is borrowed, and a null
+	span is refused.
 	Not part of the fluent chain, so it leaves a span being built untouched.
 *)
 METHOD setSpanStatusOk : BOOL
@@ -854,9 +852,8 @@ IF pSpan = 0 THEN
 	RETURN;
 END_IF
 
-// OK is final, so a span that is already OK needs nothing more
-IF pSpan^.status <> 0 AND_THEN pSpan^.status^.code = E_StatusCode.STATUS_CODE_OK THEN
-	setSpanStatusOk := TRUE;
+IF pSpan^.status <> 0 THEN
+	failureReason := E_TracerFailureReason.SPAN_STATUS_ALREADY_SET;
 	RETURN;
 END_IF
 
@@ -866,7 +863,6 @@ IF _pStatus = 0 THEN
 	RETURN;
 END_IF
 
-IF pSpan^.status <> 0 THEN pSpan^.status^.delete(pSelf:=pSpan^.status); END_IF
 pSpan^.status := _pStatus;
 setSpanStatusOk := TRUE;]]></ST>
       </Implementation>
