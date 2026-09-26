@@ -32,7 +32,7 @@ A test can be redundant in three ways:
 
 ## Exceptions (do not report)
 
-- **The same behaviour at different domain boundaries.** A factory test checks the factory. A caller's test that checks the caller *uses* the factory correctly (for example, that `FB_Tracer.setParent` copies the trace state instead of borrowing it) tests the caller's contract, not the factory's. Report it only if its assertions go beyond what the caller is responsible for, for example re-checking trace state grammar in a tracer test.
+- **The same behaviour at different domain boundaries.** A factory test checks the factory. A caller's test that checks the caller *uses* the factory correctly (for example, that `FB_Tracer.setParentUsingContext` copies the trace state instead of borrowing it) tests the caller's contract, not the factory's. Report it only if its assertions go beyond what the caller is responsible for, for example re-checking trace state grammar in a tracer test.
 - **Different inputs that exercise different branches or limits**, such as 32 entries accepted and 33 rejected, or an empty header versus a header of only empty members.
 - **Regression tests for a specific bug**, when the comment names the bug or the edge case. Report them as `review` only if a broader test now clearly covers that exact edge case.
 - **End-to-end tests** that run the whole pipeline (create, process, serialize, export). They overlap with unit tests on purpose.

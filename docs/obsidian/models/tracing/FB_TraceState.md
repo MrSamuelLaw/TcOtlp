@@ -76,7 +76,7 @@ These are `VAR CONSTANT` on `TraceStateFactory`. The carrier type at the RPC bou
 
 - `FB_SpanContext`, `FB_Span` and `FB_Link` store `traceState: POINTER TO FB_TraceState` and release it in `free`.
 - `ContextFactory.buildContext` takes `pTraceState: POINTER TO FB_TraceState`. The pointer is borrowed and cloned, so the caller still owns and releases its own trace state.
-- `LinkFactory`, `FB_Span` and `FB_Tracer.setParent` copy through `TraceStateFactory.clone`.
+- `LinkFactory`, `FB_Span` and `FB_Tracer`'s parent setters copy through `TraceStateFactory.clone`.
 - `FB_SpanProtoJsonSerializer` writes `traceState` from `pTraceState^.pString`. It still emits a single JSON string, and the wire output does not change. A 515-character state is written whole (`testSerializeLongTraceState`).
 
 ## Propagation (not built yet)

@@ -31,7 +31,6 @@ VAR
 	pRootSpan: 			POINTER TO FB_Span;
 	pPumpStageSpan: 	POINTER TO FB_Span;
 	pValveStageSpan: 	POINTER TO FB_Span;
-	pContext: 			POINTER TO FB_SpanContext;
 	
 	
 	// initialization setup
@@ -106,9 +105,7 @@ CASE currentState OF
 				ELSE
 					tracer.startSpan('skid.staging.pump_stage_down');
 				END_IF
-				IF pContext <> 0 THEN pContext^.delete(pContext); END_IF
-				pRootSpan^.getContext(pContext);
-				tracer.setParent(pContext);
+				tracer.setParentUsingSpan(pRootSpan);
 				tracer.build(pPumpStageSpan);
 			END_IF
 			motorLogger
@@ -163,9 +160,7 @@ CASE currentState OF
 				ELSE
 					tracer.startSpan('skid.staging.valve_close');
 				END_IF
-				IF pContext <> 0 THEN pContext^.delete(pContext); END_IF
-				pRootSpan^.getContext(pContext);
-				tracer.setParent(pContext);
+				tracer.setParentUsingSpan(pRootSpan);
 				tracer.build(pValveStageSpan);
 			END_IF
 			valveLogger

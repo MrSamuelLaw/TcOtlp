@@ -12,7 +12,7 @@
 	Example:
 	IF NOT tracer
 		.startSpan(name := 'chiller.startup', kind := E_SpanKind.SPAN_KIND_CONSUMER)
-		.setParent(pContext := pParentContext)
+		.setParentUsingContext(pContext := pParentContext)
 		.addLink(pContext := pTriggerContext)
 		.setStringAttribute('skid', 'A')
 		.build(pDest := pSpan, failureReason => reason) THEN
@@ -37,7 +37,8 @@ END_VAR
     </Implementation>
     <Method Name="_assignIdentity" Id="{5d981575-a270-4c40-aadd-46952ff6e8ac}">
       <Declaration><![CDATA[(* Takes the span's identifiers from the provider's generator. A root span also gets a new
-   trace id and root flags; a child already has both from setParent. *)
+   trace id and root flags; a child already has both from setParentUsingContext or
+   setParentUsingSpan. *)
 METHOD _assignIdentity : BOOL
 VAR_OUTPUT
 	failureReason: E_TracerFailureReason;
@@ -126,6 +127,86 @@ END_VAR
 ]]></Declaration>
       <Implementation>
         <ST><![CDATA[_now := (F_GetSystemTime() - UNIX_EPOCH_DIFF) * 100;  // 100ns ticks since 1601 -> ns since 1970]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_setParent" Id="{3e8b6f1c-52a4-4d7e-9c1b-7f0d2a6e4b91}">
+      <Declaration><![CDATA[(*
+	Makes the span being built a child of the given identity. The inputs are borrowed: the span
+	keeps its own copies of the trace id, parent span id and trace state. Everything is copied
+	before the span is touched, so a failure leaves it unchanged and any earlier parent in place.
+	A copy that fails for a reason other than allocation reports invalidReason.
+*)
+METHOD _setParent
+VAR_INPUT
+	pTraceId: POINTER TO FB_TraceId;
+	pSpanId: POINTER TO FB_SpanId;
+	pTraceState: POINTER TO FB_TraceState;  // 0 when the parent carries no trace state
+	traceFlags: UDINT;
+	isRemote: BOOL;
+	invalidReason: E_TracerFailureReason;
+END_VAR
+VAR
+	_pTraceId: POINTER TO FB_TraceId;
+	_pParentSpanId: POINTER TO FB_SpanId;
+	_pTraceState: POINTER TO FB_TraceState;
+	_copied: BOOL;
+	_flags: UDINT;
+	_factoryFailureReason: E_ValueFactoryFailureReason;
+	_traceStateFailureReason: E_TraceStateFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// copy everything before touching the span, so a failure leaves it unchanged
+_copied := ValueFactory.createTraceId(
+		pDest:=_pTraceId,
+		pBytes:=ADR(pTraceId^.bytes),
+		nSize:=SIZEOF(pTraceId^.bytes),
+		failureReason=>_factoryFailureReason)
+	AND_THEN ValueFactory.createSpanId(
+		pDest:=_pParentSpanId,
+		pBytes:=ADR(pSpanId^.bytes),
+		nSize:=SIZEOF(pSpanId^.bytes),
+		failureReason=>_factoryFailureReason)
+	AND_THEN (pTraceState = 0 OR_ELSE TraceStateFactory.clone(
+		pDest:=_pTraceState,
+		pSrc:=pTraceState,
+		failureReason=>_traceStateFailureReason));
+
+IF NOT _copied THEN
+	IF _pTraceId <> 0 THEN _pTraceId^.delete(pSelf:=_pTraceId); END_IF
+	IF _pParentSpanId <> 0 THEN _pParentSpanId^.delete(pSelf:=_pParentSpanId); END_IF
+	IF _pTraceState <> 0 THEN _pTraceState^.delete(pSelf:=_pTraceState); END_IF
+	THIS^._failed := TRUE;
+	IF _factoryFailureReason = E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE
+		OR _traceStateFailureReason = E_TraceStateFailureReason.MEMORY_ALLOCATION_FAILURE
+	THEN
+		THIS^._failureReason := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
+	ELSE
+		THIS^._failureReason := invalidReason;
+	END_IF
+	RETURN;
+END_IF
+
+// replace any earlier parent
+IF THIS^.pSpan^.traceId <> 0 THEN THIS^.pSpan^.traceId^.delete(pSelf:=THIS^.pSpan^.traceId); END_IF
+IF THIS^.pSpan^.parentSpanId <> 0 THEN THIS^.pSpan^.parentSpanId^.delete(pSelf:=THIS^.pSpan^.parentSpanId); END_IF
+IF THIS^.pSpan^.traceState <> 0 THEN THIS^.pSpan^.traceState^.delete(pSelf:=THIS^.pSpan^.traceState); END_IF
+
+// transfer ownership of the copies to the span
+THIS^.pSpan^.traceId := _pTraceId;
+THIS^.pSpan^.parentSpanId := _pParentSpanId;
+THIS^.pSpan^.traceState := _pTraceState;
+_pTraceId := 0;
+_pParentSpanId := 0;
+_pTraceState := 0;
+
+// a span's flags describe its parent: keep the parent's trace flags and record where it came from
+_flags := (traceFlags AND TO_UDINT(E_SpanFlags.SPAN_FLAGS_TRACE_FLAGS_MASK))
+	OR TO_UDINT(E_SpanFlags.SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK);
+IF isRemote THEN
+	_flags := _flags OR TO_UDINT(E_SpanFlags.SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK);
+END_IF
+THIS^.pSpan^.flags := _flags;]]></ST>
       </Implementation>
     </Method>
     <Method Name="_shouldReturnEarly" Id="{88de3424-ad60-4c95-878e-159ca24c8617}">
@@ -381,30 +462,24 @@ IF NOT _attributesSuccess THEN
 END_IF]]></ST>
       </Implementation>
     </Method>
-    <Method Name="setParent" Id="{a1b891cf-e895-4bb2-84a9-3cc0d638a94e}">
+    <Method Name="setParentUsingContext" Id="{a1b891cf-e895-4bb2-84a9-3cc0d638a94e}">
       <Declaration><![CDATA[(*
-	Makes the span a child of the given context. The context is borrowed: the span keeps its
-	own copies of the trace id, parent span id and trace state. The tracer is the producer of
-	spans, so this is where the parent is validated. Calling it again replaces the parent.
+	Makes the span a child of the given context, such as one extracted from a remote caller.
+	The context is borrowed: the span keeps its own copies of the trace id, parent span id and
+	trace state. The tracer is the producer of spans, so this is where the parent is validated.
+	Calling it or setParentUsingSpan again replaces the parent.
 *)
-METHOD setParent : REFERENCE TO FB_Tracer
+METHOD setParentUsingContext : REFERENCE TO FB_Tracer
 VAR_INPUT
 	pContext: POINTER TO FB_SpanContext;
 END_VAR
 VAR
 	_ctxTraceId: REFERENCE TO FB_TraceId;
 	_ctxSpanId: REFERENCE TO FB_SpanId;
-	_pTraceId: POINTER TO FB_TraceId;
-	_pParentSpanId: POINTER TO FB_SpanId;
-	_pTraceState: POINTER TO FB_TraceState;
-	_copied: BOOL;
-	_flags: UDINT;
-	_factoryFailureReason: E_ValueFactoryFailureReason;
-	_traceStateFailureReason: E_TraceStateFailureReason;
 END_VAR
 ]]></Declaration>
       <Implementation>
-        <ST><![CDATA[setParent REF= THIS^;
+        <ST><![CDATA[setParentUsingContext REF= THIS^;
 
 IF THIS^._shouldReturnEarly() THEN
 	RETURN;
@@ -422,59 +497,59 @@ IF NOT pContext^.isValid() THEN
 	RETURN;
 END_IF
 
-// copy everything before touching the span, so a failure leaves it unchanged
 _ctxTraceId REF= pContext^.traceId;
 _ctxSpanId REF= pContext^.spanId;
-_copied := ValueFactory.createTraceId(
-		pDest:=_pTraceId,
-		pBytes:=ADR(_ctxTraceId.bytes),
-		nSize:=SIZEOF(_ctxTraceId.bytes),
-		failureReason=>_factoryFailureReason)
-	AND_THEN ValueFactory.createSpanId(
-		pDest:=_pParentSpanId,
-		pBytes:=ADR(_ctxSpanId.bytes),
-		nSize:=SIZEOF(_ctxSpanId.bytes),
-		failureReason=>_factoryFailureReason)
-	AND_THEN (pContext^.traceState = 0 OR_ELSE TraceStateFactory.clone(
-		pDest:=_pTraceState,
-		pSrc:=pContext^.traceState,
-		failureReason=>_traceStateFailureReason));
+THIS^._setParent(
+	pTraceId:=ADR(_ctxTraceId),
+	pSpanId:=ADR(_ctxSpanId),
+	pTraceState:=pContext^.traceState,
+	traceFlags:=pContext^.traceFlags,
+	isRemote:=pContext^.isRemote(),
+	invalidReason:=E_TracerFailureReason.PARENT_CONTEXT_INVALID
+);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="setParentUsingSpan" Id="{8c2d4a7e-19f3-4b6a-a0e5-5d3c1b9f7e28}">
+      <Declaration><![CDATA[(*
+	Makes the span a child of a running span in this program, without taking a context from it
+	first. The parent is borrowed: the span keeps its own copies of the trace id, parent span id
+	and trace state. The parent must have been built, so a span still being built is refused.
+	A span in this program is a local parent, so the child's flags mark it as not remote.
+	Calling it or setParentUsingContext again replaces the parent.
+*)
+METHOD setParentUsingSpan : REFERENCE TO FB_Tracer
+VAR_INPUT
+	pParentSpan: POINTER TO FB_Span;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[setParentUsingSpan REF= THIS^;
 
-IF NOT _copied THEN
-	IF _pTraceId <> 0 THEN _pTraceId^.delete(pSelf:=_pTraceId); END_IF
-	IF _pParentSpanId <> 0 THEN _pParentSpanId^.delete(pSelf:=_pParentSpanId); END_IF
-	IF _pTraceState <> 0 THEN _pTraceState^.delete(pSelf:=_pTraceState); END_IF
-	THIS^._failed := TRUE;
-	IF _factoryFailureReason = E_ValueFactoryFailureReason.MEMORY_ALLOCATION_FAILURE
-		OR _traceStateFailureReason = E_TraceStateFailureReason.MEMORY_ALLOCATION_FAILURE
-	THEN
-		THIS^._failureReason := E_TracerFailureReason.MEMORY_ALLOCATION_FAILURE;
-	ELSE
-		THIS^._failureReason := E_TracerFailureReason.PARENT_CONTEXT_INVALID;
-	END_IF
+IF THIS^._shouldReturnEarly() THEN
 	RETURN;
 END_IF
 
-// replace any earlier parent
-IF THIS^.pSpan^.traceId <> 0 THEN THIS^.pSpan^.traceId^.delete(pSelf:=THIS^.pSpan^.traceId); END_IF
-IF THIS^.pSpan^.parentSpanId <> 0 THEN THIS^.pSpan^.parentSpanId^.delete(pSelf:=THIS^.pSpan^.parentSpanId); END_IF
-IF THIS^.pSpan^.traceState <> 0 THEN THIS^.pSpan^.traceState^.delete(pSelf:=THIS^.pSpan^.traceState); END_IF
-
-// transfer ownership of the copies to the span
-THIS^.pSpan^.traceId := _pTraceId;
-THIS^.pSpan^.parentSpanId := _pParentSpanId;
-THIS^.pSpan^.traceState := _pTraceState;
-_pTraceId := 0;
-_pParentSpanId := 0;
-_pTraceState := 0;
-
-// a span's flags describe its parent: keep the parent's trace flags and record where it came from
-_flags := (pContext^.traceFlags AND TO_UDINT(E_SpanFlags.SPAN_FLAGS_TRACE_FLAGS_MASK))
-	OR TO_UDINT(E_SpanFlags.SPAN_FLAGS_CONTEXT_HAS_IS_REMOTE_MASK);
-IF pContext^.isRemote() THEN
-	_flags := _flags OR TO_UDINT(E_SpanFlags.SPAN_FLAGS_CONTEXT_IS_REMOTE_MASK);
+IF pParentSpan = 0 THEN
+	THIS^._failed := TRUE;
+	THIS^._failureReason := E_TracerFailureReason.PARENT_SPAN_POINTER_NULL;
+	RETURN;
 END_IF
-THIS^.pSpan^.flags := _flags;]]></ST>
+
+// build assigns the identifiers, so a span without them has not been built yet
+IF pParentSpan^.traceId = 0 OR pParentSpan^.spanId = 0 THEN
+	THIS^._failed := TRUE;
+	THIS^._failureReason := E_TracerFailureReason.PARENT_SPAN_INVALID;
+	RETURN;
+END_IF
+
+THIS^._setParent(
+	pTraceId:=pParentSpan^.traceId,
+	pSpanId:=pParentSpan^.spanId,
+	pTraceState:=pParentSpan^.traceState,
+	traceFlags:=pParentSpan^.flags,
+	isRemote:=FALSE,
+	invalidReason:=E_TracerFailureReason.PARENT_SPAN_INVALID
+);]]></ST>
       </Implementation>
     </Method>
     <Method Name="setStringAttribute" Id="{99f75826-e10b-4b72-90de-ece62d760792}">

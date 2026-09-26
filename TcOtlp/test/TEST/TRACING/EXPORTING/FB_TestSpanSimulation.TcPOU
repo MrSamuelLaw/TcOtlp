@@ -95,7 +95,6 @@ VAR_INST
 	_exportErrors: UDINT;
 	_pRoot: POINTER TO FB_Span;
 	_pCurrent: POINTER TO FB_Span;
-	_pRootContext: POINTER TO FB_SpanContext;
 	_pRemoteContext: POINTER TO FB_SpanContext;
 	_extractAttempted: BOOL;  // extract once; if it fails, the process starts without a link
 	_rootStartedOwnTrace: BOOL;
@@ -192,13 +191,10 @@ END_VAR
 					);
 				END_IF
 			END_IF
-			IF _pRoot <> 0 AND _pRootContext = 0 THEN
-				_pRoot^.getContext(pDest:=_pRootContext);
-			END_IF
-			IF _pRootContext <> 0 THEN
+			IF _pRoot <> 0 THEN
 				setpoint := 42;
 				_tracer.startSpan(name:='step-a')
-					.setParent(pContext:=_pRootContext)
+					.setParentUsingSpan(pParentSpan:=_pRoot)
 					.setNumberAttribute('setpoint', setpoint)
 					.build(pDest:=_pCurrent, failureReason=>tracerReason);
 				IF _pCurrent <> 0 THEN
@@ -232,7 +228,7 @@ END_VAR
 		3: // start step-b as the next child of the process
 			setpoint := 17;
 			_tracer.startSpan(name:='step-b')
-				.setParent(pContext:=_pRootContext)
+				.setParentUsingSpan(pParentSpan:=_pRoot)
 				.setNumberAttribute('setpoint', setpoint)
 				.build(pDest:=_pCurrent, failureReason=>tracerReason);
 			IF _pCurrent <> 0 THEN
@@ -269,7 +265,6 @@ END_VAR
 				IF _tracer.endSpan(pSpan:=_pRoot, failureReason=>tracerReason) THEN
 					_endedCount := _endedCount + 1;
 				END_IF
-				_pRootContext^.delete(pSelf:=_pRootContext);
 				_step := 5;
 			END_IF
 
@@ -306,7 +301,6 @@ END_VAR
 		THIS^.AssertEquals_UDINT(0, _logProcessor.droppedCount, 'Expected the log processor to drop no record');
 		IF _pCurrent <> 0 THEN _pCurrent^.delete(pSelf:=_pCurrent); END_IF
 		IF _pRoot <> 0 THEN _pRoot^.delete(pSelf:=_pRoot); END_IF
-		IF _pRootContext <> 0 THEN _pRootContext^.delete(pSelf:=_pRootContext); END_IF
 		IF _pRemoteContext <> 0 THEN _pRemoteContext^.delete(pSelf:=_pRemoteContext); END_IF
 		_extractAttempted := FALSE;
 		_rootStartedOwnTrace := FALSE;

@@ -80,7 +80,7 @@ END_VAR
 		traceFlags:=16#301
 	);
 	IF pTraceState <> 0 THEN pTraceState^.delete(pSelf:=pTraceState); END_IF
-	_tracer.startSpan(name:='work').setParent(pContext:=pRemote).build(pDest:=pSpan);
+	_tracer.startSpan(name:='work').setParentUsingContext(pContext:=pRemote).build(pDest:=pSpan);
 	IF pRemote <> 0 THEN pRemote^.delete(pSelf:=pRemote); END_IF
 	THIS^.AssertTrue(pSpan <> 0 AND_THEN pSpan^.traceState <> 0, 'Expected the tracer to build a span with trace state');
 
@@ -233,7 +233,7 @@ END_VAR
 	tracer.startSpan(name:='parent').build(pDest:=pParent);
 	IF pParent <> 0 THEN pParent^.getContext(pDest:=pContext); END_IF
 	tracer.startSpan(name:='work', kind:=E_SpanKind.SPAN_KIND_SERVER)
-		.setParent(pContext:=pContext)
+		.setParentUsingContext(pContext:=pContext)
 		.addLink(pContext:=pContext)
 		.setStringAttribute(key:='k', value:='v')
 		.build(pDest:=pSpan);

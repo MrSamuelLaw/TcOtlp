@@ -49,11 +49,11 @@ The fields the tracer writes during building are `VAR_INPUT`, as on `FB_LogRecor
 | `kind: E_SpanKind` | — | `startSpan` |
 | `startTimestamp: ULINT` | — | `startSpan`, in Unix-epoch nanoseconds |
 | `endTimestamp: ULINT` | — | `endSpan`, in Unix-epoch nanoseconds |
-| `traceId: POINTER TO FB_TraceId` | yes | `setParent`, or `build` for a root span |
+| `traceId: POINTER TO FB_TraceId` | yes | `setParentUsingContext` or `setParentUsingSpan`, or `build` for a root span |
 | `spanId: POINTER TO FB_SpanId` | yes | `build` |
-| `parentSpanId: POINTER TO FB_SpanId` | yes | `setParent`; `0` for a root span |
-| `traceState: POINTER TO FB_TraceState` | yes | `setParent`, copied from the parent |
-| `flags: UDINT` | — | `setParent`, or `build` for a root span |
+| `parentSpanId: POINTER TO FB_SpanId` | yes | `setParentUsingContext` or `setParentUsingSpan`; `0` for a root span |
+| `traceState: POINTER TO FB_TraceState` | yes | `setParentUsingContext` or `setParentUsingSpan`, copied from the parent |
+| `flags: UDINT` | — | `setParentUsingContext` or `setParentUsingSpan`, or `build` for a root span |
 | `status: POINTER TO FB_Status` | yes | `setStatusOk` and `setStatusError` on a running span |
 | `attributes`, `links`, `resource`, `scope` | yes | setters and `addLink`, or `links.push` on a running span; `startSpan` snapshots the resource and scope |
 

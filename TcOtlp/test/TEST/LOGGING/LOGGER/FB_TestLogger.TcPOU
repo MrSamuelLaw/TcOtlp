@@ -165,7 +165,7 @@ END_VAR
 	// the default sampler samples a root span and keeps the child of an unsampled parent unsampled
 	TraceContextPropagator.extract(pDest:=pUnsampledParent, traceparent:=unsampled, tracestate:='');
 	tracer.startSpan(name:='sampled').build(pDest:=pSampledSpan);
-	tracer.startSpan(name:='unsampled').setParent(pContext:=pUnsampledParent).build(pDest:=pUnsampledSpan);
+	tracer.startSpan(name:='unsampled').setParentUsingContext(pContext:=pUnsampledParent).build(pDest:=pUnsampledSpan);
 	THIS^.AssertTrue(pSampledSpan <> 0 AND pUnsampledSpan <> 0, 'Expected both spans to be built');
 
 	IF pSampledSpan <> 0 THEN

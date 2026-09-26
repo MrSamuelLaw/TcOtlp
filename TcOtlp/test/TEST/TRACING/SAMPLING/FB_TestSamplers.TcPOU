@@ -31,7 +31,7 @@ END_VAR
         <ST><![CDATA[IF pParent = 0 THEN
 	_built := tracer.startSpan(name:=name).build(pDest:=_pSpan);
 ELSE
-	_built := tracer.startSpan(name:=name).setParent(pContext:=pParent).build(pDest:=_pSpan);
+	_built := tracer.startSpan(name:=name).setParentUsingContext(pContext:=pParent).build(pDest:=_pSpan);
 END_IF
 IF NOT _built THEN
 	RETURN;
@@ -109,7 +109,7 @@ END_VAR
 	THIS^.AssertTrue(pParent <> 0, 'Expected the unsampled parent to be extracted');
 
 	provider.stageProcessor(processor);
-	tracer.startSpan(name:='child').setParent(pContext:=pParent).build(pDest:=pSpan);
+	tracer.startSpan(name:='child').setParentUsingContext(pContext:=pParent).build(pDest:=pSpan);
 	THIS^.AssertTrue(pSpan <> 0, 'Expected the child to be built');
 	IF pSpan <> 0 THEN
 		pSpan^.getContext(pDest:=pContext);

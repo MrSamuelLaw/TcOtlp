@@ -109,7 +109,7 @@ END_VAR
 	END_IF
 	tracer
 		.startSpan(name:='child', kind:=E_SpanKind.SPAN_KIND_CLIENT)
-		.setParent(pContext:=pContext)
+		.setParentUsingContext(pContext:=pContext)
 		.build(pDest:=pChild);
 	THIS^.AssertTrue(pChild <> 0, 'Expected the child span to build');
 	IF pChild <> 0 THEN
@@ -468,7 +468,7 @@ END_VAR
 	// 16#301: sampled, remoteness known, remote
 	ContextFactory.buildContext(pDest:=pRemote, pTraceId:=ADR(traceId), pSpanId:=ADR(spanId), pTraceState:=pTraceState, traceFlags:=16#301);
 	IF pTraceState <> 0 THEN pTraceState^.delete(pSelf:=pTraceState); END_IF
-	tracer.startSpan(name:='remote.child').setParent(pContext:=pRemote).build(pDest:=pSpan);
+	tracer.startSpan(name:='remote.child').setParentUsingContext(pContext:=pRemote).build(pDest:=pSpan);
 	IF pRemote <> 0 THEN pRemote^.delete(pSelf:=pRemote); END_IF
 	THIS^.AssertTrue(pSpan <> 0, 'Expected the span to build');
 
