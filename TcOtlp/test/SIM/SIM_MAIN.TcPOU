@@ -41,8 +41,9 @@ VAR
 	simulateMotorFailure: BOOL;
 	
 	// process inputs (in a real sitation these would likely come from SCADA)
-	cmdStageUp: BOOL := FALSE;  // when true the skid will attempt to stage up
-	cmdFlowRate: REAL := 700;  // GPM
+	cmdStageUp: BOOL := FALSE;  	// when true the skid will attempt to stage up
+	cmdFlowRate: REAL := 700;  		// GPM
+	valveOpenPosition: REAL := 100;	// open position
 	
 	// process outputs
 	currentState: 	USINT;
@@ -137,7 +138,7 @@ CASE currentState OF
 				flowRate := 0;
 				cmdStageUp := FALSE;
 				tracer.setSpanStatusError(pPumpStageSpan, 'pump motor failure');
-				tracer.setSpanStatusError(pRootSpan, 'pump motor failure');
+				tracer.setSpanStatusError(pRootSpan, 'skid startup failure');
 				motorLogger
 					.startLogRecord(E_SeverityNumber.FATAL)
 					.setBody('pump failure detected, stopping pump!')
@@ -166,7 +167,7 @@ CASE currentState OF
 			valveLogger
 				.startLogRecord(E_SeverityNumber.TRACE)
 				.setBody(SEL(cmdStageUp, 'closing valve', 'opening valve'))
-				.setNumberAttribute('flow.target', cmdFlowRate)
+				.setNumberAttribute('position.target', valveOpenPosition)
 				.setTraceContextFromSpan(pPumpStageSpan)
 				.emit();
 		END_IF
@@ -181,12 +182,27 @@ CASE currentState OF
 		
 		IF (NOT cmdStageUp) AND valvePosition <= 0.0 THEN
 			_computedState := 1;
-		ELSIF cmdStageUp AND valvePosition >= 100.0 THEN
-			_computedState := 3;
+		ELSIF cmdStageUp THEN
+			IF simulateValveFailure AND valvePosition >= 50.0 THEN
+				_computedState := 1;
+				cmdStageUp := FALSE;
+				valvePosition := 0;
+				tracer.setSpanStatusError(pRootSpan, 'startup failure');
+				tracer.setSpanStatusError(pValveStageSpan, 'valve open failure');
+				valveLogger
+					.startLogRecord(E_SeverityNumber.FATAL)
+					.setBody('valve failure detected, attempting to shut down')
+					.setNumberAttribute('valve.target', valveOpenPosition)
+					.setNumberAttribute('valve.actual', valvePosition)
+					.setTraceContextFromSpan(pValveStageSpan)
+					.emit();
+			ELSIF valvePosition >= 100.0 THEN
+				tracer.setSpanStatusOk(pValveStageSpan);
+				_computedState := 3;
+			END_IF
 		END_IF
 		
 		IF _computedState <> currentState THEN
-			tracer.setSpanStatusOk(pValveStageSpan);
 			tracer.endSpan(pValveStageSpan);
 		END_IF
 		
