@@ -5,7 +5,7 @@ status: implemented
 implements:
   - FB_SpanProcessor_Base
   - FB_SpanProcessor_Simple
-source: TcOtlp/test/OTEL/TRACING/PROCESSORS/FUNCTION_BLOCKS/
+source: TcOtlp/otel/OTEL/TRACING/PROCESSORS/FUNCTION_BLOCKS/
 gap: onStart is not part of the contract yet.
 ---
 

@@ -6,7 +6,7 @@ implements:
   - FB_TraceState
   - TraceStateFactory
   - E_TraceStateFailureReason
-source: TcOtlp/test/OTEL/TRACING/TRACESTATE/
+source: TcOtlp/otel/OTEL/TRACING/TRACESTATE/
 gap: TraceContextPropagator (extract/inject) does not exist yet, so nothing parses or truncates at a carrier boundary outside tests.
 ---
 

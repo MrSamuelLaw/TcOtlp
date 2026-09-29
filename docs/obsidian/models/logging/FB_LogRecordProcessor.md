@@ -7,7 +7,7 @@ implements:
   - FB_LogRecordProcessor_Mixin
   - FB_LogRecordProcessor_Simple
   - FB_LogRecordProcessor_Batch
-source: TcOtlp/test/OTEL/LOGGING/PROCESSORS/FUNCTION_BLOCKS/
+source: TcOtlp/otel/OTEL/LOGGING/PROCESSORS/FUNCTION_BLOCKS/
 ---
 
 Processors receive emitted log records from [[FB_LoggerProvider]] and prepare them for export.

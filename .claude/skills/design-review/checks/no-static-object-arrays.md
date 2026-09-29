@@ -60,7 +60,7 @@ Name the replacement that fits, and point to the existing example:
 
 ## Severity
 
-- **violation:** an array of objects, as defined in the Rule, declared in production code under `TcOtlp/test/OTEL/`.
+- **violation:** an array of objects, as defined in the Rule, declared in production code under `TcOtlp/otel/OTEL/`.
 - **review:**
   - an array of strings whose domain meaning is unclear
   - a borderline exemption

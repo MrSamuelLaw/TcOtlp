@@ -1,8 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1">
-  <POU Name="SIM_MAIN" Id="{e7bb73c9-25de-42b1-a4f9-ce2c149f30b5}" SpecialFunc="None">
-    <Declaration><![CDATA[PROGRAM SIM_MAIN
-
+  <POU Name="MAIN" Id="{f531e982-a20c-4760-910c-0f69803ce7f9}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
 VAR
 	// shared otel configs
 	resource: FB_Resource(schemaUrl:='');
@@ -14,7 +13,6 @@ VAR
 	motorLogger: FB_Logger(provider:=loggerProvider, scope:=motorScope);
 	valveLogger: FB_Logger(provider:=loggerProvider, scope:=valveScope);
 	signozProcessor: FB_LogRecordProcessor_Signoz(0);
-	consoleProcessor: FB_LogRecordProcessor_ConsolePrinter(0);
 	logExporter: FB_LogRecordExporter_HTTP('http://192.168.97.55:4318/v1/logs', TRUE);
 	logBatchProcessor: FB_LogRecordProcessor_Batch(maxQueueSize:=500, scheduledDelayMillis:=1500, 
 												maxExportBatchSize:=500, exporter:=logExporter);
@@ -67,13 +65,12 @@ END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[IF firstScan THEN
-	resource.attributes.setStringAttribute('name', 'PLC1');
+	resource.attributes.setStringAttribute('service.name', 'PLC1');
 END_IF
 	
 // run the logger every tick
 loggerProvider
 	.stageProcessor(signozProcessor)
-	.stageProcessor(consoleProcessor)
 	.stageProcessor(logBatchProcessor)
 	.tick();
 	
@@ -226,8 +223,8 @@ currentState := _computedState;
 
 pumpRampTON(IN:=currentState=1 AND NOT pumpRampTON.Q);
 valveRampTON(IN:=currentState=2 AND NOT valveRampTON.Q);
-	
-]]></ST>
+
+firstScan := FALSE;]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

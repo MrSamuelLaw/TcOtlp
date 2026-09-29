@@ -4,7 +4,7 @@ domain: tracing
 status: implemented
 implements:
   - FB_Span
-source: TcOtlp/test/OTEL/TRACING/SPAN/FUNCTION_BLOCKS/FB_Span.TcPOU
+source: TcOtlp/otel/OTEL/TRACING/SPAN/FUNCTION_BLOCKS/FB_Span.TcPOU
 ---
 
 `FB_Span` is one timed operation in a trace. A log record is complete the moment it is emitted. A span is different because it has a lifecycle: it is built, it runs while the work it measures is in progress, and then it ends. Only an ended span is complete, and only an ended span is exported.

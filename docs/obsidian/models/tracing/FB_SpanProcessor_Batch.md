@@ -4,7 +4,7 @@ domain: tracing
 status: implemented
 implements:
   - FB_SpanProcessor_Batch
-source: TcOtlp/test/OTEL/TRACING/PROCESSORS/FUNCTION_BLOCKS/FB_SpanProcessor_Batch.TcPOU
+source: TcOtlp/otel/OTEL/TRACING/PROCESSORS/FUNCTION_BLOCKS/FB_SpanProcessor_Batch.TcPOU
 gap: There is no forceFlush, so spans still queued when the PLC stops are lost. onStart is not part of the processor contract.
 ---
 

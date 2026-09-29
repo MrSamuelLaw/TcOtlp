@@ -6,7 +6,7 @@ implements:
   - FB_Sampler
   - FB_Sampler_AlwaysOn
   - FB_Sampler_ErrorsOnly
-source: TcOtlp/test/OTEL/TRACING/SAMPLING/FUNCTION_BLOCKS/
+source: TcOtlp/otel/OTEL/TRACING/SAMPLING/FUNCTION_BLOCKS/
 gap: Only the sampled bit is decided. There is no RECORD_ONLY decision, and a sampler cannot add attributes or change the trace state as the OpenTelemetry ShouldSample can.
 ---
 

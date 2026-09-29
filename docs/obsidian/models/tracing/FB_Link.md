@@ -6,7 +6,7 @@ implements:
   - FB_Link
   - FB_Links
   - LinkFactory
-source: TcOtlp/test/OTEL/TRACING/LINK/FUNCTION_BLOCKS/
+source: TcOtlp/otel/OTEL/TRACING/LINK/FUNCTION_BLOCKS/
 gap: No cloneLink yet; nothing needs to copy a link until spans are cloned.
 ---
 

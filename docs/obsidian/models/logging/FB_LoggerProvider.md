@@ -4,7 +4,7 @@ domain: logging
 status: implemented
 implements:
   - FB_LoggerProvider
-source: TcOtlp/test/OTEL/LOGGING/PROVIDER/FUNCTION_BLOCKS/FB_LoggerProvider.TcPOU
+source: TcOtlp/otel/OTEL/LOGGING/PROVIDER/FUNCTION_BLOCKS/FB_LoggerProvider.TcPOU
 ---
 
 `FB_LoggerProvider` is the context object that owns the per-scan log record buffer and drives the processing pipeline. It exposes the `FB_Resource` used by its loggers and provides the cyclic entry point for the whole logging domain.

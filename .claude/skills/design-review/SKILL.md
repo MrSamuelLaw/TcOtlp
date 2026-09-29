@@ -20,8 +20,8 @@ The review is read-only. It reports findings and does not fix them unless the us
 
 Each check file may declare its scope on a `**Scope:**` line under its title. Without one, the check is a production check.
 
-- **Production checks** (no `Scope` line, or `**Scope:** production`): review `TcOtlp/test/OTEL/`. Exclude `TcOtlp/test/TEST/` (test suites and test doubles) unless `include-tests` is given.
-- **Test checks** (`**Scope:** tests`): review `TcOtlp/test/TEST/`, including test doubles. `TcOtlp/test/OTEL/` is read-only reference: the agent reads it to learn which factories exist and what the production code does, but reports nothing there.
+- **Production checks** (no `Scope` line, or `**Scope:** production`): review `TcOtlp/otel/OTEL/`. Exclude `TcOtlp/test/TEST/` (test suites and test doubles) unless `include-tests` is given.
+- **Test checks** (`**Scope:** tests`): review `TcOtlp/test/TEST/`, including test doubles. `TcOtlp/otel/OTEL/` is read-only reference: the agent reads it to learn which factories exist and what the production code does, but reports nothing there.
 - In both cases, review only Structured Text sources: `*.TcPOU`, `*.TcDUT`, `*.TcGVL`, `*.TcTLEO`. Code lives in the `<![CDATA[ ... ]]>` sections of the XML.
 
 The test checks are:

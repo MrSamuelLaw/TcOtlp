@@ -4,7 +4,7 @@ domain: serialization
 status: implemented
 implements:
   - FB_LogRecordProtoJsonSerializer
-source: TcOtlp/test/OTEL/LOGGING/SERIALIZATION/FUNCTION_BLOCKS/FB_LogRecordProtoJsonSerializer.TcPOU
+source: TcOtlp/otel/OTEL/LOGGING/SERIALIZATION/FUNCTION_BLOCKS/FB_LogRecordProtoJsonSerializer.TcPOU
 ---
 
 `FB_LogRecordProtoJsonSerializer.serializeLogsData` converts a queue of log records into one OTLP ProtoJSON `LogsData` object.

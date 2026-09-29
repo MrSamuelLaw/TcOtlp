@@ -7,7 +7,7 @@ implements:
   - FB_LogRecordExporter_Console
   - FB_LogRecordExporter_File
   - FB_LogRecordExporter_HTTP
-source: TcOtlp/test/OTEL/LOGGING/EXPORTING/FUNCTION_BLOCKS/
+source: TcOtlp/otel/OTEL/LOGGING/EXPORTING/FUNCTION_BLOCKS/
 ---
 
 `FB_LogRecordExporter_Base` is the `ABSTRACT` base defining the ownership and coordination contract shared by log record exporters. Processors query `isBusy()` before offering a batch and call the exporter cyclically to advance destination-specific work.

@@ -4,7 +4,7 @@ domain: tracing
 status: partial
 implements:
   - FB_TracerProvider
-source: TcOtlp/test/OTEL/TRACING/PROVIDER/FUNCTION_BLOCKS/FB_TracerProvider.TcPOU
+source: TcOtlp/otel/OTEL/TRACING/PROVIDER/FUNCTION_BLOCKS/FB_TracerProvider.TcPOU
 gap: Implemented except for onStart notifications to processors, which the processor contract does not have yet.
 ---
 

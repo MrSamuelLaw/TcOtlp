@@ -3,40 +3,39 @@
   <POU Name="MAIN" Id="{1fa3e08a-8235-40d5-a330-62ab1eea7a52}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM MAIN
 VAR
-// 	{attribute 'analysis' := '-33'}fbTestOtlpValue: FB_TestOtlpValue();
-// 	{attribute 'analysis' := '-33'}fbTestAttributes: FB_TestAttributes();
-// 	{attribute 'analysis' := '-33'}fbTestLogRecordQueue: FB_TestLogRecordQueue();
-// 	{attribute 'analysis' := '-33'}fbTestLogger: FB_TestLogger();
-// 	{attribute 'analysis' := '-33'}fbTestProvider: FB_TestLoggerProvider();
-// 	{attribute 'analysis' := '-33'}fbTestProcessors: FB_TestLogProcessors();
-// 	{attribute 'analysis' := '-33'}fbTestExporters: FB_TestLogExporters();
-// 	{attribute 'analysis' := '-33'}fbTestLogRecord: FB_TestLogRecord();
-// 	{attribute 'analysis' := '-33'}fbTestProtoJsonSerializer: FB_TestProtoJsonSerializer();
-// 	{attribute 'analysis' := '-33'}fbTestFileExporter: FB_TestFileExporter();
-// 	{attribute 'analysis' := '-33'}fbTestHttpExporter: FB_TestHttpExporter();
-// 	{attribute 'analysis' := '-33'}fbTestIdGenerator: FB_TestIdGenerator();
-// 	{attribute 'analysis' := '-33'}fbTestSpanContext: FB_TestSpanContext();
-// 	{attribute 'analysis' := '-33'}fbTestTraceState: FB_TestTraceState();
-// 	{attribute 'analysis' := '-33'}fbTestTraceContextPropagator: FB_TestTraceContextPropagator();
-// 	{attribute 'analysis' := '-33'}fbTestAdsLoopbackPropagation: FB_TestAdsLoopbackPropagation();
-// 	{attribute 'analysis' := '-33'}fbTestSpan: FB_TestSpan();
-// 	{attribute 'analysis' := '-33'}fbTestTracer: FB_TestTracer();
-// 	{attribute 'analysis' := '-33'}fbTestSpanQueue: FB_TestSpanQueue();
-// 	{attribute 'analysis' := '-33'}fbTestSpanProcessors: FB_TestSpanProcessors();
-// 	{attribute 'analysis' := '-33'}fbTestTracerProvider: FB_TestTracerProvider();
-// 	{attribute 'analysis' := '-33'}fbTestSamplers: FB_TestSamplers();
-// 	{attribute 'analysis' := '-33'}fbTestSpanProtoJsonSerializer: FB_TestSpanProtoJsonSerializer();
-// 	{attribute 'analysis' := '-33'}fbTestLinks: FB_TestLinks();
-// 	{attribute 'analysis' := '-33'}fbTestSpanFileExporter: FB_TestSpanFileExporter();
-// 	{attribute 'analysis' := '-33'}fbTestSpanConsoleExporter: FB_TestSpanConsoleExporter();
-// 	{attribute 'analysis' := '-33'}fbTestSpanHttpExporter: FB_TestSpanHttpExporter();
-// 	{attribute 'analysis' := '-33'}fbTestHttpUrlParser: FB_TestHttpUrlParser();
-// 	{attribute 'analysis' := '-33'}fbTestSpanSimulation: FB_TestSpanSimulation();
+	{attribute 'analysis' := '-33'}fbTestOtlpValue: FB_TestOtlpValue();
+	{attribute 'analysis' := '-33'}fbTestAttributes: FB_TestAttributes();
+	{attribute 'analysis' := '-33'}fbTestLogRecordQueue: FB_TestLogRecordQueue();
+	{attribute 'analysis' := '-33'}fbTestLogger: FB_TestLogger();
+	{attribute 'analysis' := '-33'}fbTestProvider: FB_TestLoggerProvider();
+	{attribute 'analysis' := '-33'}fbTestProcessors: FB_TestLogProcessors();
+	{attribute 'analysis' := '-33'}fbTestExporters: FB_TestLogExporters();
+	{attribute 'analysis' := '-33'}fbTestLogRecord: FB_TestLogRecord();
+	{attribute 'analysis' := '-33'}fbTestProtoJsonSerializer: FB_TestProtoJsonSerializer();
+	{attribute 'analysis' := '-33'}fbTestFileExporter: FB_TestFileExporter();
+	{attribute 'analysis' := '-33'}fbTestHttpExporter: FB_TestHttpExporter();
+	{attribute 'analysis' := '-33'}fbTestIdGenerator: FB_TestIdGenerator();
+	{attribute 'analysis' := '-33'}fbTestSpanContext: FB_TestSpanContext();
+	{attribute 'analysis' := '-33'}fbTestTraceState: FB_TestTraceState();
+	{attribute 'analysis' := '-33'}fbTestTraceContextPropagator: FB_TestTraceContextPropagator();
+	{attribute 'analysis' := '-33'}fbTestAdsLoopbackPropagation: FB_TestAdsLoopbackPropagation();
+	{attribute 'analysis' := '-33'}fbTestSpan: FB_TestSpan();
+	{attribute 'analysis' := '-33'}fbTestTracer: FB_TestTracer();
+	{attribute 'analysis' := '-33'}fbTestSpanQueue: FB_TestSpanQueue();
+	{attribute 'analysis' := '-33'}fbTestSpanProcessors: FB_TestSpanProcessors();
+	{attribute 'analysis' := '-33'}fbTestTracerProvider: FB_TestTracerProvider();
+	{attribute 'analysis' := '-33'}fbTestSamplers: FB_TestSamplers();
+	{attribute 'analysis' := '-33'}fbTestSpanProtoJsonSerializer: FB_TestSpanProtoJsonSerializer();
+	{attribute 'analysis' := '-33'}fbTestLinks: FB_TestLinks();
+	{attribute 'analysis' := '-33'}fbTestSpanFileExporter: FB_TestSpanFileExporter();
+	{attribute 'analysis' := '-33'}fbTestSpanConsoleExporter: FB_TestSpanConsoleExporter();
+	{attribute 'analysis' := '-33'}fbTestSpanHttpExporter: FB_TestSpanHttpExporter();
+	{attribute 'analysis' := '-33'}fbTestHttpUrlParser: FB_TestHttpUrlParser();
+	{attribute 'analysis' := '-33'}fbTestSpanSimulation: FB_TestSpanSimulation();
 END_VAR
 ]]></Declaration>
     <Implementation>
-      <ST><![CDATA[// TcUnit.RUN();
-SIM_MAIN();]]></ST>
+      <ST><![CDATA[TcUnit.RUN();]]></ST>
     </Implementation>
   </POU>
 </TcPlcObject>

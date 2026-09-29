@@ -5,7 +5,7 @@ status: partial
 implements:
   - FB_Tracer
   - E_TracerFailureReason
-source: TcOtlp/test/OTEL/TRACING/TRACER/FB_Tracer.TcPOU
+source: TcOtlp/otel/OTEL/TRACING/TRACER/FB_Tracer.TcPOU
 gap: The fluent build chain (startSpan, setParentUsingContext, setParentUsingSpan, attributes, build) and endSpan are implemented; replaceSpan is not.
 ---
 

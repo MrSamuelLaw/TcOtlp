@@ -5,7 +5,7 @@ status: implemented
 implements:
   - FB_Logger
   - FB_LogRecord
-source: TcOtlp/test/OTEL/LOGGING/LOGGER/FUNCTION_BLOCKS/FB_Logger.TcPOU
+source: TcOtlp/otel/OTEL/LOGGING/LOGGER/FUNCTION_BLOCKS/FB_Logger.TcPOU
 ---
 
 `FB_Logger` is the public API of the logging domain. Application code uses it to build one `FB_LogRecord` at a time through a fluent chain, and then emits that record to its [[FB_LoggerProvider]]. The logger decides what the record contains. It does not queue, process, serialize or export records.

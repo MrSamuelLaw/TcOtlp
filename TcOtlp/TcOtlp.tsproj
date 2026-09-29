@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
-<TcSmProject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2012/07/TcSmProject" TcSmVersion="1.0" TcVersion="3.1.4026.25">
-	<Project ProjectGUID="{853174B0-E71E-455D-B657-18F2B09B4118}" TargetNetId="17.237.66.172.1.1" Target64Bit="true" ShowHideConfigurations="#x6">
+<TcSmProject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2012/07/TcSmProject" TcSmVersion="1.0" TcVersion="3.1.4026.27">
+	<Project ProjectGUID="{853174B0-E71E-455D-B657-18F2B09B4118}" TargetNetId="199.4.42.250.1.1" Target64Bit="true" ShowHideConfigurations="#x6">
 		<System>
 			<Licenses>
 				<Target>
@@ -8,31 +8,17 @@
 				</Target>
 			</Licenses>
 			<Tasks>
-				<Task Id="4" Priority="21" CycleTime="100000" AmsPort="351" AdtTasks="true">
-					<Name>PlcTask1</Name>
+				<Task Id="3" Priority="20" CycleTime="100000" AmsPort="350" AdtTasks="true">
+					<Name>PlcTask</Name>
 				</Task>
 			</Tasks>
 		</System>
 		<Plc>
-			<Project GUID="{F2282EC6-8CC9-4EC9-8081-E96E56F26795}" Name="test" PrjFilePath="test\test.plcproj" TmcFilePath="test\test.tmc" ReloadTmc="true" AmsPort="852" FileArchiveSettings="#x000e" CopyTmcToTarget="true" SymbolicMapping="true">
-				<Instance Id="#x08502040" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{F0537F2C-1EAA-4EDB-FF3D-EB76EE6560F4}" TmcPath="test\test.tmc">
-					<Name>test Instance</Name>
+			<Project File="test.xti"/>
+			<Project GUID="{FAAB2A38-BB7C-4E5F-BECD-2ADEF2D89F75}" Name="otel" PrjFilePath="otel\otel.plcproj" TmcFilePath="otel\otel.tmc" ReloadTmc="true" AmsPort="853" FileArchiveSettings="#x000e" SymbolicMapping="true">
+				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{6A649F70-5778-D590-527E-BD1A38E8310F}" TmcPath="otel\otel.tmc">
+					<Name>otel Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
-					<Contexts>
-						<Context>
-							<Id>0</Id>
-							<Name>PlcTask</Name>
-							<ManualConfig>
-								<OTCID>#x02010040</OTCID>
-							</ManualConfig>
-							<Priority>21</Priority>
-							<CycleTime>10000000</CycleTime>
-						</Context>
-					</Contexts>
-					<JsonDynPous><![CDATA[null]]></JsonDynPous>
-					<TaskPouOids>
-						<TaskPouOid Prio="21" OTCID="#x08502041"/>
-					</TaskPouOids>
 				</Instance>
 			</Project>
 		</Plc>

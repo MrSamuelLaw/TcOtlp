@@ -7,7 +7,7 @@ implements:
   - FB_SpanExporter_File
   - FB_SpanExporter_Console
   - FB_SpanExporter_HTTP
-source: TcOtlp/test/OTEL/TRACING/EXPORTING/FUNCTION_BLOCKS/
+source: TcOtlp/otel/OTEL/TRACING/EXPORTING/FUNCTION_BLOCKS/
 gap: register is not implemented, so nothing stops two processors from sharing one exporter.
 ---
 

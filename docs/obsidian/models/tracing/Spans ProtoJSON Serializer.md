@@ -4,7 +4,7 @@ domain: serialization
 status: implemented
 implements:
   - FB_SpanProtoJsonSerializer
-source: TcOtlp/test/OTEL/TRACING/SERIALIZATION/FUNCTION_BLOCKS/FB_SpanProtoJsonSerializer.TcPOU
+source: TcOtlp/otel/OTEL/TRACING/SERIALIZATION/FUNCTION_BLOCKS/FB_SpanProtoJsonSerializer.TcPOU
 ---
 
 `FB_SpanProtoJsonSerializer.serializeTracesData` converts a queue of ended spans into one OTLP ProtoJSON `TracesData` object: `resourceSpans` → `scopeSpans` → `spans`. It extends `FB_BaseProtoJsonSerializer`, and the document is left in `parser` and `jsonValue`, as with [[LogRecords ProtoJSON Serializer]].

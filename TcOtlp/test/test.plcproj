@@ -9,7 +9,7 @@
     <WriteProductVersion>false</WriteProductVersion>
     <GenerateTpy>false</GenerateTpy>
     <Name>test</Name>
-    <ProgramVersion>3.1.4026.25</ProgramVersion>
+    <ProgramVersion>3.1.4026.27</ProgramVersion>
     <Application>{d9585b80-94c6-4fdd-a516-4aafc96db054}</Application>
     <TypeSystem>{0eddcf7c-47c4-4139-9020-60b36de998af}</TypeSystem>
     <Implicit_Task_Info>{ef0eb455-c91f-4791-8361-d7fa06172917}</Implicit_Task_Info>
@@ -17,106 +17,15 @@
     <Implicit_Jitter_Distribution>{47f35de5-8146-4178-a7db-59be32dbfd2b}</Implicit_Jitter_Distribution>
     <LibraryReferences>{36850826-8245-4c80-9f42-1033f8f434df}</LibraryReferences>
     <Released>false</Released>
+    <Company>
+    </Company>
+    <Title>
+    </Title>
+    <ProjectVersion>
+    </ProjectVersion>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="MAIN.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\COMMON\ENUMS\E_BytesEncoding.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\FB_InstrumentationScope.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\COMMON\FUNCTION_BLOCKS\FB_Resource.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\COMMON\STRUCTS\ST_LinkedListNode.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\EXPORTING\ENUMS\E_FileExporterState.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\EXPORTING\ENUMS\E_HttpExporterState.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\LOGGING\EXPORTING\ENUMS\E_LogRecordExporterFailureReason.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\LOGGING\EXPORTING\ENUMS\E_LogRecordExporterState.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\LOGGING\EXPORTING\FUNCTION_BLOCKS\FB_LogRecordExporter_Base.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\LOGGING\EXPORTING\FUNCTION_BLOCKS\FB_LogRecordExporter_Console.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\LOGGING\EXPORTING\FUNCTION_BLOCKS\FB_LogRecordExporter_File.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\LOGGING\EXPORTING\FUNCTION_BLOCKS\FB_LogRecordExporter_HTTP.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\LOGGING\LOGGER\ENUMS\E_LoggerFailureReason.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\LOGGING\LOGGER\FUNCTION_BLOCKS\FB_Logger.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\LOGGING\LOG_RECORD\ENUMS\E_LogRecordCloneFailureReason.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\LOGGING\LOG_RECORD\ENUMS\E_LogRecordFlag.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\LOGGING\LOG_RECORD\ENUMS\E_LogRecordQueueFailureReason.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\LOGGING\LOG_RECORD\ENUMS\E_SeverityNumber.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\LOGGING\LOG_RECORD\FUNCTION_BLOCKS\FB_LogRecord.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\LOGGING\LOG_RECORD\FUNCTION_BLOCKS\FB_LogRecordQueue.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\LOGGING\PROCESSORS\ENUMS\E_LogRecordProcessorFailureReason.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\LOGGING\PROCESSORS\FUNCTION_BLOCKS\FB_LogRecordProcessor_Base.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\LOGGING\PROCESSORS\FUNCTION_BLOCKS\FB_LogRecordProcessor_Batch.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\LOGGING\PROCESSORS\FUNCTION_BLOCKS\FB_LogRecordProcessor_Simple.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\LOGGING\PROVIDER\ENUMS\E_LoggerProviderFailureReason.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\LOGGING\PROVIDER\FUNCTION_BLOCKS\FB_LoggerProvider.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\LOGGING\SERIALIZATION\FUNCTION_BLOCKS\FB_LogRecordProtoJsonSerializer.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TcOtlp_GVL.TcGVL">
-      <SubType>Code</SubType>
-      <LinkAlways>true</LinkAlways>
-    </Compile>
-    <Compile Include="OTEL\TRACING\EXPORTING\ENUMS\E_SpanExporterFailureReason.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\EXPORTING\FUNCTION_BLOCKS\FB_SpanExporter_Base.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\EXPORTING\FUNCTION_BLOCKS\FB_SpanExporter_File.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\SPAN\ENUMS\E_SpanCloneFailureReason.TcTLEO">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TEST\TRACING\EXPORTING\FB_SpanExporter_ForInspection.TcPOU">
@@ -128,49 +37,16 @@
     <Compile Include="TEST\TRACING\EXPORTING\FB_TestSpanSimulation.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\TRACING\PROCESSORS\ENUMS\E_SpanProcessorFailureReason.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\PROCESSORS\FUNCTION_BLOCKS\FB_SpanProcessor_Batch.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\EXPORTING\FUNCTION_BLOCKS\FB_SpanExporter_Console.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="TEST\TRACING\EXPORTING\FB_TestSpanConsoleExporter.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\EXPORTING\FUNCTION_BLOCKS\FB_SpanExporter_HTTP.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TEST\TRACING\EXPORTING\FB_TestSpanHttpExporter.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\EXPORTING\STRUCTS\ST_HttpEndpoint.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\EXPORTING\FUNCTIONS\F_ParseHttpUrl.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="TEST\EXPORTING\FB_TestHttpUrlParser.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\TRACING\TRACESTATE\ENUMS\E_TraceStateFailureReason.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\TRACESTATE\FUNCTION_BLOCKS\FB_TraceState.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\TRACESTATE\FUNCTION_BLOCKS\TraceStateFactory.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="TEST\TRACING\TRACESTATE\FB_TestTraceState.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\PROPAGATION\ENUMS\E_PropagationFailureReason.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\PROPAGATION\TraceContextPropagator.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TEST\TRACING\PROPAGATION\FB_TestTraceContextPropagator.TcPOU">
@@ -179,151 +55,10 @@
     <Compile Include="TEST\TRACING\PROPAGATION\FB_TestAdsLoopbackPropagation.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="OTEL\TRACING\PROPAGATION\STRUCTS\ST_TraceContextCarrier.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\SAMPLING\FUNCTION_BLOCKS\FB_Sampler.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\SAMPLING\FUNCTION_BLOCKS\FB_Sampler_AlwaysOn.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\SAMPLING\FUNCTION_BLOCKS\FB_Sampler_ErrorsOnly.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="TEST\TRACING\SAMPLING\FB_Sampler_ForInspection.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TEST\TRACING\SAMPLING\FB_TestSamplers.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\ID_GENERATION\ENUMS\E_IdGenFailureReason.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\ID_GENERATION\FUNCTION_BLOCKS\FB_IdGenerator.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\ID_GENERATION\FUNCTION_BLOCKS\FB_IdGenerator_Base.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\LINK\ENUM\E_LinkFailureReason.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\LINK\FUNCTION_BLOCKS\FB_Link.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\LINK\FUNCTION_BLOCKS\FB_Links.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\LINK\FUNCTION_BLOCKS\LinkFactory.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\PROCESSORS\FUNCTION_BLOCKS\FB_SpanProcessor_Base.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\PROCESSORS\FUNCTION_BLOCKS\FB_SpanProcessor_Simple.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\PROVIDER\ENUMS\E_TracerProviderFailureReason.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\PROVIDER\FUNCTION_BLOCKS\FB_TracerProvider.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\SERIALIZATION\FUNCTION_BLOCKS\FB_SpanProtoJsonSerializer.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\SPAN\ENUMS\E_SpanFlags.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\SPAN\ENUMS\E_ContextFactoryFailureReason.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\SPAN\ENUMS\E_SpanKind.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\SPAN\ENUMS\E_SpanQueueFailureReason.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\SPAN\ENUMS\E_StatusCode.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\SPAN\ContextFactory.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\SPAN\FUNCTION_BLOCKS\FB_Span.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\SPAN\FUNCTION_BLOCKS\FB_SpanContext.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\SPAN\FUNCTION_BLOCKS\FB_SpanQueue.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\SPAN\FUNCTION_BLOCKS\FB_Status.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\TRACER\ENUMS\E_TracerFailureReason.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\TRACING\TRACER\FB_Tracer.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\VALUES\ENUMS\E_AttributesFailureReason.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\VALUES\ENUMS\E_ValueFactoryFailureReason.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\VALUES\ENUMS\E_ValueType.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\VALUES\FUNCTION_BLOCKS\FB_AnyValue.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\VALUES\FUNCTION_BLOCKS\FB_Attributes.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\VALUES\FUNCTION_BLOCKS\FB_KeyValue.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\VALUES\FUNCTION_BLOCKS\FB_Number.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\VALUES\FUNCTION_BLOCKS\FB_SpanId.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\VALUES\FUNCTION_BLOCKS\FB_String.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\VALUES\FUNCTION_BLOCKS\FB_TraceId.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\VALUES\INTERFACES\I_OtlpValue.TcIO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\VALUES\ValueFactory.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\SERIALIZATION\FUNCTION_BLOCKS\FB_BaseProtoJsonSerializer.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="OTEL\SERIALIZATION\ENUMS\E_ProtoJsonSerializerFailureReason.TcTLEO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="PlcTask.TcTTO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="SIM\CONTROL\STRUCTS\ST_OtlpSetpoint_Real.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="SIM\CONTROL\UNIONS\U_OtlpSetpoint_Real.TcDUT">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="SIM\FB_LogRecordProcessor_Signoz.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="SIM\SIM_MAIN.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="TEST\LOGGING\EXPORTING\FB_TestFileExporter.TcPOU">
@@ -415,80 +150,11 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="OTEL\EXPORTING" />
-    <Folder Include="OTEL\EXPORTING\ENUMS" />
-    <Folder Include="OTEL\LOGGING" />
-    <Folder Include="OTEL\LOGGING\EXPORTING" />
-    <Folder Include="OTEL\LOGGING\EXPORTING\ENUMS" />
-    <Folder Include="OTEL\LOGGING\EXPORTING\FUNCTION_BLOCKS" />
-    <Folder Include="OTEL\LOGGING\LOGGER" />
-    <Folder Include="OTEL\LOGGING\LOGGER\ENUMS" />
-    <Folder Include="OTEL\LOGGING\LOGGER\FUNCTION_BLOCKS" />
-    <Folder Include="OTEL\LOGGING\LOG_RECORD" />
-    <Folder Include="OTEL\LOGGING\LOG_RECORD\ENUMS" />
-    <Folder Include="OTEL\LOGGING\LOG_RECORD\FUNCTION_BLOCKS" />
-    <Folder Include="OTEL\LOGGING\PROCESSORS" />
-    <Folder Include="OTEL\LOGGING\PROCESSORS\ENUMS" />
-    <Folder Include="OTEL\LOGGING\PROCESSORS\FUNCTION_BLOCKS" />
-    <Folder Include="OTEL\LOGGING\PROVIDER" />
-    <Folder Include="OTEL\LOGGING\PROVIDER\ENUMS" />
-    <Folder Include="OTEL\LOGGING\PROVIDER\FUNCTION_BLOCKS" />
-    <Folder Include="OTEL\LOGGING\SERIALIZATION" />
-    <Folder Include="OTEL\LOGGING\SERIALIZATION\FUNCTION_BLOCKS" />
-    <Folder Include="OTEL\TRACING" />
     <Folder Include="TEST\TRACING\SAMPLING" />
-    <Folder Include="OTEL\TRACING\SAMPLING\FUNCTION_BLOCKS" />
-    <Folder Include="OTEL\TRACING\PROPAGATION\STRUCTS" />
     <Folder Include="TEST\TRACING\PROPAGATION" />
-    <Folder Include="OTEL\TRACING\PROPAGATION\ENUMS" />
-    <Folder Include="OTEL\TRACING\PROPAGATION" />
     <Folder Include="TEST\TRACING\TRACESTATE" />
-    <Folder Include="OTEL\TRACING\TRACESTATE\FUNCTION_BLOCKS" />
-    <Folder Include="OTEL\TRACING\TRACESTATE\ENUMS" />
-    <Folder Include="OTEL\TRACING\TRACESTATE" />
     <Folder Include="TEST\EXPORTING" />
-    <Folder Include="OTEL\EXPORTING\FUNCTIONS" />
-    <Folder Include="OTEL\EXPORTING\STRUCTS" />
-    <Folder Include="OTEL\TRACING\PROCESSORS\ENUMS" />
     <Folder Include="TEST\TRACING\EXPORTING" />
-    <Folder Include="OTEL\TRACING\EXPORTING\FUNCTION_BLOCKS" />
-    <Folder Include="OTEL\TRACING\EXPORTING\ENUMS" />
-    <Folder Include="OTEL\TRACING\EXPORTING" />
-    <Folder Include="OTEL\TRACING\ID_GENERATION\FUNCTION_BLOCKS" />
-    <Folder Include="OTEL\TRACING\ID_GENERATION\ENUMS" />
-    <Folder Include="OTEL\TRACING\LINK" />
-    <Folder Include="OTEL\TRACING\LINK\FUNCTION_BLOCKS" />
-    <Folder Include="OTEL\TRACING\LINK\ENUM" />
-    <Folder Include="OTEL\TRACING\ID_GENERATION" />
-    <Folder Include="OTEL\TRACING\TRACER" />
-    <Folder Include="OTEL\TRACING\TRACER\ENUMS" />
-    <Folder Include="OTEL\TRACING\SAMPLING" />
-    <Folder Include="OTEL\TRACING\PROCESSORS" />
-    <Folder Include="OTEL\TRACING\PROCESSORS\FUNCTION_BLOCKS" />
-    <Folder Include="OTEL\TRACING\SPAN" />
-    <Folder Include="OTEL\TRACING\PROVIDER" />
-    <Folder Include="OTEL\TRACING\PROVIDER\FUNCTION_BLOCKS" />
-    <Folder Include="OTEL\TRACING\PROVIDER\ENUMS" />
-    <Folder Include="OTEL\TRACING\SERIALIZATION" />
-    <Folder Include="OTEL\TRACING\SERIALIZATION\FUNCTION_BLOCKS" />
-    <Folder Include="OTEL\TRACING\SPAN\FUNCTION_BLOCKS" />
-    <Folder Include="OTEL\TRACING\SPAN\ENUMS" />
-    <Folder Include="OTEL\VALUES" />
-    <Folder Include="OTEL\VALUES\ENUMS" />
-    <Folder Include="OTEL\VALUES\FUNCTION_BLOCKS" />
-    <Folder Include="OTEL\VALUES\INTERFACES" />
-    <Folder Include="OTEL\SERIALIZATION" />
-    <Folder Include="OTEL\SERIALIZATION\ENUMS" />
-    <Folder Include="OTEL\SERIALIZATION\FUNCTION_BLOCKS" />
-    <Folder Include="SIM" />
-    <Folder Include="OTEL" />
-    <Folder Include="OTEL\COMMON\ENUMS" />
-    <Folder Include="OTEL\COMMON\FUNCTION_BLOCKS" />
-    <Folder Include="OTEL\COMMON\STRUCTS" />
-    <Folder Include="OTEL\COMMON" />
-    <Folder Include="SIM\CONTROL" />
-    <Folder Include="SIM\CONTROL\STRUCTS" />
-    <Folder Include="SIM\CONTROL\UNIONS" />
     <Folder Include="TEST" />
     <Folder Include="TEST\LOGGING" />
     <Folder Include="TEST\LOGGING\EXPORTING" />
@@ -534,6 +200,10 @@
       <DefaultResolution>Tc3_Module, * (Beckhoff Automation GmbH)</DefaultResolution>
       <Namespace>Tc3_Module</Namespace>
       <SystemLibrary>true</SystemLibrary>
+    </PlaceholderReference>
+    <PlaceholderReference Include="TcOtlp">
+      <DefaultResolution>TcOtlp, * (S&amp;E Engineering)</DefaultResolution>
+      <Namespace>TcOtlp</Namespace>
     </PlaceholderReference>
     <PlaceholderReference Include="TcUnit">
       <DefaultResolution>TcUnit, * (www.tcunit.org)</DefaultResolution>
@@ -671,7 +341,7 @@
           <d n="SubKeys" t="Hashtable" />
           <d n="Values" t="Hashtable" ckt="String" cvt="String">
             <v>DisabledWarningIds</v>
-            <v>5410</v>
+            <v>410,5410</v>
           </d>
         </o>
         <v>{eeeeeeee-3909-4298-8022-501ac3238667}</v>

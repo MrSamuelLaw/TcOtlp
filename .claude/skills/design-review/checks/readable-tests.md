@@ -29,7 +29,7 @@ These are the factories and builders:
 | `FB_Span` | `FB_Tracer.startSpan(...)...build`, and `FB_Span.cloneTo` |
 | `FB_LogRecord` | `FB_Logger.startLogRecord(...)...emit`, and `FB_LogRecord.cloneTo` |
 
-Check `TcOtlp/test/OTEL/` for factories added since this table was written. Grep for `PROGRAM .*Factory` and for methods named `build`, `create*`, `from*`, `clone*` or `cloneTo`.
+Check `TcOtlp/otel/OTEL/` for factories added since this table was written. Grep for `PROGRAM .*Factory` and for methods named `build`, `create*`, `from*`, `clone*` or `cloneTo`.
 
 ## Why
 

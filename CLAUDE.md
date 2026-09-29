@@ -92,11 +92,11 @@ The physical layout is still evolving. Do not move code solely to make the folde
 
 | Domain | Current primary locations |
 | --- | --- |
-| Value Creation | `TcOtlp/test/OTEL/VALUES/` |
-| Log Creation | `TcOtlp/test/OTEL/LOGGING/`, `TcOtlp/test/OTEL/RESOURCE/`, `TcOtlp/test/OTEL/SCOPE/` |
-| Log Processing | `TcOtlp/test/OTEL/LOGGING/FUNCTION_BLOCKS/Processors/`, logging processor interfaces and record collections |
-| Log Serialization | `TcOtlp/test/OTEL/SERIALIZATION/`, `TcOtlp/test/OTEL/LOGGING/FUNCTION_BLOCKS/Serializers/` |
-| Log Exporting | `TcOtlp/test/OTEL/EXPORTING/`, `TcOtlp/test/OTEL/LOGGING/FUNCTION_BLOCKS/Exporters/` |
+| Value Creation | `TcOtlp/otel/OTEL/VALUES/` |
+| Log Creation | `TcOtlp/otel/OTEL/LOGGING/`, `TcOtlp/otel/OTEL/RESOURCE/`, `TcOtlp/otel/OTEL/SCOPE/` |
+| Log Processing | `TcOtlp/otel/OTEL/LOGGING/FUNCTION_BLOCKS/Processors/`, logging processor interfaces and record collections |
+| Log Serialization | `TcOtlp/otel/OTEL/SERIALIZATION/`, `TcOtlp/otel/OTEL/LOGGING/FUNCTION_BLOCKS/Serializers/` |
+| Log Exporting | `TcOtlp/otel/OTEL/EXPORTING/`, `TcOtlp/otel/OTEL/LOGGING/FUNCTION_BLOCKS/Exporters/` |
 
 `OTEL/COMMON` is a shared technical kernel, not a business domain. Put code there only when it has no natural domain owner.
 

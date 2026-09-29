@@ -5,7 +5,7 @@ status: implemented
 implements:
   - FB_SpanContext
   - ContextFactory
-source: TcOtlp/test/OTEL/TRACING/SPAN/
+source: TcOtlp/otel/OTEL/TRACING/SPAN/
 gap: FB_Tracer.getSpanContext is implemented; TraceContextPropagator.extract is not. The parent-remote flags case is untested (see FB_Span TODO).
 ---
 
