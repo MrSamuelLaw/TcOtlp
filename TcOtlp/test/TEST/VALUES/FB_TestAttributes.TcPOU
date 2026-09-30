@@ -6,8 +6,178 @@ FUNCTION_BLOCK FB_TestAttributes EXTENDS FB_TestSuite
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[THIS^.testCopyFromIsIndependent();
-THIS^.testRejectsInvalidAndExcessAttributes();]]></ST>
+THIS^.testRejectsInvalidAndExcessAttributes();
+THIS^.testGetAttributeBorrowsByKey();
+THIS^.testCopyAttributeRenamesAndReplaces();
+THIS^.testCopyAttributeRespectsCountLimit();]]></ST>
     </Implementation>
+    <Method Name="testCopyAttributeRespectsCountLimit" Id="{c41d7a92-3e58-4f06-9b2a-6d8e15f3a7c0}">
+      <Declaration><![CDATA[(*
+	copyAttribute into a full collection drops a new key the same way setAttribute does, leaving the
+	collection unchanged apart from droppedCount, and still replaces a key the collection already holds.
+*)
+METHOD testCopyAttributeRespectsCountLimit : REFERENCE TO FB_Test
+VAR
+	span: FB_Attributes(maxCount:=TcOtlp_GVL.DEFAULT_MAX_ATTRIBUTE_COUNT);
+	resource: FB_Attributes(maxCount:=1);
+	pKv: POINTER TO FB_KeyValue;
+	pStr: POINTER TO FB_String;
+	success: BOOL;
+	failureReason: E_AttributesFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testCopyAttributeRespectsCountLimit');
+	success := span.setStringAttribute(key:='peer.name', value:='modbus-device', failureReason=>failureReason);
+	THIS^.AssertTrue(success, 'Expected the source attribute to be added');
+	success := resource.setStringAttribute(key:='service.name', value:='PLC1', failureReason=>failureReason);
+	THIS^.AssertTrue(success, 'Expected the target attribute to fill the collection');
+
+	// a new key is dropped: the copy is released and only droppedCount changes
+	success := resource.copyAttribute(src:=span, key:='peer.name', failureReason=>failureReason);
+	THIS^.AssertFalse(success, 'Expected a copy under a new key to be rejected by a full collection');
+	THIS^.AssertTrue(failureReason=E_AttributesFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED, 'Expected the attribute count failure reason');
+	THIS^.AssertEquals_UDINT(1, resource.count, 'Expected the rejected copy not to change the count');
+	THIS^.AssertEquals_UDINT(1, resource.droppedCount, 'Expected the rejected copy to increment the dropped count');
+	THIS^.AssertTrue(resource.getAttribute('peer.name') = 0, 'Expected the rejected key not to be added');
+	pKv := resource.getAttribute('service.name');
+	IF pKv <> 0 THEN
+		pStr := pKv^.pVal;
+		THIS^.AssertEquals_STRING('PLC1', pStr^.pString^, 'Expected the rejected copy to leave service.name untouched');
+	ELSE
+		THIS^.AssertTrue(FALSE, 'Expected service.name to survive the rejected copy');
+	END_IF
+
+	// replacing a key the full collection already holds still succeeds
+	success := resource.copyAttribute(src:=span, key:='peer.name', destKey:='service.name', failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN failureReason=E_AttributesFailureReason.NA, 'Expected a copy onto an existing key to succeed at the limit');
+	THIS^.AssertEquals_UDINT(1, resource.count, 'Expected the replacement not to change the count');
+	THIS^.AssertEquals_UDINT(1, resource.droppedCount, 'Expected the replacement not to increment the dropped count');
+	pKv := resource.getAttribute('service.name');
+	IF pKv <> 0 THEN
+		pStr := pKv^.pVal;
+		THIS^.AssertEquals_STRING('modbus-device', pStr^.pString^, 'Expected service.name to hold the copied value');
+	ELSE
+		THIS^.AssertTrue(FALSE, 'Expected service.name to exist after the replacement');
+	END_IF
+
+	span.free();
+	resource.free();
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testCopyAttributeRenamesAndReplaces" Id="{0fea04e9-84a1-468e-b1f8-5cad9e4a4d66}">
+      <Declaration><![CDATA[(*
+	copyAttribute copies one attribute, under a new name when destKey is given, replacing any
+	attribute already held under that name. The copy is independent of the source, and a key the
+	source lacks is reported without touching the target.
+*)
+METHOD testCopyAttributeRenamesAndReplaces : REFERENCE TO FB_Test
+VAR
+	span: FB_Attributes(maxCount:=TcOtlp_GVL.DEFAULT_MAX_ATTRIBUTE_COUNT);
+	resource: FB_Attributes(maxCount:=TcOtlp_GVL.DEFAULT_MAX_ATTRIBUTE_COUNT);
+	pKv: POINTER TO FB_KeyValue;
+	pStr: POINTER TO FB_String;
+	success: BOOL;
+	failureReason: E_AttributesFailureReason;
+	noFailure: E_AttributesFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testCopyAttributeRenamesAndReplaces');
+	noFailure := E_AttributesFailureReason.NA;
+
+	success := span.setStringAttribute(key:='peer.name', value:='modbus-device', failureReason=>failureReason);
+	THIS^.AssertTrue(success, 'Expected the source attribute to be added');
+	success := resource.setStringAttribute(key:='service.name', value:='PLC1', failureReason=>failureReason);
+	THIS^.AssertTrue(success, 'Expected the target attribute to be added');
+
+	// copying under a new name replaces the existing value instead of adding a key
+	success := resource.copyAttribute(src:=span, key:='peer.name', destKey:='service.name', failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN failureReason=noFailure, 'Expected the renamed copy to succeed');
+	THIS^.AssertEquals_UDINT(1, resource.count, 'Expected the renamed copy to replace service.name rather than add a key');
+	THIS^.AssertTrue(resource.getAttribute('peer.name') = 0, 'Expected the renamed copy not to add the source key');
+	pKv := resource.getAttribute('service.name');
+	IF pKv <> 0 THEN
+		pStr := pKv^.pVal;
+		THIS^.AssertEquals_STRING('modbus-device', pStr^.pString^, 'Expected service.name to hold the copied peer.name value');
+	ELSE
+		THIS^.AssertTrue(FALSE, 'Expected service.name to exist after the copy');
+	END_IF
+
+	// without destKey the attribute keeps its name
+	success := resource.copyAttribute(src:=span, key:='peer.name', failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN failureReason=noFailure, 'Expected a copy under the same key to succeed');
+	THIS^.AssertEquals_UDINT(2, resource.count, 'Expected the copy to add peer.name');
+	THIS^.AssertTrue(resource.getAttribute('peer.name') <> 0, 'Expected peer.name in the target');
+
+	// the source is unchanged and freeing it leaves the copies intact
+	THIS^.AssertEquals_UDINT(1, span.count, 'Expected copyAttribute to leave the source unchanged');
+	span.free();
+	pKv := resource.getAttribute('service.name');
+	IF pKv <> 0 THEN
+		pStr := pKv^.pVal;
+		THIS^.AssertEquals_STRING('modbus-device', pStr^.pString^, 'Expected the copy to outlive the freed source');
+	ELSE
+		THIS^.AssertTrue(FALSE, 'Expected service.name to survive freeing the source');
+	END_IF
+
+	// KEY_NOT_FOUND: the source has no such key, and the target is untouched
+	success := resource.copyAttribute(src:=span, key:='peer.name', destKey:='service.name', failureReason=>failureReason);
+	THIS^.AssertFalse(success, 'Expected a missing source key to be rejected');
+	THIS^.AssertTrue(failureReason=E_AttributesFailureReason.KEY_NOT_FOUND, 'Expected the key not found failure reason');
+	THIS^.AssertEquals_UDINT(2, resource.count, 'Expected a missing source key not to change the target');
+
+	// a collection can copy one of its own attributes to a new name
+	success := resource.copyAttribute(src:=resource, key:='service.name', destKey:='service.alias', failureReason=>failureReason);
+	THIS^.AssertTrue(success AND_THEN failureReason=noFailure, 'Expected an in-place copy to succeed');
+	THIS^.AssertEquals_UDINT(3, resource.count, 'Expected the in-place copy to add service.alias');
+
+	resource.free();
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="testGetAttributeBorrowsByKey" Id="{25957df9-e94c-4a21-a2ea-f0ff50c32ce7}">
+      <Declaration><![CDATA[(* getAttribute finds an attribute by key without taking ownership or moving the next cursor, and returns 0 for a missing key. *)
+METHOD testGetAttributeBorrowsByKey : REFERENCE TO FB_Test
+VAR
+	attributes: FB_Attributes(maxCount:=TcOtlp_GVL.DEFAULT_MAX_ATTRIBUTE_COUNT);
+	pKv: POINTER TO FB_KeyValue;
+	numVal: REAL := 2;
+	success: BOOL;
+	failureReason: E_AttributesFailureReason;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[TcUnit.TEST('testGetAttributeBorrowsByKey');
+	THIS^.AssertTrue(attributes.getAttribute('missing') = 0, 'Expected an empty collection to return 0');
+
+	success := attributes.setStringAttribute(key:='first', value:='one', failureReason=>failureReason);
+	THIS^.AssertTrue(success, 'Expected the first attribute to be added');
+	success := attributes.setNumberAttribute(key:='second', value:=numVal, failureReason=>failureReason);
+	THIS^.AssertTrue(success, 'Expected the second attribute to be added');
+
+	attributes.reset();
+	pKv := attributes.getAttribute('second');
+	THIS^.AssertTrue(pKv <> 0, 'Expected the second attribute to be found');
+	IF pKv <> 0 THEN
+		THIS^.AssertEquals_STRING('second', pKv^.pKey^, 'Expected the attribute with the requested key');
+	END_IF
+	THIS^.AssertTrue(attributes.getAttribute('missing') = 0, 'Expected a missing key to return 0');
+
+	// the cursor has not moved, so next still starts at the first attribute
+	pKv := attributes.next();
+	IF pKv <> 0 THEN
+		THIS^.AssertEquals_STRING('first', pKv^.pKey^, 'Expected getAttribute not to move the next cursor');
+	ELSE
+		THIS^.AssertTrue(FALSE, 'Expected next to return the first attribute');
+	END_IF
+	THIS^.AssertEquals_UDINT(2, attributes.count, 'Expected getAttribute not to change the collection');
+
+	attributes.free();
+TcUnit.TEST_FINISHED();]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="testCopyFromIsIndependent" Id="{23900586-864d-4e56-8db4-89d06b3a65a9}">
       <Declaration><![CDATA[(* copyFrom gives the target its own copy of every attribute, so freeing either collection leaves the other intact. *)
 METHOD testCopyFromIsIndependent : REFERENCE TO FB_Test

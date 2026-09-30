@@ -16,7 +16,7 @@
 		<Plc>
 			<Project File="test.xti"/>
 			<Project GUID="{FAAB2A38-BB7C-4E5F-BECD-2ADEF2D89F75}" Name="otel" PrjFilePath="otel\otel.plcproj" TmcFilePath="otel\otel.tmc" ReloadTmc="true" AmsPort="853" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{6A649F70-5778-D590-527E-BD1A38E8310F}" TmcPath="otel\otel.tmc">
+				<Instance Id="#x08502080" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcHash="{DEBF020D-E393-576F-B6E3-81EF09A91F8B}" TmcPath="otel\otel.tmc">
 					<Name>otel Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 				</Instance>

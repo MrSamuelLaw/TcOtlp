@@ -9,7 +9,7 @@ Runs the TcOtlp TcUnit test suite by invoking `run-tests.ps1` from the workspace
 
 ## Prerequisites
 
-- Visual Studio 2022 Community must be **open and running** before executing tests.
+- The 64-bit TwinCAT XAE Shell (`TcXaeShell.exe`) must be **open and running** before executing tests.
 - The TwinCAT XAE shell and TcUnit must be installed.
 
 ## How to Run Tests
@@ -30,6 +30,13 @@ powershell -ExecutionPolicy Bypass -File tools/run-tests.ps1
 | `-SettleMs` | 1000 | Quiet period required after the TcUnit summary appears |
 | `-TailLines` | 400 | Lines read from the end of the output pane per poll |
 | `-IncrementalBuild` | off | Use `Build.BuildSolution` instead of a full rebuild |
+| `-InstallLibrary` | off | Check the `otel` project, save it as `bin/otel.library`, install it, and reopen the solution before building |
+
+The `test` PLC project references the **installed** `TcOtlp` library (`TcOtlp, *`), not the `otel` sources. After changing anything under `TcOtlp/otel/`, run with `-InstallLibrary` or the tests still exercise the old library:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/run-tests.ps1 -InstallLibrary
+```
 
 Example with custom timeouts:
 
@@ -45,7 +52,7 @@ powershell -ExecutionPolicy Bypass -File tools/run-tests.ps1 -IncrementalBuild
 
 ## What the Script Does
 
-1. **Attaches** to a running VS 2022 instance via DTE COM (`VisualStudio.DTE.17.0`).
+1. **Attaches** to a running TcXaeShell instance via DTE COM (`TcXaeShell.DTE.17.0`).
 2. **Opens** the solution `TcOtlp/TcOtlp.sln` if not already loaded.
 3. **Rebuilds** the solution; exits with code 1 on build errors, printing Error List details.
 4. **Starts TwinCAT** runtime via `StartRestartTwinCAT()`.
@@ -66,7 +73,7 @@ powershell -ExecutionPolicy Bypass -File tools/run-tests.ps1 -IncrementalBuild
 
 | Problem | Fix |
 |---|---|
-| "Could not attach to running VS 2022" | Open Visual Studio 2022 first |
+| "Could not attach to running TcXaeShell" | Open the TwinCAT XAE Shell first |
 | "Build timed out" | Increase `-BuildTimeoutSeconds` |
 | "TcUnit results timed out" | Increase `-TestTimeoutSeconds`; check TwinCAT is licensed and runtime can start |
 | Build errors | Read the Error List output or fix the reported source files |

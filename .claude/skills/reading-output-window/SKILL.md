@@ -5,11 +5,11 @@ description: "Reads the Visual Studio TwinCAT output pane via read-output-window
 
 # Reading the TwinCAT Output Window
 
-Reads the contents of the TwinCAT output pane from a running Visual Studio 2022 instance.
+Reads the contents of the TwinCAT output pane from a running TcXaeShell instance.
 
 ## Prerequisites
 
-- Visual Studio 2022 Community must be **open and running**.
+- The 64-bit TwinCAT XAE Shell (`TcXaeShell.exe`) must be **open and running**.
 
 ## How to Read the Output
 
@@ -47,8 +47,8 @@ powershell -ExecutionPolicy Bypass -File tools/read-output-window.ps1 -ListPanes
 
 ## What the Script Does
 
-1. **Loads** EnvDTE interop assemblies from the VS 2022 install directory.
-2. **Attaches** to a running VS 2022 instance via DTE COM (`VisualStudio.DTE.17.0`).
+1. **Loads** EnvDTE interop assemblies from the TcXaeShell install directory.
+2. **Attaches** to a running TcXaeShell instance via DTE COM (`TcXaeShell.DTE.17.0`).
 3. **Reads** the full text content of the specified output pane.
 4. **Writes** the content to stdout.
 
@@ -56,6 +56,6 @@ powershell -ExecutionPolicy Bypass -File tools/read-output-window.ps1 -ListPanes
 
 | Problem | Fix |
 |---|---|
-| "Could not attach to running VS 2022" | Open Visual Studio 2022 first |
+| "Could not attach to running TcXaeShell" | Open the TwinCAT XAE Shell first |
 | "Could not read TwinCAT output pane" | Ensure the TwinCAT pane exists (TwinCAT XAE must be active) |
 | Empty output | The pane may have been cleared; run a build or start TwinCAT runtime first |

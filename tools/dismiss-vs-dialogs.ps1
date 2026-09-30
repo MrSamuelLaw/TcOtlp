@@ -155,8 +155,8 @@ function Get-DialogButton {
     return $null
 }
 
-function Get-DevenvPids {
-    $procs = @(Get-Process -Name devenv -ErrorAction SilentlyContinue)
+function Get-ShellPids {
+    $procs = @(Get-Process -Name TcXaeShell -ErrorAction SilentlyContinue)
     if ($procs.Count -eq 0) { return @() }
     return @($procs | ForEach-Object { $_.Id })
 }
@@ -223,9 +223,9 @@ function Invoke-DialogSweep {
     return $dismissed
 }
 
-$devenvPids = @(Get-DevenvPids)
-if ($devenvPids.Count -eq 0) {
-    Write-Host 'No devenv.exe process is running; nothing to dismiss.'
+$shellPids = @(Get-ShellPids)
+if ($shellPids.Count -eq 0) {
+    Write-Host 'No TcXaeShell.exe process is running; nothing to dismiss.'
     exit 0
 }
 
@@ -234,14 +234,14 @@ if ($TimeoutSeconds -le 0) {
     # Dialogs stack one per changed file, and the next one only becomes reachable once the
     # current one closes, so sweep until a pass finds nothing left to do.
     do {
-        $round = Invoke-DialogSweep -Pids $devenvPids -ClickLabel $Button
+        $round = Invoke-DialogSweep -Pids $shellPids -ClickLabel $Button
         $total += $round
     } while ($round -gt 0)
 }
 else {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $deadline) {
-        $total += Invoke-DialogSweep -Pids $devenvPids -ClickLabel $Button
+        $total += Invoke-DialogSweep -Pids $shellPids -ClickLabel $Button
         Start-Sleep -Milliseconds $PollIntervalMs
     }
 }

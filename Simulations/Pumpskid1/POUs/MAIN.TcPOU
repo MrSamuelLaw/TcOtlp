@@ -3,32 +3,29 @@
   <POU Name="MAIN" Id="{f531e982-a20c-4760-910c-0f69803ce7f9}" SpecialFunc="None">
     <Declaration><![CDATA[PROGRAM MAIN
 VAR
-	// shared otel configs
-	resource: FB_Resource(schemaUrl:='');
-	
 	// logging config, note that loggers are oriented on a per entity (device) basis.
-	loggerProvider: FB_LoggerProvider(resource:=resource);
+	
 	motorScope: FB_InstrumentationScope(name:='motor', version:='0.0.0a', schemaUrl:='');
 	valveScope: FB_InstrumentationScope(name:='valve', version:='0.0.0a', schemaUrl:='');
-	motorLogger: FB_Logger(provider:=loggerProvider, scope:=motorScope);
-	valveLogger: FB_Logger(provider:=loggerProvider, scope:=valveScope);
+	motorLogger: FB_Logger(provider:=GVL.loggerProvider, scope:=motorScope);
+	valveLogger: FB_Logger(provider:=GVL.loggerProvider, scope:=valveScope);
 	signozProcessor: FB_LogRecordProcessor_Signoz(0);
 	logExporter: FB_LogRecordExporter_HTTP('http://192.168.97.55:4318/v1/logs', TRUE);
 	logBatchProcessor: FB_LogRecordProcessor_Batch(maxQueueSize:=500, scheduledDelayMillis:=1500, 
 												maxExportBatchSize:=500, exporter:=logExporter);
 	
 	// tracing config, note that tracers are oriented per service basis.
-	sampler: FB_Sampler_AlwaysOn();
-	idGenerator: FB_IdGenerator(nTraceIds:=5, nSpanIds:=5);
-	tracerProvider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator, sampler:=sampler);
 	skidScope: FB_InstrumentationScope(name:='skid', version:='0.0.0a', schemaUrl:='');
-	tracer: FB_Tracer(scope:=skidScope, provider:=tracerProvider);
+	modbusScope: FB_InstrumentationScope(name:='modbus', version:='0.0.0a', schemaUrl:='');
+	tracer: FB_Tracer(scope:=skidScope, provider:=GVL.tracerProvider);
+	modbusTracer: FB_Tracer(scope:=modbusScope, provider:=GVL.tracerProvider);
 	spanExporter: FB_SpanExporter_HTTP('http://192.168.97.55:4318/v1/traces', TRUE);
 	spanBatchProcessor: FB_SpanProcessor_Batch(maxQueueSize:=500, scheduledDelayMillis:=1500, 
 										   maxExportBatchSize:=500, exporter:=spanExporter);
 	pRootSpan: 			POINTER TO FB_Span;
 	pPumpStageSpan: 	POINTER TO FB_Span;
 	pValveStageSpan: 	POINTER TO FB_Span;
+	pModbusSpan:		POINTER TO FB_Span;
 	
 	
 	// initialization setup
@@ -37,6 +34,7 @@ VAR
 	// simulated faults
 	simulateValveFailure: BOOL;
 	simulateMotorFailure: BOOL;
+	simulateModbusFailure: BOOL;
 	
 	// process inputs (in a real sitation these would likely come from SCADA)
 	cmdStageUp: BOOL := FALSE;  	// when true the skid will attempt to stage up
@@ -52,7 +50,7 @@ VAR
 	
 	// program variables
 	_computedState: 	USINT;
-	_stateChangeTrig: 	R_TRIG;
+	_stateChanged: 		BOOL;
 	formatter: 			FB_FormatString();
 	body: 				T_MaxString;
 	
@@ -61,27 +59,31 @@ VAR
 	valveRampRate: 	REAL := 2;  // %/sec
 	pumpRampTON: 	TON := (PT:=T#1S);
 	valveRampTON: 	TON := (PT:=T#1S);
+	modbusTimer: 	TON := (PT:=T#1S);
+	modbusPort: 	UINT := 502;
+	modbusRegister: UINT := 40005; 
+	modbusCount: 	UINT := 10;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[IF firstScan THEN
-	resource.attributes.setStringAttribute('service.name', 'PLC1');
+	GVL.resource.attributes.setStringAttribute('service.name', 'PLC1');
 END_IF
 	
 // run the logger every tick
-loggerProvider
+GVL.loggerProvider
 	.stageProcessor(signozProcessor)
 	.stageProcessor(logBatchProcessor)
 	.tick();
 	
 // run the tracer every tick
-tracerProvider
+GVL.tracerProvider
 	.stageProcessor(spanBatchProcessor)
 	.tick();
 	
 CASE currentState OF
 	0:  // shutdown state
-		IF _stateChangeTrig.Q AND (NOT cmdStageUp) THEN
+		IF _stateChanged AND (NOT cmdStageUp) THEN
 			tracer.setSpanStatusOk(pRootSpan);
 			tracer.endSpan(pRootSpan);
 		END_IF
@@ -96,13 +98,11 @@ CASE currentState OF
 		END_IF
 		
 	1:  // stage pump up/down
-		IF _stateChangeTrig.Q THEN
+		IF _stateChanged THEN
 			IF pRootSpan <> 0 THEN
-				IF cmdStageUp THEN
-					tracer.startSpan('skid.staging.pump_stage_up');
-				ELSE
-					tracer.startSpan('skid.staging.pump_stage_down');
-				END_IF
+				tracer.startSpan(SEL(cmdStageUp, 
+					'skid.staging.pump_stage_down', 
+					'skid.staging.pump_stage_up'));
 				tracer.setParentUsingSpan(pRootSpan);
 				tracer.build(pPumpStageSpan);
 			END_IF
@@ -116,11 +116,9 @@ CASE currentState OF
 		
 		// ramp up the flow if staging up, otherwise stage down
 		IF pumpRampTON.Q THEN
-			IF cmdStageUp THEN
-				flowRate := flowRate + flowRampRate;
-			ELSE
-				flowRate := flowRate - flowRampRate;
-			END_IF
+			flowRate := SEL(cmdStageUp, 
+				flowRate - flowRampRate, 
+				flowRate + flowRampRate);
 		END_IF
 		
 		// go to adjacent states based on command
@@ -151,13 +149,11 @@ CASE currentState OF
 		END_IF
 		
 	2:  // open isolation valve
-		IF _stateChangeTrig.Q THEN
+		IF _stateChanged THEN
 			IF pRootSpan <> 0 THEN
-				IF cmdStageUp THEN
-					tracer.startSpan('skid.staging.valve_open');
-				ELSE
-					tracer.startSpan('skid.staging.valve_close');
-				END_IF
+				tracer.startSpan(SEL(cmdStageUp, 
+					'skid.staging.valve_close', 
+					'skid.staging.valve_open'));
 				tracer.setParentUsingSpan(pRootSpan);
 				tracer.build(pValveStageSpan);
 			END_IF
@@ -165,16 +161,14 @@ CASE currentState OF
 				.startLogRecord(E_SeverityNumber.TRACE)
 				.setBody(SEL(cmdStageUp, 'closing valve', 'opening valve'))
 				.setNumberAttribute('position.target', valveOpenPosition)
-				.setTraceContextFromSpan(pPumpStageSpan)
+				.setTraceContextFromSpan(pValveStageSpan)
 				.emit();
 		END_IF
 		
 		IF valveRampTON.Q THEN
-			IF cmdStageUp THEN
-				valvePosition := valvePosition + valveRampRate;
-			ELSE
-				valvePosition := valvePosition - valveRampRate;
-			END_IF
+			valvePosition := SEL(cmdStageUp, 
+				valvePosition - valveRampRate, 
+				valvePosition + valveRampRate);
 		END_IF
 		
 		IF (NOT cmdStageUp) AND valvePosition <= 0.0 THEN
@@ -204,7 +198,7 @@ CASE currentState OF
 		END_IF
 		
 	3: // staged up
-		IF _stateChangeTrig.Q AND cmdStageUp THEN
+		IF _stateChanged AND cmdStageUp THEN
 			tracer.setSpanStatusOk(pRootSpan);
 			tracer.endSpan(pRootSpan);
 		END_IF
@@ -218,11 +212,37 @@ CASE currentState OF
 		END_IF
 END_CASE
 
-_stateChangeTrig(CLK:=currentState <> _computedState);
+_stateChanged := currentState <> _computedState;
 currentState := _computedState;
 
 pumpRampTON(IN:=currentState=1 AND NOT pumpRampTON.Q);
 valveRampTON(IN:=currentState=2 AND NOT valveRampTON.Q);
+
+// modbus fake logic
+modbusTimer(IN := NOT modbusTimer.Q);
+
+IF modbusTimer.IN AND TO_DINT(modbusTimer.ET) = 0 THEN
+	modbusTracer.discardSpan(pModbusSpan);
+	modbusTracer
+		.startSpan(name:='modbus.poll', kind:=E_SpanKind.SPAN_KIND_CLIENT)
+		.setStringAttribute('peer.service', 'chiller')
+		.setStringAttribute('peer.address', '127.0.0.1')
+		.setNumberAttribute('peer.port', modbusPort)
+		.setStringAttribute('modbus.protocol', 'tcp')
+		.setStringAttribute('modbus.function_code', '0x04')
+		.setNumberAttribute('modbus.start_register', modbusRegister)
+		.setNumberAttribute('modbus.count', modbusCount)
+		.build(pModbusSpan);
+ELSIF modbusTimer.Q THEN
+	IF simulateModbusFailure THEN
+		simulateModbusFailure := FALSE;
+		modbusTracer.setSpanStatusError(pModbusSpan, 'Error code 0x04');
+		modbusTracer.endSpan(pModbusSpan);
+	ELSE
+		modbusTracer.discardSpan(pModbusSpan);
+	END_IF
+	
+END_IF
 
 firstScan := FALSE;]]></ST>
     </Implementation>

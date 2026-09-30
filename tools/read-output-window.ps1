@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Reads and prints the contents of the TwinCAT output pane from a running Visual Studio 2022 instance.
+    Reads and prints the contents of the TwinCAT output pane from a running TcXaeShell instance.
 #>
 param(
     [string]$PaneName = "TwinCAT",
@@ -11,7 +11,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 # -- Load EnvDTE interop assemblies --------------------------------------------
-$publicAssemblies = "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\PublicAssemblies"
+$publicAssemblies = "C:\Program Files\Beckhoff\TcXaeShell\Common7\IDE\PublicAssemblies"
 $interopDll = Join-Path $publicAssemblies "Microsoft.VisualStudio.Interop.dll"
 foreach ($dll in @("envdte.dll", "envdte80.dll", "Microsoft.VisualStudio.Interop.dll")) {
     $dllPath = Join-Path $publicAssemblies $dll
@@ -75,13 +75,13 @@ public static class OutputWindowHelper {
 }
 "@ -ReferencedAssemblies @($interopDll)
 
-# -- Attach to running VS 2022 instance ---------------------------------------
+# -- Attach to running TcXaeShell instance ---------------------------------------
 $dte = $null
 try {
-    $dte = [System.Runtime.InteropServices.Marshal]::GetActiveObject("VisualStudio.DTE.17.0")
+    $dte = [System.Runtime.InteropServices.Marshal]::GetActiveObject("TcXaeShell.DTE.17.0")
 } catch {
-    Write-Host "Could not attach to running VS 2022: $_" -ForegroundColor Red
-    Write-Host "Make sure Visual Studio 2022 Community is open." -ForegroundColor Yellow
+    Write-Host "Could not attach to running TcXaeShell: $_" -ForegroundColor Red
+    Write-Host "Make sure the 64-bit TwinCAT XAE Shell (TcXaeShell) is open." -ForegroundColor Yellow
     exit 1
 }
 

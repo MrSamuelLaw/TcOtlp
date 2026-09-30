@@ -28,6 +28,35 @@ METHOD _capacity : UDINT
         <ST><![CDATA[_capacity := MIN(THIS^.maxCount, TcOtlp_GVL.MAX_LOOP_COUNT);]]></ST>
       </Implementation>
     </Method>
+    <Method Name="_findNode" Id="{8e2f6b14-7c39-4d0a-b5e1-94a3c7d2f058}">
+      <Declaration><![CDATA[(* The node holding the attribute named key, or 0 when there is none. Does not move the next cursor. *)
+METHOD _findNode : POINTER TO ST_LinkedListNode
+VAR_INPUT
+	key: T_MaxString;
+END_VAR
+VAR
+	_idx: UDINT;
+	_node: POINTER TO ST_LinkedListNode;
+	_pKv: POINTER TO FB_KeyValue;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_findNode := 0;
+
+_node := THIS^._head;
+FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
+	IF _node = 0 THEN
+		RETURN;
+	END_IF
+	_pKv := _node^.val;
+	IF _pKv <> 0 AND_THEN _pKv^.pKey <> 0 AND_THEN _pKv^.pKey^ = key THEN
+		_findNode := _node;
+		RETURN;
+	END_IF
+	_node := _node^.nxt;
+END_FOR]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="_mapValueFactoryFailure" Id="{b07c94f0-2f89-4b83-a86c-5297aea8b765}">
       <Declaration><![CDATA[METHOD _mapValueFactoryFailure : E_AttributesFailureReason
 VAR_INPUT
@@ -49,6 +78,60 @@ END_VAR
 	ELSE
 		_mapValueFactoryFailure := E_AttributesFailureReason.KV_VALUE_INVALID;
 END_CASE
+]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="copyAttribute" Id="{b754f058-69f8-4057-bad5-234822fe208a}">
+      <Declaration><![CDATA[(*
+	Adds a copy of src's attribute named key, stored under destKey, or under key when destKey is
+	empty. An attribute already held under that name is replaced, as with setAttribute. src is
+	left unchanged and may be this collection, so an attribute can be copied to a new name in place.
+*)
+METHOD copyAttribute : BOOL
+VAR_IN_OUT
+	src: FB_Attributes;
+END_VAR
+VAR_INPUT
+	key: T_MaxString;
+	destKey: T_MaxString := '';
+END_VAR
+VAR_OUTPUT
+	failureReason: E_AttributesFailureReason;
+END_VAR
+VAR
+	_pSrc: POINTER TO FB_KeyValue;
+	_pDest: POINTER TO FB_KeyValue;
+	_factoryFailureReason: E_ValueFactoryFailureReason;
+END_VAR]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[copyAttribute := FALSE;
+failureReason := E_AttributesFailureReason.NA;
+
+_pSrc := src.getAttribute(key);
+IF _pSrc = 0 THEN
+	failureReason := E_AttributesFailureReason.KEY_NOT_FOUND;
+	RETURN;
+END_IF
+
+IF destKey = '' THEN
+	destKey := key;
+END_IF
+
+IF NOT ValueFactory.createKeyValue(
+	pDest:=_pDest,
+	pKey:=ADR(destKey),
+	pVal:=_pSrc^.pVal,
+	failureReason=>_factoryFailureReason
+) THEN
+	failureReason := THIS^._mapValueFactoryFailure(_factoryFailureReason);
+	RETURN;
+END_IF
+
+copyAttribute := THIS^.setAttribute(pValue:=_pDest, failureReason=>failureReason);
+// setAttribute only takes ownership on success; release a rejected value
+IF _pDest <> 0 THEN
+	_pDest^.delete(pSelf:=_pDest);
+END_IF
 ]]></ST>
       </Implementation>
     </Method>
@@ -168,6 +251,29 @@ THIS^._cursor := THIS^._head;
 free := THIS^._head = 0;]]></ST>
       </Implementation>
     </Method>
+    <Method Name="getAttribute" Id="{51bb0bec-2ec7-474d-bc68-bfc0daab6de0}">
+      <Declaration><![CDATA[(*
+	Returns the attribute named key, or 0 when there is none. The collection keeps ownership: the
+	pointer is borrowed and stays valid only until that attribute is replaced or the collection is
+	freed. Does not move the next cursor.
+*)
+METHOD getAttribute : POINTER TO FB_KeyValue
+VAR_INPUT
+	key: T_MaxString;
+END_VAR
+VAR
+	_node: POINTER TO ST_LinkedListNode;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[getAttribute := 0;
+
+_node := THIS^._findNode(key);
+IF _node <> 0 THEN
+	getAttribute := _node^.val;
+END_IF]]></ST>
+      </Implementation>
+    </Method>
     <Method Name="next" Id="{a8ca5105-d23e-40b3-adba-9bbe23230589}">
       <Declaration><![CDATA[METHOD next : POINTER TO FB_KeyValue
 ]]></Declaration>
@@ -198,7 +304,6 @@ END_VAR
 VAR
 	_node: POINTER TO ST_LinkedListNode;
 	_pVal: POINTER TO FB_KeyValue;
-	_idx: UDINT;
 END_VAR
 ]]></Declaration>
       <Implementation>
@@ -220,23 +325,16 @@ IF pValue^.pVal = 0 THEN
 	RETURN;
 END_IF
 
-// set the value if it already exists
-_node := THIS^._head;
-FOR _idx := 0 TO TcOtlp_GVL.MAX_LOOP_COUNT DO
-	IF _node = 0 THEN
-		EXIT;
-	END_IF
+// replace the value if the key already exists
+_node := THIS^._findNode(pValue^.pKey^);
+IF _node <> 0 THEN
 	_pVal := _node^.val;
-	IF _pVal^.pKey^ = pValue^.pKey^ THEN
-		// replace the value currently at the index
-		_pVal^.delete(pSelf:=_pVal);
-		_node^.val := pValue;
-		setAttribute := failureReason = E_AttributesFailureReason.NA;
-		pValue := 0;
-		RETURN;
-	END_IF
-	_node := _node^.nxt;
-END_FOR
+	_pVal^.delete(pSelf:=_pVal);
+	_node^.val := pValue;
+	setAttribute := failureReason = E_AttributesFailureReason.NA;
+	pValue := 0;
+	RETURN;
+END_IF
 
 IF THIS^.count >= THIS^._capacity() THEN
 	failureReason := E_AttributesFailureReason.ATTRIBUTE_COUNT_LIMIT_REACHED;
@@ -309,7 +407,7 @@ END_IF
 _pNum^.delete(pSelf:=_pNum);  // clean up the _pNum as its cloned in createKeyValue
 
 setNumberAttribute := THIS^.setAttribute(pValue:=_pKv, failureReason=>failureReason);
-// append only takes ownership on success; release a rejected value
+// setAttribute only takes ownership on success; release a rejected value
 IF _pKv <> 0 THEN
 	_pKv^.delete(pSelf:=_pKv);
 END_IF
@@ -356,7 +454,7 @@ END_IF
 _pNum^.delete(pSelf:=_pNum);  // clean up the _pNum as its cloned in createKeyValue
 
 setNumberAttribute_AnyType := THIS^.setAttribute(pValue:=_pKv, failureReason=>failureReason);
-// append only takes ownership on success; release a rejected value
+// setAttribute only takes ownership on success; release a rejected value
 IF _pKv <> 0 THEN
 	_pKv^.delete(pSelf:=_pKv);
 END_IF
@@ -403,7 +501,7 @@ END_IF
 _pStr^.delete(pSelf:=_pStr);  // clean up the _pStr as its cloned in createKeyValue
 
 setStringAttribute := THIS^.setAttribute(pValue:=_pKv, failureReason=>failureReason);
-// append only takes ownership on success; release a rejected value
+// setAttribute only takes ownership on success; release a rejected value
 IF _pKv <> 0 THEN
 	_pKv^.delete(pSelf:=_pKv);
 END_IF

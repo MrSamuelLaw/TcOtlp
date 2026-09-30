@@ -2,7 +2,7 @@
 .SYNOPSIS
     Automates TcUnit test execution for the TcOtlp project via DTE COM.
 .DESCRIPTION
-    Attaches to a running VS 2022 instance, reloads the solution from disk,
+    Attaches to a running TcXaeShell instance, reloads the solution from disk,
     builds, activates TwinCAT, and polls the TwinCAT output pane for TcUnit
     results.
 
@@ -23,7 +23,12 @@ param(
     # summary block is the last thing printed, so the tail always contains it.
     [int]$TailLines           = 400,
     # Use an incremental build instead of a full rebuild.
-    [switch]$IncrementalBuild
+    [switch]$IncrementalBuild,
+    # Check the otel PLC project, save it as bin/otel.library and install it into
+    # the library repository before testing. The test project references the
+    # installed TcOtlp library rather than the otel sources, so library changes
+    # are only exercised by the tests after this step.
+    [switch]$InstallLibrary
 )
 
 $ErrorActionPreference = "Stop"
@@ -40,7 +45,7 @@ if (-not (Test-Path $solutionPath)) {
 # interface so that $dte.ToolWindows.ErrorList returns a usable ErrorList object
 # with ShowErrors/ShowWarnings/ShowMessages properties and ErrorItems collection.
 
-$publicAssemblies = "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\PublicAssemblies"
+$publicAssemblies = "C:\Program Files\Beckhoff\TcXaeShell\Common7\IDE\PublicAssemblies"
 $interopDll = Join-Path $publicAssemblies "Microsoft.VisualStudio.Interop.dll"
 foreach ($dll in @("envdte.dll", "envdte80.dll", "Microsoft.VisualStudio.Interop.dll")) {
     $dllPath = Join-Path $publicAssemblies $dll
@@ -178,6 +183,27 @@ public static class OutputWindowHelper {
 )
 Write-Host "  Loaded OutputWindowHelper" -ForegroundColor Green
 
+# The PLC project node's IDispatch only exposes its default interface, so
+# SaveAsLibrary and CheckAllObjects have to be reached through a typed cast.
+$sysManagerLib = "C:\Windows\Microsoft.NET\assembly\GAC_MSIL\TCatSysManagerLib\v4.0_3.4.0.0__180016cd49e5e8c3\TCatSysManagerLib.dll"
+if ($InstallLibrary) {
+    Add-Type -TypeDefinition @"
+using TCatSysManagerLib;
+public static class PlcLibraryHelper {
+    private static ITcPlcIECProject2 Project(object sysManager, string treePath) {
+        return (ITcPlcIECProject2)((ITcSysManager)sysManager).LookupTreeItem(treePath);
+    }
+    public static bool CheckAllObjects(object sysManager, string treePath) {
+        return Project(sysManager, treePath).CheckAllObjects();
+    }
+    public static void SaveAndInstall(object sysManager, string treePath, string libraryPath) {
+        Project(sysManager, treePath).SaveAsLibrary(libraryPath, true);
+    }
+}
+"@ -ReferencedAssemblies @($sysManagerLib)
+    Write-Host "  Loaded PlcLibraryHelper" -ForegroundColor Green
+}
+
 if ([MessageFilter]::Register()) {
     Write-Host "  Registered COM message filter." -ForegroundColor Green
 } else {
@@ -268,20 +294,20 @@ function Clear-VsDialogs {
     }
 }
 
-# -- Step 1: Attach to running VS 2022 instance and open solution -------------
+# -- Step 1: Attach to running TcXaeShell instance and open solution -------------
 
 Clear-VsDialogs
 
-Write-Host "Attaching to running VS 2022 instance..."
+Write-Host "Attaching to running TcXaeShell instance..."
 
 $dte = $null
 try {
-    $dte = [System.Runtime.InteropServices.Marshal]::GetActiveObject("VisualStudio.DTE.17.0")
-    Write-Host "  Attached to running VS 2022 instance." -ForegroundColor Green
+    $dte = [System.Runtime.InteropServices.Marshal]::GetActiveObject("TcXaeShell.DTE.17.0")
+    Write-Host "  Attached to running TcXaeShell instance." -ForegroundColor Green
 }
 catch {
-    Write-Host "  Could not attach to running VS 2022: $_" -ForegroundColor Red
-    Write-Host "  Make sure Visual Studio 2022 Community is open." -ForegroundColor Yellow
+    Write-Host "  Could not attach to running TcXaeShell: $_" -ForegroundColor Red
+    Write-Host "  Make sure the 64-bit TwinCAT XAE Shell (TcXaeShell) is open." -ForegroundColor Yellow
     exit 1
 }
 
@@ -343,15 +369,72 @@ if ($currentSln -and (Test-Path $currentSln)) {
     }
 }
 
-Write-Host "Opening solution: $solutionPath"
-Invoke-Dte { $dte.Solution.Open($solutionPath) }
-$opened = Wait-For -Condition { Invoke-Dte { $dte.Solution.IsOpen -and $dte.Solution.Projects.Count -gt 0 } } `
-                   -TimeoutSeconds 120 -IntervalMs $PollIntervalMs -Label "solution open"
-if (-not $opened) {
-    Write-Host "Solution did not finish opening within 120s." -ForegroundColor Red
-    Stop-Script 1
+function Open-Solution {
+    Write-Host "Opening solution: $solutionPath"
+    Invoke-Dte { $dte.Solution.Open($solutionPath) }
+    $opened = Wait-For -Condition { Invoke-Dte { $dte.Solution.IsOpen -and $dte.Solution.Projects.Count -gt 0 } } `
+                       -TimeoutSeconds 120 -IntervalMs $PollIntervalMs -Label "solution open"
+    if (-not $opened) {
+        Write-Host "Solution did not finish opening within 120s." -ForegroundColor Red
+        Stop-Script 1
+    }
+    Write-Host "Solution opened." -ForegroundColor Green
 }
-Write-Host "Solution opened." -ForegroundColor Green
+
+# The TwinCAT project is the one whose automation object is the system manager.
+function Get-SystemManager {
+    $projectCount = Invoke-Dte { $dte.Solution.Projects.Count }
+    for ($i = 1; $i -le $projectCount; $i++) {
+        $proj = Invoke-Dte { $dte.Solution.Projects.Item($i) }
+        Write-Host "  Project $i`: $($proj.Name) Kind=$($proj.Kind)"
+        if ($proj.Object -and ($proj.Object | Get-Member -Name "StartRestartTwinCAT" -ErrorAction SilentlyContinue)) {
+            Write-Host "  Found TwinCAT system manager in project '$($proj.Name)'" -ForegroundColor Green
+            return $proj.Object
+        }
+    }
+    return $null
+}
+
+Open-Solution
+
+# -- Optional: rebuild and install the TcOtlp library -------------------------
+
+if ($InstallLibrary) {
+    $libraryTreePath = "TIPC^otel^otel Project"
+    $libraryPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\bin\otel.library"))
+
+    Write-Host "`nChecking library project '$libraryTreePath'..."
+    $libSystemManager = Get-SystemManager
+    if (-not $libSystemManager) {
+        Write-Host "  Could not find TwinCAT system manager in any project." -ForegroundColor Red
+        Stop-Script 1
+    }
+    $checked = Invoke-Dte -TimeoutSeconds 300 -Action { [PlcLibraryHelper]::CheckAllObjects($libSystemManager, $libraryTreePath) }
+    if (-not $checked) {
+        Write-Host "  The library project has errors; not installing it." -ForegroundColor Red
+        try { Write-Host ([ErrorListHelper]::GetErrors($dte)) -ForegroundColor Red } catch { }
+        Stop-Script 1
+    }
+    Write-Host "  Library project checked without errors." -ForegroundColor Green
+
+    Write-Host "Saving and installing $libraryPath..."
+    # SaveAsLibrary refuses to overwrite, so drop the previous build output first.
+    if (Test-Path $libraryPath) { Remove-Item $libraryPath -Force }
+    Invoke-Dte -TimeoutSeconds 300 -Action { [PlcLibraryHelper]::SaveAndInstall($libSystemManager, $libraryTreePath, $libraryPath) }
+    Write-Host "  Library installed." -ForegroundColor Green
+
+    # Reopen so the test project resolves its TcOtlp placeholder against the
+    # freshly installed library instead of the one loaded with the solution.
+    Write-Host "Reopening solution to pick up the installed library..."
+    Invoke-Dte { $dte.Solution.Close($false) }
+    $closed = Wait-For -Condition { -not (Invoke-Dte { $dte.Solution.IsOpen }) } `
+                       -TimeoutSeconds 60 -IntervalMs $PollIntervalMs -Label "solution close"
+    if (-not $closed) {
+        Write-Host "Solution did not close within 60s." -ForegroundColor Red
+        Stop-Script 1
+    }
+    Open-Solution
+}
 
 # -- Switch Output window to TwinCAT pane --------------------------------------
 try {
@@ -411,7 +494,14 @@ if ($buildErrors -gt 0) {
         if ($errorDetails) {
             Write-Host $errorDetails -ForegroundColor Red
         } else {
-            Write-Host "  (No error details available from Error List)" -ForegroundColor Yellow
+            # TcXaeShell often leaves the Error List empty; the Build pane still has the compiler lines.
+            $buildErrorLines = [OutputWindowHelper]::ReadPane($dte, "Build") -split "`r?`n" |
+                Where-Object { $_ -match ': error' }
+            if ($buildErrorLines) {
+                $buildErrorLines | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+            } else {
+                Write-Host "  (No error details available from Error List or Build pane)" -ForegroundColor Yellow
+            }
         }
     }
     catch {
@@ -425,17 +515,7 @@ Write-Host "Build succeeded." -ForegroundColor Green
 # -- Step 3: Start TwinCAT ----------------------------------------------------
 
 Write-Host "`nStarting TwinCAT..."
-$systemManager = $null
-$projectCount = Invoke-Dte { $dte.Solution.Projects.Count }
-for ($i = 1; $i -le $projectCount; $i++) {
-    $proj = Invoke-Dte { $dte.Solution.Projects.Item($i) }
-    Write-Host "  Project $i`: $($proj.Name) Kind=$($proj.Kind)"
-    if ($proj.Object -and ($proj.Object | Get-Member -Name "StartRestartTwinCAT" -ErrorAction SilentlyContinue)) {
-        $systemManager = $proj.Object
-        Write-Host "  Found TwinCAT system manager in project '$($proj.Name)'" -ForegroundColor Green
-        break
-    }
-}
+$systemManager = Get-SystemManager
 
 if (-not $systemManager) {
     Write-Host "  Could not find TwinCAT system manager in any project." -ForegroundColor Red

@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <GVL Name="GVL" Id="{ba0fedff-ec24-4c7a-893c-af39842a3943}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL
+	// global logger provider
+	resource: FB_Resource(schemaUrl:='');
+	loggerProvider: FB_LoggerProvider(resource:=resource);
+	
+	// global tracer provider
+	sampler: FB_Sampler_AlwaysOn();
+	idGenerator: FB_IdGenerator(nTraceIds:=5, nSpanIds:=5);
+	tracerProvider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator, sampler:=sampler);
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>

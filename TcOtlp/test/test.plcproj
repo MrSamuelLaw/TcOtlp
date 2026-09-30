@@ -28,6 +28,9 @@
     <Compile Include="MAIN.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="PlcTask.TcTTO">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="TEST\TRACING\EXPORTING\FB_SpanExporter_ForInspection.TcPOU">
       <SubType>Code</SubType>
     </Compile>
