@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_SkidCommand" Id="{292d03a2-d32d-4141-882d-b9db5f2b8db6}">
+    <Declaration><![CDATA[(*
+	A stage command from the master to a pump skid, written to the skid's GVL.command in one ADS
+	write so the carrier never arrives beside a stale command. The skid acts on a new sequence.
+	Keep this identical to ST_SkidCommand in every skid project: ADS copies it byte for byte.
+*)
+TYPE ST_SkidCommand :
+STRUCT
+	sequence: UDINT;  // the master increments this for each command
+	stageUp: BOOL;  // TRUE to stage up, FALSE to stage down
+	flowRate: REAL;  // GPM
+	carrier: ST_TraceContextCarrier;  // the master's client span, so the skid's spans join its trace
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

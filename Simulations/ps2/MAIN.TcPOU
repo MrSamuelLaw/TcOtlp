@@ -1,0 +1,358 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="MAIN" Id="{bdabf8bf-3bb4-4772-b85d-757a1a70cd96}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
+VAR
+	// logging config, note that loggers are oriented on a per entity (device) basis.
+	
+	motorScope: FB_InstrumentationScope(name:='motor', version:='0.0.0a', schemaUrl:='');
+	valveScope: FB_InstrumentationScope(name:='valve', version:='0.0.0a', schemaUrl:='');
+	motorLogger: FB_Logger(provider:=GVL.loggerProvider, scope:=motorScope);
+	valveLogger: FB_Logger(provider:=GVL.loggerProvider, scope:=valveScope);
+	chillerScope: FB_InstrumentationScope(name:='chiller', version:='0.0.0a', schemaUrl:='');
+	chillerLogger: FB_Logger(provider:=GVL.loggerProvider, scope:=chillerScope);
+	logExporter: FB_LogRecordExporter_HTTP('http://192.168.97.55:4318/v1/logs', TRUE);
+	logBatchProcessor: FB_LogRecordProcessor_Batch(maxQueueSize:=500, scheduledDelayMillis:=1500, 
+												maxExportBatchSize:=500, exporter:=logExporter);
+	
+	// tracing config, note that tracers are oriented per service basis.
+	skidScope: FB_InstrumentationScope(name:='skid', version:='0.0.0a', schemaUrl:='');
+	modbusScope: FB_InstrumentationScope(name:='modbus', version:='0.0.0a', schemaUrl:='');
+	tracer: FB_Tracer(scope:=skidScope, provider:=GVL.tracerProvider);
+	modbusTracer: FB_Tracer(scope:=modbusScope, provider:=GVL.tracerProvider);
+	spanExporter: FB_SpanExporter_HTTP('http://192.168.97.55:4318/v1/traces', TRUE);
+	spanBatchProcessor: FB_SpanProcessor_Batch(maxQueueSize:=500, scheduledDelayMillis:=1500, 
+										   maxExportBatchSize:=500, exporter:=spanExporter);
+	pRootSpan: 			POINTER TO FB_Span;
+	pPumpStageSpan: 	POINTER TO FB_Span;
+	pValveStageSpan: 	POINTER TO FB_Span;
+	pModbusSpan:		POINTER TO FB_Span;
+	pChillerSpan:		POINTER TO FB_Span;  // the modbus write that starts or stops the chiller
+	pRemoteContext:		POINTER TO FB_SpanContext;  // the master's client span, held until the staging span it parents is built
+
+	// initialization setup
+	firstScan: BOOL := TRUE;
+	
+	// simulated faults
+	simulateValveFailure: BOOL;
+	simulateMotorFailure: BOOL;
+	simulateModbusFailure: BOOL;
+	simulateChillerFailure: BOOL;
+	
+	// process inputs, written by the master's commands (they can still be forced online for a local test)
+	cmdStageUp: BOOL := FALSE;  	// when true the skid will attempt to stage up
+	cmdFlowRate: REAL := 700;  		// GPM
+	valveOpenPosition: REAL := 100;	// open position
+	
+	// process outputs
+	currentState: 	USINT;
+	flowRate: 		REAL;
+	valvePosition: 	REAL;
+	pumpError: 		BOOL;
+	valveError: 	BOOL;
+	
+	// program variables
+	_computedState: 	USINT;
+	_stateChanged: 		BOOL;
+	formatter: 			FB_FormatString();
+	body: 				T_MaxString;
+	
+	// simulation ramp rates
+	flowRampRate: 	REAL := 20;  // gpm/sec
+	valveRampRate: 	REAL := 2;  // %/sec
+	pumpRampTON: 	TON := (PT:=T#1S);
+	valveRampTON: 	TON := (PT:=T#1S);
+	modbusTimer: 	TON := (PT:=T#1S);
+	modbusPort: 	UINT := 502;
+	modbusRegister: UINT := 40005; 
+	modbusCount: 	UINT := 10;
+
+	// the downstream chiller this skid feeds; it is the peer of every modbus call
+	chillerName: 		STRING := 'chiller2';
+	chillerAddress: 	STRING := '127.0.0.1';
+	chillerRunRegister: UINT := 40001;  // holding register, 1 runs the chiller and 0 stops it
+	chillerRunValue: 	UINT;  // the value written to the run register
+	chillerRunning: 	BOOL;
+	chillerWriteTON: 	TON := (PT:=T#250MS);  // simulated modbus round trip
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF firstScan THEN
+	GVL.resource.attributes.setStringAttribute('service.name', 'pumpskid2');
+END_IF
+	
+// run the logger every tick
+GVL.loggerProvider
+	.stageProcessor(logBatchProcessor)
+	.tick();
+	
+// run the tracer every tick
+GVL.tracerProvider
+	.stageProcessor(spanBatchProcessor)
+	.tick();
+
+// accept the master's next command once the skid has settled; until then it waits in GVL.command
+IF GVL.command.sequence <> GVL.status.sequence AND NOT GVL.status.busy THEN
+	GVL.status.sequence := GVL.command.sequence;
+	GVL.status.faulted := FALSE;
+	GVL.status.faultText := '';
+	cmdStageUp := GVL.command.stageUp;
+	cmdFlowRate := GVL.command.flowRate;
+	// an empty or mangled carrier leaves pRemoteContext at 0, and the staging span starts its own trace
+	IF pRemoteContext <> 0 THEN pRemoteContext^.delete(pSelf:=pRemoteContext); END_IF
+	TraceContextPropagator.extract(
+		pDest:=pRemoteContext,
+		traceparent:=GVL.command.carrier.traceparent,
+		tracestate:=GVL.command.carrier.tracestate);
+END_IF
+
+CASE currentState OF
+	0:  // shutdown state
+		IF _stateChanged AND (NOT cmdStageUp) THEN
+			tracer.setSpanStatusOk(pRootSpan);
+			tracer.endSpan(pRootSpan);
+		END_IF
+
+		IF cmdStageUp THEN
+			tracer.discardSpan(pRootSpan);
+			_startStagingSpan('skid.staging.stage_up');
+			_computedState := 1;
+		END_IF
+		
+	1:  // stage pump up/down
+		IF _stateChanged THEN
+			IF pRootSpan <> 0 THEN
+				tracer.startSpan(SEL(cmdStageUp, 
+					'skid.staging.pump_stage_down', 
+					'skid.staging.pump_stage_up'));
+				tracer.setParentUsingSpan(pRootSpan);
+				tracer.build(pPumpStageSpan);
+			END_IF
+			motorLogger
+				.startLogRecord(E_SeverityNumber.TRACE)
+				.setBody(SEL(cmdStageUp, 'stopping pump', 'starting pump'))
+				.setNumberAttribute('flow.target', cmdFlowRate)
+				.setTraceContextFromSpan(pPumpStageSpan)
+				.emit();
+		END_IF
+		
+		// ramp up the flow if staging up, otherwise stage down
+		IF pumpRampTON.Q THEN
+			flowRate := SEL(cmdStageUp, 
+				flowRate - flowRampRate, 
+				flowRate + flowRampRate);
+		END_IF
+		
+		// go to adjacent states based on command
+		IF (NOT cmdStageUp) AND flowRate <= 0 THEN
+			_computedState := 0;
+			tracer.setSpanStatusOk(pPumpStageSpan);
+		ELSIF cmdStageUp THEN
+			IF NOT simulateMotorFailure AND flowRate >= cmdFlowRate THEN
+				_computedState := 2;
+			ELSIF simulateMotorFailure AND flowRate >= cmdFlowRate * 0.5 THEN
+				_computedState := 0;
+				flowRate := 0;
+				cmdStageUp := FALSE;
+				GVL.status.faulted := TRUE;
+				GVL.status.faultText := 'pump motor failure';
+				tracer.setSpanStatusError(pPumpStageSpan, 'pump motor failure');
+				tracer.setSpanStatusError(pRootSpan, 'skid startup failure');
+				motorLogger
+					.startLogRecord(E_SeverityNumber.FATAL)
+					.setBody('pump failure detected, stopping pump!')
+					.setNumberAttribute('flow.target', cmdFlowRate)
+					.setNumberAttribute('flow.actual', flowRate)
+					.setTraceContextFromSpan(pPumpStageSpan)
+					.emit();
+			END_IF
+		END_IF
+		
+		IF _computedState <> currentState AND pPumpStageSpan <> 0 THEN
+			tracer.endSpan(pPumpStageSpan);
+		END_IF
+		
+	2:  // open isolation valve
+		IF _stateChanged THEN
+			IF pRootSpan <> 0 THEN
+				tracer.startSpan(SEL(cmdStageUp, 
+					'skid.staging.valve_close', 
+					'skid.staging.valve_open'));
+				tracer.setParentUsingSpan(pRootSpan);
+				tracer.build(pValveStageSpan);
+			END_IF
+			valveLogger
+				.startLogRecord(E_SeverityNumber.TRACE)
+				.setBody(SEL(cmdStageUp, 'closing valve', 'opening valve'))
+				.setNumberAttribute('position.target', valveOpenPosition)
+				.setTraceContextFromSpan(pValveStageSpan)
+				.emit();
+		END_IF
+		
+		IF valveRampTON.Q THEN
+			valvePosition := SEL(cmdStageUp, 
+				valvePosition - valveRampRate, 
+				valvePosition + valveRampRate);
+		END_IF
+		
+		IF (NOT cmdStageUp) AND valvePosition <= 0.0 THEN
+			_computedState := 1;
+		ELSIF cmdStageUp THEN
+			IF simulateValveFailure AND valvePosition >= 50.0 THEN
+				_computedState := 1;
+				cmdStageUp := FALSE;
+				valvePosition := 0;
+				GVL.status.faulted := TRUE;
+				GVL.status.faultText := 'valve open failure';
+				tracer.setSpanStatusError(pRootSpan, 'startup failure');
+				tracer.setSpanStatusError(pValveStageSpan, 'valve open failure');
+				valveLogger
+					.startLogRecord(E_SeverityNumber.FATAL)
+					.setBody('valve failure detected, attempting to shut down')
+					.setNumberAttribute('valve.target', valveOpenPosition)
+					.setNumberAttribute('valve.actual', valvePosition)
+					.setTraceContextFromSpan(pValveStageSpan)
+					.emit();
+			ELSIF valvePosition >= 100.0 THEN
+				tracer.setSpanStatusOk(pValveStageSpan);
+				_computedState := 4;
+			END_IF
+		END_IF
+		
+		IF _computedState <> currentState THEN
+			tracer.endSpan(pValveStageSpan);
+		END_IF
+		
+	3: // staged up
+		IF _stateChanged AND cmdStageUp THEN
+			tracer.setSpanStatusOk(pRootSpan);
+			tracer.endSpan(pRootSpan);
+		END_IF
+		
+		IF (NOT cmdStageUp) THEN
+			tracer.discardSpan(pRootSpan);
+			_startStagingSpan('skid.staging.stage_down');
+			_computedState := 4;
+		END_IF
+
+	4:  // start or stop the downstream chiller over modbus
+		IF _stateChanged THEN
+			chillerRunValue := BOOL_TO_UINT(cmdStageUp);
+			modbusTracer.startSpan(name:='modbus.write_register', kind:=E_SpanKind.SPAN_KIND_CLIENT);
+			IF pRootSpan <> 0 THEN
+				modbusTracer.setParentUsingSpan(pRootSpan);
+			END_IF
+			modbusTracer
+				.setStringAttribute('peer.name', chillerName)
+				.setStringAttribute('peer.service', chillerName)  // Tempo draws its virtual service graph node from this
+				.setStringAttribute('peer.address', chillerAddress)
+				.setNumberAttribute('peer.port', modbusPort)
+				.setStringAttribute('modbus.protocol', 'tcp')
+				.setStringAttribute('modbus.function_code', '0x06')
+				.setNumberAttribute('modbus.register', chillerRunRegister)
+				.setNumberAttribute('modbus.value', chillerRunValue)
+				.build(pChillerSpan);
+			chillerLogger
+				.startLogRecord(E_SeverityNumber.TRACE)
+				.setBody(SEL(cmdStageUp, 'stopping chiller', 'starting chiller'))
+				.setStringAttribute('peer.name', chillerName)
+				.setTraceContextFromSpan(pChillerSpan)
+				.emit();
+		END_IF
+
+		IF chillerWriteTON.Q THEN
+			IF cmdStageUp AND simulateChillerFailure THEN
+				// the chiller rejected the start, so trip the skid: slam the valve shut and stop the pump
+				_computedState := 1;
+				cmdStageUp := FALSE;
+				valvePosition := 0;
+				GVL.status.faulted := TRUE;
+				GVL.status.faultText := 'chiller start failure';
+				modbusTracer.setSpanStatusError(pChillerSpan, 'modbus exception 0x04, server device failure');
+				tracer.setSpanStatusError(pRootSpan, 'chiller start failure');
+				chillerLogger
+					.startLogRecord(E_SeverityNumber.FATAL)
+					.setBody('chiller rejected the start command, tripping the skid')
+					.setStringAttribute('peer.name', chillerName)
+					.setTraceContextFromSpan(pChillerSpan)
+					.emit();
+			ELSE
+				chillerRunning := cmdStageUp;
+				modbusTracer.setSpanStatusOk(pChillerSpan);
+				_computedState := SEL(cmdStageUp, 2, 3);
+			END_IF
+			modbusTracer.endSpan(pChillerSpan);
+		END_IF
+END_CASE
+
+_stateChanged := currentState <> _computedState;
+currentState := _computedState;
+
+// busy until the staging span has ended, so the master's client span always encloses it
+GVL.status.busy := currentState = 1 OR currentState = 2 OR currentState = 4 OR pRootSpan <> 0;
+GVL.status.running := currentState = 3;
+GVL.status.flowRate := flowRate;
+
+pumpRampTON(IN:=currentState=1 AND NOT pumpRampTON.Q);
+valveRampTON(IN:=currentState=2 AND NOT valveRampTON.Q);
+chillerWriteTON(IN:=currentState=4);
+
+// modbus fake logic
+modbusTimer(IN := NOT modbusTimer.Q);
+
+IF modbusTimer.IN AND TO_DINT(modbusTimer.ET) = 0 THEN
+	modbusTracer.discardSpan(pModbusSpan);
+	modbusTracer
+		.startSpan(name:='modbus.poll', kind:=E_SpanKind.SPAN_KIND_CLIENT)
+		.setStringAttribute('peer.name', chillerName)
+		.setStringAttribute('peer.service', chillerName)
+		.setStringAttribute('peer.address', chillerAddress)
+		.setNumberAttribute('peer.port', modbusPort)
+		.setStringAttribute('modbus.protocol', 'tcp')
+		.setStringAttribute('modbus.function_code', '0x04')
+		.setNumberAttribute('modbus.start_register', modbusRegister)
+		.setNumberAttribute('modbus.count', modbusCount)
+		.build(pModbusSpan);
+ELSIF modbusTimer.Q THEN
+	IF simulateModbusFailure THEN
+		simulateModbusFailure := FALSE;
+		modbusTracer.setSpanStatusError(pModbusSpan, 'Error code 0x04');
+		modbusTracer.endSpan(pModbusSpan);
+	ELSE
+		modbusTracer.discardSpan(pModbusSpan);
+	END_IF
+	
+END_IF
+
+firstScan := FALSE;]]></ST>
+    </Implementation>
+    <Method Name="_startStagingSpan" Id="{1badcba4-d137-4ad2-8ca5-5d1ef4d9ebb4}">
+      <Declaration><![CDATA[(*
+	Starts the skid's staging span in pRootSpan, which must be 0. A command from the master
+	carries its client span, so the staging span is the server side of that call and joins the
+	master's trace; the context is then released, because the span keeps its own copy. Without
+	one, as when cmdStageUp is forced online, the span starts its own trace.
+*)
+METHOD _startStagingSpan
+VAR_INPUT
+	name: T_MaxString;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[IF pRemoteContext <> 0 THEN
+	tracer
+		.startSpan(name:=name, kind:=E_SpanKind.SPAN_KIND_SERVER)
+		.setParentUsingContext(pRemoteContext);
+ELSE
+	tracer.startSpan(name:=name);
+END_IF
+
+tracer
+	.setNumberAttribute('flow.target', cmdFlowRate)
+	.build(pRootSpan);
+
+IF pRemoteContext <> 0 THEN pRemoteContext^.delete(pSelf:=pRemoteContext); END_IF]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

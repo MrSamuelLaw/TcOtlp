@@ -3,38 +3,40 @@
   <PropertyGroup>
     <FileVersion>1.0.0.0</FileVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{ca1c6da6-3ea1-4e35-877e-c15ca8dd1e25}</ProjectGuid>
+    <ProjectGuid>{5159ecee-7eff-44f5-8147-71843ba7d6b6}</ProjectGuid>
     <SubObjectsSortedByName>true</SubObjectsSortedByName>
     <DownloadApplicationInfo>true</DownloadApplicationInfo>
     <WriteProductVersion>false</WriteProductVersion>
     <GenerateTpy>false</GenerateTpy>
-    <Name>Pumpskid1</Name>
+    <Name>ps2</Name>
     <ProgramVersion>3.1.4026.27</ProgramVersion>
-    <Application>{e939664b-4561-4d47-a41c-559bdde18f23}</Application>
-    <TypeSystem>{298ba28f-0507-40ad-a543-5d745b50d90f}</TypeSystem>
-    <Implicit_Task_Info>{5732a404-1581-495e-8385-6f62a04267cd}</Implicit_Task_Info>
-    <Implicit_KindOfTask>{095c99c3-6f8a-4afc-a8fe-079f891c1e4a}</Implicit_KindOfTask>
-    <Implicit_Jitter_Distribution>{b779e085-1f17-4324-80cf-f41f6dfa8a29}</Implicit_Jitter_Distribution>
-    <LibraryReferences>{2c0934db-1cf9-4df0-8b8e-98fc68ff402a}</LibraryReferences>
+    <Application>{ee1e34b3-d083-432c-8013-cb4922d23bda}</Application>
+    <TypeSystem>{b067ed5a-5bef-49bc-8510-07840c54e6c3}</TypeSystem>
+    <Implicit_Task_Info>{d040477a-68a5-4c72-a342-22fb923cb0cd}</Implicit_Task_Info>
+    <Implicit_KindOfTask>{d5c9f0db-94c2-49d2-b883-2cfe55bc1389}</Implicit_KindOfTask>
+    <Implicit_Jitter_Distribution>{6e2865a2-9420-40da-9b50-fc740c187e1f}</Implicit_Jitter_Distribution>
+    <LibraryReferences>{d5dd592a-dfda-4490-ba3d-24111a333896}</LibraryReferences>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="DUTs\ST_SkidCommand.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="DUTs\ST_SkidStatus.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="GVL.TcGVL">
       <SubType>Code</SubType>
       <LinkAlways>true</LinkAlways>
     </Compile>
+    <Compile Include="MAIN.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="PlcTask.TcTTO">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\MAIN.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="POUs\Processors\FB_LogRecordProcessor_Signoz.TcPOU">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="POUs" />
-    <Folder Include="POUs\Processors" />
+    <Folder Include="DUTs" />
   </ItemGroup>
   <ItemGroup>
     <PlaceholderReference Include="Tc2_Standard">
@@ -60,20 +62,26 @@
     </PlaceholderReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Pumpskid1.tmc">
+    <None Include="ps2.tmc">
       <SubType>Content</SubType>
     </None>
   </ItemGroup>
   <ProjectExtensions>
     <PlcProjectOptions>
       <XmlArchive>
-        <Data>
-          <o xml:space="preserve" t="OptionKey">
+  <Data>
+    <o xml:space="preserve" t="OptionKey">
       <v n="Name">"&lt;ProjectRoot&gt;"</v>
       <d n="SubKeys" t="Hashtable" ckt="String" cvt="OptionKey">
         <v>{192FAD59-8248-4824-A8DE-9177C94C195A}</v>
         <o>
           <v n="Name">"{192FAD59-8248-4824-A8DE-9177C94C195A}"</v>
+          <d n="SubKeys" t="Hashtable" />
+          <d n="Values" t="Hashtable" />
+        </o>
+        <v>{246001F4-279D-43AC-B241-948EB31120E1}</v>
+        <o>
+          <v n="Name">"{246001F4-279D-43AC-B241-948EB31120E1}"</v>
           <d n="SubKeys" t="Hashtable" />
           <d n="Values" t="Hashtable" />
         </o>
@@ -94,7 +102,10 @@
               <d n="Values" t="Hashtable" />
             </o>
           </d>
-          <d n="Values" t="Hashtable" />
+          <d n="Values" t="Hashtable" ckt="String" cvt="Boolean">
+            <v>PerformStaticAnalyse</v>
+            <v>False</v>
+          </d>
         </o>
         <v>{40450F57-0AA3-4216-96F3-5444ECB29763}</v>
         <o>
@@ -138,14 +149,14 @@
       </d>
       <d n="Values" t="Hashtable" />
     </o>
-        </Data>
-        <TypeList>
-          <Type n="Boolean">System.Boolean</Type>
-          <Type n="Hashtable">System.Collections.Hashtable</Type>
-          <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
-          <Type n="String">System.String</Type>
-        </TypeList>
-      </XmlArchive>
+  </Data>
+  <TypeList>
+    <Type n="Boolean">System.Boolean</Type>
+    <Type n="Hashtable">System.Collections.Hashtable</Type>
+    <Type n="OptionKey">{54dd0eac-a6d8-46f2-8c27-2f43c7e49861}</Type>
+    <Type n="String">System.String</Type>
+  </TypeList>
+</XmlArchive>
     </PlcProjectOptions>
   </ProjectExtensions>
 </Project>

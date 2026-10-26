@@ -1,0 +1,410 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="FB_SkidClient" Id="{d654a3bd-01b0-4447-925a-4b41768acfb2}" SpecialFunc="None">
+    <Declaration><![CDATA[(*
+	The master's side of one pump skid. It polls the skid's GVL.status over ADS and writes stage
+	commands to its GVL.command.
+
+	Each command runs inside a CLIENT span whose context travels with the command in an
+	ST_TraceContextCarrier. The skid extracts it and parents its SERVER staging span on it, so
+	the skid's spans sit inside this one and the service graph shows master -> skid. The client
+	span ends only once the skid reports it has settled, which is after the skid's staging span
+	has ended, so the skid's spans are fully enclosed.
+
+	Call the block every cycle. command starts a command; commandDone and commandOk report how it
+	ended. A skid that cannot be reached fails its command at once, with an error span and log,
+	so the caller can move on to the next skid.
+*)
+FUNCTION_BLOCK FB_SkidClient
+VAR_INPUT
+	netId: T_AmsNetId := '';  // '' is this machine
+END_VAR
+VAR_OUTPUT
+	online: BOOL;  // both handles granted and the last status read succeeded
+	status: ST_SkidStatus;  // the last status read from the skid
+	running: BOOL;  // online and staged up
+	commandBusy: BOOL;  // a command is in flight
+	commandDone: BOOL;  // the last command has ended; stays set until the next command
+	commandOk: BOOL;  // the last command left the skid in the commanded state
+	adsErrorId: UDINT;  // the last ADS error, 0 once a connection succeeds
+END_VAR
+VAR CONSTANT
+	ADSIGRP_SYM_HNDBYNAME: UDINT := 16#F003;  // get a handle for a symbol name
+	ADSIGRP_SYM_VALBYHND: UDINT := 16#F005;  // read or write a symbol through its handle
+	ADSIGRP_SYM_RELEASEHND: UDINT := 16#F006;  // release a handle
+	ADS_TIMEOUT: TIME := T#1S;  // each ADS request gives up after this
+	POLL_PERIOD: TIME := T#200MS;
+	RECONNECT_DELAY: TIME := T#5S;
+	COMMAND_TIMEOUT: TIME := T#3M;  // longer than the slowest simulated stage up
+END_VAR
+VAR
+	_tracer: REFERENCE TO FB_Tracer;
+	_logger: REFERENCE TO FB_Logger;
+	_name: STRING;  // the skid's service.name, used as peer.service
+	_port: UINT;  // the skid PLC's ADS port
+
+	_commandSymbol: STRING := 'GVL.command';
+	_statusSymbol: STRING := 'GVL.status';
+	_command: ST_SkidCommand;  // stays put while a write is in flight
+	_received: ST_SkidStatus;  // reads land here, so status only changes on a good read
+	_commandHandle: UDINT;
+	_statusHandle: UDINT;
+	_hasCommandHandle: BOOL;
+	_hasStatusHandle: BOOL;
+
+	_getHandle: ADSRDWRT;
+	_read: ADSREAD;
+	_write: ADSWRITE;
+	_releaseHandle: ADSWRITE;
+	_state: USINT;
+	_pollTimer: TON;
+	_reconnectTimer: TON;
+	_commandTimer: TON;
+
+	_sendPending: BOOL;  // command was called and the write has not been issued yet
+	_awaitingSkid: BOOL;  // the write landed; waiting for the skid to settle
+	_pSpan: POINTER TO FB_Span;  // the CLIENT span of the command in flight; owned here until it ends
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[_pollTimer(IN:=NOT _pollTimer.Q, PT:=POLL_PERIOD);
+_reconnectTimer(IN:=_state = 90, PT:=RECONNECT_DELAY);
+_commandTimer(IN:=_awaitingSkid, PT:=COMMAND_TIMEOUT);
+
+IF _commandTimer.Q THEN
+	THIS^._finishCommand(ok:=FALSE, message:=CONCAT(_name, ' did not settle before the command timed out'));
+END_IF
+
+CASE _state OF
+	0: // ask the skid for a handle to its command symbol
+		_getHandle(
+			NETID:=netId,
+			PORT:=_port,
+			IDXGRP:=ADSIGRP_SYM_HNDBYNAME,
+			IDXOFFS:=0,
+			WRITELEN:=TO_UDINT(LEN(_commandSymbol)),
+			READLEN:=SIZEOF(_commandHandle),
+			SRCADDR:=ADR(_commandSymbol),
+			DESTADDR:=ADR(_commandHandle),
+			WRTRD:=TRUE,
+			TMOUT:=ADS_TIMEOUT);
+		_state := 10;
+
+	10: // wait for the command handle, then ask for the status handle
+		_getHandle(WRTRD:=FALSE);
+		IF NOT _getHandle.BUSY THEN
+			IF _getHandle.ERR THEN
+				THIS^._goOffline(errorId:=_getHandle.ERRID);
+			ELSE
+				_hasCommandHandle := TRUE;
+				_getHandle(
+					NETID:=netId,
+					PORT:=_port,
+					IDXGRP:=ADSIGRP_SYM_HNDBYNAME,
+					IDXOFFS:=0,
+					WRITELEN:=TO_UDINT(LEN(_statusSymbol)),
+					READLEN:=SIZEOF(_statusHandle),
+					SRCADDR:=ADR(_statusSymbol),
+					DESTADDR:=ADR(_statusHandle),
+					WRTRD:=TRUE,
+					TMOUT:=ADS_TIMEOUT);
+				_state := 20;
+			END_IF
+		END_IF
+
+	20: // wait for the status handle, then read the status once before going online
+		_getHandle(WRTRD:=FALSE);
+		IF NOT _getHandle.BUSY THEN
+			IF _getHandle.ERR THEN
+				THIS^._goOffline(errorId:=_getHandle.ERRID);
+			ELSE
+				_hasStatusHandle := TRUE;
+				THIS^._readStatus();
+				_state := 30;
+			END_IF
+		END_IF
+
+	30: // the first read: continue from the skid's sequence, so a restarted master never repeats an old one
+		_read(READ:=FALSE);
+		IF NOT _read.BUSY THEN
+			IF _read.ERR THEN
+				THIS^._goOffline(errorId:=_read.ERRID);
+			ELSE
+				status := _received;
+				_command.sequence := status.sequence;
+				adsErrorId := 0;
+				online := TRUE;
+				_state := 40;
+			END_IF
+		END_IF
+
+	40: // online and idle: a pending command goes out before the next poll
+		IF _sendPending THEN
+			_sendPending := FALSE;
+			// the command and its carrier in one write, so the skid never sees one without the other
+			_write(
+				NETID:=netId,
+				PORT:=_port,
+				IDXGRP:=ADSIGRP_SYM_VALBYHND,
+				IDXOFFS:=_commandHandle,
+				LEN:=SIZEOF(_command),
+				SRCADDR:=ADR(_command),
+				WRITE:=TRUE,
+				TMOUT:=ADS_TIMEOUT);
+			_state := 50;
+		ELSIF _pollTimer.Q THEN
+			THIS^._readStatus();
+			_state := 60;
+		END_IF
+
+	50: // wait for the command to land
+		_write(WRITE:=FALSE);
+		IF NOT _write.BUSY THEN
+			IF _write.ERR THEN
+				THIS^._goOffline(errorId:=_write.ERRID);
+			ELSE
+				_awaitingSkid := TRUE;
+				_state := 40;
+			END_IF
+		END_IF
+
+	60: // wait for the status; a command has settled once the skid has accepted it and is no longer busy
+		_read(READ:=FALSE);
+		IF NOT _read.BUSY THEN
+			IF _read.ERR THEN
+				THIS^._goOffline(errorId:=_read.ERRID);
+			ELSE
+				status := _received;
+				IF _awaitingSkid AND status.sequence = _command.sequence AND NOT status.busy THEN
+					IF status.running = _command.stageUp THEN
+						THIS^._finishCommand(ok:=TRUE, message:=CONCAT(_name, SEL(_command.stageUp, ' staged down', ' staged up')));
+					ELSIF status.faulted THEN
+						THIS^._finishCommand(
+							ok:=FALSE,
+							message:=CONCAT(CONCAT(_name, SEL(_command.stageUp, ' failed to stage down: ', ' failed to stage up: ')), status.faultText));
+					ELSE
+						THIS^._finishCommand(ok:=FALSE, message:=CONCAT(_name, ' settled without reaching the commanded state'));
+					END_IF
+				END_IF
+				_state := 40;
+			END_IF
+		END_IF
+
+	70: // release the command handle, if one was granted
+		IF _hasCommandHandle THEN
+			_releaseHandle(
+				NETID:=netId,
+				PORT:=_port,
+				IDXGRP:=ADSIGRP_SYM_RELEASEHND,
+				IDXOFFS:=0,
+				LEN:=SIZEOF(_commandHandle),
+				SRCADDR:=ADR(_commandHandle),
+				WRITE:=TRUE,
+				TMOUT:=ADS_TIMEOUT);
+			_state := 75;
+		ELSE
+			_state := 80;
+		END_IF
+
+	75: // a failed release only leaves a handle on a skid that has gone away
+		_releaseHandle(WRITE:=FALSE);
+		IF NOT _releaseHandle.BUSY THEN
+			_hasCommandHandle := FALSE;
+			_state := 80;
+		END_IF
+
+	80: // release the status handle, if one was granted
+		IF _hasStatusHandle THEN
+			_releaseHandle(
+				NETID:=netId,
+				PORT:=_port,
+				IDXGRP:=ADSIGRP_SYM_RELEASEHND,
+				IDXOFFS:=0,
+				LEN:=SIZEOF(_statusHandle),
+				SRCADDR:=ADR(_statusHandle),
+				WRITE:=TRUE,
+				TMOUT:=ADS_TIMEOUT);
+			_state := 85;
+		ELSE
+			_state := 90;
+		END_IF
+
+	85:
+		_releaseHandle(WRITE:=FALSE);
+		IF NOT _releaseHandle.BUSY THEN
+			_hasStatusHandle := FALSE;
+			_state := 90;
+		END_IF
+
+	90: // offline: wait, then connect again
+		IF _reconnectTimer.Q THEN
+			_state := 0;
+		END_IF
+END_CASE
+
+running := online AND status.running;]]></ST>
+    </Implementation>
+    <Method Name="command" Id="{0ee4a8b3-baa3-44a2-b4b2-c269de97414d}">
+      <Declaration><![CDATA[(*
+	Starts a stage command inside a new CLIENT span, a child of pParentSpan when one is given.
+	The span's context is injected into the command's carrier for the skid to extract. Returns
+	FALSE, and changes nothing, while a command is already in flight. A skid that is not online
+	fails the command at once, so commandDone is already set when this returns.
+*)
+METHOD command : BOOL
+VAR_INPUT
+	stageUp: BOOL;  // TRUE to stage up, FALSE to stage down
+	flowRate: REAL;  // GPM
+	pParentSpan: POINTER TO FB_Span;  // borrowed for the call: the client span becomes its child
+END_VAR
+VAR
+	_pContext: POINTER TO FB_SpanContext;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[command := FALSE;
+
+IF commandBusy THEN
+	RETURN;
+END_IF
+
+commandBusy := TRUE;
+commandDone := FALSE;
+commandOk := FALSE;
+
+_tracer
+	.startSpan(name:=SEL(stageUp, 'skid.command.stage_down', 'skid.command.stage_up'), kind:=E_SpanKind.SPAN_KIND_CLIENT)
+	.setStringAttribute('peer.service', _name)
+	.setStringAttribute('rpc.system', 'ads')
+	.setNumberAttribute('server.port', _port)
+	.setNumberAttribute('flow.target', flowRate);
+IF pParentSpan <> 0 THEN
+	_tracer.setParentUsingSpan(pParentSpan);
+END_IF
+_tracer.build(pDest:=_pSpan);
+
+// without a span the carrier goes out empty, and the skid starts its own trace
+MEMSET(ADR(_command.carrier), 0, SIZEOF(_command.carrier));
+IF _tracer.getSpanContext(pDest:=_pContext, pSpan:=_pSpan) THEN
+	TraceContextPropagator.inject(pContext:=_pContext, carrier:=_command.carrier);
+	_pContext^.delete(pSelf:=_pContext);
+END_IF
+
+_command.sequence := _command.sequence + 1;
+_command.stageUp := stageUp;
+_command.flowRate := flowRate;
+
+IF online THEN
+	_sendPending := TRUE;
+ELSIF adsErrorId <> 0 THEN
+	THIS^._finishCommand(ok:=FALSE, message:=CONCAT(CONCAT(_name, ' is unreachable, ADS error '), UDINT_TO_STRING(adsErrorId)));
+ELSE
+	THIS^._finishCommand(ok:=FALSE, message:=CONCAT(_name, ' is not connected yet'));
+END_IF
+
+command := TRUE;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Exit" Id="{b2702ada-f521-4fbd-9f3d-7b8eea969f87}">
+      <Declaration><![CDATA[METHOD FB_Exit : BOOL
+VAR_INPUT
+	bInCopyCode: BOOL;  // TRUE: the exit method is called in order to leave the instance which will be copied afterwards (online change).
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[// during an online change the copied instance keeps the span
+IF NOT bInCopyCode THEN
+	_tracer.discardSpan(pSpan:=_pSpan);
+END_IF]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="FB_Init" Id="{385c659d-b66d-4824-af61-22bacab860e5}">
+      <Declaration><![CDATA[METHOD FB_Init : BOOL
+VAR_INPUT
+	bInitRetains: BOOL;  // TRUE: the retain variables are initialized (reset warm / reset cold)
+	bInCopyCode: BOOL;  // TRUE: the instance will be copied to the copy code afterward (online change)
+	tracer: REFERENCE TO FB_Tracer;  // starts and ends the command spans
+	logger: REFERENCE TO FB_Logger;  // logs how each command ended
+	name: STRING;  // the skid's service.name, used as peer.service
+	port: UINT;  // the skid PLC's ADS port
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[THIS^._tracer REF= tracer;
+THIS^._logger REF= logger;
+THIS^._name := name;
+THIS^._port := port;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_finishCommand" Id="{8a690364-5471-4013-b89c-ebc447e81ca0}">
+      <Declaration><![CDATA[(* Ends the command in flight: sets its span's status, logs the outcome in the span, and ends the span. *)
+METHOD _finishCommand
+VAR_INPUT
+	ok: BOOL;
+	message: T_MaxString;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[commandBusy := FALSE;
+commandDone := TRUE;
+commandOk := ok;
+_sendPending := FALSE;
+_awaitingSkid := FALSE;
+
+IF ok THEN
+	_tracer.setSpanStatusOk(pSpan:=_pSpan);
+	_logger
+		.startLogRecord(E_SeverityNumber.INFO)
+		.setBody(message)
+		.setStringAttribute('peer.service', _name)
+		.setTraceContextFromSpan(_pSpan)
+		.emit();
+ELSE
+	_tracer.setSpanStatusError(pSpan:=_pSpan, message:=message);
+	_logger
+		.startLogRecord(E_SeverityNumber.ERROR)
+		.setBody(message)
+		.setStringAttribute('peer.service', _name)
+		.setTraceContextFromSpan(_pSpan)
+		.emit();
+END_IF
+
+_tracer.endSpan(pSpan:=_pSpan);]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_goOffline" Id="{a910404e-e2fc-4949-ae46-ec8c5030eed9}">
+      <Declaration><![CDATA[(* Drops the connection after an ADS error: fails any command in flight, then releases the handles and waits to reconnect. *)
+METHOD _goOffline
+VAR_INPUT
+	errorId: UDINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[online := FALSE;
+adsErrorId := errorId;
+
+IF commandBusy THEN
+	THIS^._finishCommand(ok:=FALSE, message:=CONCAT(CONCAT(_name, ' is unreachable, ADS error '), UDINT_TO_STRING(errorId)));
+END_IF
+
+_state := 70;]]></ST>
+      </Implementation>
+    </Method>
+    <Method Name="_readStatus" Id="{5040daa5-f17b-451b-a58d-b933d3858dd4}">
+      <Declaration><![CDATA[(* Starts a read of the skid's status into _received. *)
+METHOD _readStatus
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[_read(
+	NETID:=netId,
+	PORT:=_port,
+	IDXGRP:=ADSIGRP_SYM_VALBYHND,
+	IDXOFFS:=_statusHandle,
+	LEN:=SIZEOF(_received),
+	DESTADDR:=ADR(_received),
+	READ:=TRUE,
+	TMOUT:=ADS_TIMEOUT);]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

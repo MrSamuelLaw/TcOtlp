@@ -1,0 +1,174 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <POU Name="MAIN" Id="{f531e982-a20c-4760-910c-0f69803ce7f9}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM MAIN
+VAR
+	// logging config, note that loggers are oriented on a per entity (device) basis.
+	staging: FB_InstrumentationScope(name:='staging', version:='0.0.0a', schemaUrl:='');
+	masterLogger: FB_Logger(provider:=GVL.loggerProvider, scope:=staging);
+	logExporter: FB_LogRecordExporter_HTTP('http://192.168.97.55:4318/v1/logs', TRUE);
+	logBatchProcessor: FB_LogRecordProcessor_Batch(maxQueueSize:=500, scheduledDelayMillis:=1500,
+												maxExportBatchSize:=500, exporter:=logExporter);
+
+	// tracing config, note that tracers are oriented per service basis.
+	tracer: FB_Tracer(scope:=staging, provider:=GVL.tracerProvider);
+	spanExporter: FB_SpanExporter_HTTP('http://192.168.97.55:4318/v1/traces', TRUE);
+	spanBatchProcessor: FB_SpanProcessor_Batch(maxQueueSize:=500, scheduledDelayMillis:=1500,
+										   maxExportBatchSize:=500, exporter:=spanExporter);
+
+	// the pump skids, each with one chiller; the name is the skid's service.name and the port its PLC's ADS port
+	skid1: FB_SkidClient(tracer:=tracer, logger:=masterLogger, name:='pumpskid1', port:=852);
+	skid2: FB_SkidClient(tracer:=tracer, logger:=masterLogger, name:='pumpskid2', port:=853);
+	skid3: FB_SkidClient(tracer:=tracer, logger:=masterLogger, name:='pumpskid3', port:=854);
+
+	// initialization setup
+	firstScan: BOOL := TRUE;
+	startupTimer: TON := (PT:=T#3S);  // lets the skid clients connect before the first staging decision
+
+	// lead/lag/standby configuration
+	{attribute 'OPC.UA.DA' := '1'}
+	priority: ARRAY [0..2] OF USINT := [1, 2, 3];  // skid numbers, lead first
+	{attribute 'OPC.UA.DA' := '1'}
+	reqCount: USINT := 0;  // chillers required (in a real situation this would likely come from SCADA)
+	{attribute 'OPC.UA.DA' := '1'}
+	skidFlowRate: REAL := 700;  // GPM commanded to each skid that stages up
+
+	// staging
+	{attribute 'OPC.UA.DA' := '1'}
+	runningCount: USINT;
+	stagingState: USINT;
+	stagingUp: BOOL;  // the direction of the sequence in progress
+	attempted: ARRAY [1..3] OF BOOL;  // skids already commanded in this sequence, by skid number
+	activeSkid: USINT;  // the skid whose command is in flight, 0 when none
+	pStagingSpan: POINTER TO FB_Span;  // encloses every skid command of one sequence
+	sequenceFailed: BOOL;  // the last sequence ran out of skids before reaching reqCount
+	failedReqCount: USINT;  // the reqCount it failed on; a new reqCount retries at once
+	retryTimer: TON := (PT:=T#30S);  // otherwise a failed sequence is retried after this
+	skid: REFERENCE TO FB_SkidClient;
+	candidate: USINT;
+	skidNumber: USINT;
+	i: USINT;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[IF firstScan THEN
+	GVL.resource.attributes
+		.setStringAttribute('service.name', 'master_controller');
+END_IF
+
+// run the logger every tick
+GVL.loggerProvider
+	.stageProcessor(logBatchProcessor)
+	.tick();
+
+// run the tracer every tick
+GVL.tracerProvider
+	.stageProcessor(spanBatchProcessor)
+	.tick();
+
+// talk to the skids every tick
+skid1();
+skid2();
+skid3();
+
+runningCount := BOOL_TO_USINT(skid1.running) + BOOL_TO_USINT(skid2.running) + BOOL_TO_USINT(skid3.running);
+
+startupTimer(IN:=TRUE);
+retryTimer(IN:=stagingState = 0 AND sequenceFailed);
+
+// perform the stage up or down to the desired number of chillers
+CASE stagingState OF
+	0: // settled: start a sequence when the running count differs from the required count
+		IF startupTimer.Q AND runningCount <> reqCount
+			AND (NOT sequenceFailed OR retryTimer.Q OR reqCount <> failedReqCount)
+		THEN
+			sequenceFailed := FALSE;
+			stagingUp := reqCount > runningCount;
+			MEMSET(ADR(attempted), 0, SIZEOF(attempted));
+			tracer
+				.startSpan(SEL(stagingUp, 'master.staging.stage_down', 'master.staging.stage_up'))
+				.setNumberAttribute('chillers.required', reqCount)
+				.setNumberAttribute('chillers.running', runningCount)
+				.build(pStagingSpan);
+			masterLogger
+				.startLogRecord(E_SeverityNumber.INFO)
+				.setBody(SEL(stagingUp, 'staging chillers down', 'staging chillers up'))
+				.setNumberAttribute('chillers.required', reqCount)
+				.setNumberAttribute('chillers.running', runningCount)
+				.setTraceContextFromSpan(pStagingSpan)
+				.emit();
+			stagingState := 10;
+		END_IF
+
+	10: // command the next skid, or finish once enough are running
+		IF runningCount = reqCount OR stagingUp <> (reqCount > runningCount) THEN
+			// reached; or reqCount moved past the running count, and a new sequence starts from state 0
+			tracer.setSpanStatusOk(pStagingSpan);
+			tracer.endSpan(pStagingSpan);
+			stagingState := 0;
+		ELSE
+			// stage up in priority order and down in reverse, so the lead skid runs longest
+			candidate := 0;
+			FOR i := 0 TO 2 DO
+				skidNumber := priority[SEL(stagingUp, 2 - i, i)];
+				skid REF= _skid(skidNumber);
+				IF candidate = 0 AND __ISVALIDREF(skid) AND_THEN NOT attempted[skidNumber] AND skid.running <> stagingUp THEN
+					candidate := skidNumber;
+				END_IF
+			END_FOR
+
+			IF candidate = 0 THEN
+				// every skid has been tried
+				tracer.setSpanStatusError(pStagingSpan, SEL(stagingUp,
+					'no running skid could be stopped',
+					'not enough skids could be started'));
+				masterLogger
+					.startLogRecord(E_SeverityNumber.ERROR)
+					.setBody(SEL(stagingUp,
+						'staging down failed, no running skid could be stopped',
+						'staging up failed, not enough skids could be started'))
+					.setNumberAttribute('chillers.required', reqCount)
+					.setNumberAttribute('chillers.running', runningCount)
+					.setTraceContextFromSpan(pStagingSpan)
+					.emit();
+				tracer.endSpan(pStagingSpan);
+				sequenceFailed := TRUE;
+				failedReqCount := reqCount;
+				stagingState := 0;
+			ELSE
+				attempted[candidate] := TRUE;
+				skid REF= _skid(candidate);
+				IF skid.command(stageUp:=stagingUp, flowRate:=skidFlowRate, pParentSpan:=pStagingSpan) THEN
+					activeSkid := candidate;
+					stagingState := 20;
+				END_IF
+			END_IF
+		END_IF
+
+	20: // wait for the skid to settle; after a failure, state 10 moves on to the next skid
+		skid REF= _skid(activeSkid);
+		IF NOT __ISVALIDREF(skid) OR_ELSE skid.commandDone THEN
+			activeSkid := 0;
+			stagingState := 10;
+		END_IF
+END_CASE
+
+firstScan := FALSE;]]></ST>
+    </Implementation>
+    <Method Name="_skid" Id="{a4823976-2ce2-4fc3-adbb-2492769ae924}">
+      <Declaration><![CDATA[(* The skid client with the given number, or an invalid reference for any other number. *)
+METHOD _skid : REFERENCE TO FB_SkidClient
+VAR_INPUT
+	number: USINT;
+END_VAR
+]]></Declaration>
+      <Implementation>
+        <ST><![CDATA[CASE number OF
+	1: _skid REF= skid1;
+	2: _skid REF= skid2;
+	3: _skid REF= skid3;
+END_CASE]]></ST>
+      </Implementation>
+    </Method>
+  </POU>
+</TcPlcObject>

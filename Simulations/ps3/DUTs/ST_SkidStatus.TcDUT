@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <DUT Name="ST_SkidStatus" Id="{4ef4f635-da65-4a40-9233-09d5f37c0e02}">
+    <Declaration><![CDATA[(*
+	A pump skid's status, read by the master from the skid's GVL.status over ADS. A command has
+	settled when sequence matches the command's and busy is clear.
+	Keep this identical to ST_SkidStatus in the master project: ADS copies it byte for byte.
+*)
+TYPE ST_SkidStatus :
+STRUCT
+	sequence: UDINT;  // the last command the skid accepted
+	busy: BOOL;  // staging up or down, until the skid's staging span has ended
+	running: BOOL;  // staged up
+	faulted: BOOL;  // the last command ended in a fault
+	faultText: STRING(80);  // why, when faulted
+	flowRate: REAL;  // GPM
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

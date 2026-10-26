@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1">
+  <GVL Name="GVL" Id="{befc54a0-3a24-4d00-af74-300036dbe0d5}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL
+	// global logger provider
+	resource: FB_Resource(schemaUrl:='');
+	loggerProvider: FB_LoggerProvider(resource:=resource);
+	
+	// global tracer provider
+	sampler: FB_Sampler_AlwaysOn();
+	idGenerator: FB_IdGenerator(nTraceIds:=5, nSpanIds:=5);
+	tracerProvider: FB_TracerProvider(resource:=resource, idGenerator:=idGenerator, sampler:=sampler);
+
+	// the master's interface over ADS: it writes command and reads status
+	command: ST_SkidCommand;
+	status: ST_SkidStatus;
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>
